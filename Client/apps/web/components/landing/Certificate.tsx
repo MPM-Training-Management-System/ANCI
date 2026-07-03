@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { CheckCircle } from "lucide-react";
 import { Button } from "@repo/ui/button";
-
+import  certificate  from "@/assets/image/Certificate.png"
 export default function Certification() {
   return (
     <section className="py-24 bg-slate-100 overflow-hidden">
@@ -11,7 +11,7 @@ export default function Certification() {
           <div className="bg-white p-8 shadow-2xl rounded-lg max-w-md mx-auto rotate-[-3deg]">
 
             <Image
-              src="/certificate.png"
+              src={certificate}
               alt="Certificate"
               width={700}
               height={500}

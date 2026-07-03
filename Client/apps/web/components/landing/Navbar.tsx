@@ -23,7 +23,7 @@ export default function Navbar() {
 
         <div className="flex gap-4">
           <Button variant="secondary" onClick={() => router.push("/login")}>
-            Logins
+            Login
           </Button>
 
           <Button variant="primary" onClick={() => router.push("/contact")}>
