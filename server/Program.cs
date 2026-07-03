@@ -13,7 +13,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "https://anci-tms.vercel.app/")
+        policy.WithOrigins("http://localhost:3000", "https://anci-tms.vercel.app/", "https://anci-1nyrkka28-ralph-joeds-projects.vercel.app")
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
