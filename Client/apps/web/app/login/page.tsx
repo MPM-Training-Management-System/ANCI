@@ -18,7 +18,7 @@ export default function LoginPage() {
   try {
     const response = await fetch(
 
-      "http://localhost:5296/api/auth/login",
+      "https://anci-1.onrender.com/api/Auth/login",
       {
         method: "POST",
         headers: {
