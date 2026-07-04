@@ -1,5 +1,5 @@
 import Image from "next/image";
-import Logo from "@/assets/image/LOGO.jpg";
+import Logo from "@/assets/image/ancilogo.jpg";
 
 export default function AuthLayout({
   children,
@@ -55,6 +55,17 @@ export default function AuthLayout({
           {children}
         </div>
       </div>
+      <footer className="absolute bottom-6 left-0 right-0 z-10 hidden lg:block">
+<div className="container mx-auto px-12 flex justify-between items-center text-[10px] font-bold tracking-widest text-white/40 uppercase">
+<div className="flex gap-6">
+<a className="hover:text-mint-green transition-colors" href="#">Privacy Protocol</a>
+<a className="hover:text-mint-green transition-colors" href="#">Terms of Governance</a>
+<a className="hover:text-mint-green transition-colors" href="#">Support Link</a>
+</div>
+<p>© 2024 ACE NextGen. v4.2.0-Production</p>
+</div>
+
+</footer>
     </main>
   );
 }

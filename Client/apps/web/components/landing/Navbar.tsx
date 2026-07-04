@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import {Button} from "@repo/ui/button";
 import Image from "next/image";
-import Logo from "@/assets/image/LOGO.jpg";
+import Logo from "@/assets/image/ancilogo.jpg";
 export default function Navbar() {
   const router = useRouter();
 
