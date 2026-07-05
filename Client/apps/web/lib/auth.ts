@@ -1,23 +1,41 @@
 export const auth = {
   saveToken(token: string) {
-    localStorage.setItem("token", token);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("token", token);
+    }
   },
 
   getToken() {
-    return localStorage.getItem("token");
-  },
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return localStorage.getItem("token");
+},
 
   saveUser(user: unknown) {
-    localStorage.setItem("user", JSON.stringify(user));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("user", JSON.stringify(user));
+    }
   },
 
   getUser() {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
     const user = localStorage.getItem("user");
     return user ? JSON.parse(user) : null;
   },
 
   logout() {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+    }
   },
+
+  isAuthenticated() {
+    return !!this.getToken();
+  }
 };
