@@ -16,7 +16,7 @@ export const buttonStyles = {
       "bg-transparent text-on-surface hover:bg-surface-container",
 
     outline:
-      "border border-outline bg-transparent text-on-surface hover:bg-surface-container",
+      "border border-outline text-white bg-transparent text-on-surface hover:bg-surface-container",
   },
 
   sizes: {

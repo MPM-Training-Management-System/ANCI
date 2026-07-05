@@ -5,6 +5,9 @@ import { Button } from "@repo/ui/button";
 import { Input } from "@repo/ui/input";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { authApi } from "@/lib/api";
+import {  auth } from "@/lib/auth";
+
 
 
 export default function LoginPage() {
@@ -14,42 +17,25 @@ export default function LoginPage() {
   
   
   
-     const [username, setUsername] = useState("");
+     const [email, setUsername] = useState("");
     const [password, setPassword] = useState("");
   
-    const handleLogin = async () => {
-    try {
-      const response = await fetch(
-  
-        "https://anci-1.onrender.com/api/Auth/login",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            username,
-            password,
-          }),
-        }
-      );
-  
-      const data = await response.json();
-  
-      if (!response.ok) {
-        alert(data.message || "Login failed");
-        return;
-      }
-  
-      localStorage.setItem("token", data.token);
-  
-      router.push("/dashboard");
-  
-    } catch (error) {
-      console.error(error);
-      alert("Something went wrong");
-    }
-  };
+   const handleLogin = async () => {
+  try {
+    const data = await authApi.login({
+      email,
+      password,
+    });
+    localStorage.setItem("user", JSON.stringify(data.user));
+    auth.saveToken(data.token);
+    router.push("/dashboard");
+  } catch (error) {
+    console.error(error);
+    alert("Login failed");
+  }
+
+}
+    
   return (
       <div className="flex justify-center">
                <div className="w-full max-w-md bg-white rounded-2xl p-10 shadow-2xl">
@@ -83,7 +69,7 @@ export default function LoginPage() {
                      <Input
                        type="string"
                         onChange={(e) => setUsername(e.target.value)}
-                        value={username}
+                        value={email}
                        placeholder="admin@acenextgen.com"
                        className="w-full px-4 py-3 bg-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-teal-400"
                      />

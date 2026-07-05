@@ -1,6 +1,7 @@
-
 "use client"
+
 import Image from "next/image";
+import Logo from "@/assets/image/ancilogo.jpg";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@repo/ui/button";
@@ -12,6 +13,8 @@ import {  LayoutDashboard,
   FileBarChart,
  }  from "lucide-react";
 import {  sidebarStyles } from "@repo/token";
+import { auth } from "@/lib/auth";
+import { useRouter } from "next/navigation";
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: <LayoutDashboard size={20} /> },
@@ -22,19 +25,28 @@ const navItems = [
   { name: "Reports", href: "/admin/reports", icon: <FileBarChart size={20} /> },
 ];
 
-export default function Sidebar() {
-  const pathname = usePathname();
 
+
+
+
+export default function Sidebar() {
+  const router = useRouter();
+  const pathname = usePathname();
+const handleLogout = () => {
+  auth.logout();
+  router.push("/");
+}
   return (
     <aside className={sidebarStyles.container}>
       
       <div className={sidebarStyles.header}>
         <Image
-        src="/logo.svg"
-        alt="ACE NextGen"
-        width={40}
-        height={40}
-      />
+          src={Logo}
+          alt="ACE NextGen"
+          width={40}
+          height={40}
+          className="rounded m-2"
+        />
         <h1 className={sidebarStyles.title}>ACE NextGen</h1>
       </div>
 
@@ -61,7 +73,7 @@ export default function Sidebar() {
 
       {/* Bottom - Logout */}
       <div className="px-4 py-4 border-t ">
-        <Button variant="primary" className="w-full flex items-center justify-center gap-2">
+        <Button  variant="primary" className="w-full flex items-center justify-center gap-2" onClick={handleLogout}>
           <span>Logout</span>
         </Button>
       </div>
