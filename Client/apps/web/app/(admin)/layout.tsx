@@ -1,12 +1,13 @@
 import Sidebar from "@/components/admin/Sidebar";
 import Navbar from "@/components/admin/Navbar";
-
+import ProtectedRoute from "@/components/admin/ProtectedRoute";
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
+    <ProtectedRoute>
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
       <div className="flex flex-col flex-1 overflow-hidden">
@@ -16,5 +17,6 @@ export default function AdminLayout({
         </main>
       </div>
     </div>
+    </ProtectedRoute>
   );
 }
