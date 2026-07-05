@@ -8,6 +8,10 @@ out/
 build/
 dist/
 
+
+# Logs
+*.log
+
 # env
 .env
 .env.local
@@ -49,3 +53,13 @@ Thumbs.db
 # misc
 *.pem
 .eslintcache
+
+# Environment
+.env
+.env.*
+!.env.example
+
+
+# OS
+.DS_Store
+Thumbs.db
