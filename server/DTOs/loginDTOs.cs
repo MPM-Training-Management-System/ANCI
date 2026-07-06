@@ -1,7 +1,7 @@
 
 namespace server.DTOs
 {
-    public class UserDTO
+    public class LoginDTO
     {
         public string Email { get; set; }
         
