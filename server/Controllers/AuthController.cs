@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using server.Data;
 using server.DTOs;
 using server.Models;
 using server.Services;
+
 namespace server.Controllers;
 
 [ApiController]
@@ -9,52 +12,69 @@ namespace server.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly JwtService _jwtService;
+    private readonly AppDbContext _context;
 
-    public AuthController(JwtService jwtService)
+    public AuthController(JwtService jwtService, AppDbContext context)
     {
         _jwtService = jwtService;
+        _context = context;
     }
 
     [HttpPost("login")]
-    public IActionResult Login([FromBody] UserDTO request)
+    public async Task<IActionResult> Login([FromBody] LoginDTO request)
     {
-        Console.WriteLine("🔥 CONTROLLER HIT");
-        Console.WriteLine($"Username: {request.Email}");
-        Console.WriteLine($"Password: {request.Password}");
+        Console.WriteLine("🔥 LOGIN REQUEST");
 
-        string mockUsername = "admin@gmail.com";
-        string mockPassword = "12345";
-        
-        Console.WriteLine("🔍 Checking credentials...");
-
-        if (
-            request.Email != mockUsername ||
-            request.Password != mockPassword
-        )
+        if (string.IsNullOrWhiteSpace(request.Email) ||
+            string.IsNullOrWhiteSpace(request.Password))
         {
-            Console.WriteLine(" LOGIN FAILED");
-
-            return Unauthorized(new
+            return BadRequest(new
             {
-                message = "Invalid username or password"
+                message = "Email and Password are required."
             });
         }
 
-        Console.WriteLine("LOGIN SUCCESS");
+        var user = await _context.Users
+            .FirstOrDefaultAsync(x => x.Email == request.Email);
 
-        var user = new UserModel
+        if (user == null)
         {
-            Id = 1,
-            Username = "admin",
-            FullName = "System Admin",
-            Role = "Admin"
-        };
-          var token = _jwtService.GenerateToken(user);  
+            Console.WriteLine("❌ User not found.");
+
+            return Unauthorized(new
+            {
+                message = "Invalid email or password."
+            });
+        }
+
+        // TEMPORARY ONLY
+        // Palitan ito ng BCrypt.Verify kapag may password hashing na.
+        if (user.Password != request.Password)
+        {
+            Console.WriteLine("❌ Wrong password.");
+
+            return Unauthorized(new
+            {
+                message = "Invalid email or password."
+            });
+        }
+
+        var token = _jwtService.GenerateToken(user);
+
+        Console.WriteLine("✅ LOGIN SUCCESS");
+
         return Ok(new
         {
-            message = "Login Successful",
-            user,
-            token
+            message = "Login successful.",
+            token,
+            user = new
+            {
+                user.Id,
+                user.Username,
+                user.FullName,
+                user.Email,
+                user.Role
+            }
         });
     }
 }
