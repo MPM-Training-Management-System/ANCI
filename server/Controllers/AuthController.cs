@@ -1,10 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using server.Data;
 using server.DTOs;
 using server.Models;
 using server.Services;
-
 namespace server.Controllers;
 
 [ApiController]
@@ -12,69 +9,52 @@ namespace server.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly JwtService _jwtService;
-    private readonly AppDbContext _context;
 
-    public AuthController(JwtService jwtService, AppDbContext context)
+    public AuthController(JwtService jwtService)
     {
         _jwtService = jwtService;
-        _context = context;
     }
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginDTO request)
+    public IActionResult Login([FromBody] UserDTO request)
     {
-        Console.WriteLine("🔥 LOGIN REQUEST");
+        Console.WriteLine("🔥 CONTROLLER HIT");
+        Console.WriteLine($"Username: {request.Email}");
+        Console.WriteLine($"Password: {request.Password}");
 
-        if (string.IsNullOrWhiteSpace(request.Email) ||
-            string.IsNullOrWhiteSpace(request.Password))
+        string mockUsername = "admin@gmail.com";
+        string mockPassword = "12345";
+        
+        Console.WriteLine("🔍 Checking credentials...");
+
+        if (
+            request.Email != mockUsername ||
+            request.Password != mockPassword
+        )
         {
-            return BadRequest(new
-            {
-                message = "Email and Password are required."
-            });
-        }
-
-        var user = await _context.Users
-            .FirstOrDefaultAsync(x => x.Email == request.Email);
-
-        if (user == null)
-        {
-            Console.WriteLine("❌ User not found.");
+            Console.WriteLine(" LOGIN FAILED");
 
             return Unauthorized(new
             {
-                message = "Invalid email or password."
+                message = "Invalid username or password"
             });
         }
 
-        // TEMPORARY ONLY
-        // Palitan ito ng BCrypt.Verify kapag may password hashing na.
-        if (user.Password != request.Password)
+        Console.WriteLine("LOGIN SUCCESS");
+
+        var user = new UserModel
         {
-            Console.WriteLine("❌ Wrong password.");
-
-            return Unauthorized(new
-            {
-                message = "Invalid email or password."
-            });
-        }
-
-        var token = _jwtService.GenerateToken(user);
-
-        Console.WriteLine("✅ LOGIN SUCCESS");
-
+            Id = 1,
+            Username = "admin",
+            FullName = "System Admin",
+            Role = "Admin"
+        };
+          var token = _jwtService.GenerateToken(user);  
         return Ok(new
         {
-            message = "Login successful.",
-            token,
-            user = new
-            {
-                user.Id,
-                user.Username,
-                user.FullName,
-                user.Email,
-                user.Role
-            }
+            message = "Login Successful",
+            user,
+            token
         });
     }
 }
