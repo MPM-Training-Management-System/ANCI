@@ -2,7 +2,7 @@
   "name": "@repo/ui",
   "version": "0.0.0",
   "private": true,
-    "main": "./index.ts",
+  "main": "./index.ts",
   "types": "./index.ts",
   "exports": {
     "./*": "./src/index.ts"
@@ -24,9 +24,10 @@
   },
   "dependencies": {
     "@repo/hooks": "workspace:*",
-    "@repo/token": "workspace:*",
     "@repo/lib": "workspace:*",
+    "@repo/token": "workspace:*",
     "@tanstack/react-table": "^8.21.3",
+    "class-variance-authority": "^0.7.1",
     "embla-carousel-react": "^8.6.0",
     "lucide-react": "^1.23.0",
     "react": "^19.2.0",

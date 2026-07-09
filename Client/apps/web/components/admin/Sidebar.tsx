@@ -4,7 +4,7 @@ import Image from "next/image";
 import Logo from "@/assets/image/ANCILOGO.png";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Button } from "@repo/ui/button";
+import { Button ,ConfirmDialog} from "@repo/ui/index";
 import {  LayoutDashboard,
   BriefcaseBusiness,
   GraduationCap,
@@ -15,9 +15,11 @@ import {  LayoutDashboard,
 import {  sidebarStyles } from "@repo/token";
 import { auth } from "@/lib/auth";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: <LayoutDashboard size={20} /> },
+  { name: "User Management", href: "/user", icon: <BriefcaseBusiness size={20} /> },
   { name: "Service Management", href: "/services", icon: <BriefcaseBusiness size={20} /> },
   { name: "Training Programs", href: "/training", icon: <GraduationCap size={20} /> },
   { name: "Participant Hub", href: "/participants", icon: <Users size={20} /> },
@@ -29,11 +31,14 @@ const navItems = [
 export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
+  const [open, setOpen] = useState(false);
 const handleLogout = () => {
   auth.logout();
   router.push("/");
 }
   return (
+    <>
+
     <aside className={sidebarStyles.container}>
       
       <div className={sidebarStyles.header}>
@@ -70,10 +75,20 @@ const handleLogout = () => {
 
       {/* Bottom - Logout */}
       <div className="px-4 py-4 border-t ">
-        <Button  variant="primary" className="w-full flex items-center justify-center gap-2" onClick={handleLogout}>
+        <Button  variant="primary" className="w-full flex items-center justify-center gap-2" onClick={()=> setOpen(true)} >
           <span>Logout</span>
         </Button>
       </div>
     </aside>
+    <ConfirmDialog
+    open={open}
+    title="Logout"
+    description="Are you sure you want to logout?"
+    confirmText="Logout"
+    cancelText="Cancel"
+    onCancel={() => setOpen(false)}
+    onConfirm={handleLogout}
+  />
+</>
   );
 }
