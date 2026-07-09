@@ -19,7 +19,7 @@ export const sidebarStyles = {
     "bg-secondary text-onPrimary font-semibold",
 
   inactive:
-    "text-onPrimary/70 hover:bg-secondary hover:text-onPrimary",
+    "text-onPrimary/70 hover:bg-secondary hover:text-surface",
 
   indicator:
     "absolute left-0 top-0 h-full w-1 rounded-r-full bg-secondary",

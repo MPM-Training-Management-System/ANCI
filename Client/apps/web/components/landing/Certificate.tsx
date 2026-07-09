@@ -4,7 +4,7 @@ import { Button } from "@repo/ui/button";
 import  certificate  from "@/assets/image/Certificate.png"
 export default function Certification() {
   return (
-    <section className="py-24 bg-slate-100 overflow-hidden">
+    <section id="certificate" className="py-24 bg-slate-100 overflow-hidden">
       <div className="max-w-7xl mx-auto px-10 grid md:grid-cols-2 gap-16 items-center">
 
         <div>

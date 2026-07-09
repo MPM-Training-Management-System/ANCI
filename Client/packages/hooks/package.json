@@ -1,0 +1,16 @@
+{
+  "name": "@repo/hooks",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "exports": {
+    "./color": "./src",
+    ".": "./src/index.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "sonner": "^2.0.7"
+  }
+}

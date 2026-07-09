@@ -1,7 +1,7 @@
 "use client"
 
 import Image from "next/image";
-import Logo from "@/assets/image/ancilogo.jpg";
+import Logo from "@/assets/image/ANCILOGO.png";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@repo/ui/button";
@@ -18,15 +18,12 @@ import { useRouter } from "next/navigation";
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: <LayoutDashboard size={20} /> },
-  { name: "Service Management", href: "/admin/users", icon: <BriefcaseBusiness size={20} /> },
-  { name: "Training Programs", href: "/admin/training", icon: <GraduationCap size={20} /> },
-  { name: "Participant Hub", href: "/admin/participants", icon: <Users size={20} /> },
-  { name: "Exam center", href: "/admin/exam-center", icon: <ClipboardCheck size={20} /> },
-  { name: "Reports", href: "/admin/reports", icon: <FileBarChart size={20} /> },
+  { name: "Service Management", href: "/services", icon: <BriefcaseBusiness size={20} /> },
+  { name: "Training Programs", href: "/training", icon: <GraduationCap size={20} /> },
+  { name: "Participant Hub", href: "/participants", icon: <Users size={20} /> },
+  { name: "Exam center", href: "/exam-center", icon: <ClipboardCheck size={20} /> },
+  { name: "Reports", href: "/reports", icon: <FileBarChart size={20} /> },
 ];
-
-
-
 
 
 export default function Sidebar() {
@@ -43,8 +40,8 @@ const handleLogout = () => {
         <Image
           src={Logo}
           alt="ACE NextGen"
-          width={40}
-          height={40}
+          width={50}
+          height={50}
           className="rounded m-2"
         />
         <h1 className={sidebarStyles.title}>ACE NextGen</h1>

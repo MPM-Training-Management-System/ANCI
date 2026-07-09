@@ -7,7 +7,7 @@ export function Card({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={[cardStyles.base, className].join(" ")} {...props}>
+    <div className={[cardStyles.base, className].join(" ")} {...props} >
       {children}
     </div>
   );
