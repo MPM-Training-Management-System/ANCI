@@ -1,7 +1,7 @@
 // packages/token/src/styles/card.ts
 export const cardStyles = {
   base:
-    "rounded-lg border border-outline-variant bg-surface-container-lowest",
+    "rounded-xl border shadow-sm p-6 border-outline-variant bg-surface-container-lowest",
 
   header:
     "flex flex-col gap-1 border-b border-outline-variant p-6 pb-3",

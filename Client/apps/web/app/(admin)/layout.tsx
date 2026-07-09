@@ -1,6 +1,11 @@
+'use client'
+
+
+
 import Sidebar from "@/components/admin/Sidebar";
 import Navbar from "@/components/admin/Navbar";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
+
 export default function AdminLayout({
   children,
 }: {

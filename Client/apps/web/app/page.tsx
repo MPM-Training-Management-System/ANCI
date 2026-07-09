@@ -16,9 +16,7 @@ export default function Home() {
       <Stat/>
       <Features />
       <Certificate />
-      <Footer />
-
-      
+      <Footer />    
     </div>
   );
 }

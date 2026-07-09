@@ -1,5 +1,5 @@
 import Image from "next/image";
-import Logo from "@/assets/image/ancilogo.jpg";
+import Logo from "@/assets/image/ANCILOGO.png";
 
 export default function AuthLayout({
   children,

@@ -1,3 +1,10 @@
+
+
+import { Card, CardTitle } from "@repo/ui/card"
+
+
+
+
 export default function DashboardPage() {
   return (
     <div>
@@ -11,11 +18,11 @@ export default function DashboardPage() {
           { label: "Total Participants", value: "7", color: "bg-yellow-500" },
           { label: "Pending Certificates", value: "32", color: "bg-green-500" },
         ].map((stat) => (
-          <div key={stat.label} className="bg-white rounded-xl shadow-sm p-6">
-            <div className={`w-10 h-10 ${stat.color} rounded-lg mb-3`} />
+          <Card key={stat.label} >
+            <p className={`w-10 h-10 ${stat.color} rounded-lg mb-3`} />
             <p className="text-2xl font-bold text-gray-800">{stat.value}</p>
-            <p className="text-sm text-gray-500">{stat.label}</p>
-          </div>
+            <CardTitle className="text-sm text-gray-500">{stat.label}</CardTitle>
+          </Card>
         ))}
       </div>
     </div>

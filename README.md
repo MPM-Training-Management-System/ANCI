@@ -76,6 +76,7 @@ git clone https://github.com/MPM-Training-Management-System/ANCI
 Install dependencies.
 
 ```bash
+cd client
 pnpm install
 ```
 

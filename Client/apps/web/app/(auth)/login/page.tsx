@@ -7,7 +7,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authApi } from "@/lib/api";
 import {  auth } from "@/lib/auth";
-
+import { notify } from "@repo/hooks";
 
 
 export default function LoginPage() {
@@ -29,9 +29,10 @@ export default function LoginPage() {
     localStorage.setItem("user", JSON.stringify(data.user));
     auth.saveToken(data.token);
     router.push("/dashboard");
+    notify.success("Login successful!");
   } catch (error) {
     console.error(error);
-    alert("Login failed");
+    notify.error("Invalid email or password");
   }
 
 }
