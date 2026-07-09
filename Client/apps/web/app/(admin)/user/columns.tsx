@@ -1,7 +1,7 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { DataTableStatus  } from "@repo/ui/Datatable/";
+import { DataTableStatus, TableActions   } from "@repo/ui/Datatable/";
 type User = {
   id: number;
   name: string;
@@ -39,5 +39,15 @@ export const columns: ColumnDef<User>[] = [
 
   return <DataTableStatus status={user.status} />;
 },
+},
+{
+    id: "actions",
+    header: "Actions",
+    cell: ({ row }) => (
+      <TableActions
+        onView={() => console.log("View", row.original.id)}
+        onEdit={() => console.log("Edit", row.original.id)}
+      />
+    ),
   },
 ];

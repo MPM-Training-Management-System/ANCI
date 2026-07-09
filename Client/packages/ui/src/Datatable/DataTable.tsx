@@ -71,7 +71,7 @@ export function DataTable<TData>({
   });
 
   return (
-    <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+    <section className="overflow-hidden mt-5 rounded-xl border border-gray-200 bg-white shadow-sm">
 
       <DataTableHeader
         title={title}
