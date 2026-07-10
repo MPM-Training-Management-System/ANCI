@@ -27,6 +27,13 @@ export const users = [
     role: "Coach",
     status: "Active",
   },
+  {
+    id: 4,
+    name: "Pedro Reyes",
+    email: "pedro@gmail.com",
+    role: "Coach",
+    status: "Active",
+  },
 ];
 export default function DashboardPage() {
   return (
@@ -69,12 +76,7 @@ Filter
 
 </Button>
 
-<Button>
-
-Add User
-
-</Button>
-
+<Button>Add User</Button>
 </>
 
 }
