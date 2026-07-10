@@ -10,7 +10,7 @@ export const sidebarStyles = {
     "text-title-sm font-bold",
 
   nav:
-    "flex-1 space-y-5 px-4 py-6",
+    "flex-1 space-y-2 px-4 py-6",
 
   item:
     "relative flex items-center gap-3 rounded-lg px-4 py-2.5 transition-colors",
