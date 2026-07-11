@@ -1,6 +1,6 @@
 "use client";
 
-import { Avatar } from "@repo/ui/index";
+import { Avatar, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@repo/ui/index";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -27,32 +27,42 @@ export default function Navbar() {
           </p>
         </div>
 
-        <DropdownMenu>
-  <DropdownMenuTrigger asChild>
-    <button className="rounded-full outline-none focus:ring-2 focus:ring-primary">
-      <Avatar
-        size="sm"
-        fallback="RJ"
-      />
-    </button>
-  </DropdownMenuTrigger>
+       <TooltipProvider>
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button className="rounded-full outline-none focus:ring-2 focus:ring-primary">
+            <Avatar
+              size="sm"
+              fallback="RJ"
+            />
+          </button>
+        </DropdownMenuTrigger>
 
-  <DropdownMenuContent align="end">
-    <DropdownMenuItem>
-      Profile
-    </DropdownMenuItem>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem>
+            Profile
+          </DropdownMenuItem>
 
-    <DropdownMenuItem>
-      Settings
-    </DropdownMenuItem>
+          <DropdownMenuItem>
+            Settings
+          </DropdownMenuItem>
 
-    <DropdownMenuSeparator />
+          <DropdownMenuSeparator />
 
-    <DropdownMenuItem>
-      Logout
-    </DropdownMenuItem>
-  </DropdownMenuContent>
-</DropdownMenu>
+          <DropdownMenuItem>
+            Logout
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </TooltipTrigger>
+
+    <TooltipContent>
+      Account
+    </TooltipContent>
+  </Tooltip>
+</TooltipProvider>
       </div>
     </header>
   );
