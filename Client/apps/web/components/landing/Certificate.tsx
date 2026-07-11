@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { CheckCircle } from "lucide-react";
-import { Button } from "@repo/ui/button";
+import { Button } from "@repo/ui/index";
 import  certificate  from "@/assets/image/Certificate.png"
 export default function Certification() {
   return (

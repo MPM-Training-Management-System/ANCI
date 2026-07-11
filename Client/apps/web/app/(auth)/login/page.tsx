@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Button } from "@repo/ui/button";
+import { Button, Checkbox} from "@repo/ui/index";
 import { Input, Spinner } from "@repo/ui/index";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -16,6 +16,7 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const router = useRouter();
   
+    const [rememberMe, setRememberMe] = useState(false);
   
   
      const [email, setUsername] = useState("");
@@ -121,16 +122,16 @@ export default function LoginPage() {
                    </div>
      
                    {/* REMEMBER */}
-                   <div className="flex items-center gap-3">
-                     <input
-                       type="checkbox"
-                       className="w-4 h-4"
-                     />
-     
-                     <label className="text-sm text-slate-600">
-                       Keep session active for 30 days
-                     </label>
-                   </div>
+                 <div className="flex items-center gap-3">
+  <Checkbox
+    checked={rememberMe}
+    onChange={(e) => setRememberMe(e.target.checked)}
+  />
+
+  <label className="text-sm text-slate-600">
+    Keep session active for 30 days
+  </label>
+</div>
      
                    {/* BUTTON */}
                    <Button

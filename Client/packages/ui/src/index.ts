@@ -15,6 +15,13 @@ export * from './empty-state'
 export * from './spinner'
 export * from "./modal";
 export * from "./avatar";
-export * from "./skeleton";
+export * from "./skeleton"
 export * from "./progress"
-export * from "./dropdown-menu";
+export * from "./dropdown-menu"
+export * from "./textarea"
+export * from "./select";
+export * from "./checkbox";
+export * from "./switch";
+export * from "./tooltip";
+export * from "./separator";
+export * from "./file-upload";
