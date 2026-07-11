@@ -1,6 +1,13 @@
 "use client";
 
 import { Avatar } from "@repo/ui/index";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@repo/ui/index";
 
 export default function Navbar() {
   return (
@@ -20,10 +27,32 @@ export default function Navbar() {
           </p>
         </div>
 
-        <Avatar
-          size="sm"
-          fallback="RJ"
-        />
+        <DropdownMenu>
+  <DropdownMenuTrigger asChild>
+    <button className="rounded-full outline-none focus:ring-2 focus:ring-primary">
+      <Avatar
+        size="sm"
+        fallback="RJ"
+      />
+    </button>
+  </DropdownMenuTrigger>
+
+  <DropdownMenuContent align="end">
+    <DropdownMenuItem>
+      Profile
+    </DropdownMenuItem>
+
+    <DropdownMenuItem>
+      Settings
+    </DropdownMenuItem>
+
+    <DropdownMenuSeparator />
+
+    <DropdownMenuItem>
+      Logout
+    </DropdownMenuItem>
+  </DropdownMenuContent>
+</DropdownMenu>
       </div>
     </header>
   );
