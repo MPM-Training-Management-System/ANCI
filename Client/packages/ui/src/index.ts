@@ -12,3 +12,6 @@ export * from './search-input'
 export * from './table-actions'
 export * from './confirm-dialog'
 export * from './empty-state'
+export * from './spinner'
+export * from "./modal";
+export * from "./avatar";

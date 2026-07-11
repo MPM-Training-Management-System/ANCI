@@ -1,13 +1,14 @@
 'use client'
 
-import { Card, CardTitle } from "@repo/ui/index"
+import { Card, CardTitle, Input, Modal } from "@repo/ui/index"
 import { columns } from "./columns";
 import { UserPlus } from "lucide-react";
 import { DataTable } from "@repo/ui/Datatable/DataTable";
 import { Button } from "@repo/ui/button";
 import { PageHeader } from "@repo/ui/page-header"
 import { useState } from "react";
-
+import { UserForm } from "./UserForm";
+import { AddUserModal  } from "./AddUserModal";
 export const users = [
   {
     id: 1,
@@ -33,6 +34,7 @@ export const users = [
 ];
 export default function DashboardPage() {
     const [search, setSearch] = useState("");
+    const [open, setOpen] = useState(false);
   return (
     <div>
         <PageHeader
@@ -94,13 +96,22 @@ Add User
 
 </>
 
+
 }
     addButton={{
         label: "Add User",
         icon: <UserPlus size={18} />,
-        onClick: () => console.log("Add"),
+        onClick: () => setOpen(true),
+
     }}
 />
+ <AddUserModal
+    open={open}
+    onClose={() => setOpen(false)}
+/>
+   
     </div>
   );
+  
+ 
 }
