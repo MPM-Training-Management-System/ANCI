@@ -4,7 +4,7 @@ import Image from "next/image";
 import Logo from "@/assets/image/ANCILOGO.png";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Button ,ConfirmDialog} from "@repo/ui/index";
+import { Button ,ConfirmDialog, Spinner} from "@repo/ui/index";
 import {  LayoutDashboard,
   BriefcaseBusiness,
   GraduationCap,
@@ -32,9 +32,21 @@ export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-const handleLogout = () => {
-  auth.logout();
+  const [loading, setLoading] = useState(false);
+  
+const handleLogout = async() => {
+  setLoading(true);
+
+  try{ 
+     await new Promise((resolve) => setTimeout(resolve, 1500));
+     auth.logout();
   router.push("/");
+  }catch(error){
+        console.error(error);
+  }finally {
+    setLoading(false);
+  }
+ 
 }
   return (
     <>
@@ -76,7 +88,10 @@ const handleLogout = () => {
       {/* Bottom - Logout */}
       <div className="px-4 py-4 border-t ">
         <Button  variant="primary" className="w-full flex items-center justify-center gap-2" onClick={()=> setOpen(true)} >
-          <span>Logout</span>
+          {loading ?(<> 
+          <Spinner size="md" className="mr-2" />
+          loading....</>):(
+            "Logout")}
         </Button>
       </div>
     </aside>

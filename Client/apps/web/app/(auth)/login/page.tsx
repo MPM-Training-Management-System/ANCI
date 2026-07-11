@@ -2,7 +2,7 @@
 "use client";
 
 import { Button } from "@repo/ui/button";
-import { Input } from "@repo/ui/input";
+import { Input, Spinner } from "@repo/ui/index";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authApi } from "@/lib/api";
@@ -10,9 +10,10 @@ import {  auth } from "@/lib/auth";
 import { notify } from "@repo/hooks";
 
 
+
 export default function LoginPage() {
    const [showPassword, setShowPassword] = useState(false);
-    const [loading] = useState(false);
+    const [loading, setLoading] = useState(false);
     const router = useRouter();
   
   
@@ -21,18 +22,26 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
   
    const handleLogin = async () => {
+     setLoading(true);
   try {
-    const data = await authApi.login({
-      email,
-      password,
+    await Promise.all([
+      authApi.login({
+        email,
+        password,
+      }),
+      new Promise((resolve) => setTimeout(resolve, 2000)),
+    ]).then(([data]) => {
+      localStorage.setItem("user", JSON.stringify(data.user));
+      auth.saveToken(data.token);
+
+      notify.success("Login successful!");
+      router.push("/dashboard");
     });
-    localStorage.setItem("user", JSON.stringify(data.user));
-    auth.saveToken(data.token);
-    router.push("/dashboard");
-    notify.success("Login successful!");
   } catch (error) {
     console.error(error);
     notify.error("Invalid email or password");
+  }finally{
+    setLoading(false);
   }
 
 }
@@ -130,9 +139,15 @@ export default function LoginPage() {
                      variant="primary"
                      className="w-full py-4  font-bold rounded-lg hover:bg-secondary transition"
                    >
-                     {loading
-                       ? "Authenticating..."
-                       : "Secure Login"}
+      
+                     {loading ? (
+                        <>
+                          <Spinner size="md" className="mr-2" />
+                          Loading...
+                        </>
+                      ) : (
+                        "Secure Login"
+                      )}
                    </Button>
                  </form>
      
