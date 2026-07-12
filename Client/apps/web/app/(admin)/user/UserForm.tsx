@@ -1,6 +1,11 @@
 "use client";
 
-import { Button, Input } from "@repo/ui/index";
+import { useState } from "react";
+import {
+  Button,
+  FileUpload,
+  Input,
+} from "@repo/ui/index";
 
 interface UserFormProps {
   onCancel: () => void;
@@ -11,11 +16,20 @@ export function UserForm({
   onCancel,
   onSubmit,
 }: UserFormProps) {
+  const [profileImage, setProfileImage] = useState<File[]>([]);
+
   return (
     <div className="space-y-4">
       <Input placeholder="Full Name" />
+
       <Input placeholder="Email Address" />
+
       <Input placeholder="Role" />
+
+      <FileUpload
+        accept="image/*"
+        onChange={setProfileImage}
+      />
 
       <div className="flex justify-end gap-2">
         <Button
@@ -25,7 +39,12 @@ export function UserForm({
           Cancel
         </Button>
 
-        <Button onClick={onSubmit}>
+        <Button
+          onClick={() => {
+            console.log(profileImage);
+            onSubmit();
+          }}
+        >
           Save
         </Button>
       </div>

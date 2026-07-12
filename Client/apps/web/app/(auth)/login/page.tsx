@@ -15,14 +15,10 @@ export default function LoginPage() {
    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const router = useRouter();
-  
     const [rememberMe, setRememberMe] = useState(false);
-  
-  
-     const [email, setUsername] = useState("");
+    const [email, setUsername] = useState("");
     const [password, setPassword] = useState("");
-  
-   const handleLogin = async () => {
+    const handleLogin = async () => {
      setLoading(true);
   try {
     await Promise.all([
@@ -123,15 +119,15 @@ export default function LoginPage() {
      
                    {/* REMEMBER */}
                  <div className="flex items-center gap-3">
-  <Checkbox
-    checked={rememberMe}
-    onChange={(e) => setRememberMe(e.target.checked)}
-  />
+                      <Checkbox
+                        checked={rememberMe}
+                        onChange={(e) => setRememberMe(e.target.checked)}
+                      />                    
 
-  <label className="text-sm text-slate-600">
-    Keep session active for 30 days
-  </label>
-</div>
+                      <label className="text-sm text-slate-600">
+                        Keep session active for 30 days
+                      </label>
+                    </div>
      
                    {/* BUTTON */}
                    <Button
