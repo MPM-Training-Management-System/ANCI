@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Search, X } from "lucide-react";
 
-import { Input } from "./input";
+import { Input } from "../components/input";
 import { cn } from "@repo/lib";
 
 export interface SearchInputProps
