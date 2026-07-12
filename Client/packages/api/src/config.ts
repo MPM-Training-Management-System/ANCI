@@ -1,3 +1,3 @@
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ??
-  "https://localhost:5001/api";
+  "https://anci-1.onrender.com/api";
