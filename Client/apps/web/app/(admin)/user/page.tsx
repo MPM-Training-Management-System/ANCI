@@ -5,7 +5,7 @@ import { columns } from "./columns";
 import { UserPlus } from "lucide-react";
 import { DataTable } from "@repo/ui/Datatable/DataTable";
 import { Button } from "@repo/ui/button";
-import { PageHeader } from "@repo/ui/page-header"
+import { PageHeader } from "@repo/ui/index"
 import { useState } from "react";
 import { UserForm } from "./UserForm";
 import { AddUserModal  } from "./AddUserModal";

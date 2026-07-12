@@ -4,7 +4,14 @@ import { useState } from "react";
 import {
   Button,
   FileUpload,
+  Form,
+  FormField,
   Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@repo/ui/index";
 
 interface UserFormProps {
@@ -19,17 +26,59 @@ export function UserForm({
   const [profileImage, setProfileImage] = useState<File[]>([]);
 
   return (
-    <div className="space-y-4">
-      <Input placeholder="Full Name" />
+    <Form>
 
-      <Input placeholder="Email Address" />
+      <FormField
+        label="Full Name"
+        required
+      >
+        <Input placeholder="Enter full name" />
+      </FormField>
 
-      <Input placeholder="Role" />
+      <FormField
+        label="Email Address"
+        required
+      >
+        <Input
+          type="email"
+          placeholder="Enter email address"
+        />
+      </FormField>
 
-      <FileUpload
-        accept="image/*"
-        onChange={setProfileImage}
-      />
+      <FormField
+        label="Role"
+        description="Select the user's role."
+      >
+       <Select>
+  <SelectTrigger>
+    <SelectValue placeholder="Select Role" />
+  </SelectTrigger>
+
+  <SelectContent>
+    <SelectItem value="admin">
+      Administrator
+    </SelectItem>
+
+    <SelectItem value="trainer">
+      Trainer
+    </SelectItem>
+
+    <SelectItem value="staff">
+      Staff
+    </SelectItem>
+  </SelectContent>
+</Select>
+      </FormField>
+
+      <FormField
+        label="Profile Image"
+        description="Upload a profile picture."
+      >
+        <FileUpload
+          accept="image/*"
+          onChange={setProfileImage}
+        />
+      </FormField>
 
       <div className="flex justify-end gap-2">
         <Button
@@ -48,6 +97,7 @@ export function UserForm({
           Save
         </Button>
       </div>
-    </div>
+
+    </Form>
   );
 }
