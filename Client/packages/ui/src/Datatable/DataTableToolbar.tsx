@@ -2,7 +2,7 @@
 
 import { Search } from "lucide-react";
 import * as React from "react";
-import { SearchInput } from '../search-input'
+import { SearchInput } from '../navigation/search-input'
 interface DataTableToolbarProps {
   searchable?: boolean;
   searchPlaceholder?: string;

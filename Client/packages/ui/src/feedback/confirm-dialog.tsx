@@ -7,7 +7,7 @@ import {
   AlertDescription,
 } from "./alert";
 
-import { Button } from "./button";
+import { Button } from "../components/button";
 
 export interface ConfirmDialogProps {
   open: boolean;

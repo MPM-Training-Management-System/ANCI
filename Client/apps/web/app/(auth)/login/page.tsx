@@ -9,8 +9,6 @@ import { authApi } from "@/lib/api";
 import {  auth } from "@/lib/auth";
 import { notify } from "@repo/hooks";
 
-
-
 export default function LoginPage() {
    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -18,6 +16,8 @@ export default function LoginPage() {
     const [rememberMe, setRememberMe] = useState(false);
     const [email, setUsername] = useState("");
     const [password, setPassword] = useState("");
+    
+    
     const handleLogin = async () => {
      setLoading(true);
   try {
@@ -26,7 +26,6 @@ export default function LoginPage() {
         email,
         password,
       }),
-      new Promise((resolve) => setTimeout(resolve, 2000)),
     ]).then(([data]) => {
       localStorage.setItem("user", JSON.stringify(data.user));
       auth.saveToken(data.token);
