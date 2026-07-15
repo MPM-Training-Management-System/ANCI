@@ -38,7 +38,6 @@ const handleLogout = async() => {
   setLoading(true);
 
   try{ 
-     await new Promise((resolve) => setTimeout(resolve, 1500));
      auth.logout();
   router.push("/");
   }catch(error){

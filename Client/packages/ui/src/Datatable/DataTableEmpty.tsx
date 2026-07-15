@@ -1,6 +1,6 @@
 "use client";
 
-import { EmptyState } from "../empty-state";
+import { EmptyState } from "../feedback/empty-state";
 
 interface DataTableEmptyProps {
   columns: number;
