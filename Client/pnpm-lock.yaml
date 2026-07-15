@@ -20,6 +20,18 @@ importers:
 
   apps/mobile:
     dependencies:
+      '@repo/api':
+        specifier: workspace:*
+        version: link:../../packages/api
+      '@repo/hooks':
+        specifier: workspace:*
+        version: link:../../packages/hooks
+      '@repo/tailwind-config':
+        specifier: workspace:*
+        version: link:../../packages/tailwind-config
+      '@repo/token':
+        specifier: workspace:*
+        version: link:../../packages/token
       expo:
         specifier: ~57.0.6
         version: 57.0.6(@babel/core@7.29.7)(@expo/dom-webview@57.0.1)(react-dom@19.2.0(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@types/react@19.2.2)(react@19.2.3))(react@19.2.3)(typescript@6.0.3)

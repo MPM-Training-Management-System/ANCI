@@ -49,15 +49,13 @@ public class AuthController : ControllerBase
 
         // TEMPORARY ONLY
         // Palitan ito ng BCrypt.Verify kapag may password hashing na.
-        if (user.Password != request.Password)
-        {
-            Console.WriteLine("❌ Wrong password.");
-
-            return Unauthorized(new
-            {
-                message = "Invalid email or password."
-            });
-        }
+        if (!BCrypt.Net.BCrypt.Verify(request.Password, user.Password))
+{
+    return Unauthorized(new
+    {
+        message = "Invalid email or password."
+    });
+}
 
         var token = _jwtService.GenerateToken(user);
 
@@ -77,4 +75,49 @@ public class AuthController : ControllerBase
             }
         });
     }
+
+    [HttpPost("register")]
+public async Task<IActionResult> Register([FromBody] RegisterDTO request)
+{
+    if (string.IsNullOrWhiteSpace(request.Username) ||
+        string.IsNullOrWhiteSpace(request.FullName) ||
+        string.IsNullOrWhiteSpace(request.Email) ||
+        string.IsNullOrWhiteSpace(request.Password))
+    {
+        return BadRequest(new
+        {
+            message = "All fields are required."
+        });
+    }
+
+    // Check duplicate email
+    bool emailExists = await _context.Users
+        .AnyAsync(x => x.Email == request.Email);
+
+    if (emailExists)
+    {
+        return BadRequest(new
+        {
+            message = "Email already exists."
+        });
+    }
+
+    var user = new UserModel
+    {
+        Username = request.Username,
+        FullName = request.FullName,
+        Email = request.Email,
+        Password = BCrypt.Net.BCrypt.HashPassword(request.Password),
+        Role = "User",
+        Create_at = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+    };
+
+    _context.Users.Add(user);
+    await _context.SaveChangesAsync();
+
+    return Ok(new
+    {
+        message = "User registered successfully."
+    });
+}
 }
