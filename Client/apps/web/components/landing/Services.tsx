@@ -1,5 +1,7 @@
-import Image from "next/image";
-
+import Image, { StaticImageData } from "next/image";
+import Governance from "@/assets/image/governance.jpg"
+import Mediation from "@/assets/image/train.jpg"
+import Sport from "@/assets/image/sport.jpg"
 import {
   Card,
   CardContent,
@@ -7,12 +9,20 @@ import {
   CardDescription,
 } from "@repo/ui/index";
 
-const services = [
+type Service = {
+  title: string;
+  description: string;
+  image: StaticImageData;
+  badge: string;
+  features: string[];
+};
+
+const services: Service[] = [
   {
     title: "Mediation & Peace",
     description:
       "Implementing structured mediation frameworks for high-stakes institutional environments to ensure sustainable harmony.",
-   
+   image:Mediation,
     badge: "Program in Action",
     features: [
       "ADR Implementation",
@@ -24,7 +34,7 @@ const services = [
     title: "Governance",
     description:
       "Strengthening organizational integrity through robust policy development and ethical leadership oversight.",
-   
+   image: Governance,
     badge: "Training Session",
     features: [
       "Policy Design",
@@ -36,7 +46,7 @@ const services = [
     title: "Sports Development",
     description:
       "Elite athletic management systems focused on character, excellence, and international talent pathways.",
-    
+    image: Sport,
     badge: "Program in Action",
     features: [
       "Youth Academies",
@@ -80,12 +90,12 @@ export default function Services() {
               <CardContent className="relative z-10">
                 {/* Image */}
                 <div className="relative mb-8 h-56 overflow-hidden rounded-2xl">
-                  {/* <Image
+                  <Image
                     src={service.image}
                     alt={service.title}
                     fill
                     className="object-cover transition duration-500 group-hover:scale-110"
-                  /> */}
+                  />
 
                   <div className="absolute bottom-3 left-3 rounded-full bg-primary/80 px-4 py-1 text-[10px] font-bold uppercase tracking-widest text-white backdrop-blur">
                     {service.badge}

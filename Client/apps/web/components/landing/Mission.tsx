@@ -1,5 +1,5 @@
 import Image from "next/image";
-
+import Tony from "@/assets/image/tony.jpg"
 export default function Mission() {
   return (
     <section
@@ -13,13 +13,13 @@ export default function Mission() {
             <div className="absolute inset-0 scale-90 rounded-full bg-[#C5A059]/10 blur-[80px]" />
 
             <div className="relative overflow-hidden rounded-[40px] shadow-2xl">
-              {/* <Image
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBxUWozaZaBfkUQVZvx4GjwwaB-V635q7Peoj59dmmLsNfmnXGS4X1xxlN37Rb-26mibNt6mICdCtGnUTitPswKgYomFma1QXAXBxnoygubJVnA9Mck1Oqe6Ka2XPP3IbgibRhE6jcNZvtS5exDWxEWYIPRW8edUiyxzVzBPVWwmWDQeYHmPmrSRRqrUkjXtLUbS2TCcUA31CMONH5zS8Y-d8OO6Vz09tUo-Q-L7iR6hAFVniIfp4dHbO7EQ49jmEu0EIWacikocrpA"
+              <Image
+                src={Tony}
                 alt="Institutional Excellence"
                 width={700}
                 height={800}
                 className="h-auto w-full object-cover"
-              /> */}
+              />
             </div>
           </div>
 
