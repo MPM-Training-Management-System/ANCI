@@ -1,100 +1,60 @@
 "use client";
 
 import {
-  Avatar,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from "@repo/ui/index";
+  NavbarProps,
+} from "./navbar/types";
 
-import {
-  PanelLeftClose,
-  PanelLeftOpen,
-} from "lucide-react";
+import NavbarCollapse from "./navbar/NavbarCollapse";
+import NavbarTitle from "./navbar/NavbarTitle";
 
-type NavbarProps = {
-  collapsed: boolean;
-  setCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
-};
+import NavbarNotification from "./navbar/NavbarNotification";
+import NavbarProfile from "./navbar/NavbarProfile";
 
 export default function Navbar({
   collapsed,
   setCollapsed,
 }: NavbarProps) {
   return (
-    <header className="flex h-16 items-center justify-between border-b bg-white px-6">
+    <header
+      className="
+        flex
+        h-20
+        items-center
+        justify-between
+        rounded-3xl
+        border
+        border-gray-200
+        bg-white
+        px-6
+        shadow-lg
+      "
+    >
       {/* Left */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="rounded-lg p-2 transition hover:bg-gray-100"
-        >
-          {collapsed ? (
-            <PanelLeftOpen size={20} />
-          ) : (
-            <PanelLeftClose size={20} />
-          )}
-        </button>
+      <div className="flex items-center gap-5">
+        <NavbarCollapse
+          collapsed={collapsed}
+          setCollapsed={setCollapsed}
+        />
 
-        <h2 className="text-lg font-semibold text-gray-700">
-          Dashboard
-        </h2>
+        <NavbarTitle
+          title="Dashboard"
+          subtitle="Welcome back! Here's what's happening today."
+        />
       </div>
 
       {/* Right */}
-      <div className="flex items-center gap-3">
-        <div className="text-right">
-          <p className="text-sm font-medium">
-            Ralph Joed
-          </p>
+      <div className="flex items-center gap-4">
 
-          <p className="text-xs text-gray-500">
-            Administrator
-          </p>
-        </div>
+        <NavbarNotification
+          notificationCount={3}
+          messageCount={1}
+        />
 
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="rounded-full outline-none focus:ring-2 focus:ring-primary">
-                    <Avatar
-                      size="sm"
-                      fallback="RJ"
-                    />
-                  </button>
-                </DropdownMenuTrigger>
+        <NavbarProfile
+          name="Ralph Joed"
+          role="Administrator"
+        />
 
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem>
-                    Profile
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem>
-                    Settings
-                  </DropdownMenuItem>
-
-                  <DropdownMenuSeparator />
-
-                  <DropdownMenuItem>
-                    Logout
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </TooltipTrigger>
-
-            <TooltipContent>
-              Account
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
       </div>
     </header>
   );
