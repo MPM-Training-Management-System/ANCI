@@ -1,77 +1,114 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import {Button} from "@repo/ui/button";
-import Image from "next/image";
-import Logo from "@/assets/image/ANCILOGO.png";
-import { ArrowRight } from "lucide-react";
-import {  sidebarStyles } from "@repo/token";
-import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { radius } from "@repo/token"
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { Menu, X } from "lucide-react";
+import Image from "next/image";
 
-const NavItems = [
-  { name: "Pillars", href: "#certificate"},
-  { name: "Mission", href: "#mission"},
-  { name: "Expertise", href: "#expertise"},
-  { name: "Contact", href: "#contact"},
-]
+import Logo from "@/assets/image/ANCILOGO.png";
+import { Button } from "@repo/ui/index";
 
+const navLinks = [
+  {
+    title: "Services",
+    href: "#services",
+  },
+  {
+    title: "Our Mission",
+    href: "#mission",
+  },
+  {
+    title: "Certifications",
+    href: "#certificate",
+  },
+];
 
 export default function Navbar() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const [isScrolled, setIsScrolled] = useState(false);
-   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-   return (
-    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-        isScrolled 
-          ? "bg-card/90 backdrop-blur-xl border-b border-border shadow-soft" 
-          : "bg-transparent text-white"
-      }`}
-    >
-      <div className="max-w-7xl mx-auto px-6 md:px-12 h-20 flex items-center justify-between">
-        <a href="#" className="flex items-center gap-3">
-         <Image 
+  const [open, setOpen] = useState(false);
+
+  return (
+    <header className="sticky top-4 z-50 px-4 lg:px-8">
+      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between rounded-full border border-white/40 bg-white/80 px-6 shadow-[0_15px_45px_rgba(0,0,0,0.08)] backdrop-blur-2xl transition-all duration-300 lg:px-8">
+
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-3">
+          <Image
             src={Logo}
             alt="Logo"
-            width={50}
-            height={50}
+            width={58}
+            height={58}
+            className="rounded-full object-cover"
           />
-          <span className="font-display text-lg font-semibold text-deep-navy tracking-tight">
-            ACE <span className="text-philippine-gold">NextGen</span>
-          </span>
-        </a>
-        <nav  className="hidden md:flex items-center gap-6 text-sm text-slate-gray">
-                {NavItems.map((item) => {
-          const isActive = pathname === item.href;
-          return (
+
+          <div className="flex flex-col leading-tight">
+            <h1 className="text-2xl font-extrabold tracking-tight">
+              <span className="text-primary">ACE </span>
+
+              <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                NEXTGEN
+              </span>
+            </h1>
+
+            <span className="text-[11px] font-semibold uppercase tracking-[0.30em] text-primary/60">
+              Consultancy Inc.
+            </span>
+          </div>
+        </Link>
+
+        {/* Desktop Menu */}
+        <nav className="hidden items-center gap-10 md:flex">
+          {navLinks.map((item) => (
             <Link
-              key={item.href}
+              key={item.title}
               href={item.href}
-              className={`${sidebarStyles.item} ${
-  isActive
-    ? sidebarStyles.active
-    : sidebarStyles.inactive
-}`}
+              className="relative text-sm font-semibold uppercase tracking-widest text-primary transition-all duration-300 after:absolute after:-bottom-1 after:left-0 after:h-[2px] after:w-0 after:bg-secondary after:transition-all after:duration-300 hover:text-secondary hover:after:w-full"
             >
-              <span>{item.name}</span>
+              {item.title}
             </Link>
-          );
-        })}
-      </nav>
-        <Button  variant="primary" style={{ borderRadius: radius.full }} onClick={() => router.push("/login")}>
-          Get Started
-          <ArrowRight className="w-4 h-4" />
+          ))}
+        </nav>
+
+        {/* Desktop Button */}
+        <div className="hidden md:block">
+          <Button variant="primary">
+            Book Consultation
+          </Button>
+        </div>
+
+        {/* Mobile Button */}
+        <Button
+          variant="ghost"
+          onClick={() => setOpen(!open)}
+          className="rounded-full p-2 md:hidden"
+        >
+          {open ? <X size={28} /> : <Menu size={28} />}
         </Button>
       </div>
+
+      {/* Mobile Menu */}
+      {open && (
+        <div className="mx-auto mt-3 max-w-7xl overflow-hidden rounded-3xl border border-white/30 bg-white/90 shadow-xl backdrop-blur-xl md:hidden">
+          <nav className="flex flex-col p-6">
+            {navLinks.map((item) => (
+              <Link
+                key={item.title}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                className="border-b border-gray-100 py-4 font-semibold text-primary transition hover:text-secondary"
+              >
+                {item.title}
+              </Link>
+            ))}
+
+            <Button
+              variant="primary"
+              className="mt-6 w-full"
+            >
+              Book Consultation
+            </Button>
+          </nav>
+        </div>
+      )}
     </header>
   );
 }
