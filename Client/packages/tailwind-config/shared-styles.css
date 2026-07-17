@@ -72,7 +72,7 @@
   --color-warning: #f59e0b;
 
   /* ---------- Typography scale ---------- */
-  --text-display-lg: 50px;
+  --text-display-lg: px;
   --text-display-lg--line-height: 40px;
   --text-display-lg--font-weight: 700;
   --text-display-lg--letter-spacing: -0.02em;
