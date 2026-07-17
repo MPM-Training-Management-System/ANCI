@@ -27,7 +27,7 @@ export default function Navbar() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-4 z-50 px-4 lg:px-8">
+    <header className="sticky  pt-5 bg-surface z-50 px-4 lg:px-8">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between rounded-full border border-white/40 bg-white/80 px-6 shadow-[0_15px_45px_rgba(0,0,0,0.08)] backdrop-blur-2xl transition-all duration-300 lg:px-8">
 
         {/* Logo */}
