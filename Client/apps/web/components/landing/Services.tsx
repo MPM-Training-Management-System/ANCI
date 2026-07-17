@@ -93,6 +93,9 @@ export default function Services() {
                   <Image
                     src={service.image}
                     alt={service.title}
+                     sizes="(max-width: 768px) 100vw,
+         (max-width: 1024px) 50vw,
+         33vw"
                     fill
                     className="object-cover transition duration-500 group-hover:scale-110"
                   />

@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import Image from "next/image";
-
 import Logo from "@/assets/image/ANCILOGO.png";
-import { Button } from "@repo/ui/index";
+import { Button, Skeleton } from "@repo/ui/index";
 
 const navLinks = [
   {
@@ -25,12 +24,27 @@ const navLinks = [
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
+  useEffect(()=>{
+    const timer = setTimeout(() => setLoading(false), 2000);
+
+  return () => clearTimeout(timer);
+}, []);
   return (
-    <header className="sticky  pt-5 bg-surface z-50 px-4 lg:px-8">
+    <header className="fixed top-0 right-0 left-0 pt-5 bg-transparent z-50 px-4 lg:px-8">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between rounded-full border border-white/40 bg-white/80 px-6 shadow-[0_15px_45px_rgba(0,0,0,0.08)] backdrop-blur-2xl transition-all duration-300 lg:px-8">
 
-        {/* Logo */}
+        {loading ? (
+  <div className="flex items-center gap-3">
+    <Skeleton className="h-14 w-14 rounded-full" />
+
+    <div className="space-y-2">
+      <Skeleton className="h-6 w-40" />
+      <Skeleton className="h-3 w-28" />
+    </div>
+  </div>
+) : (
         <Link href="/" className="flex items-center gap-3">
           <Image
             src={Logo}
@@ -53,10 +67,10 @@ export default function Navbar() {
               Consultancy Inc.
             </span>
           </div>
-        </Link>
+        </Link>)}
 
         {/* Desktop Menu */}
-        <nav className="hidden items-center gap-10 md:flex">
+        <nav className=" hidden items-center gap-10 md:flex">
           {navLinks.map((item) => (
             <Link
               key={item.title}
@@ -70,7 +84,11 @@ export default function Navbar() {
 
         {/* Desktop Button */}
         <div className="hidden md:block">
-          <Button variant="primary">
+          <Button  variant="primary"  onClick={() => {
+    document.getElementById("contact")?.scrollIntoView({
+      behavior: "smooth",
+    });
+  }}>
             Book Consultation
           </Button>
         </div>
@@ -102,7 +120,12 @@ export default function Navbar() {
 
             <Button
               variant="primary"
-              className="mt-6 w-full"
+              onClick={() => {
+    document.getElementById("contact")?.scrollIntoView({
+      behavior: "smooth",
+    });
+  }}
+              
             >
               Book Consultation
             </Button>

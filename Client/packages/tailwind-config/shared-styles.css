@@ -42,7 +42,7 @@
   --color-on-primary-fixed-variant: #35476a;
 
   /* ---------- Secondary (Mint Green — primary CTAs / success) ---------- */
-  --color-secondary: #4382DF;
+  --color-secondary: #3B7597;
   --color-on-secondary: #ffffff;
   --color-secondary-container: #62fae3;
   --color-on-secondary-container: #007165;
@@ -53,7 +53,7 @@
   --color-on-secondary-fixed-variant: #005047;
 
   /* ---------- Tertiary ---------- */
-  --color-tertiary: #ba1a1a;
+  --color-tertiary: #6FD1D7;
   --color-on-tertiary: #ffffff;
   --color-tertiary-container: #122236;
   --color-on-tertiary-container: #7a8aa2;

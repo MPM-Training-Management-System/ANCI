@@ -11,7 +11,7 @@ export default function Hero() {
       <div className="container relative z-10 mx-auto px-6 lg:px-12">
         <div className="mx-auto max-w-5xl text-center">
           {/* Badge */}
-          <div className="mb-8 mt-10 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white/70 px-5 py-2 shadow backdrop-blur-md">
+          <div className="mb-8 mt-25 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white/70 px-5 py-2 shadow backdrop-blur-md">
             <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
             <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-xs font-bold uppercase tracking-[0.25em] text-transparent">
               Sovereign Peace & Progress
