@@ -3,7 +3,7 @@ import { Button } from "@repo/ui/index";
 
 export default function Hero() {
   return (
-    <section className="flex overflow-hidden bg-surface lg:pt-32 ">
+    <section className="flex overflow-hidden  bg-surface md:pt:20 lg:pt-10 ">
       {/* Background Blur */}
       <div className="absolute top-0 right-0 h-[800px] w-[500px] translate-x-1/3 -translate-y-1/3 rounded-full bg-primary/40 blur-[120px]" />
       <div className="absolute bottom-0 left-0 h-[100px] w-[200px] -translate-x-1/3 translate-y-1/3 rounded-full bg-primary blur-[100px]" />
@@ -11,7 +11,7 @@ export default function Hero() {
       <div className="container relative z-10 mx-auto px-6 lg:px-12">
         <div className="mx-auto max-w-5xl text-center">
           {/* Badge */}
-          <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white/70 px-5 py-2 shadow backdrop-blur-md">
+          <div className="mb-8 mt-10 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white/70 px-5 py-2 shadow backdrop-blur-md">
             <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
             <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-xs font-bold uppercase tracking-[0.25em] text-transparent">
               Sovereign Peace & Progress
