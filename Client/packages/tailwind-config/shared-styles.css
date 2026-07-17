@@ -30,19 +30,19 @@
   --color-on-background: #191c1e;
 
   /* ---------- Primary (Deep Navy — institutional anchor) ---------- */
-  --color-primary: #000a21;
+  --color-primary: #002b5c;
   --color-on-primary: #ffffff;
   --color-primary-container: #0d2142;
   --color-on-primary-container: #7789b0;
   --color-inverse-primary: #b5c6f0;
 
-  --color-primary-fixed: #d8e2ff;
+  --color-primary-fixed: #0055DA;
   --color-primary-fixed-dim: #b5c6f0;
   --color-on-primary-fixed: #051b3c;
   --color-on-primary-fixed-variant: #35476a;
 
   /* ---------- Secondary (Mint Green — primary CTAs / success) ---------- */
-  --color-secondary: #006b5f;
+  --color-secondary: #4382DF;
   --color-on-secondary: #ffffff;
   --color-secondary-container: #62fae3;
   --color-on-secondary-container: #007165;
@@ -53,7 +53,7 @@
   --color-on-secondary-fixed-variant: #005047;
 
   /* ---------- Tertiary ---------- */
-  --color-tertiary: #000b1b;
+  --color-tertiary: #ba1a1a;
   --color-on-tertiary: #ffffff;
   --color-tertiary-container: #122236;
   --color-on-tertiary-container: #7a8aa2;
@@ -72,7 +72,7 @@
   --color-warning: #f59e0b;
 
   /* ---------- Typography scale ---------- */
-  --text-display-lg: 32px;
+  --text-display-lg: 50px;
   --text-display-lg--line-height: 40px;
   --text-display-lg--font-weight: 700;
   --text-display-lg--letter-spacing: -0.02em;

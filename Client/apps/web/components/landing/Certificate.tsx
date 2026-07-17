@@ -23,7 +23,7 @@ export default function Certification() {
 
         <div>
 
-          <h2 className="text-5xl font-bold mb-6">
+          <h2 className="text-display-lg text-primary font-bold mb-6">
             Global Validation of Your Expertise
           </h2>
 
