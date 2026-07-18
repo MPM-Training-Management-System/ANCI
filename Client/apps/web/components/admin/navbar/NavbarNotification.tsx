@@ -31,8 +31,8 @@ export default function NavbarNotification({
               size="icon"
               className="
                 relative
-                h-10
-                w-10
+                h-13
+                w-13
                 rounded-xl
                 border
                 border-gray-200
@@ -41,7 +41,7 @@ export default function NavbarNotification({
                 hover:bg-gray-100
               "
             >
-              <Bell size={19} />
+              <Bell size={30} />
 
               {notificationCount > 0 && (
                 <span
@@ -83,8 +83,8 @@ export default function NavbarNotification({
               size="icon"
               className="
                 relative
-                h-10
-                w-10
+                h-13
+                w-13 
                 rounded-xl
                 border
                 border-gray-200

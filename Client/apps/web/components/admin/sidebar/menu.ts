@@ -33,37 +33,37 @@ export const sidebarMenu: SidebarSectionType[] = [
     items: [
       {
         title: "User Management",
-        href: "/dashboard/users",
+        href: "/user",
         icon: Users,
       },
       {
         title: "Service Management",
-        href: "/dashboard/services",
+        href: "/services",
         icon: BriefcaseBusiness,
       },
       {
         title: "Training Programs",
-        href: "/dashboard/trainings",
+        href: "/training",
         icon: GraduationCap,
       },
       {
         title: "Participant Hub",
-        href: "/dashboard/participants",
+        href: "/participant",
         icon: UserRound,
       },
       {
         title: "Exam Center",
-        href: "/dashboard/exams",
+        href: "/exam",
         icon: ClipboardCheck,
       },
       {
         title: "Learning Materials",
-        href: "/dashboard/materials",
+        href: "/learning",
         icon: BookOpen,
       },
       {
         title: "Schedules",
-        href: "/dashboard/schedules",
+        href: "/schedule",
         icon: CalendarDays,
       },
     ],
@@ -74,7 +74,7 @@ export const sidebarMenu: SidebarSectionType[] = [
     items: [
       {
         title: "Reports",
-        href: "/dashboard/reports",
+        href: "/report",
         icon: FileBarChart2,
       },
     ],
@@ -85,17 +85,17 @@ export const sidebarMenu: SidebarSectionType[] = [
     items: [
       {
         title: "Announcements",
-        href: "/dashboard/announcements",
+        href: "/announcement",
         icon: Megaphone,
       },
       {
         title: "Notifications",
-        href: "/dashboard/notifications",
+        href: "/notification",
         icon: Bell,
       },
       {
         title: "Messages",
-        href: "/dashboard/messages",
+        href: "/message",
         icon: MessageSquare,
       },
     ],
@@ -106,7 +106,7 @@ export const sidebarMenu: SidebarSectionType[] = [
     items: [
       {
         title: "Settings",
-        href: "/dashboard/settings",
+        href: "/setting",
         icon: Settings,
       },
     ],

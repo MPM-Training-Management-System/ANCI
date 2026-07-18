@@ -1,127 +1,79 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Card, CardTitle, Skeleton, Progress} from "@repo/ui/index";
+import {
+  Award,
+  BookOpen,
+  ClipboardList,
+  Users,
+} from "lucide-react";
+
+import {
+  PageSection,
+  StatCard,
+  StatsGrid,
+} from "@repo/ui/index";
+
+import TrainingOverview from "@/components/admin/dashboard/TrainingOverview";
+import UpcomingSchedule from "@/components/admin/dashboard/UpcomingSchedule";
+import RecentActivities from "@/components/admin/dashboard/RecentActivities";
+import TrainingProgress from "@/components/admin/dashboard/TrainingProgress";
+import LatestAnnouncements from "@/components/admin/dashboard/LatestAnnouncements";
 
 export default function DashboardPage() {
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 2000);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  const stats = [
-    { label: "Active Services", value: "24", color: "bg-teal-500" },
-    { label: "Upcoming Trainings", value: "18", color: "bg-blue-500" },
-    { label: "Total Participants", value: "7", color: "bg-yellow-500" },
-    { label: "Pending Certificates", value: "32", color: "bg-green-500" },
-  ];
-
   return (
-    <div>
-      <h1 className="mb-6 text-2xl font-bold">
-        Dashboard
-      </h1>
+    <PageSection
+      title="Welcome back, John Dela Cruz! 👋"
+      description="Here's what's happening today in the Integrated Service and Training Management System."
+    >
+      <StatsGrid>
+        <StatCard
+          title="Total Participants"
+          value={248}
+          icon={Users}
+          trend={12}
+          trendLabel="from last month"
+        />
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        {loading
-          ? [...Array(4)].map((_, index) => (
-              <Card key={index}>
-                <Skeleton className="mb-3 h-10 w-10 rounded-lg" />
+        <StatCard
+          title="Active Trainings"
+          value={18}
+          icon={BookOpen}
+          trend={8}
+          trendLabel="ongoing this week"
+        />
 
-                <Skeleton className="mb-2 h-8 w-16" />
+        <StatCard
+          title="Examinations"
+          value={12}
+          icon={ClipboardList}
+          trend={3}
+          trendLabel="upcoming exams"
+        />
 
-                <Skeleton className="h-4 w-32" />
-              </Card>
-            ))
-          : stats.map((stat) => (
-              <Card key={stat.label}>
-                <p
-                  className={`mb-3 h-10 w-10 rounded-lg ${stat.color}`}
-                />
+        <StatCard
+          title="Certificates Issued"
+          value={156}
+          icon={Award}
+          trend={8}
+          trendLabel="this month"
+        />
+      </StatsGrid>
 
-                <p className="text-2xl font-bold">
-                  {stat.value}
-                </p>
-
-                <CardTitle className="text-sm text-gray-500">
-                  {stat.label}
-                </CardTitle>
-              </Card>
-            ))}
-      </div>
-      <div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
-
-  <Card>
-    <CardTitle className="mb-4">
-      Training Capacity
-    </CardTitle>
-
-    <div className="space-y-5">
-
-      <div>
-        <div className="mb-2 flex justify-between">
-          <span className="text-sm">
-            Cyber Security
-          </span>
-
-          <span className="text-sm font-semibold">
-            42 / 50
-          </span>
+      <div className="grid gap-6 xl:grid-cols-3">
+        <div className="xl:col-span-2">
+          <TrainingOverview />
         </div>
 
-        <Progress
-          value={42}
-          max={50}
-          showLabel
-        />
+        <UpcomingSchedule />
       </div>
 
-      <div>
-        <div className="mb-2 flex justify-between">
-          <span className="text-sm">
-            Leadership Training
-          </span>
+      <div className="grid gap-6 xl:grid-cols-3">
+        <RecentActivities />
 
-          <span className="text-sm font-semibold">
-            25 / 40
-          </span>
-        </div>
+        <TrainingProgress />
 
-        <Progress
-          value={25}
-          max={40}
-          showLabel
-        />
+        <LatestAnnouncements />
       </div>
-
-      <div>
-        <div className="mb-2 flex justify-between">
-          <span className="text-sm">
-            IT Fundamentals
-          </span>
-
-          <span className="text-sm font-semibold">
-            15 / 20
-          </span>
-        </div>
-
-        <Progress
-          value={90}
-          max={200}
-          showLabel
-        />
-      </div>
-
-    </div>
-
-  </Card>
-
-</div>
-    </div>
+    </PageSection>
   );
 }

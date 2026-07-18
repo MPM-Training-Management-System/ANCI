@@ -17,6 +17,11 @@ export default function Navbar({
   return (
     <header
       className="
+      fixed
+      left-80
+      right-0
+      z-90
+      top-4
         flex
         h-20
         items-center
