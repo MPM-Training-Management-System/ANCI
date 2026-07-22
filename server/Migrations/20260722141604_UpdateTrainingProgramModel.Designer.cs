@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using server.Data;
@@ -11,9 +12,11 @@ using server.Data;
 namespace server.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260722141604_UpdateTrainingProgramModel")]
+    partial class UpdateTrainingProgramModel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -86,55 +89,6 @@ namespace server.Migrations
                     b.ToTable("TrainingPrograms");
                 });
 
-            modelBuilder.Entity("server.Models.TrainingScheduleModel", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("CurrentParticipants")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("EndDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("MaximumParticipants")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("StartDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("TrainerId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("TrainingProgramId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Venue")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TrainerId");
-
-                    b.HasIndex("TrainingProgramId");
-
-                    b.ToTable("TrainingSchedules");
-                });
-
             modelBuilder.Entity("server.Models.UserModel", b =>
                 {
                     b.Property<int>("Id")
@@ -180,25 +134,6 @@ namespace server.Migrations
                         .IsRequired();
 
                     b.Navigation("Trainer");
-                });
-
-            modelBuilder.Entity("server.Models.TrainingScheduleModel", b =>
-                {
-                    b.HasOne("server.Models.UserModel", "Trainer")
-                        .WithMany()
-                        .HasForeignKey("TrainerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("server.Models.TrainingProgramModel", "TrainingProgram")
-                        .WithMany()
-                        .HasForeignKey("TrainingProgramId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Trainer");
-
-                    b.Navigation("TrainingProgram");
                 });
 #pragma warning restore 612, 618
         }

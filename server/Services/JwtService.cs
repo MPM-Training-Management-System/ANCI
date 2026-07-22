@@ -1,27 +1,33 @@
+using Microsoft.IdentityModel.Tokens;
+using server.Models;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Microsoft.IdentityModel.Tokens;
-using server.Models;
 
 namespace server.Services;
 
 public class JwtService
 {
-    private readonly string _key =
-        "THIS_IS_A_SECRET_KEY_FOR_DEVELOPMENT_ONLY_123456";
+    private readonly IConfiguration _configuration;
+
+    public JwtService(IConfiguration configuration)
+    {
+        _configuration = configuration;
+    }
 
     public string GenerateToken(UserModel user)
     {
-        var claims = new[]
-        {
-            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new Claim(ClaimTypes.Name, user.Username),
-            new Claim(ClaimTypes.Role, user.Role)
-        };
+       var claims = new[]
+{
+    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+    new Claim("username", user.Username),
+    new Claim("fullname", user.FullName),
+    new Claim(ClaimTypes.Email, user.Email),
+    new Claim(ClaimTypes.Role, user.Role)
+};
 
         var key = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(_key)
+            Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!)
         );
 
         var creds = new SigningCredentials(
@@ -30,12 +36,13 @@ public class JwtService
         );
 
         var token = new JwtSecurityToken(
+            issuer: _configuration["Jwt:Issuer"],
+            audience: _configuration["Jwt:Audience"],
             claims: claims,
-            expires: DateTime.Now.AddHours(8),
+            expires: DateTime.Now.AddDays(7),
             signingCredentials: creds
         );
 
-        return new JwtSecurityTokenHandler()
-            .WriteToken(token);
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 }
