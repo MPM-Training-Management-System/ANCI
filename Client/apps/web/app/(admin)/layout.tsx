@@ -36,7 +36,7 @@ export default function AdminLayout({
             />
 
             {/* Page Content */}
-            <main className="mt-6 flex-1">
+            <main className="mt-25 flex-1">
               {children}
             </main>
           </div>

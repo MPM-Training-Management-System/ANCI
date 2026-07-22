@@ -12,6 +12,6 @@ namespace server.Models {
 
         public string Role { get; set; }
 
-        public string Create_at { get; set; }
+        public DateTime  Create_at { get; set; } = DateTime.UtcNow;
     }
 }

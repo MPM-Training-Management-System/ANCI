@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using server.Data;
 using server.DTOs;
 using server.Models;
 using server.Services;
+using System.Security.Claims;
 
 namespace server.Controllers;
 
@@ -14,17 +16,21 @@ public class AuthController : ControllerBase
     private readonly JwtService _jwtService;
     private readonly AppDbContext _context;
 
-    public AuthController(JwtService jwtService, AppDbContext context)
+    public AuthController(
+        JwtService jwtService,
+        AppDbContext context)
     {
         _jwtService = jwtService;
         _context = context;
     }
 
-    [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginDTO request)
-    {
-        Console.WriteLine("🔥 LOGIN REQUEST");
+    // ===========================
+    // LOGIN
+    // ===========================
 
+    [HttpPost("login")]
+    public async Task<IActionResult> Login(LoginDTO request)
+    {
         if (string.IsNullOrWhiteSpace(request.Email) ||
             string.IsNullOrWhiteSpace(request.Password))
         {
@@ -39,8 +45,6 @@ public class AuthController : ControllerBase
 
         if (user == null)
         {
-            Console.WriteLine("❌ User not found.");
-
             return Unauthorized(new
             {
                 message = "Invalid email or password."
@@ -58,8 +62,6 @@ public class AuthController : ControllerBase
 }
 
         var token = _jwtService.GenerateToken(user);
-
-        Console.WriteLine("✅ LOGIN SUCCESS");
 
         return Ok(new
         {

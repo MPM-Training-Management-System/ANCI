@@ -15,8 +15,8 @@ export default function NavbarCollapse({
       size="icon"
       onClick={() => setCollapsed(!collapsed)}
       className="
-        h-10
-        w-10
+        h-13
+        w-13
         rounded-xl
         border
         border-gray-200
@@ -29,9 +29,9 @@ export default function NavbarCollapse({
       "
     >
       {collapsed ? (
-        <PanelLeftOpen size={20} />
+        <PanelLeftOpen size={30} />
       ) : (
-        <PanelLeftClose size={20} />
+        <PanelLeftClose size={30} />
       )}
     </Button>
   );
