@@ -30,32 +30,31 @@ export default function DashboardPage() {
           title="Total Participants"
           value={248}
           icon={Users}
-          trend={12}
-          trendLabel="from last month"
+      
+          footer="from last month"
         />
 
         <StatCard
           title="Active Trainings"
           value={18}
           icon={BookOpen}
-          trend={8}
-          trendLabel="ongoing this week"
+          footer="ongoing this week"
         />
 
         <StatCard
           title="Examinations"
           value={12}
           icon={ClipboardList}
-          trend={3}
-          trendLabel="upcoming exams"
+         
+          footer="upcoming exams"
         />
 
         <StatCard
           title="Certificates Issued"
           value={156}
           icon={Award}
-          trend={8}
-          trendLabel="this month"
+         
+          footer="this month"
         />
       </StatsGrid>
 

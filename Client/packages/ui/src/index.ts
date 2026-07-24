@@ -5,3 +5,12 @@ export * from './file-upload';
 export * from './form';
 export * from './components';
 export * from './navigation';
+export * from "./table";
+export * from "./progress";
+export * from "./stat-card";
+export * from "./search-box";
+export * from "./pagination";
+export * from "./data-grid";
+export * from "./stat-grid"
+export * from "./section-header";
+export * from "./layout";

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { auth } from "@repo/api";
 
 interface Props {
   children: React.ReactNode;

@@ -11,7 +11,7 @@ import {
   Spinner,
 } from "@repo/ui/index";
 
-import { auth } from "@/lib/auth";
+import { auth } from "@repo/api";
 
 import { SidebarFooterProps } from "./types";
 

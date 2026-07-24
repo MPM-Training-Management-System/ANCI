@@ -9,14 +9,12 @@ export * from './spinner'
 export * from "./modal";
 export * from "./avatar";
 export * from "./skeleton"
-export * from "./progress"
 export * from "./textarea"
 export * from "./select";
 export * from "./checkbox";
 export * from "./switch";
 export * from "./tooltip";
 export * from "./separator";
-export * from './stat-card';
 export * from './metric';
 export * from './page-section';
 export * from './stats-grid';

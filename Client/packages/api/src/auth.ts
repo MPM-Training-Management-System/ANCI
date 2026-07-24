@@ -1,14 +1,41 @@
-import { ApiClient } from "./client";
-import { LoginRequest, LoginResponse } from "@repo/types";
+export const auth = {
+  saveToken(token: string) {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("token", token);
+    }
+  },
 
-
-export class AuthApi {
-  constructor(private api: ApiClient) {}
-
-  login(data: LoginRequest) {
-    return this.api.request<LoginResponse>("/api/auth/login", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
+  getToken() {
+  if (typeof window === "undefined") {
+    return null;
   }
-}
+
+  return localStorage.getItem("token");
+},
+
+  saveUser(user: unknown) {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("user", JSON.stringify(user));
+    }
+  },
+
+  getUser() {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    const user = localStorage.getItem("user");
+    return user ? JSON.parse(user) : null;
+  },
+
+  logout() {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+    }
+  },
+
+  isAuthenticated() {
+    return !!this.getToken();
+  }
+};

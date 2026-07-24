@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@repo/api": "workspace:*",
+     "@repo/types": "workspace:*",
     "@repo/hooks": "workspace:*",
     "@repo/tailwind-config": "workspace:*",
     "@repo/token": "workspace:*",

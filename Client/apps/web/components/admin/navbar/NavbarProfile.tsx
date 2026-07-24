@@ -20,7 +20,7 @@ import {
 } from "@repo/ui/index";
 
 import { NavbarProfileProps } from "./types";
-import { auth } from "@/lib/auth";
+import { auth } from "@repo/api";
 
 export default function NavbarProfile({
   name,

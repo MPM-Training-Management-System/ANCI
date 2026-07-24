@@ -5,8 +5,8 @@ import { Button, Checkbox} from "@repo/ui/index";
 import { Input, Spinner } from "@repo/ui/index";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { authApi } from "@/lib/api";
-import {  auth } from "@/lib/auth";
+import { authApi } from "@repo/api";
+import {  auth } from "@repo/api";
 import { notify } from "@repo/hooks";
 
 export default function LoginPage() {

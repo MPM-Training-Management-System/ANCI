@@ -8,9 +8,19 @@
     ".": "./src/index.ts"
   },
   "keywords": [],
+
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "sonner": "^2.0.7"
-  }
+    "sonner": "^2.0.7",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+   "devDependencies": {
+      "@repo/types": "workspace:*",
+   "@repo/api": "workspace:*",
+    "@types/react": "^19.x",
+    "@types/react-dom": "^19.x",
+    "typescript": "^5.x"
+   }
 }
