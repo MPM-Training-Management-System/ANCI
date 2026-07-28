@@ -15,7 +15,7 @@ export default function AdminLayout({
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-[#F5F7FB]">
+      <div className="min-h-screen bg-surface">
         {/* Sidebar */}
         <Sidebar
           collapsed={collapsed}

@@ -12,10 +12,9 @@ interface DataTableHeaderProps {
 export function DataTableHeader({
   title,
   description,
-  addButton,
 }: DataTableHeaderProps) {
   // Huwag mag-render kung walang content
-  if (!title && !description && !addButton) {
+  if (!title && !description) {
     return null;
   }
 
@@ -37,32 +36,7 @@ export function DataTableHeader({
         )}
       </div>
 
-      {/* Right */}
-      {addButton && (
-        <button
-          onClick={addButton.onClick}
-          className="
-            inline-flex
-            items-center
-            gap-2
-            rounded-lg
-            bg-emerald-600
-            px-4
-            py-2
-            text-sm
-            font-semibold
-            text-white
-            shadow-sm
-            transition
-            hover:bg-emerald-700
-            active:scale-95
-          "
-        >
-          {addButton.icon ?? <Plus size={18} />}
-
-          {addButton.label}
-        </button>
-      )}
+     
     </div>
   );
 }

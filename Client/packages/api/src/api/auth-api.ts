@@ -1,0 +1,84 @@
+import { ApiClient } from "./client";
+
+export interface LoginRequest {
+  login: string;
+  password: string;
+}
+
+export interface UpdateUser {
+  username: string;
+  fullName: String;
+  email:  string;
+}
+
+export interface ChangePassRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface LoginUser {
+  id: string;
+  username: string;
+  fullName: string;
+  email: string;
+  role: string;
+  profileImage?: string;
+}
+
+export interface LoginResponse {
+  token: string;
+  user: LoginUser;
+}
+export interface RegisterRequest {
+  fullName: string;
+  email: string;
+  mobileNumber: string;
+  password: string;
+}
+export interface RegisterResponse {
+  success: boolean;
+  message: string;
+}
+export class AuthApi {
+  constructor(
+    private readonly api: ApiClient
+  ) {}
+
+  login(data: LoginRequest) {
+    return this.api.post<LoginResponse>(
+      "/api/auth/login",
+      data
+    );
+  }
+    register(data: RegisterRequest) {
+    return this.api.post<RegisterResponse>(
+      "/api/auth/register",
+      data
+    );
+  }
+
+  me() {
+    return this.api.get<LoginUser>(
+      "/api/auth/me"
+    );
+  }
+  changepassword(data: ChangePassRequest){
+    return this.api.post<ChangePassRequest>(
+      "api/auth/change-password"
+    )
+  }
+
+  logout() {
+    return this.api.post<void>(
+      "/api/auth/logout"
+    );
+  }
+
+  refreshToken() {
+    return this.api.post<{
+      token: string;
+    }>(
+      "/api/auth/refresh"
+    );
+  }
+}

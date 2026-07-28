@@ -22,6 +22,84 @@ namespace server.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("server.Models.ParticipantModel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CivilStatus")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<DateOnly>("DateOfBirth")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("EmergencyContactName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("EmergencyContactNumber")
+                        .HasColumnType("text");
+
+                    b.Property<string>("EmergencyRelationship")
+                        .HasColumnType("text");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Gender")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("HomeAddress")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("MiddleName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("MobileNumber")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProfileImage")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("Participant");
+                });
+
             modelBuilder.Entity("server.Models.TrainingProgramModel", b =>
                 {
                     b.Property<int>("Id")
@@ -69,8 +147,8 @@ namespace server.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("TrainerId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("TrainerId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -113,8 +191,8 @@ namespace server.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("TrainerId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("TrainerId")
+                        .HasColumnType("uuid");
 
                     b.Property<int>("TrainingProgramId")
                         .HasColumnType("integer");
@@ -137,22 +215,25 @@ namespace server.Migrations
 
             modelBuilder.Entity("server.Models.UserModel", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("uuid");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("Create_at")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("FullName")
+                    b.Property<string>("Fullname")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Password")
                         .IsRequired()
@@ -162,13 +243,31 @@ namespace server.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("Username")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Email")
+                        .IsUnique();
+
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("server.Models.ParticipantModel", b =>
+                {
+                    b.HasOne("server.Models.UserModel", "User")
+                        .WithOne("Participant")
+                        .HasForeignKey("server.Models.ParticipantModel", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("server.Models.TrainingProgramModel", b =>
@@ -199,6 +298,11 @@ namespace server.Migrations
                     b.Navigation("Trainer");
 
                     b.Navigation("TrainingProgram");
+                });
+
+            modelBuilder.Entity("server.Models.UserModel", b =>
+                {
+                    b.Navigation("Participant");
                 });
 #pragma warning restore 612, 618
         }

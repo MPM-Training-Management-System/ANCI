@@ -14,16 +14,14 @@ namespace server.Algorithms
                 keyword = keyword.Trim().ToLower();
 
                 users = users.Where(u =>
-                    u.Username.ToLower().Contains(keyword) ||
-                    u.FullName.ToLower().Contains(keyword) ||
-                    u.Email.ToLower().Contains(keyword));
+                    u.Email.ToLower().Contains(keyword) ||
+                    u.Fullname.ToLower().Contains(keyword));
             }
 
             if (!string.IsNullOrWhiteSpace(role))
             {
                 users = users.Where(u =>
-                    u.Role.Equals(role,
-                        StringComparison.OrdinalIgnoreCase));
+                    u.Role.Equals(role, StringComparison.OrdinalIgnoreCase));
             }
 
             return users;

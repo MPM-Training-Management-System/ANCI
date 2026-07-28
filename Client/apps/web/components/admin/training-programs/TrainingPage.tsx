@@ -10,6 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
   StatCard,
+  SectionCard,
+  Section,
 } from "@repo/ui/index";
 
 import { Plus } from "lucide-react";
@@ -29,9 +31,10 @@ export default function TrainingPage() {
 />
 
       {/* Statistics */}
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <Section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
 
         <StatCard
+         variant="primary"
           title="Total Programs"
           icon={Plus}
           value="25"
@@ -39,6 +42,7 @@ export default function TrainingPage() {
         />
 
         <StatCard
+        variant="primary"
           title="Active Programs"
           icon={Plus}
           value="18"
@@ -46,6 +50,7 @@ export default function TrainingPage() {
         />
 
         <StatCard
+         variant="primary"
           title="Participants"
           icon={Plus}
           value="1,240"
@@ -53,13 +58,14 @@ export default function TrainingPage() {
         />
 
         <StatCard
+         variant="primary"
           title="Completion Rate"
           icon={Plus}
           value="94%"
           description="Average completion"
         />
 
-      </section>
+      </Section>
 
       {/* Search & Filters */}
       <section className="rounded-lg border bg-card p-4">

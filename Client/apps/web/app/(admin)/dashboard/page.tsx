@@ -12,7 +12,7 @@ import {
   StatCard,
   StatsGrid,
 } from "@repo/ui/index";
-
+import { useParticipants } from "@/hooks/useParticipants";
 import TrainingOverview from "@/components/admin/dashboard/TrainingOverview";
 import UpcomingSchedule from "@/components/admin/dashboard/UpcomingSchedule";
 import RecentActivities from "@/components/admin/dashboard/RecentActivities";
@@ -20,44 +20,52 @@ import TrainingProgress from "@/components/admin/dashboard/TrainingProgress";
 import LatestAnnouncements from "@/components/admin/dashboard/LatestAnnouncements";
 
 export default function DashboardPage() {
+   const { count, loading } = useParticipants();
+
+    
+
   return (
     <PageSection
-      title="Welcome back, John Dela Cruz! 👋"
+      title="Welcome back, John Dela Cruz! "
       description="Here's what's happening today in the Integrated Service and Training Management System."
     >
       <StatsGrid>
-        <StatCard
-          title="Total Participants"
-          value={248}
-          icon={Users}
-      
-          footer="from last month"
-        />
+  <StatCard
+    loading={loading}
+    variant="primary"
+    title="Total Students"
+    icon={Users}
+    value={count}
+    description="Total enrolled participants"
+  />
 
-        <StatCard
-          title="Active Trainings"
-          value={18}
-          icon={BookOpen}
-          footer="ongoing this week"
-        />
+  <StatCard
+    loading={loading}
+    variant="primary"
+    title="Assigned Classes"
+    value={18}
+    icon={BookOpen}
+    description="asd"
+  />
 
-        <StatCard
-          title="Examinations"
-          value={12}
-          icon={ClipboardList}
-         
-          footer="upcoming exams"
-        />
+  <StatCard
+    loading={loading}
+    variant="primary"
+    title="Today's Training Sessions"
+    value={12}
+    icon={ClipboardList}
+    description="asd"
+  />
 
-        <StatCard
-          title="Certificates Issued"
-          value={156}
-          icon={Award}
-         
-          footer="this month"
-        />
-      </StatsGrid>
-
+  <StatCard
+    loading={loading}
+    variant="primary"
+    title="Attendance Rate"
+    value={156}
+    icon={Award}
+    description="asd"
+  />
+</StatsGrid>
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="xl:col-span-2">
           <TrainingOverview />

@@ -7,6 +7,12 @@ export interface DataTableActionButton {
   icon?: ReactNode;
 }
 
+
+
+
+
+
+
 export interface DataTableProps<TData> {
   title?: string;
   description?: string;

@@ -20,31 +20,36 @@ namespace server.Services
         // ===========================================
         // GET ALL USERS
         // ===========================================
-        public async Task<IEnumerable<UserResponseDTO>> GetAllAsync(
-            string? search,
-            string? role)
-        {
-            var users = await _context.Users.ToListAsync();
+       public async Task<IEnumerable<UserResponseDTO>> GetAllAsync(string? search, string? role)
+{
+    var users = await _context.Users
+        .Include(u => u.Participant)
+        .ToListAsync();
 
-            users = UserSearchAlgorithm
-                .Search(users, search, role)
-                .ToList();
+    users = UserSearchAlgorithm
+        .Search(users, search, role)
+        .ToList();
 
-            return users.Select(user => new UserResponseDTO
-            {
-                Id = user.Id,
-                Username = user.Username,
-                FullName = user.FullName,
-                Email = user.Email,
-                Role = user.Role,
-                Create_at = user.Create_at
-            });
-        }
+   
+
+    return users.Select(user => new UserResponseDTO
+    {
+        Id = user.Id,
+        UserId = user.UserId,
+        Username = user.Username,
+        Fullname = user.Fullname,
+        Email = user.Email,
+        IsActive = user.IsActive,
+        ProfileImage = user.Participant?.ProfileImage,
+        Role = user.Role,
+        CreatedAt = user.CreatedAt
+    });
+}
 
         // ===========================================
         // GET USER BY ID
         // ===========================================
-        public async Task<UserResponseDTO?> GetByIdAsync(int id)
+        public async Task<UserResponseDTO?> GetByIdAsync(Guid id)
         {
             var user = await _context.Users.FindAsync(id);
 
@@ -54,11 +59,16 @@ namespace server.Services
             return new UserResponseDTO
             {
                 Id = user.Id,
-                Username = user.Username,
-                FullName = user.FullName,
+                UserId = user.UserId,
                 Email = user.Email,
+                Fullname = user.Fullname,
+                Username = user.Username,
                 Role = user.Role,
-                Create_at = user.Create_at
+                IsActive = user.IsActive,
+                CreatedAt = user.CreatedAt,
+
+    ProfileImage = user.Participant?.ProfileImage
+
             };
         }
 
@@ -70,17 +80,11 @@ namespace server.Services
             if (await _context.Users.AnyAsync(x => x.Email == dto.Email))
                 throw new Exception("Email already exists.");
 
-            if (await _context.Users.AnyAsync(x => x.Username == dto.Username))
-                throw new Exception("Username already exists.");
-
             var user = new UserModel
             {
-                Username = dto.Username,
-                FullName = dto.FullName,
                 Email = dto.Email,
                 Password = BCrypt.Net.BCrypt.HashPassword(dto.Password),
-                Role = dto.Role,
-                Create_at = DateTime.UtcNow
+                Role = dto.Role
             };
 
             _context.Users.Add(user);
@@ -90,11 +94,16 @@ namespace server.Services
             return new UserResponseDTO
             {
                 Id = user.Id,
-                Username = user.Username,
-                FullName = user.FullName,
+                UserId= user.UserId,
                 Email = user.Email,
+                Fullname = user.Fullname,
+                Username = user.Username,
                 Role = user.Role,
-                Create_at = user.Create_at
+                IsActive = user.IsActive,
+                CreatedAt = user.CreatedAt,
+
+    ProfileImage = user.Participant?.ProfileImage
+
             };
         }
 
@@ -102,7 +111,7 @@ namespace server.Services
         // UPDATE USER
         // ===========================================
         public async Task<UserResponseDTO?> UpdateAsync(
-            int id,
+            Guid id,
             UpdateUserDTO dto)
         {
             var user = await _context.Users.FindAsync(id);
@@ -117,15 +126,6 @@ namespace server.Services
                 throw new Exception("Email already exists.");
             }
 
-            if (await _context.Users.AnyAsync(x =>
-                x.Username == dto.Username &&
-                x.Id != id))
-            {
-                throw new Exception("Username already exists.");
-            }
-
-            user.Username = dto.Username;
-            user.FullName = dto.FullName;
             user.Email = dto.Email;
             user.Role = dto.Role;
 
@@ -134,18 +134,23 @@ namespace server.Services
             return new UserResponseDTO
             {
                 Id = user.Id,
-                Username = user.Username,
-                FullName = user.FullName,
+                UserId = user.UserId,
                 Email = user.Email,
+                Fullname = user.Fullname,
+                Username = user.Username,
                 Role = user.Role,
-                Create_at = user.Create_at
+                IsActive = user.IsActive,
+                CreatedAt = user.CreatedAt,
+
+    ProfileImage = user.Participant?.ProfileImage
+
             };
         }
 
         // ===========================================
         // DELETE USER
         // ===========================================
-        public async Task<bool> DeleteAsync(int id)
+        public async Task<bool> DeleteAsync(Guid id)
         {
             var user = await _context.Users.FindAsync(id);
 

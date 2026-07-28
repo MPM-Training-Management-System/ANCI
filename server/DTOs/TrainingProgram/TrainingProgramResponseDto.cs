@@ -18,7 +18,7 @@ namespace server.DTOs.TrainingProgram
 
         public int MaxParticipants { get; set; }
 
-        public int TrainerId { get; set; }
+        public Guid TrainerId { get; set; }
 
         public string TrainerName { get; set; } = string.Empty;
 

@@ -24,7 +24,7 @@ namespace server.Models
 
         public int MaxParticipants { get; set; }
 
-        public int TrainerId { get; set; }
+        public Guid TrainerId { get; set; }
 
         [ForeignKey(nameof(TrainerId))]
         public UserModel Trainer { get; set; } = null!;

@@ -56,8 +56,6 @@ export default function Navbar({
         />
 
         <NavbarProfile
-          name="Ralph Joed"
-          role="Administrator"
         />
 
       </div>

@@ -13,7 +13,7 @@ export default function LoadingScreen() {
       <Text style={styles.title}>ANCI</Text>
 
       <Text style={styles.subtitle}>
-        Integrated Training Management System
+        Training Management System
       </Text>
 
       <ActivityIndicator

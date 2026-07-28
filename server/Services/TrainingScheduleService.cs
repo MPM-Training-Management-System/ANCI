@@ -31,7 +31,7 @@ namespace server.Services
                     TrainingProgramId = x.TrainingProgramId,
                     TrainingTitle = x.TrainingProgram.Title,
                     TrainerId = x.TrainerId,
-                    TrainerName = x.Trainer.FullName,
+                    // TrainerName = x.Trainer.FullName,
                     StartDate = x.StartDate,
                     EndDate = x.EndDate,
                     Venue = x.Venue,
@@ -54,7 +54,7 @@ namespace server.Services
                     TrainingProgramId = x.TrainingProgramId,
                     TrainingTitle = x.TrainingProgram.Title,
                     TrainerId = x.TrainerId,
-                    TrainerName = x.Trainer.FullName,
+                    // TrainerName = x.Trainer.FullName,
                     StartDate = x.StartDate,
                     EndDate = x.EndDate,
                     Venue = x.Venue,
@@ -145,7 +145,7 @@ namespace server.Services
             return true;
         }
         public async Task<bool> HasConflictAsync(
-    int trainerId,
+    Guid trainerId,
     string venue,
     DateTime startDate,
     DateTime endDate,

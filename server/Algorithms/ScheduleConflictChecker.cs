@@ -1,5 +1,5 @@
-using server.Data;
 using Microsoft.EntityFrameworkCore;
+using server.Data;
 
 namespace server.Algorithms
 {
@@ -13,13 +13,15 @@ namespace server.Algorithms
         }
 
         public async Task<bool> HasConflictAsync(
-            int trainerId,
+            Guid trainerId,
             string venue,
             DateTime startDate,
             DateTime endDate,
             int? excludeScheduleId = null)
         {
-            // Trainer Conflict
+            // =====================================
+            // TRAINER CONFLICT
+            // =====================================
             bool trainerConflict = await _context.TrainingSchedules.AnyAsync(x =>
                 x.TrainerId == trainerId &&
                 (excludeScheduleId == null || x.Id != excludeScheduleId) &&
@@ -27,9 +29,13 @@ namespace server.Algorithms
                 endDate > x.StartDate);
 
             if (trainerConflict)
+            {
                 return true;
+            }
 
-            // Venue Conflict
+            // =====================================
+            // VENUE CONFLICT
+            // =====================================
             bool venueConflict = await _context.TrainingSchedules.AnyAsync(x =>
                 x.Venue == venue &&
                 (excludeScheduleId == null || x.Id != excludeScheduleId) &&

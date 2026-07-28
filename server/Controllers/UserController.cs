@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using server.DTOs.User;
@@ -7,7 +8,7 @@ namespace server.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Admin,Trainer" )]
 public class UserController : ControllerBase
 {
     private readonly IUserService _userService;
@@ -19,24 +20,33 @@ public class UserController : ControllerBase
 
     // =====================================
     // GET ALL USERS
-    // GET: api/users
-    // GET: api/users?search=ralph&role=Trainer
+    // GET: api/user
+    // GET: api/user?search=juan&role=Participant
     // =====================================
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? search,
         [FromQuery] string? role)
     {
-        var users = await _userService.GetAllAsync(search, role);
+    var currentRole = User.FindFirst(ClaimTypes.Role)?.Value;
 
-        return Ok(users);
+    if (currentRole == "Trainer")
+    {
+        // Trainer can only see participants
+        role = "Participant";
+    }
+
+    var users = await _userService.GetAllAsync(search, role);
+
+    return Ok(users);
+        
     }
 
     // =====================================
     // GET USER BY ID
     // =====================================
-    [HttpGet("{id:int}")]
-    public async Task<IActionResult> GetById(int id)
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetById(Guid id)
     {
         var user = await _userService.GetByIdAsync(id);
 
@@ -78,9 +88,9 @@ public class UserController : ControllerBase
     // =====================================
     // UPDATE USER
     // =====================================
-    [HttpPut("{id:int}")]
+    [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(
-        int id,
+        Guid id,
         UpdateUserDTO dto)
     {
         try
@@ -109,8 +119,8 @@ public class UserController : ControllerBase
     // =====================================
     // DELETE USER
     // =====================================
-    [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Delete(int id)
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id)
     {
         var deleted = await _userService.DeleteAsync(id);
 

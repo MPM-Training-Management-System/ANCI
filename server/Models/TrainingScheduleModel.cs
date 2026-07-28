@@ -15,7 +15,7 @@ namespace server.Models
         public TrainingProgramModel TrainingProgram { get; set; } = null!;
 
         [Required]
-        public int TrainerId { get; set; }
+        public Guid TrainerId { get; set; }
 
         [ForeignKey(nameof(TrainerId))]
         public UserModel Trainer { get; set; } = null!;

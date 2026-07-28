@@ -19,6 +19,7 @@ import { DataTableLoading } from "./DataTableLoading";
 import { DataTableEmpty } from "./DataTableEmpty";
 
 import type { DataTableProps } from "./type";
+import { Button } from "../components";
 
 export function DataTable<TData>({
   title,
@@ -85,6 +86,12 @@ export function DataTable<TData>({
         value={globalFilter}
         onChange={setGlobalFilter}
       >
+         {addButton && (
+    <Button variant="primary" onClick={addButton.onClick}>
+      {addButton.icon}
+      {addButton.label}
+    </Button>
+  )}
         {toolbar}
       </DataTableToolbar>
 

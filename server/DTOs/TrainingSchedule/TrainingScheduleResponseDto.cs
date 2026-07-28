@@ -8,7 +8,7 @@ namespace server.DTOs.TrainingSchedule
 
         public string TrainingTitle { get; set; } = string.Empty;
 
-        public int TrainerId { get; set; }
+        public Guid TrainerId { get; set; }
 
         public string TrainerName { get; set; } = string.Empty;
 

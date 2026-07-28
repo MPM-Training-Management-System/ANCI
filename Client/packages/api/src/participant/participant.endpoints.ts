@@ -1,5 +1,5 @@
 export const ParticipantEndpoints = {
-  list: "/api/User?role=Participant",
+  list: "/api/User",
 
   byId: (id: number) => `/api/User/${id}`,
 
@@ -8,4 +8,4 @@ export const ParticipantEndpoints = {
   update: (id: number) => `/api/User/${id}`,
 
   delete: (id: number) => `/api/User/${id}`,
-} as const;
+} 

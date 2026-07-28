@@ -1,9 +1,13 @@
 export interface Participant {
   id: number;
+  userId: string;
   username: string;
-  fullName: string;
+  fullname: string;
   email: string;
-  create_at: string;
+  profileImage: string;
+  role: string;
+  isActive: boolean;
+  createdAt: string;
 }
 
 export interface CreateParticipantRequest {

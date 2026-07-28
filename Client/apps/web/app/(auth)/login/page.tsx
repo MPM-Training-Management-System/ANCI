@@ -3,44 +3,51 @@
 
 import { Button, Checkbox} from "@repo/ui/index";
 import { Input, Spinner } from "@repo/ui/index";
-import { useState } from "react";
+import {  useState } from "react";
 import { useRouter } from "next/navigation";
-import { authApi } from "@repo/api";
-import {  auth } from "@repo/api";
+import { authApi } from "@/lib/api";
+import {  auth } from "@/lib/auth";
 import { notify } from "@repo/hooks";
+
 
 export default function LoginPage() {
    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const router = useRouter();
     const [rememberMe, setRememberMe] = useState(false);
-    const [email, setUsername] = useState("");
+    const [login, setLogin] = useState("");
     const [password, setPassword] = useState("");
-    
-    
-    const handleLogin = async () => {
-     setLoading(true);
-  try {
-    await Promise.all([
-      authApi.login({
-        email,
-        password,
-      }),
-    ]).then(([data]) => {
-      localStorage.setItem("user", JSON.stringify(data.user));
-      auth.saveToken(data.token);
+ 
 
-      notify.success("Login successful!");
-      router.push("/dashboard");
+   const handleLogin = async () => {
+  setLoading(true);
+
+  try {
+    const data = await authApi.login({
+      login,
+      password,
     });
+
+    auth.saveToken(data.token);
+    localStorage.setItem("user", JSON.stringify(data.user));
+
+    console.log(data.user.role);
+
+    if (data.user.role === "Trainer") {
+      notify.success("Login Succesfull");
+      router.push("/dashboard");
+    } else {
+      notify.error("You are not authorized.");
+      auth.logout();
+    }
   } catch (error) {
     console.error(error);
     notify.error("Invalid email or password");
-  }finally{
+  } finally {
     setLoading(false);
   }
+};
 
-}
     
   return (
       <div className="flex justify-center">
@@ -74,8 +81,8 @@ export default function LoginPage() {
      
                      <Input
                        type="string"
-                        onChange={(e) => setUsername(e.target.value)}
-                        value={email}
+                        onChange={(e) => setLogin(e.target.value)}
+                        value={login}
                        placeholder="admin@acenextgen.com"
                        className="w-full px-4 py-3 bg-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-teal-400"
                      />

@@ -1,4 +1,4 @@
-import { ApiClient } from "../client";
+import { ApiClient } from "../api/client";
 import { ParticipantEndpoints } from "./participant.endpoints";
 import type { CreateParticipantRequest, Participant, UpdateParticipantRequest } from "@repo/types";
 

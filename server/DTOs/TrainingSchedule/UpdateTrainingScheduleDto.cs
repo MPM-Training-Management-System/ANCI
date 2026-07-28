@@ -8,7 +8,7 @@ namespace server.DTOs.TrainingSchedule
         public int TrainingProgramId { get; set; }
 
         [Required]
-        public int TrainerId { get; set; }
+        public Guid TrainerId { get; set; }
 
         [Required]
         public DateTime StartDate { get; set; }

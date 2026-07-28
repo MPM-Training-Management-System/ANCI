@@ -7,14 +7,29 @@ using server.Services;
 using System.Text;
 using server.Services.Interfaces;
 using server.Algorithms;
-
+using Npgsql;
 var builder = WebApplication.CreateBuilder(args);
 
+
+var connString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+try
+{
+    using var conn = new NpgsqlConnection(connString);
+    conn.Open();
+    Console.WriteLine("✅ Connected successfully!");
+}
+catch (Exception ex)
+{
+    Console.WriteLine(ex.ToString());
+}
 // Database
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection")
     ));
+builder.Services.AddScoped<CloudinaryService>();
 
 // Controllers
 builder.Services.AddControllers();
@@ -89,6 +104,7 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins(
                 "http://localhost:3000",
+                "http://localhost:3001",
                 "https://anci-tms.vercel.app"
             )
             .AllowAnyHeader()

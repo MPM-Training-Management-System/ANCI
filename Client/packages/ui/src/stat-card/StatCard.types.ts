@@ -9,4 +9,5 @@ export interface StatCardProps
   icon?: LucideIcon;
   footer?: ReactNode;
   variant?: "default" | "primary" | "success" | "warning";
+  loading?: boolean;
 }

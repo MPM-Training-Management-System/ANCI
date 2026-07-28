@@ -4,7 +4,7 @@ export const typography = {
     fontSize: 32,
     fontWeight: 700,
     lineHeight: 40,
-    letterSpacing: "-0.02em",
+    letterSpacing: -0.64, 
   },
 
   headlineMd: {
@@ -12,7 +12,7 @@ export const typography = {
     fontSize: 24,
     fontWeight: 600,
     lineHeight: 32,
-    letterSpacing: "-0.01em",
+    letterSpacing: -0.24, 
   },
 
   titleSm: {
@@ -41,7 +41,7 @@ export const typography = {
     fontSize: 12,
     fontWeight: 700,
     lineHeight: 16,
-    letterSpacing: "0.05em",
+    letterSpacing:  0.6, 
   },
 
   codeTable: {

@@ -8,14 +8,14 @@ namespace server.Services.Interfaces
             string? search,
             string? role);
 
-        Task<UserResponseDTO?> GetByIdAsync(int id);
+        Task<UserResponseDTO?> GetByIdAsync(Guid id);
 
         Task<UserResponseDTO> CreateAsync(CreateUserDTO dto);
 
         Task<UserResponseDTO?> UpdateAsync(
-            int id,
+            Guid id,
             UpdateUserDTO dto);
 
-        Task<bool> DeleteAsync(int id);
+        Task<bool> DeleteAsync(Guid id);
     }
 }

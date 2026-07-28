@@ -32,27 +32,28 @@ export const sidebarMenu: SidebarSectionType[] = [
     title: "MANAGEMENT",
     items: [
       {
-        title: "User Management",
-        href: "/user",
-        icon: Users,
-      },
-      {
-        title: "Service Management",
-        href: "/services",
-        icon: BriefcaseBusiness,
-      },
-      {
-        title: "Training Programs",
+        title: "My Classes",
         href: "/training",
-        icon: GraduationCap,
-      },
-      {
-        title: "Participant Hub",
-        href: "/participant",
         icon: UserRound,
       },
       {
-        title: "Exam Center",
+        title: "Student Progress",
+        href: "/student",
+        icon: Users,
+      },
+      {
+        title: "Grading",
+        href: "/services",
+        icon: BriefcaseBusiness,
+      },
+       {
+        title: "Attendance",
+        href: "/attendance",
+        icon: BriefcaseBusiness,
+      },
+      
+      {
+        title: "Exam Result",
         href: "/exam",
         icon: ClipboardCheck,
       },

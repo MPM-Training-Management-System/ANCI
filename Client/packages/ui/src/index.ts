@@ -14,3 +14,6 @@ export * from "./data-grid";
 export * from "./stat-grid"
 export * from "./section-header";
 export * from "./layout";
+export * from "./Datatable/UserCell";
+export * from "./Datatable";
+export * from "./date-picker";

@@ -1,13 +1,7 @@
 "use client";
 
-import {
-  Table,
-} from "@tanstack/react-table";
-
-import {
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+import { Table } from "@tanstack/react-table";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface Props<TData> {
   table: Table<TData>;
@@ -16,90 +10,76 @@ interface Props<TData> {
 export function DataTablePagination<TData>({
   table,
 }: Props<TData>) {
+  const {
+    pageIndex,
+    pageSize,
+  } = table.getState().pagination;
+
+  const total = table.getFilteredRowModel().rows.length;
+
+  const start =
+    total === 0 ? 0 : pageIndex * pageSize + 1;
+
+  const end = Math.min(
+    (pageIndex + 1) * pageSize,
+    total
+  );
+
+  const pageCount = table.getPageCount();
+
   return (
-    <div className="flex flex-col gap-3 border-t bg-white px-5 py-4 md:flex-row md:items-center md:justify-between">
+    <div className="flex flex-col gap-4 border-t bg-white px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
 
-      <div className="text-sm text-gray-500">
-
+      <p className="text-sm text-gray-500">
         Showing{" "}
-
-        <span className="font-semibold">
-          {table.getRowModel().rows.length}
+        <span className="font-semibold text-gray-900">
+          {start}
         </span>{" "}
-
+        to{" "}
+        <span className="font-semibold text-gray-900">
+          {end}
+        </span>{" "}
         of{" "}
-
-        <span className="font-semibold">
-          {table.getFilteredRowModel().rows.length}
+        <span className="font-semibold text-gray-900">
+          {total}
         </span>{" "}
-
         records
+      </p>
 
-      </div>
-
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
 
         <button
           onClick={() => table.previousPage()}
           disabled={!table.getCanPreviousPage()}
-          className="
-          flex
-          h-9
-          items-center
-          gap-2
-          rounded-lg
-          border
-          px-3
-          text-sm
-          transition
-          hover:bg-gray-100
-          disabled:cursor-not-allowed
-          disabled:opacity-50
-          "
+          className="flex h-9 w-9 items-center justify-center rounded-lg border hover:bg-gray-100 disabled:opacity-40"
         >
-          <ChevronLeft size={16} />
-
-          Previous
+          <ChevronLeft size={18} />
         </button>
 
-        <div className="rounded-lg border bg-gray-50 px-4 py-2 text-sm font-medium">
-
-          Page{" "}
-
-          {table.getState().pagination.pageIndex + 1}
-
-          {" / "}
-
-          {table.getPageCount()}
-
-        </div>
+        {Array.from({ length: pageCount }).map((_, index) => (
+          <button
+            key={index}
+            onClick={() => table.setPageIndex(index)}
+            className={`h-9 w-9 rounded-lg text-sm font-medium transition
+              ${
+                pageIndex === index
+                  ? "bg-primary text-white"
+                  : "border hover:bg-gray-100"
+              }`}
+          >
+            {index + 1}
+          </button>
+        ))}
 
         <button
           onClick={() => table.nextPage()}
           disabled={!table.getCanNextPage()}
-          className="
-          flex
-          h-9
-          items-center
-          gap-2
-          rounded-lg
-          border
-          px-3
-          text-sm
-          transition
-          hover:bg-gray-100
-          disabled:cursor-not-allowed
-          disabled:opacity-50
-          "
+          className="flex h-9 w-9 items-center justify-center rounded-lg border hover:bg-gray-100 disabled:opacity-40"
         >
-          Next
-
-          <ChevronRight size={16} />
-
+          <ChevronRight size={18} />
         </button>
 
       </div>
-
     </div>
   );
 }
