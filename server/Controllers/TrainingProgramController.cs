@@ -22,7 +22,7 @@ namespace server.Controllers
         }
 
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetById(int id)
+        public async Task<IActionResult> GetById(Guid id)
         {
             var training = await _service.GetByIdAsync(id);
 
@@ -36,7 +36,7 @@ namespace server.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create(CreateTrainingProgramDto dto)
+        public async Task<IActionResult> Create([FromForm]CreateTrainingProgramDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -49,7 +49,7 @@ namespace server.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, UpdateTrainingProgramDto dto)
+        public async Task<IActionResult> Update(Guid id, UpdateTrainingProgramDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -66,7 +66,7 @@ namespace server.Controllers
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<IActionResult> Delete(Guid id)
         {
             var deleted = await _service.DeleteAsync(id);
 

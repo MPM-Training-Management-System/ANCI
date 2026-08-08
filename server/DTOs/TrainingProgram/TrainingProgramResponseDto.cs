@@ -2,7 +2,7 @@ namespace server.DTOs.TrainingProgram
 {
     public class TrainingProgramResponseDto
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
         public string ProgramCode { get; set; } = string.Empty;
 
@@ -18,7 +18,7 @@ namespace server.DTOs.TrainingProgram
 
         public int MaxParticipants { get; set; }
 
-        public Guid TrainerId { get; set; }
+        public Guid? TrainerId { get; set; }
 
         public string TrainerName { get; set; } = string.Empty;
 

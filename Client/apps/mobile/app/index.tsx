@@ -1,5 +1,16 @@
-import { Redirect } from "expo-router";
+import { useEffect } from "react";
+import { router } from "expo-router";
+
+import LoadingScreen from "@/src/screens/LoadingScreen";
 
 export default function Index() {
-  return <Redirect href="/(auth)/login" />;
+  useEffect(() => {
+  const timer = setTimeout(() => {
+    router.replace("/(onboarding)");
+  }, 5000);
+
+  return () => clearTimeout(timer);
+}, []);
+
+  return <LoadingScreen />;
 }

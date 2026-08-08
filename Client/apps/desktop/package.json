@@ -3,6 +3,17 @@
   "version": "0.1.0",
   "main": "electron/main.ts",
   "private": true,
+   "build": {
+    "appId": "com.anci.desktop",
+    "productName": "ANCI",
+    "directories": {
+      "buildResources": "assets"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    }
+  },
   "scripts": {
       "dev": "concurrently -k \"next dev --port 3001\" \"wait-on http://localhost:3001 && electron electron/main.ts\"",
     "build": "next build",
@@ -12,8 +23,8 @@
   "dependencies": {
     "electron": "^43.2.0",
     "next": "16.2.11",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
      "@repo/api": "workspace:*",
       "@repo/utils": "workspace:*",
      "@repo/types": "workspace:*",

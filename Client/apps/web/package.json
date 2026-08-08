@@ -11,11 +11,12 @@
     "check-types": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.7.1",
     "@repo/api": "workspace:*",
-     "@repo/types": "workspace:*",
     "@repo/hooks": "workspace:*",
     "@repo/tailwind-config": "workspace:*",
     "@repo/token": "workspace:*",
+    "@repo/types": "workspace:*",
     "@repo/ui": "workspace:*",
     "@tanstack/react-table": "^8.21.3",
     "clsx": "^2.1.1",
@@ -23,9 +24,11 @@
     "embla-carousel-react": "^8.6.0",
     "lucide-react": "^1.23.0",
     "next": "16.2.0",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "tailwind-merge": "^3.6.0"
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-hook-form": "^7.84.0",
+    "tailwind-merge": "^3.6.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

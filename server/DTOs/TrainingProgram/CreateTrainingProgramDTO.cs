@@ -18,9 +18,9 @@ namespace server.DTOs.TrainingProgram
 
         public int MaxParticipants { get; set; }
 
-        public Guid TrainerId { get; set; }
+        public Guid? TrainerId { get; set; }
 
-        public string? Thumbnail { get; set; }
+        public IFormFile? Thumbnail { get; set; }
 
         public string Status { get; set; } = "Draft";
 

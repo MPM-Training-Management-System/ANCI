@@ -6,12 +6,12 @@ namespace server.Services.Interfaces
     {
         Task<IEnumerable<TrainingProgramResponseDto>> GetAllAsync();
 
-        Task<TrainingProgramResponseDto?> GetByIdAsync(int id);
+        Task<TrainingProgramResponseDto?> GetByIdAsync(Guid id);
 
         Task<TrainingProgramResponseDto> CreateAsync(CreateTrainingProgramDto dto);
 
-        Task<TrainingProgramResponseDto?> UpdateAsync(int id, UpdateTrainingProgramDto dto);
+        Task<TrainingProgramResponseDto?> UpdateAsync(Guid id, UpdateTrainingProgramDto dto);
 
-        Task<bool> DeleteAsync(int id);
+        Task<bool> DeleteAsync(Guid id);
     }
 }

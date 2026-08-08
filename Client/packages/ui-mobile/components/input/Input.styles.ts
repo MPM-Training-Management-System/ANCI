@@ -4,80 +4,126 @@ import {
   colors,
   radius,
   spacing,
-  typography,
 } from "@repo/token";
 
 export const styles = StyleSheet.create({
-
-  container:{
-    width:"100%",
+  container: {
+    width: "100%",
   },
 
-  label:{
-    ...typography.bodySm,
-    color:colors.onSurface,
-    marginBottom:spacing.xs,
-    fontWeight:"600",
+  label: {
+    marginBottom: spacing.xs,
   },
 
-  inputContainer:{
+  inputContainer: {
+  minHeight: 56,
 
-    flexDirection:"row",
+  flexDirection: "row",
 
-    alignItems:"center",
+  alignItems: "center",
 
-    borderWidth:1,
+  borderRadius: radius.lg,
 
-    borderColor:colors.background,
+  borderWidth: 1,
 
-    borderRadius:radius.lg,
+  borderColor: colors.onSurface,
 
-    backgroundColor:colors.surface,
+  backgroundColor: colors.surface,
 
-    paddingHorizontal:spacing.md,
+  paddingHorizontal: 16,
+},
 
-    minHeight:52,
+  input: {
+    flex: 1,
 
+    color: colors.onSurface,
+
+    paddingVertical: 0,
   },
 
-  input:{
+  helper: {
+    marginTop: spacing.xs,
 
-    flex:1,
-
-    ...typography.bodyMd,
-
-    color:colors.onSurface,
-
-    paddingVertical:12,
-
+    color: colors.secondary,
   },
 
-  helper:{
+  errorText: {
+    marginTop: spacing.xs,
 
-    marginTop:6,
-
-    ...typography.bodySm,
-
-    color:colors.onSurfaceVariant,
-
+    color: colors.error,
   },
 
-  error:{
-
-    marginTop:6,
-
-    ...typography.bodySm,
-
-    color:colors.error,
-
+  error: {
+    borderColor: colors.error,
   },
 
-  focused:{
-    borderColor:colors.primary,
+  disabled: {
+    opacity: .5,
   },
 
-  disabled:{
-    opacity:.5,
-  }
+  leftIcon: {
+    justifyContent: "center",
 
+    alignItems: "center",
+  },
+
+  rightIcon: {
+    justifyContent: "center",
+
+    alignItems: "center",
+  },
+
+  /* ---------- Variants ---------- */
+
+  outlined: {
+    backgroundColor: colors.background,
+
+    borderWidth: 1,
+
+    borderColor: colors.onSurface,
+  },
+
+  filled: {
+    backgroundColor: colors.onSurface,
+
+    borderWidth: 0,
+  },
+
+  underlined: {
+    backgroundColor: "transparent",
+
+    borderWidth: 0,
+
+    borderBottomWidth: 1,
+
+    borderRadius: 0,
+
+    borderColor: colors.primary,
+  },
+
+  /* ---------- Sizes ---------- */
+
+  sm: {
+    minHeight: 40,
+  },
+
+  md: {
+    minHeight: 52,
+  },
+
+  lg: {
+    minHeight: 60,
+  },
+
+  inputSm: {
+    fontSize: 14,
+  },
+
+  inputMd: {
+    fontSize: 16,
+  },
+
+  inputLg: {
+    fontSize: 18,
+  },
 });

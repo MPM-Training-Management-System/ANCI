@@ -6,7 +6,7 @@ namespace server.Models
     public class TrainingProgramModel
     {
         [Key]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
         public string ProgramCode { get; set; } = string.Empty;
 
@@ -24,10 +24,13 @@ namespace server.Models
 
         public int MaxParticipants { get; set; }
 
-        public Guid TrainerId { get; set; }
+      public Guid? TrainerId { get; set; }
 
-        [ForeignKey(nameof(TrainerId))]
-        public UserModel Trainer { get; set; } = null!;
+[ForeignKey(nameof(TrainerId))]
+public TrainerModel? Trainer { get; set; }
+
+          public ICollection<TrainingAssignmentModel> TrainerApplications { get; set; }
+    = new List<TrainingAssignmentModel>();
 
         public string? Thumbnail { get; set; }
 

@@ -10,10 +10,10 @@ namespace server.Data
             var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
 
             optionsBuilder.UseNpgsql(
-                "Host=ep-curly-tree-azjuv1us.c-3.ap-southeast-1.aws.neon.tech;" +
+                "Host=ep-restless-wildflower-azns4e3q.c-3.ap-southeast-1.aws.neon.tech;" +
                 "Database=ANCIDB;" +
                 "Username=neondb_owner;" +
-                "Password=npg_U8GSnX4vxZoW;" +
+                "Password=npg_CfcvGh4uqWd7;" +
                 "SSL Mode=Require;" +
                 "Trust Server Certificate=true"
             );

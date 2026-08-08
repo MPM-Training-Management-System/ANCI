@@ -17,7 +17,7 @@ namespace server.Algorithms
             string venue,
             DateTime startDate,
             DateTime endDate,
-            int? excludeScheduleId = null)
+            Guid? excludeScheduleId = null)
         {
             // =====================================
             // TRAINER CONFLICT

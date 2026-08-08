@@ -8,3 +8,6 @@ export * from "./list-item";
 export * from "./chip"
 export * from "./layout";
 export * from "./checkbox";
+export * from "./select";
+export * from "./stepper";
+export * from "./app-bar";

@@ -1,5 +1,6 @@
 "use client"
 
+import { useParticipants } from "@/hooks/useParticipants";
 import { StatGrid, PageSection, StatCard, StatCardSkeleton } from "@repo/ui/index";
 import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -9,6 +10,7 @@ import { useEffect, useState } from "react";
 
 export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
+     const { count} = useParticipants();
 
      useEffect(() => {
         // Simulate API request
@@ -35,7 +37,7 @@ export default function DashboardPage() {
                 <StatCard
                 title="Total Users"
                 description="Hello"
-                value={20}
+                value={count}
                 icon={Plus}
                 variant="primary"
                 >

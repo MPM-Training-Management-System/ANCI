@@ -30,8 +30,12 @@ namespace server.Services
                     Id = x.Id,
                     TrainingProgramId = x.TrainingProgramId,
                     TrainingTitle = x.TrainingProgram.Title,
+
                     TrainerId = x.TrainerId,
-                    // TrainerName = x.Trainer.FullName,
+                    // TrainerName = x.Trainer != null
+                    //     ? x.Trainer.Fullname
+                    //     : null,
+
                     StartDate = x.StartDate,
                     EndDate = x.EndDate,
                     Venue = x.Venue,
@@ -42,7 +46,7 @@ namespace server.Services
                 .ToListAsync();
         }
 
-        public async Task<TrainingScheduleResponseDto?> GetByIdAsync(int id)
+        public async Task<TrainingScheduleResponseDto?> GetByIdAsync(Guid id)
         {
             return await _context.TrainingSchedules
                 .Include(x => x.TrainingProgram)
@@ -53,8 +57,12 @@ namespace server.Services
                     Id = x.Id,
                     TrainingProgramId = x.TrainingProgramId,
                     TrainingTitle = x.TrainingProgram.Title,
+
                     TrainerId = x.TrainerId,
-                    // TrainerName = x.Trainer.FullName,
+                    // TrainerName = x.Trainer != null
+                    //     ? x.Trainer.Fullname
+                    //     : null,
+
                     StartDate = x.StartDate,
                     EndDate = x.EndDate,
                     Venue = x.Venue,
@@ -67,19 +75,25 @@ namespace server.Services
 
         public async Task<TrainingScheduleResponseDto> CreateAsync(CreateTrainingScheduleDto dto)
         {
-            bool conflict = await _conflictChecker.HasConflictAsync(
-                dto.TrainerId,
-                dto.Venue,
-                dto.StartDate,
-                dto.EndDate);
+            // UPDATED
+            if (dto.TrainerId.HasValue)
+            {
+                bool conflict = await _conflictChecker.HasConflictAsync(
+                    dto.TrainerId.Value,
+                    dto.Venue,
+                    dto.StartDate,
+                    dto.EndDate);
 
-            if (conflict)
-                throw new Exception("Schedule conflict detected.");
+                if (conflict)
+                    throw new Exception("Schedule conflict detected.");
+            }
 
             var schedule = new TrainingScheduleModel
             {
                 TrainingProgramId = dto.TrainingProgramId,
+
                 TrainerId = dto.TrainerId,
+
                 StartDate = dto.StartDate,
                 EndDate = dto.EndDate,
                 Venue = dto.Venue,
@@ -99,7 +113,7 @@ namespace server.Services
         }
 
         public async Task<TrainingScheduleResponseDto?> UpdateAsync(
-            int id,
+            Guid id,
             UpdateTrainingScheduleDto dto)
         {
             var schedule = await _context.TrainingSchedules.FindAsync(id);
@@ -107,15 +121,19 @@ namespace server.Services
             if (schedule == null)
                 return null;
 
-            bool conflict = await _conflictChecker.HasConflictAsync(
-                dto.TrainerId,
-                dto.Venue,
-                dto.StartDate,
-                dto.EndDate,
-                id);
+            // UPDATED
+            if (dto.TrainerId.HasValue)
+            {
+                bool conflict = await _conflictChecker.HasConflictAsync(
+                    dto.TrainerId.Value,
+                    dto.Venue,
+                    dto.StartDate,
+                    dto.EndDate,
+                    id);
 
-            if (conflict)
-                throw new Exception("Schedule conflict detected.");
+                if (conflict)
+                    throw new Exception("Schedule conflict detected.");
+            }
 
             schedule.TrainingProgramId = dto.TrainingProgramId;
             schedule.TrainerId = dto.TrainerId;
@@ -131,7 +149,7 @@ namespace server.Services
             return await GetByIdAsync(id);
         }
 
-        public async Task<bool> DeleteAsync(int id)
+        public async Task<bool> DeleteAsync(Guid id)
         {
             var schedule = await _context.TrainingSchedules.FindAsync(id);
 
@@ -144,49 +162,33 @@ namespace server.Services
 
             return true;
         }
+
+        // OPTIONAL
         public async Task<bool> HasConflictAsync(
-    Guid trainerId,
-    string venue,
-    DateTime startDate,
-    DateTime endDate,
-    int? excludeScheduleId = null)
-{
-    Console.WriteLine("========== NEW SCHEDULE ==========");
-    Console.WriteLine($"Trainer : {trainerId}");
-    Console.WriteLine($"Venue   : {venue}");
-    Console.WriteLine($"Start   : {startDate}");
-    Console.WriteLine($"End     : {endDate}");
+            Guid? trainerId,
+            string venue,
+            DateTime startDate,
+            DateTime endDate,
+            Guid? excludeScheduleId = null)
+        {
+            bool trainerConflict = false;
 
-    var schedules = await _context.TrainingSchedules.ToListAsync();
+            if (trainerId.HasValue)
+            {
+                trainerConflict = await _context.TrainingSchedules.AnyAsync(x =>
+                    x.TrainerId == trainerId.Value &&
+                    (excludeScheduleId == null || x.Id != excludeScheduleId) &&
+                    startDate < x.EndDate &&
+                    endDate > x.StartDate);
+            }
 
-    foreach (var s in schedules)
-    {
-        Console.WriteLine("--------------------------------");
-        Console.WriteLine($"ID      : {s.Id}");
-        Console.WriteLine($"Trainer : {s.TrainerId}");
-        Console.WriteLine($"Venue   : {s.Venue}");
-        Console.WriteLine($"Start   : {s.StartDate}");
-        Console.WriteLine($"End     : {s.EndDate}");
+            bool venueConflict = await _context.TrainingSchedules.AnyAsync(x =>
+                x.Venue == venue &&
+                (excludeScheduleId == null || x.Id != excludeScheduleId) &&
+                startDate < x.EndDate &&
+                endDate > x.StartDate);
+
+            return trainerConflict || venueConflict;
+        }
     }
-
-    bool trainerConflict = await _context.TrainingSchedules.AnyAsync(x =>
-        x.TrainerId == trainerId &&
-        (excludeScheduleId == null || x.Id != excludeScheduleId) &&
-        startDate < x.EndDate &&
-        endDate > x.StartDate);
-
-    Console.WriteLine($"Trainer Conflict: {trainerConflict}");
-
-    bool venueConflict = await _context.TrainingSchedules.AnyAsync(x =>
-        x.Venue == venue &&
-        (excludeScheduleId == null || x.Id != excludeScheduleId) &&
-        startDate < x.EndDate &&
-        endDate > x.StartDate);
-
-    Console.WriteLine($"Venue Conflict: {venueConflict}");
-
-    return trainerConflict || venueConflict;
-}
-    }
-    
 }

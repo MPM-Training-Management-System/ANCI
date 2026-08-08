@@ -25,11 +25,19 @@ catch (Exception ex)
 }
 // Database
 
+
+builder.Services.AddScoped<
+    IParticipantService,
+    ParticipantService>();
+
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection")
     ));
 builder.Services.AddScoped<CloudinaryService>();
+builder.Services.AddScoped<IParticipantService, ParticipantService>();
+builder.Services.AddScoped<ITrainerService, TrainerService>();
 
 // Controllers
 builder.Services.AddControllers();

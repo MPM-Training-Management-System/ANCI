@@ -1,6 +1,6 @@
 import { ApiClient } from "../api/client";
 import { ParticipantEndpoints } from "./participant.endpoints";
-import type { CreateParticipantRequest, Participant, UpdateParticipantRequest } from "@repo/types";
+import type { RegisterParticipantRequest, Participant, UpdateParticipantRequest } from "@repo/types";
 
 export class ParticipantApi {
   constructor(private api: ApiClient) {}
@@ -11,21 +11,35 @@ export class ParticipantApi {
     );
   }
 
+  getAllparticipant() {
+    return this.api.request<Participant[]>(
+      ParticipantEndpoints.listParticpant
+    );
+  }
+
   getById(id: number) {
     return this.api.request<Participant>(
       ParticipantEndpoints.byId(id)
     );
   }
 
-  create(data: CreateParticipantRequest) {
-    return this.api.request<Participant>(
-      ParticipantEndpoints.create,
-      {
-        method: "POST",
-        body: JSON.stringify(data),
-      }
-    );
-  }
+  register(data: RegisterParticipantRequest) {
+  const formData = new FormData();
+
+  Object.entries(data).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      formData.append(key, value as string | Blob);
+    }
+  });
+
+  return this.api.request<Participant>(
+    ParticipantEndpoints.create,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+}
 
   update(id: number, data: UpdateParticipantRequest) {
     return this.api.request<Participant>(

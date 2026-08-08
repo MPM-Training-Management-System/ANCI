@@ -11,7 +11,16 @@ namespace server.Models
 
         public string Password { get; set; } = string.Empty;
 
-        public string Fullname { get; set; } = string.Empty;
+        public string FirstName { get; set; }  = string.Empty;
+
+public string? MiddleName { get; set; }
+
+public string LastName { get; set; }  = string.Empty;
+
+public string Fullname =>
+    $"{FirstName} {MiddleName} {LastName}"
+        .Replace("  ", " ")
+        .Trim();
 
         public string Role { get; set; } = "Participant";
 
@@ -21,5 +30,9 @@ namespace server.Models
 
         // Navigation Property
         public ParticipantModel? Participant { get; set; }
+
+        public TrainerModel? Trainer { get; set; }
+
+      
     }
 }

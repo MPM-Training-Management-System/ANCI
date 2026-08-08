@@ -1,5 +1,4 @@
 import {
-  ActivityIndicator,
   Pressable,
 } from "react-native";
 
@@ -13,30 +12,23 @@ import type {
 } from "./Button.types";
 
 const variantText = {
-
-  primary:styles.primaryText,
-
-  secondary:styles.secondaryText,
-
-  outline:styles.outlineText,
-
-  ghost:styles.ghostText,
-
-  danger:styles.dangerText,
-
+  primary: styles.primaryText,
+  secondary: styles.secondaryText,
+  outline: styles.outlineText,
+  ghost: styles.ghostText,
+  danger: styles.dangerText,
 };
 
 export function Button({
-
   children,
 
-  variant="primary",
+  variant = "primary",
 
-  size="md",
+  size = "md",
 
-  loading=false,
+  loading = false,
 
-  disabled=false,
+  disabled = false,
 
   leftIcon,
 
@@ -47,41 +39,33 @@ export function Button({
   textStyle,
 
   ...props
-
-}:ButtonProps){
-
-  return(
-
+}: ButtonProps) {
+  return (
     <Pressable
-
       {...props}
-
       disabled={disabled || loading}
-
       style={[
-
         styles.button,
-
         styles[size],
-
         styles[variant],
-
         disabled && styles.disabled,
-
         style,
-
       ]}
-
     >
-
       {loading ? (
-
-        <ActivityIndicator color="#fff" />
-
+        <Body
+          style={[
+            styles.text,
+            variantText[
+              variant as ButtonVariant
+            ],
+            textStyle,
+          ]}
+        >
+          Loading...
+        </Body>
       ) : (
-
         <>
-
           {leftIcon}
 
           <Body
@@ -97,13 +81,8 @@ export function Button({
           </Body>
 
           {rightIcon}
-
         </>
-
       )}
-
     </Pressable>
-
   );
-
 }

@@ -7,7 +7,7 @@ import { Card } from "./card";
 import { cn } from "@repo/lib";
 
 interface ProgramCardProps {
-  image: string;
+  image?: string;
   title: string;
   description: string;
 

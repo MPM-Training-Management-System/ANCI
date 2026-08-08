@@ -2,6 +2,7 @@ import {
   ApiClient,
   AuthApi,
   ParticipantApi,
+  TrainingApi,
 } from "@repo/api";
 
 import { auth } from "./auth";
@@ -18,5 +19,5 @@ export const authApi =
   new AuthApi(client);
 
   export const participantApi = new ParticipantApi(client);
-
+export const trainingApi = new TrainingApi(client);
 export { client, auth };

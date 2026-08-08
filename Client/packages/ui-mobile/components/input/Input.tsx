@@ -1,9 +1,12 @@
-import { useState } from "react";
+import React, { forwardRef } from "react";
 
 import {
+  ActivityIndicator,
   TextInput,
   View,
 } from "react-native";
+
+import { colors } from "@repo/token";
 
 import {
   Body,
@@ -12,112 +15,131 @@ import {
 } from "../typography";
 
 import { styles } from "./Input.styles";
-import type { InputProps } from "./Input.types";
 
-export function Input({
+import type {
+  InputProps,
+} from "./Input.types";
 
-  label,
+export const Input = forwardRef<TextInput, InputProps>(
+  (
+    {
+      label,
+      helperText,
+      error,
+      required,
+      disabled,
+      loading,
+      leftIcon,
+      rightIcon,
+      variant = "outlined",
+      size = "md",
+      containerStyle,
+      inputContainerStyle,
+      inputStyle,
+      editable = true,
+      ...props
+    },
+    ref
+  ) => {
 
-  helperText,
+    const variantStyles = {
+      outlined: styles.outlined,
+      filled: styles.filled,
+      underlined: styles.underlined,
+    };
 
-  error,
+    const sizeStyles = {
+      sm: styles.sm,
+      md: styles.md,
+      lg: styles.lg,
+    };
 
-  leftIcon,
+    const inputSizeStyles = {
+      sm: styles.inputSm,
+      md: styles.inputMd,
+      lg: styles.inputLg,
+    };
 
-  rightIcon,
-
-  editable = true,
-
-  containerStyle,
-
-  inputStyle,
-
-  ...props
-
-}:InputProps){
-
-  const [focused,setFocused]=useState(false);
-
-  return(
-
-    <View
-      style={[
-        styles.container,
-        containerStyle,
-      ]}
-    >
-
-      {label && (
-
-        <Label
-          style={styles.label}
-        >
-          {label}
-        </Label>
-
-      )}
-
+    return (
       <View
         style={[
-
-          styles.inputContainer,
-
-          focused && styles.focused,
-
-          !editable && styles.disabled,
-
+          styles.container,
+          containerStyle,
         ]}
       >
+        {label && (
+          <Label style={styles.label}>
+            {label}
 
-        {leftIcon}
+            {required && (
+              <Body
+                style={{
+                  color: colors.error,
+                }}
+              >
+                {" *"}
+              </Body>
+            )}
+          </Label>
+        )}
 
-        <TextInput
-
-          {...props}
-
-          editable={editable}
-
+        <View
           style={[
-            styles.input,
-            inputStyle,
+            styles.inputContainer,
+            variantStyles[variant],
+            sizeStyles[size],
+            disabled && styles.disabled,
+            error && styles.error,
+            inputContainerStyle,
           ]}
+        >
+          {leftIcon && (
+            <View style={styles.leftIcon}>
+              {leftIcon}
+            </View>
+          )}
 
-          placeholderTextColor="#999"
+          <TextInput
+            ref={ref}
+            editable={!disabled && editable}
+            placeholderTextColor={colors.surface}
+            style={[
+              styles.input,
+              inputSizeStyles[size],
+              inputStyle,
+              {
+      outlineStyle: "none",
+    } as any,
+            ]}
+            {...props}
+          />
 
-          onFocus={()=>
-            setFocused(true)
-          }
+          {loading ? (
+            <ActivityIndicator
+              size="small"
+              color={colors.primary}
+            />
+          ) : (
+            rightIcon && (
+              <View style={styles.rightIcon}>
+                {rightIcon}
+              </View>
+            )
+          )}
+        </View>
 
-          onBlur={()=>
-            setFocused(false)
-          }
-
-        />
-
-        {rightIcon}
-
+        {error ? (
+          <Caption style={styles.errorText}>
+            {error}
+          </Caption>
+        ) : helperText ? (
+          <Caption style={styles.helper}>
+            {helperText}
+          </Caption>
+        ) : null}
       </View>
+    );
+  }
+);
 
-      {error ? (
-
-        <Caption
-          style={styles.error}
-        >
-          {error}
-        </Caption>
-
-      ) : helperText ? (
-
-        <Caption
-          style={styles.helper}
-        >
-          {helperText}
-        </Caption>
-
-      ) : null}
-
-    </View>
-
-  );
-
-}
+Input.displayName = "Input";

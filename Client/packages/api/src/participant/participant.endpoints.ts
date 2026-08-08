@@ -1,9 +1,11 @@
 export const ParticipantEndpoints = {
   list: "/api/User",
 
+  listParticpant: "/api/User?role=Participant",
+
   byId: (id: number) => `/api/User/${id}`,
 
-  create: "/api/User",
+  create: "/api/Auth/register",
 
   update: (id: number) => `/api/User/${id}`,
 

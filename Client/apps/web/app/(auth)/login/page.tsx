@@ -47,7 +47,6 @@ export default function LoginPage() {
     setLoading(false);
   }
 };
-
     
   return (
       <div className="flex justify-center">
@@ -58,11 +57,12 @@ export default function LoginPage() {
                    </span>
      
                    <h3 className="text-2xl font-bold text-slate-900 mt-4">
-                     Administrator Login
+                     Welcome Back, Trainer!
                    </h3>
      
                    <p className="text-sm text-slate-500 mt-1">
-                     Access your ISTMS dashboard.
+                    Sign in to your Trainer Portal to manage training sessions,
+monitor trainees, and track learning progress.
                    </p>
                  </div>
      
@@ -76,7 +76,7 @@ export default function LoginPage() {
                    {/* EMAIL */}
                    <div>
                      <label className="block text-xs uppercase tracking-widest font-bold text-slate-500 mb-2">
-                       Institutional Email
+                        Email or Username
                      </label>
      
                      <Input
@@ -91,7 +91,7 @@ export default function LoginPage() {
                    {/* PASSWORD */}
                    <div>
                      <label className="block text-xs uppercase tracking-widest font-bold text-slate-500 mb-2">
-                       Security Password
+                       Password
                      </label>
      
                      <div className="relative">
@@ -137,6 +137,7 @@ export default function LoginPage() {
      
                    {/* BUTTON */}
                    <Button
+                    
                      type="submit"
                      disabled={loading}
                      variant="primary"
@@ -154,12 +155,28 @@ export default function LoginPage() {
                    </Button>
                  </form>
      
-                 <div className="mt-8 pt-8 border-t text-center">
-                   <p className="text-[10px] uppercase tracking-widest text-slate-400">
-                     Authorized Personnel Only • All
-                     activity monitored
-                   </p>
-                 </div>
+                 <div className="mt-8 space-y-5 border-t pt-6">
+
+  <div className="text-center">
+    <p className="text-sm text-slate-500">
+      Don't have a trainer account?{" "}
+      <button
+        type="button"
+        onClick={() => router.push("/register")}
+        className="font-semibold text-primary transition hover:underline"
+      >
+        Create Account
+      </button>
+    </p>
+  </div>
+
+  <div className="text-center">
+    <p className="text-[10px] uppercase tracking-widest text-slate-400">
+      Authorized Personnel Only • All Activity Monitored
+    </p>
+  </div>
+
+</div>
                </div>
             </div>
   );

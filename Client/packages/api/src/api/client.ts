@@ -19,35 +19,63 @@ export class ApiClient {
 
     const headers = new Headers(options.headers);
 
-    headers.set("Content-Type", "application/json");
+const isFormData = options.body instanceof FormData;
 
-    if (token) {
-      headers.set(
-        "Authorization",
-        `Bearer ${token}`
-      );
-    }
+if (!isFormData) {
+  headers.set("Content-Type", "application/json");
+}
 
-    const response = await fetch(
-      `${this.options.baseUrl}${endpoint}`,
-      {
-        ...options,
-        headers,
-        body:
-          options.body !== undefined
-            ? JSON.stringify(options.body)
-            : undefined,
-      }
-    );
+if (token) {
+  headers.set("Authorization", `Bearer ${token}`);
+}
+
+let body: BodyInit | undefined;
+
+if (options.body === undefined) {
+  body = undefined;
+} else if (isFormData) {
+  body = options.body as FormData;
+} else {
+  body = JSON.stringify(options.body);
+}
+
+const response = await fetch(
+  `${this.options.baseUrl}${endpoint}`,
+  {
+    ...options,
+    headers,
+    body,
+  }
+);
 
     if (!response.ok) {
       let message = "Something went wrong.";
 
       try {
-        message = await response.text();
+        const contentType =
+          response.headers.get("content-type");
+
+        if (
+          contentType?.includes("application/json")
+        ) {
+          const error =
+            await response.json();
+
+          message =
+            error.message ??
+            JSON.stringify(error);
+        } else {
+          message =
+            await response.text();
+        }
       } catch {}
 
       throw new Error(message);
+    }
+
+    // Handle empty response
+    if (response.status === 204) {
+      return undefined as T;
     }
 
     return response.json() as Promise<T>;

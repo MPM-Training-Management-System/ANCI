@@ -9,10 +9,12 @@ namespace server.Services
     public class TrainingProgramService : ITrainingProgramService
     {
         private readonly AppDbContext _context;
+        private readonly CloudinaryService _cloudinary;
 
-        public TrainingProgramService(AppDbContext context)
+        public TrainingProgramService(AppDbContext context,  CloudinaryService cloudinary)
         {
             _context = context;
+            _cloudinary = cloudinary;
         }
 
         public async Task<IEnumerable<TrainingProgramResponseDto>> GetAllAsync()
@@ -39,7 +41,7 @@ namespace server.Services
                 .ToListAsync();
         }
 
-        public async Task<TrainingProgramResponseDto?> GetByIdAsync(int id)
+        public async Task<TrainingProgramResponseDto?> GetByIdAsync(Guid id)
         {
             return await _context.TrainingPrograms
                 .Include(tp => tp.Trainer)
@@ -64,62 +66,79 @@ namespace server.Services
                 .FirstOrDefaultAsync();
         }
 
-        public async Task<TrainingProgramResponseDto> CreateAsync(CreateTrainingProgramDto dto)
-        {
-            int count = await _context.TrainingPrograms.CountAsync();
+     public async Task<TrainingProgramResponseDto> CreateAsync(CreateTrainingProgramDto dto)
+{
+    string? thumbnail = null;
 
-            var training = new TrainingProgramModel
-            {
-                ProgramCode = $"TRN-{(count + 1):D4}",
-                Title = dto.Title,
-                Category = dto.Category,
-                Description = dto.Description,
-                Objectives = dto.Objectives,
-                Venue = dto.Venue,
-                MaxParticipants = dto.MaxParticipants,
-                TrainerId = dto.TrainerId,
-                Thumbnail = dto.Thumbnail,
-                Status = dto.Status,
-                StartDate = dto.StartDate,
-                EndDate = dto.EndDate,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
+    if (dto.Thumbnail != null)
+    {
+        thumbnail = await _cloudinary.UploadImageAsync(
+            dto.Thumbnail);
+    }
 
-            _context.TrainingPrograms.Add(training);
+    var training = new TrainingProgramModel
+    {
+        ProgramCode = await GenerateProgramCode(),
 
-            await _context.SaveChangesAsync();
+        Title = dto.Title,
+        Category = dto.Category,
+        Description = dto.Description,
+        Objectives = dto.Objectives,
+        Venue = dto.Venue,
+        MaxParticipants = dto.MaxParticipants,
 
-            return await GetByIdAsync(training.Id)
-                   ?? throw new Exception("Training Program not found.");
-        }
+        TrainerId = dto.TrainerId,   // pwede nang null
 
-        public async Task<TrainingProgramResponseDto?> UpdateAsync(int id, UpdateTrainingProgramDto dto)
-        {
-            var training = await _context.TrainingPrograms.FindAsync(id);
+        Thumbnail = thumbnail,
 
-            if (training == null)
-                return null;
+        Status = dto.Status,
 
-            training.Title = dto.Title;
-            training.Category = dto.Category;
-            training.Description = dto.Description;
-            training.Objectives = dto.Objectives;
-            training.Venue = dto.Venue;
-            training.MaxParticipants = dto.MaxParticipants;
-            training.TrainerId = dto.TrainerId;
-            training.Thumbnail = dto.Thumbnail;
-            training.Status = dto.Status;
-            training.StartDate = dto.StartDate;
-            training.EndDate = dto.EndDate;
-            training.UpdatedAt = DateTime.UtcNow;
+        StartDate = dto.StartDate,
+        EndDate = dto.EndDate,
 
-            await _context.SaveChangesAsync();
+        CreatedAt = DateTime.UtcNow,
+        UpdatedAt = DateTime.UtcNow
+    };
 
-            return await GetByIdAsync(id);
-        }
+    _context.TrainingPrograms.Add(training);
 
-        public async Task<bool> DeleteAsync(int id)
+    await _context.SaveChangesAsync();
+
+    return await GetByIdAsync(training.Id)
+        ?? throw new Exception("Training not found.");
+}
+       public async Task<TrainingProgramResponseDto?> UpdateAsync(
+    Guid id,
+    UpdateTrainingProgramDto dto)
+{
+    var training = await _context.TrainingPrograms.FindAsync(id);
+
+    if (training == null)
+        return null;
+
+    training.Title = dto.Title;
+    training.Category = dto.Category;
+    training.Description = dto.Description;
+    training.Objectives = dto.Objectives;
+    training.Venue = dto.Venue;
+    training.MaxParticipants = dto.MaxParticipants;
+    training.TrainerId = dto.TrainerId;
+
+    if (dto.Thumbnail != null)
+    {
+        training.Thumbnail = await _cloudinary.UploadImageAsync(dto.Thumbnail);
+    }
+
+    training.Status = dto.Status;
+    training.StartDate = dto.StartDate;
+    training.EndDate = dto.EndDate;
+    training.UpdatedAt = DateTime.UtcNow;
+
+    await _context.SaveChangesAsync();
+
+    return await GetByIdAsync(id);
+}
+        public async Task<bool> DeleteAsync(Guid id)
         {
             var training = await _context.TrainingPrograms.FindAsync(id);
 
@@ -132,5 +151,30 @@ namespace server.Services
 
             return true;
         }
+
+        private async Task<string> GenerateProgramCode()
+{
+    var lastProgram = await _context.TrainingPrograms
+        .OrderByDescending(x => x.Id)
+        .FirstOrDefaultAsync();
+
+    int nextNumber = 1;
+
+    if (lastProgram != null)
+    {
+        var parts = lastProgram.ProgramCode.Split('-');
+
+        if (parts.Length == 2 &&
+            int.TryParse(parts[1], out int number))
+        {
+            nextNumber = number + 1;
+        }
     }
+
+    return $"TR-{nextNumber:D3}";
 }
+    }
+
+    
+}
+

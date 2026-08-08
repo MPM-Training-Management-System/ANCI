@@ -5,10 +5,10 @@ namespace server.DTOs.TrainingSchedule
     public class UpdateTrainingScheduleDto
     {
         [Required]
-        public int TrainingProgramId { get; set; }
+        public Guid TrainingProgramId { get; set; }
 
         [Required]
-        public Guid TrainerId { get; set; }
+        public Guid? TrainerId { get; set; }
 
         [Required]
         public DateTime StartDate { get; set; }

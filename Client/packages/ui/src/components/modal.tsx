@@ -37,7 +37,7 @@ export function Modal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed z-90 inset-0 z-50 flex items-center justify-center p-4">
       {/* Overlay */}
       <div
         className="absolute inset-0 bg-black/50"
@@ -48,11 +48,11 @@ export function Modal({
 
       {/* Modal */}
       <div
-        className={cn(
-          "relative w-full rounded-xl bg-background shadow-xl",
-          sizes[size]
-        )}
-      >
+  className={cn(
+    "relative flex max-h-[90vh] w-full flex-col rounded-xl bg-background shadow-xl",
+    sizes[size]
+  )}
+>
         {/* Header */}
         {(title || description) && (
           <div className="flex items-start justify-between border-b p-6">
@@ -81,9 +81,9 @@ export function Modal({
         )}
 
         {/* Body */}
-        <div className="p-6">
-          {children}
-        </div>
+        <div className="flex-1 overflow-y-auto p-6">
+  {children}
+</div>
 
         {/* Footer */}
         {footer && (

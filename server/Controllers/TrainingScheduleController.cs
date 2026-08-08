@@ -26,7 +26,7 @@ namespace server.Controllers
 
         // GET: api/training-schedules/1
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetById(int id)
+        public async Task<IActionResult> GetById(Guid id)
         {
             var schedule = await _service.GetByIdAsync(id);
 
@@ -69,7 +69,7 @@ public async Task<IActionResult> Create(CreateTrainingScheduleDto dto)
         // PUT: api/training-schedules/1
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(
-            int id,
+            Guid id,
             UpdateTrainingScheduleDto dto)
         {
             if (!ModelState.IsValid)
@@ -90,7 +90,7 @@ public async Task<IActionResult> Create(CreateTrainingScheduleDto dto)
 
         // DELETE: api/training-schedules/1
         [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<IActionResult> Delete(Guid id)
         {
             bool deleted = await _service.DeleteAsync(id);
 

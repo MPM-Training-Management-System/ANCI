@@ -17,3 +17,5 @@ export * from "./layout";
 export * from "./Datatable/UserCell";
 export * from "./Datatable";
 export * from "./date-picker";
+export * from "./stepper";
+export * from "./data-display";

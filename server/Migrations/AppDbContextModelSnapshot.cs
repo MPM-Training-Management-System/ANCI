@@ -22,6 +22,47 @@ namespace server.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("TrainingAssignmentModel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("AppliedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ApprovedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("TrainerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TrainingProgramId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApprovedBy");
+
+                    b.HasIndex("TrainerId");
+
+                    b.HasIndex("TrainingProgramId");
+
+                    b.ToTable("TrainingAssignments");
+                });
+
             modelBuilder.Entity("server.Models.ParticipantModel", b =>
                 {
                     b.Property<Guid>("Id")
@@ -39,10 +80,6 @@ namespace server.Migrations
 
                     b.Property<DateOnly>("DateOfBirth")
                         .HasColumnType("date");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<string>("EmergencyContactName")
                         .HasColumnType("text");
@@ -85,35 +122,96 @@ namespace server.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("Email")
-                        .IsUnique();
 
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("Participant");
+                    b.ToTable("Participants");
+                });
+
+            modelBuilder.Entity("server.Models.TrainerModel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Biography")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CivilStatus")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<DateOnly>("DateOfBirth")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Expertise")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Gender")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("HomeAddress")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsProfileCompleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsVerified")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("MobileNumber")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Organization")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProfileImage")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("YearsOfExperience")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("Trainers");
                 });
 
             modelBuilder.Entity("server.Models.TrainingProgramModel", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Category")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -147,7 +245,7 @@ namespace server.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<Guid>("TrainerId")
+                    b.Property<Guid?>("TrainerId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -166,14 +264,14 @@ namespace server.Migrations
 
             modelBuilder.Entity("server.Models.TrainingScheduleModel", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<int>("CurrentParticipants")
                         .HasColumnType("integer");
@@ -191,11 +289,12 @@ namespace server.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<Guid>("TrainerId")
+                    b.Property<Guid?>("TrainerId")
+                        .IsRequired()
                         .HasColumnType("uuid");
 
-                    b.Property<int>("TrainingProgramId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("TrainingProgramId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -228,12 +327,19 @@ namespace server.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("Fullname")
+                    b.Property<string>("FirstName")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("MiddleName")
+                        .HasColumnType("text");
 
                     b.Property<string>("Password")
                         .IsRequired()
@@ -256,7 +362,36 @@ namespace server.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
+                    b.HasIndex("Username")
+                        .IsUnique();
+
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("TrainingAssignmentModel", b =>
+                {
+                    b.HasOne("server.Models.UserModel", "Admin")
+                        .WithMany()
+                        .HasForeignKey("ApprovedBy")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("server.Models.TrainerModel", "Trainer")
+                        .WithMany("Assignments")
+                        .HasForeignKey("TrainerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("server.Models.TrainingProgramModel", "TrainingProgram")
+                        .WithMany("TrainerApplications")
+                        .HasForeignKey("TrainingProgramId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Admin");
+
+                    b.Navigation("Trainer");
+
+                    b.Navigation("TrainingProgram");
                 });
 
             modelBuilder.Entity("server.Models.ParticipantModel", b =>
@@ -270,23 +405,33 @@ namespace server.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("server.Models.TrainingProgramModel", b =>
+            modelBuilder.Entity("server.Models.TrainerModel", b =>
                 {
-                    b.HasOne("server.Models.UserModel", "Trainer")
-                        .WithMany()
-                        .HasForeignKey("TrainerId")
+                    b.HasOne("server.Models.UserModel", "User")
+                        .WithOne("Trainer")
+                        .HasForeignKey("server.Models.TrainerModel", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("server.Models.TrainingProgramModel", b =>
+                {
+                    b.HasOne("server.Models.TrainerModel", "Trainer")
+                        .WithMany("TrainingPrograms")
+                        .HasForeignKey("TrainerId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Trainer");
                 });
 
             modelBuilder.Entity("server.Models.TrainingScheduleModel", b =>
                 {
-                    b.HasOne("server.Models.UserModel", "Trainer")
-                        .WithMany()
+                    b.HasOne("server.Models.TrainerModel", "Trainer")
+                        .WithMany("TrainingSchedules")
                         .HasForeignKey("TrainerId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("server.Models.TrainingProgramModel", "TrainingProgram")
@@ -300,9 +445,25 @@ namespace server.Migrations
                     b.Navigation("TrainingProgram");
                 });
 
+            modelBuilder.Entity("server.Models.TrainerModel", b =>
+                {
+                    b.Navigation("Assignments");
+
+                    b.Navigation("TrainingPrograms");
+
+                    b.Navigation("TrainingSchedules");
+                });
+
+            modelBuilder.Entity("server.Models.TrainingProgramModel", b =>
+                {
+                    b.Navigation("TrainerApplications");
+                });
+
             modelBuilder.Entity("server.Models.UserModel", b =>
                 {
                     b.Navigation("Participant");
+
+                    b.Navigation("Trainer");
                 });
 #pragma warning restore 612, 618
         }

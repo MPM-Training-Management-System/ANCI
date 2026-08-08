@@ -1,3 +1,5 @@
+import { ApiClient } from "@repo/api";
+
 export interface Participant {
   id: number;
   userId: string;
@@ -10,13 +12,35 @@ export interface Participant {
   createdAt: string;
 }
 
-export interface CreateParticipantRequest {
-  username: string;
-  fullName: string;
-  email: string;
-  password: string;
+export interface RegisterParticipantRequest {
+  profileImage?: File;
+
+  FirstName: string;
+  MiddleName?: string;
+  LastName: string;
+
+  DateOfBirth: string;
+
+  Gender: string;
+  CivilStatus: string;
+
+  MobileNumber: string;
+  Email: string;
+  Username: string;
+
+  HomeAddress: string;
+
+  EmergencyContactName?: string;
+  EmergencyRelationship?: string;
+  EmergencyContactNumber?: string;
+
+  Password: string;
 }
 
+export interface RegisterParticipantResponse {
+  success: boolean;
+  message: string;
+}
 export interface UpdateParticipantRequest {
   username: string;
   fullName: string;
@@ -28,3 +52,4 @@ export interface ParticipantFilter {
   page?: number;
   pageSize?: number;
 }
+

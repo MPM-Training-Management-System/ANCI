@@ -2,13 +2,13 @@ namespace server.DTOs.TrainingSchedule
 {
     public class TrainingScheduleResponseDto
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
-        public int TrainingProgramId { get; set; }
+        public Guid TrainingProgramId { get; set; }
 
         public string TrainingTitle { get; set; } = string.Empty;
 
-        public Guid TrainerId { get; set; }
+        public Guid? TrainerId { get; set; }
 
         public string TrainerName { get; set; } = string.Empty;
 

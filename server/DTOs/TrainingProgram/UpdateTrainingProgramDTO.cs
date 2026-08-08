@@ -1,31 +1,19 @@
-using System.ComponentModel.DataAnnotations;
-
-namespace server.DTOs.TrainingProgram
+public class UpdateTrainingProgramDto
 {
-    public class UpdateTrainingProgramDto
-    {
-        [Required]
-        public string Title { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string Objectives { get; set; } = string.Empty;
+    public string Venue { get; set; } = string.Empty;
 
-        [Required]
-        public string Category { get; set; } = string.Empty;
+    public int MaxParticipants { get; set; }
 
-        public string Description { get; set; } = string.Empty;
+    public Guid? TrainerId { get; set; }
 
-        public string Objectives { get; set; } = string.Empty;
+    public IFormFile? Thumbnail { get; set; }
 
-        public string Venue { get; set; } = string.Empty;
+    public string Status { get; set; } = "Draft";
 
-        public int MaxParticipants { get; set; }
-
-        public Guid TrainerId { get; set; }
-
-        public string? Thumbnail { get; set; }
-
-        public string Status { get; set; } = "Draft";
-
-        public DateTime StartDate { get; set; }
-
-        public DateTime EndDate { get; set; }
-    }
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
 }

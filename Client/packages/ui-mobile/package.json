@@ -10,13 +10,15 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
+    "@repo/lib": "workspace:*",
     "@repo/token": "workspace:*",
-      "@repo/lib": "workspace:*",
     "class-variance-authority": "^0.7.1",
-    "expo-secure-store": "^57.0.1",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
-    "react-native-safe-area-context": "^5.8.0"
+    "expo-secure-store": "~15.0.7",
+    "lucide-react-native": "^1.28.0",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-safe-area-context": "5.8.0"
   },
   "devDependencies": {
     "@types/react": "^19",

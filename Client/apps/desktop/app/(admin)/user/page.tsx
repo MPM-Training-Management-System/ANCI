@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 
 import { useParticipants } from "@/hooks/useParticipants";
 import { participantApi } from "@/lib/api";
+import AddUserModal from "./AddUserModal";
 
 import {
   PageSection,
@@ -25,7 +26,7 @@ const [filters, setFilters] = useState({
   status: "",
   createdAt: undefined as Date | undefined,
 });
-
+const [openAddModal, setOpenAddModal] = useState(false);
 const [appliedFilters, setAppliedFilters] = useState({
   role: "",
   status: "",
@@ -109,7 +110,7 @@ const [appliedFilters, setAppliedFilters] = useState({
             />
 
             <StatCard
-              title="Active Users"
+              title="Active Trainer"
               description="Currently active"
               value={75}
               variant="success"
@@ -141,7 +142,7 @@ const [appliedFilters, setAppliedFilters] = useState({
         addButton={{
           label: "Add User",
           icon: <Plus size={18} />,
-          onClick: () => console.log("Add User"),
+          onClick: () => setOpenAddModal(true),
         }}
         toolbar={
           <FilterDropdown
@@ -197,8 +198,13 @@ const [appliedFilters, setAppliedFilters] = useState({
   setAppliedFilters(reset);
 }}
           />
+          
         }
       />
+      <AddUserModal
+  open={openAddModal}
+  onClose={() => setOpenAddModal(false)}
+/>
     </PageSection>
   );
 }
