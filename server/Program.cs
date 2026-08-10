@@ -8,6 +8,7 @@ using System.Text;
 using server.Services.Interfaces;
 using server.Algorithms;
 using Npgsql;
+using server.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 
@@ -29,8 +30,11 @@ catch (Exception ex)
 builder.Services.AddScoped<
     IParticipantService,
     ParticipantService>();
-
-
+builder.Services.AddScoped<IOtpService, OtpService>();
+builder.Services.Configure<EmailSettings>(
+    builder.Configuration.GetSection("EmailSettings")
+);
+builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection")

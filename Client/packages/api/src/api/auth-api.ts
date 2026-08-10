@@ -5,6 +5,7 @@ export interface LoginRequest {
   password: string;
 }
 
+
 export interface UpdateUser {
   username: string;
   fullName: String;
@@ -30,9 +31,8 @@ export interface LoginResponse {
   user: LoginUser;
 }
 export interface RegisterRequest {
-  fullName: string;
+  username: string;
   email: string;
-  mobileNumber: string;
   password: string;
 }
 export interface RegisterResponse {
@@ -52,7 +52,7 @@ export class AuthApi {
   }
     register(data: RegisterRequest) {
     return this.api.post<RegisterResponse>(
-      "/api/auth/register",
+      "/api/auth/register-account",
       data
     );
   }

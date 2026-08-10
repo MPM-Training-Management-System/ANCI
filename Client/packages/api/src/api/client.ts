@@ -12,114 +12,224 @@ export class ApiClient {
     endpoint: string,
     options: ApiRequestOptions = {}
   ): Promise<T> {
-
     const token = this.options.getToken
       ? await this.options.getToken()
       : null;
 
-    const headers = new Headers(options.headers);
+    const url =
+      `${this.options.baseUrl}${endpoint}`;
 
-const isFormData = options.body instanceof FormData;
+    console.log(
+      "================================"
+    );
 
-if (!isFormData) {
-  headers.set("Content-Type", "application/json");
-}
+    console.log("API REQUEST");
+    console.log("URL:", url);
+    console.log(
+      "METHOD:",
+      options.method ?? "GET"
+    );
+    console.log(
+      "HAS TOKEN:",
+      !!token
+    );
 
-if (token) {
-  headers.set("Authorization", `Bearer ${token}`);
-}
+    console.log(
+      "================================"
+    );
 
-let body: BodyInit | undefined;
+    const headers = new Headers(
+      options.headers
+    );
 
-if (options.body === undefined) {
-  body = undefined;
-} else if (isFormData) {
-  body = options.body as FormData;
-} else {
-  body = JSON.stringify(options.body);
-}
+    const isFormData =
+      options.body instanceof FormData;
 
-const response = await fetch(
-  `${this.options.baseUrl}${endpoint}`,
-  {
-    ...options,
-    headers,
-    body,
-  }
-);
+    if (!isFormData) {
+      headers.set(
+        "Content-Type",
+        "application/json"
+      );
+    }
 
-    if (!response.ok) {
-      let message = "Something went wrong.";
+    if (token) {
+      headers.set(
+        "Authorization",
+        `Bearer ${token}`
+      );
+    }
 
-      try {
-        const contentType =
-          response.headers.get("content-type");
+    let body: BodyInit | undefined;
 
-        if (
-          contentType?.includes("application/json")
-        ) {
-          const error =
-            await response.json();
+    if (
+      options.body === undefined
+    ) {
+      body = undefined;
+    } else if (isFormData) {
+      body =
+        options.body as FormData;
+    } else {
+      body = JSON.stringify(
+        options.body
+      );
+    }
 
-          message =
-            error.message ??
-            JSON.stringify(error);
-        } else {
-          message =
-            await response.text();
+    try {
+      const response = await fetch(
+        url,
+        {
+          ...options,
+          headers,
+          body,
         }
-      } catch {}
+      );
 
-      throw new Error(message);
+      console.log(
+        "STATUS:",
+        response.status
+      );
+
+      console.log(
+        "STATUS TEXT:",
+        response.statusText
+      );
+
+      const contentType =
+        response.headers.get(
+          "content-type"
+        );
+
+      console.log(
+        "CONTENT TYPE:",
+        contentType
+      );
+
+      /*
+       * Read response body ONCE.
+       */
+      const text =
+        await response.text();
+
+      console.log(
+        "RESPONSE:",
+        text
+      );
+
+      /*
+       * Handle HTTP errors
+       */
+      if (!response.ok) {
+        let message =
+          "Something went wrong.";
+
+        if (text) {
+          try {
+            const error =
+              JSON.parse(text);
+
+            message =
+              error.message ??
+              error.title ??
+              error.error ??
+              JSON.stringify(error);
+          } catch {
+            message = text;
+          }
+        }
+
+        throw new Error(
+          `HTTP ${response.status}: ${message}`
+        );
+      }
+
+      /*
+       * Handle empty response
+       */
+      if (
+        response.status === 204 ||
+        !text
+      ) {
+        return undefined as T;
+      }
+
+      /*
+       * Parse JSON response
+       */
+      try {
+        return JSON.parse(
+          text
+        ) as T;
+      } catch {
+        /*
+         * In case backend returns
+         * plain text instead of JSON.
+         */
+        return text as T;
+      }
+    } catch (error) {
+      console.error(
+        "API REQUEST ERROR:",
+        error
+      );
+
+      throw error;
     }
-
-    // Handle empty response
-    if (response.status === 204) {
-      return undefined as T;
-    }
-
-    return response.json() as Promise<T>;
   }
 
   get<T>(url: string) {
-    return this.request<T>(url, {
-      method: "GET",
-    });
+    return this.request<T>(
+      url,
+      {
+        method: "GET",
+      }
+    );
   }
 
   post<T>(
     url: string,
     body?: unknown
   ) {
-    return this.request<T>(url, {
-      method: "POST",
-      body,
-    });
+    return this.request<T>(
+      url,
+      {
+        method: "POST",
+        body,
+      }
+    );
   }
 
   put<T>(
     url: string,
     body?: unknown
   ) {
-    return this.request<T>(url, {
-      method: "PUT",
-      body,
-    });
+    return this.request<T>(
+      url,
+      {
+        method: "PUT",
+        body,
+      }
+    );
   }
 
   patch<T>(
     url: string,
     body?: unknown
   ) {
-    return this.request<T>(url, {
-      method: "PATCH",
-      body,
-    });
+    return this.request<T>(
+      url,
+      {
+        method: "PATCH",
+        body,
+      }
+    );
   }
 
   delete<T>(url: string) {
-    return this.request<T>(url, {
-      method: "DELETE",
-    });
+    return this.request<T>(
+      url,
+      {
+        method: "DELETE",
+      }
+    );
   }
 }

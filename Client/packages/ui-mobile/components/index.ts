@@ -11,3 +11,4 @@ export * from "./checkbox";
 export * from "./select";
 export * from "./stepper";
 export * from "./app-bar";
+export * from "./form-section";

@@ -1,7 +1,8 @@
 import { useState } from "react";
+
 import {
+  Alert,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -9,230 +10,397 @@ import {
 
 import Ionicons from "@expo/vector-icons/Ionicons";
 
+import { useRouter } from "expo-router";
+
 import {
+  Button,
+  FormSection,
   Input,
+  AppBar
 } from "@repo/ui-mobile";
 
-export default function AccountStep() {
-  const [username, setUsername] =
-    useState("");
+export type AccountSetup = {
+  Username: string;
+  Email: string;
+  Password: string;
+  ConfirmPassword: string;
+};
 
-  const [password, setPassword] =
-    useState("");
+interface Props {
+  form: AccountSetup;
 
-  const [confirmPassword, setConfirmPassword] =
-    useState("");
+  updateForm: (
+    values: Partial<AccountSetup>
+  ) => void;
+
+  loading?: boolean;
+
+  onContinue: () => void;
+}
+
+export default function AccountStep({
+  form,
+  updateForm,
+  loading = false,
+  onContinue,
+}: Props) {
+  const router = useRouter();
 
   const [showPassword, setShowPassword] =
     useState(false);
 
-  const [showConfirmPassword, setShowConfirmPassword] =
-    useState(false);
+  const [
+    showConfirmPassword,
+    setShowConfirmPassword,
+  ] = useState(false);
 
-  const [agreeTerms, setAgreeTerms] =
-    useState(false);
+  const handleContinue = () => {
+    if (!form.Username.trim()) {
+      Alert.alert(
+        "Required",
+        "Please enter your username."
+      );
+      return;
+    }
 
-  const [agreePrivacy, setAgreePrivacy] =
-    useState(false);
+    if (!form.Email.trim()) {
+      Alert.alert(
+        "Required",
+        "Please enter your email address."
+      );
+      return;
+    }
+
+    if (!form.Password) {
+      Alert.alert(
+        "Required",
+        "Please enter your password."
+      );
+      return;
+    }
+
+    if (form.Password.length < 6) {
+      Alert.alert(
+        "Invalid Password",
+        "Password must be at least 6 characters."
+      );
+      return;
+    }
+
+    if (!form.ConfirmPassword) {
+      Alert.alert(
+        "Required",
+        "Please confirm your password."
+      );
+      return;
+    }
+
+    if (
+      form.Password !==
+      form.ConfirmPassword
+    ) {
+      Alert.alert(
+        "Password Mismatch",
+        "Password and Confirm Password do not match."
+      );
+      return;
+    }
+
+    onContinue();
+  };
+  const handleSignIn = () => {
+    if (loading) return;
+
+    router.replace("/(auth)/login");
+  };
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.container}
-      showsVerticalScrollIndicator={false}
-    >
-      <Input
-        label="Username"
-        helperText="Optional"
-        value={username}
-        onChangeText={setUsername}
-        placeholder="johndoe"
-        leftIcon={
-          <Ionicons
-            name="person-outline"
-            size={20}
-            color="#64748B"
-          />
-        }
-      />
+    <View style={styles.container}>
+    
 
-      <Input
-        label="Password"
-        required
-        value={password}
-        onChangeText={setPassword}
-        placeholder="Enter password"
-        secureTextEntry={!showPassword}
-        leftIcon={
-          <Ionicons
-            name="lock-closed-outline"
-            size={20}
-            color="#64748B"
-          />
-        }
-        rightIcon={
-          <Pressable
-            onPress={() =>
-              setShowPassword(!showPassword)
-            }
-          >
+  <AppBar
+        title="Create Account"
+        subtitle="Set up your account to get started."
+        image={require("../../../assets/images/ANCILOGO.png")}
+      />
+        
+      <FormSection
+      title="Get Started"
+      >
+        {/* USERNAME */}
+
+        <Input
+          label="Username"
+          required
+          placeholder="Enter your username"
+          value={form.Username}
+          onChangeText={(value) =>
+            updateForm({
+              Username: value,
+            })
+          }
+          autoCapitalize="none"
+          autoCorrect={false}
+          editable={!loading}
+          leftIcon={
             <Ionicons
-              name={
-                showPassword
-                  ? "eye-outline"
-                  : "eye-off-outline"
-              }
+              name="person-outline"
               size={20}
               color="#64748B"
             />
-          </Pressable>
-        }
-      />
+          }
+        />
 
-      <Input
-        label="Confirm Password"
-        required
-        value={confirmPassword}
-        onChangeText={setConfirmPassword}
-        placeholder="Confirm password"
-        secureTextEntry={!showConfirmPassword}
-        leftIcon={
-          <Ionicons
-            name="shield-checkmark-outline"
-            size={20}
-            color="#64748B"
-          />
-        }
-        rightIcon={
-          <Pressable
-            onPress={() =>
-              setShowConfirmPassword(
-                !showConfirmPassword
-              )
-            }
-          >
+        <View
+          style={styles.inputSpacing}
+        />
+
+        {/* EMAIL */}
+
+        <Input
+          label="Email Address"
+          required
+          placeholder="example@email.com"
+          value={form.Email}
+          onChangeText={(value) =>
+            updateForm({
+              Email: value,
+            })
+          }
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+          editable={!loading}
+          leftIcon={
             <Ionicons
-              name={
-                showConfirmPassword
-                  ? "eye-outline"
-                  : "eye-off-outline"
-              }
+              name="mail-outline"
               size={20}
               color="#64748B"
             />
+          }
+        />
+
+        <View
+          style={styles.inputSpacing}
+        />
+
+        {/* PASSWORD */}
+
+        <Input
+          label="Password"
+          required
+          placeholder="Enter your password"
+          value={form.Password}
+          onChangeText={(value) =>
+            updateForm({
+              Password: value,
+            })
+          }
+          secureTextEntry={
+            !showPassword
+          }
+          editable={!loading}
+          leftIcon={
+            <Ionicons
+              name="lock-closed-outline"
+              size={20}
+              color="#64748B"
+            />
+          }
+          rightIcon={
+            <Pressable
+              disabled={loading}
+              hitSlop={8}
+              onPress={() =>
+                setShowPassword(
+                  !showPassword
+                )
+              }
+            >
+              <Ionicons
+                name={
+                  showPassword
+                    ? "eye-outline"
+                    : "eye-off-outline"
+                }
+                size={20}
+                color="#64748B"
+              />
+            </Pressable>
+          }
+        />
+
+        <View
+          style={styles.inputSpacing}
+        />
+
+        {/* CONFIRM PASSWORD */}
+
+        <Input
+          label="Confirm Password"
+          required
+          placeholder="Re-enter your password"
+          value={
+            form.ConfirmPassword
+          }
+          onChangeText={(value) =>
+            updateForm({
+              ConfirmPassword: value,
+            })
+          }
+          secureTextEntry={
+            !showConfirmPassword
+          }
+          editable={!loading}
+          leftIcon={
+            <Ionicons
+              name="shield-checkmark-outline"
+              size={20}
+              color="#64748B"
+            />
+          }
+          rightIcon={
+            <Pressable
+              disabled={loading}
+              hitSlop={8}
+              onPress={() =>
+                setShowConfirmPassword(
+                  !showConfirmPassword
+                )
+              }
+            >
+              <Ionicons
+                name={
+                  showConfirmPassword
+                    ? "eye-outline"
+                    : "eye-off-outline"
+                }
+                size={20}
+                color="#64748B"
+              />
+            </Pressable>
+          }
+        />
+
+        {/* INFO */}
+
+        <View style={styles.infoBox}>
+          <Ionicons
+            name="information-circle-outline"
+            size={20}
+            color="#2563EB"
+          />
+
+          <Text style={styles.infoText}>
+            After creating your account,
+            we will send an OTP to your
+            email for verification.
+          </Text>
+        </View>
+
+        {/* CONTINUE */}
+
+        <Button
+          variant="primary"
+          loading={loading}
+          disabled={loading}
+          onPress={handleContinue}
+          style={styles.button}
+        >
+          Continue to Verification
+        </Button>
+
+        {/* FOOTER */}
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            Already have an account?
+          </Text>
+
+          <Pressable
+            onPress={handleSignIn}
+            disabled={loading}
+            hitSlop={8}
+          >
+            <Text style={styles.signIn}>
+              Sign In
+            </Text>
           </Pressable>
-        }
-      />
-
-      <View style={styles.divider} />
-
-      <Pressable
-        style={styles.checkboxRow}
-        onPress={() =>
-          setAgreeTerms(!agreeTerms)
-        }
-      >
-        <Ionicons
-          name={
-            agreeTerms
-              ? "checkbox"
-              : "square-outline"
-          }
-          size={22}
-          color="#2563EB"
-        />
-
-        <Text style={styles.checkboxText}>
-          I agree to the
-          <Text style={styles.link}>
-            {" "}
-            Terms and Conditions
-          </Text>
-        </Text>
-      </Pressable>
-
-      <Pressable
-        style={styles.checkboxRow}
-        onPress={() =>
-          setAgreePrivacy(!agreePrivacy)
-        }
-      >
-        <Ionicons
-          name={
-            agreePrivacy
-              ? "checkbox"
-              : "square-outline"
-          }
-          size={22}
-          color="#2563EB"
-        />
-
-        <Text style={styles.checkboxText}>
-          I agree to the
-          <Text style={styles.link}>
-            {" "}
-            Privacy Policy
-          </Text>
-        </Text>
-      </Pressable>
-
-      <View style={styles.infoBox}>
-        <Ionicons
-          name="information-circle"
-          size={22}
-          color="#2563EB"
-        />
-
-        <Text style={styles.infoText}>
-          Your account will be reviewed by the
-          administrator before it is activated.
-        </Text>
-      </View>
-    </ScrollView>
+        </View>
+      </FormSection>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    gap: 18,
-    paddingBottom: 40,
+    marginTop: 0,
+    width: "100%",
   },
 
-  divider: {
-    height: 1,
-    backgroundColor: "#E5E7EB",
-    marginVertical: 8,
-  },
-
-  checkboxRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-  },
-
-  checkboxText: {
-    flex: 1,
-    marginLeft: 10,
-    color: "#334155",
-    fontSize: 15,
-    lineHeight: 22,
-  },
-
-  link: {
-    color: "#2563EB",
-    fontWeight: "700",
+  inputSpacing: {
+    height: 18,
   },
 
   infoBox: {
     flexDirection: "row",
-    backgroundColor: "#EFF6FF",
-    borderRadius: 14,
+
+    alignItems: "flex-start",
+
+    marginTop: 24,
+
     padding: 14,
-    marginTop: 10,
+
+    borderRadius: 14,
+
+    backgroundColor: "#EEF4FF",
+
+    borderWidth: 1,
+
+    borderColor: "#DBEAFE",
   },
 
   infoText: {
     flex: 1,
+
     marginLeft: 10,
-    color: "#1E40AF",
+
+    fontSize: 13,
+
     lineHeight: 20,
+
+    color: "#475569",
+  },
+
+  button: {
+    marginTop: 24,
+
+    borderRadius: 16,
+  },
+
+  footer: {
+    flexDirection: "row",
+
+    justifyContent: "center",
+
+    alignItems: "center",
+
+    marginTop: 26,
+  },
+
+  footerText: {
+    color: "#64748B",
+
+    fontSize: 15,
+  },
+
+  signIn: {
+    marginLeft: 5,
+
+    color: "#2563EB",
+
+    fontWeight: "700",
+
+    fontSize: 15,
   },
 });

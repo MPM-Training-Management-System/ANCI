@@ -1,70 +1,65 @@
 import { StyleSheet } from "react-native";
 
-import {
-  colors,
-  spacing,
-} from "@repo/token";
-
 export const styles = StyleSheet.create({
-
   container: {
-
+    marginBottom: 10,
+    
     width: "100%",
-
-    paddingTop: spacing.md,
-
-    paddingBottom: spacing.lg,
-
   },
 
   topRow: {
-
     flexDirection: "row",
-
     alignItems: "center",
-
     justifyContent: "space-between",
-
-    marginBottom: spacing.lg,
-
   },
 
   backButton: {
+    width: 32,
+    height: 30,
+    borderRadius: 21,
 
-    width: 40,
-
-    height: 40,
-
-    borderRadius: 20,
-
-    alignItems: "center",
+    backgroundColor: "#FFFFFF",
 
     justifyContent: "center",
+    alignItems: "center",
 
-    backgroundColor: colors.surface,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
 
+    elevation: 3,
   },
 
- content: {
-  alignItems: "center",
+  content: {
+    alignItems: "center",
+    marginTop: 20,
+  },
 
-  justifyContent: "center",
+  image: {
+    width: 64,
+    height: 64,
 
-  gap: spacing.sm,
+    borderRadius: 16,
 
-  width: "100%",
-},
+    marginBottom: 12,
+  },
 
-title: {
+  title: {
+     textAlign: "center",
+  color: "#2563EB",
+  fontSize: 20,
+  fontWeight: "700",
+  letterSpacing: -0.5,
+    
+  },
 
-  textAlign: "center",
+  subtitle: {
+    textAlign: "center",
 
-},
-
-subtitle: {
-
-  textAlign: "center",
-
-},
-
+    marginTop: 6,
+  },
 });

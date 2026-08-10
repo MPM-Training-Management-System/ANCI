@@ -22,6 +22,8 @@ namespace server.Data
 
         public DbSet<TrainingAssignmentModel> TrainingAssignments => Set<TrainingAssignmentModel>();
 
+        public DbSet<OtpCodeModel> OtpCodes { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

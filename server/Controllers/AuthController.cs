@@ -3,9 +3,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using server.Data;
 using server.DTOs;
+using server.DTOs.Otp;
 using server.DTOs.Participant;
 using server.Models;
 using server.Services;
+using server.Services.Interfaces;
 using System.Security.Claims;
 
 namespace server.Controllers;
@@ -16,17 +18,23 @@ public class AuthController : ControllerBase
 {
     private readonly JwtService _jwtService;
     private readonly AppDbContext _context;
-
+    
+    private readonly IOtpService _otpService;
+    private readonly IEmailService _emailService;
     private readonly CloudinaryService _cloudinary;
     
     public AuthController(
     JwtService jwtService,
     AppDbContext context,
+    IOtpService otpService,
+    IEmailService emailService,
     CloudinaryService cloudinary)
 {
     _jwtService = jwtService;
     _context = context;
     _cloudinary = cloudinary;
+    _otpService = otpService;
+    _emailService = emailService;
 }
 
     // ===========================
@@ -223,5 +231,196 @@ private async Task<string> GenerateUserId(string role)
     }
 
     return $"{prefix}{year}-{next:D3}";
+}
+
+[HttpPost("register-account")]
+public async Task<IActionResult> RegisterAccount(
+    [FromBody] RegisterAccountRequest request)
+{
+    // ===========================
+    // VALIDATION
+    // ===========================
+
+    if (string.IsNullOrWhiteSpace(request.Username))
+    {
+        return BadRequest(new
+        {
+            message = "Username is required."
+        });
+    }
+
+    if (string.IsNullOrWhiteSpace(request.Email))
+    {
+        return BadRequest(new
+        {
+            message = "Email is required."
+        });
+    }
+
+    if (string.IsNullOrWhiteSpace(request.Password))
+    {
+        return BadRequest(new
+        {
+            message = "Password is required."
+        });
+    }
+
+    var username = request.Username.Trim();
+    var email = request.Email.Trim().ToLower();
+
+    // ===========================
+    // CHECK EXISTING USERNAME
+    // ===========================
+
+    var existingUsername = await _context.Users
+        .FirstOrDefaultAsync(x =>
+            x.Username.ToLower() == username.ToLower());
+
+    if (existingUsername != null)
+    {
+        return Conflict(new
+        {
+            message = "Username is already taken."
+        });
+    }
+
+    // ===========================
+    // CHECK EXISTING EMAIL
+    // ===========================
+
+    var existingEmail = await _context.Users
+        .FirstOrDefaultAsync(x =>
+            x.Email.ToLower() == email);
+
+    if (existingEmail != null)
+    {
+        return Conflict(new
+        {
+            message = "Email is already registered."
+        });
+    }
+
+    // ===========================
+    // CREATE USER
+    // ===========================
+
+    var user = new UserModel
+    {
+        Id = Guid.NewGuid(),
+
+        UserId = await GenerateUserId("Participant"),
+
+        Username = username,
+
+        Email = email,
+
+        Password = BCrypt.Net.BCrypt.HashPassword(
+            request.Password),
+
+        Role = "Participant",
+
+        IsActive = true,
+
+        CreatedAt = DateTime.UtcNow
+    };
+
+    _context.Users.Add(user);
+
+    await _context.SaveChangesAsync();
+
+    // ===========================
+    // GENERATE OTP
+    // ===========================
+
+    var otp = await _otpService.GenerateOtpAsync(
+        user.Id,
+        "EmailVerification"
+    );
+
+    // ===========================
+    // SEND OTP EMAIL
+    // ===========================
+
+    await _emailService.SendOtpEmailAsync(
+        user.Email,
+        otp
+    );
+
+    // ===========================
+    // RESPONSE
+    // ===========================
+
+    return Ok(new
+    {
+        message = "Account created successfully. OTP sent to your email.",
+
+        userId = user.Id,
+
+        email = user.Email
+    });
+}
+
+[HttpPost("send-otp")]
+public async Task<IActionResult> SendOtp([FromBody] SendOtpRequest request)
+{
+    var user = await _context.Users
+        .FirstOrDefaultAsync(u => u.Email == request.Email);
+
+    if (user == null)
+    {
+        return NotFound(new
+        {
+            message = "User not found."
+        });
+    }
+
+    var otp = await _otpService.GenerateOtpAsync(
+        user.Id,
+        "EmailVerification"
+    );
+
+    await _emailService.SendOtpEmailAsync(
+        user.Email,
+        otp
+    );
+
+    return Ok(new
+    {
+        message = "OTP sent successfully."
+    });
+}
+[HttpPost("verify-otp")]
+public async Task<IActionResult> VerifyOtp(
+    [FromBody] VerifyOtpRequest request)
+{
+    var user = await _context.Users
+        .FirstOrDefaultAsync(u => u.Email == request.Email);
+
+    if (user == null)
+    {
+        return NotFound(new
+        {
+            message = "User not found."
+        });
+    }
+
+    var isValid = await _otpService.VerifyOtpAsync(
+        user.Id,
+        request.Otp,
+        "EmailVerification"
+    );
+
+    if (!isValid)
+    {
+        return BadRequest(new
+        {
+            message = "Invalid or expired OTP."
+        });
+    }
+
+    return Ok(new
+    {
+        message = "Email verified successfully."
+    });
 }
 }

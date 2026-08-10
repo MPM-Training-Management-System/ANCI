@@ -13,12 +13,12 @@ namespace server.Models
 
         public string FirstName { get; set; }  = string.Empty;
 
-public string? MiddleName { get; set; }
+        public string? MiddleName { get; set; }
 
-public string LastName { get; set; }  = string.Empty;
+        public string LastName { get; set; }  = string.Empty;
 
-public string Fullname =>
-    $"{FirstName} {MiddleName} {LastName}"
+        public string Fullname =>
+         $"{FirstName} {MiddleName} {LastName}"
         .Replace("  ", " ")
         .Trim();
 
@@ -33,6 +33,9 @@ public string Fullname =>
 
         public TrainerModel? Trainer { get; set; }
 
-      
+        public bool IsEmailVerified { get; set; } = false;
+
+      public ICollection<OtpCodeModel> OtpCodes { get; set; }
+    = new List<OtpCodeModel>();
     }
 }

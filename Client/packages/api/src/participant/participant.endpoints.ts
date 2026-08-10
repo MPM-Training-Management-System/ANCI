@@ -5,7 +5,7 @@ export const ParticipantEndpoints = {
 
   byId: (id: number) => `/api/User/${id}`,
 
-  create: "/api/Auth/register",
+  create: "/api/participant/register",
 
   update: (id: number) => `/api/User/${id}`,
 
