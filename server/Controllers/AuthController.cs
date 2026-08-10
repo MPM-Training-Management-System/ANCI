@@ -342,33 +342,92 @@ public async Task<IActionResult> RegisterAccount(
 }
 
 [HttpPost("send-otp")]
-public async Task<IActionResult> SendOtp([FromBody] SendOtpRequest request)
+public async Task<IActionResult> SendOtp(
+    [FromBody] SendOtpRequest request)
 {
-    var user = await _context.Users
-        .FirstOrDefaultAsync(u => u.Email == request.Email);
-
-    if (user == null)
+    try
     {
-        return NotFound(new
+        if (string.IsNullOrWhiteSpace(request.Email))
         {
-            message = "User not found."
+            return BadRequest(new
+            {
+                message = "Email is required."
+            });
+        }
+
+        var email = request.Email.Trim().ToLower();
+
+        var user = await _context.Users
+            .FirstOrDefaultAsync(u =>
+                u.Email.ToLower() == email);
+
+        if (user == null)
+        {
+            return NotFound(new
+            {
+                message = "User not found."
+            });
+        }
+
+        Console.WriteLine(
+            $"SEND OTP: User found: {user.Email}"
+        );
+
+        // ===========================
+        // GENERATE OTP
+        // ===========================
+
+        var otp = await _otpService.GenerateOtpAsync(
+            user.Id,
+            "EmailVerification"
+        );
+
+        Console.WriteLine(
+            "SEND OTP: OTP generated successfully."
+        );
+
+        // ===========================
+        // SEND EMAIL
+        // ===========================
+
+        await _emailService.SendOtpEmailAsync(
+            user.Email,
+            otp
+        );
+
+        Console.WriteLine(
+            "SEND OTP: Email sent successfully."
+        );
+
+        return Ok(new
+        {
+            message = "OTP sent successfully."
         });
     }
-
-    var otp = await _otpService.GenerateOtpAsync(
-        user.Id,
-        "EmailVerification"
-    );
-
-    await _emailService.SendOtpEmailAsync(
-        user.Email,
-        otp
-    );
-
-    return Ok(new
+    catch (Exception ex)
     {
-        message = "OTP sent successfully."
-    });
+        Console.WriteLine(
+            "=============================="
+        );
+
+        Console.WriteLine(
+            "SEND OTP ERROR"
+        );
+
+        Console.WriteLine(
+            ex.ToString()
+        );
+
+        Console.WriteLine(
+            "=============================="
+        );
+
+        return StatusCode(500, new
+        {
+            message = "Failed to send OTP.",
+            error = ex.Message
+        });
+    }
 }
 [HttpPost("verify-otp")]
 public async Task<IActionResult> VerifyOtp(
