@@ -39,10 +39,28 @@ export interface RegisterResponse {
   success: boolean;
   message: string;
 }
+
+export interface SendOtpResponse {
+  email: string;
+}
+
+export interface VerifyOtp {
+  email: string;
+  otp: string;
+}
+
 export class AuthApi {
   constructor(
     private readonly api: ApiClient
   ) {}
+
+
+  sendotp(data: SendOtpResponse) {
+    return this.api.post<SendOtpResponse>(
+      "/api/auth/send-otp",
+      data
+    );
+  }
 
   login(data: LoginRequest) {
     return this.api.post<LoginResponse>(

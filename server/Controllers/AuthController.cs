@@ -201,7 +201,7 @@ public async Task<IActionResult> ChangePassword(
 }
 private async Task<string> GenerateUserId(string role)
 {
-    var year = DateTime.Now.ToString("yy");
+    var year = DateTime.UtcNow.ToString("yy");
 
     var prefix = role switch
     {
@@ -212,8 +212,7 @@ private async Task<string> GenerateUserId(string role)
     };
 
     var lastUser = await _context.Users
-        .Where(x =>
-            x.UserId.StartsWith($"{prefix}{year}-"))
+        .Where(x => x.UserId.StartsWith($"{prefix}{year}-"))
         .OrderByDescending(x => x.UserId)
         .FirstOrDefaultAsync();
 
@@ -223,8 +222,10 @@ private async Task<string> GenerateUserId(string role)
     {
         var split = lastUser.UserId.Split('-');
 
-        if (split.Length == 2 &&
-            int.TryParse(split[1], out int number))
+        if (
+            split.Length == 2 &&
+            int.TryParse(split[1], out int number)
+        )
         {
             next = number + 1;
         }
@@ -232,7 +233,6 @@ private async Task<string> GenerateUserId(string role)
 
     return $"{prefix}{year}-{next:D3}";
 }
-
 [HttpPost("register-account")]
 public async Task<IActionResult> RegisterAccount(
     [FromBody] RegisterAccountRequest request)
@@ -269,7 +269,7 @@ public async Task<IActionResult> RegisterAccount(
     var email = request.Email.Trim().ToLower();
 
     // ===========================
-    // CHECK EXISTING USERNAME
+    // CHECK USERNAME
     // ===========================
 
     var existingUsername = await _context.Users
@@ -285,7 +285,7 @@ public async Task<IActionResult> RegisterAccount(
     }
 
     // ===========================
-    // CHECK EXISTING EMAIL
+    // CHECK EMAIL
     // ===========================
 
     var existingEmail = await _context.Users
@@ -315,11 +315,14 @@ public async Task<IActionResult> RegisterAccount(
         Email = email,
 
         Password = BCrypt.Net.BCrypt.HashPassword(
-            request.Password),
+            request.Password
+        ),
 
         Role = "Participant",
 
         IsActive = true,
+
+        IsEmailVerified = false,
 
         CreatedAt = DateTime.UtcNow
     };
@@ -341,10 +344,24 @@ public async Task<IActionResult> RegisterAccount(
     // SEND OTP EMAIL
     // ===========================
 
-    await _emailService.SendOtpEmailAsync(
-        user.Email,
-        otp
-    );
+    try
+    {
+        await _emailService.SendOtpEmailAsync(
+            user.Email,
+            otp
+        );
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine(
+            $"OTP EMAIL ERROR: {ex.Message}"
+        );
+
+        return StatusCode(500, new
+        {
+            message = "Account was created, but we could not send the verification email."
+        });
+    }
 
     // ===========================
     // RESPONSE
@@ -353,9 +370,7 @@ public async Task<IActionResult> RegisterAccount(
     return Ok(new
     {
         message = "Account created successfully. OTP sent to your email.",
-
         userId = user.Id,
-
         email = user.Email
     });
 }
