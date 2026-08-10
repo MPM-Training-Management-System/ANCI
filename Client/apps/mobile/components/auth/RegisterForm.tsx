@@ -46,95 +46,74 @@ export default function RegisterForm() {
     }));
   };
 
-  const handleContinue = async () => {
-    if (loading) return;
+ const handleContinue = async () => {
+  if (loading) return;
 
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      console.log(
-        "REGISTER ACCOUNT:",
-        {
-          Username: form.Username,
-          Email: form.Email,
-        }
-      );
+    const username = form.Username.trim();
+    const email = form.Email.trim().toLowerCase();
 
-      const response =
-        await authApi.register({
-          username:
-            form.Username.trim(),
+    // 1. REGISTER ACCOUNT
+    const registerResponse =
+      await authApi.register({
+        username,
+        email,
+        password: form.Password,
+      });
 
-          email:
-            form.Email
-              .trim()
-              .toLowerCase(),
+    console.log(
+      "REGISTER RESPONSE:",
+      registerResponse
+    );
 
-          password:
-            form.Password,
-        });
+    // 2. SEND OTP
+    const otpResponse =
+      await authApi.sendotp({
+        email,
+      });
 
-      console.log(
-        "REGISTER ACCOUNT RESPONSE:",
-        response
-      );
+    console.log(
+      "OTP RESPONSE:",
+      otpResponse
+    );
 
-      /*
-       * Backend already:
-       *
-       * 1. Created User
-       * 2. Saved User
-       * 3. Generated OTP
-       * 4. Saved OTP
-       * 5. Sent OTP to email
-       *
-       * Now show OTP screen.
-       */
+    // 3. SHOW OTPVerification.tsx
+    setStep("otp");
 
-      setStep("otp");
+  } catch (error: any) {
+    console.error(
+      "REGISTER ACCOUNT ERROR:",
+      error
+    );
 
-    } catch (error: any) {
-      console.error(
-        "REGISTER ACCOUNT ERROR:",
-        error
-      );
+    Alert.alert(
+      "Registration Failed",
+      error?.message ||
+        "Unable to create your account."
+    );
 
-      Alert.alert(
-        "Registration Failed",
-        error?.message ||
-          "Unable to create your account."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+  } finally {
+    setLoading(false);
+  }
+};
 
-  /*
-   * =====================================================
-   * OTP STEP
-   * =====================================================
-   */
 
   if (step === "otp") {
-    return (
-      <OTPVerification
-        email={form.Email}
-        onVerified={() => {
-          /*
-           * After successful OTP verification,
-           * proceed to the next registration step.
-           */
+  return (
+    <OTPVerification
+      email={form.Email}
+      onVerified={() => {
+        console.log(
+          "EMAIL VERIFIED"
+        );
 
-          console.log(
-            "EMAIL VERIFIED"
-          );
-
-          // NEXT STEP LATER
-          // setStep("registration");
-        }}
-      />
-    );
-  }
+        // next registration step
+      }}
+    />
+  );
+}
 
   /*
    * =====================================================

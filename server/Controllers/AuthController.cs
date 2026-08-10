@@ -331,45 +331,11 @@ public async Task<IActionResult> RegisterAccount(
 
     await _context.SaveChangesAsync();
 
-    // ===========================
-    // GENERATE OTP
-    // ===========================
-
-    var otp = await _otpService.GenerateOtpAsync(
-        user.Id,
-        "EmailVerification"
-    );
-
-    // ===========================
-    // SEND OTP EMAIL
-    // ===========================
-
-    try
-    {
-        await _emailService.SendOtpEmailAsync(
-            user.Email,
-            otp
-        );
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine(
-            $"OTP EMAIL ERROR: {ex.Message}"
-        );
-
-        return StatusCode(500, new
-        {
-            message = "Account was created, but we could not send the verification email."
-        });
-    }
-
-    // ===========================
-    // RESPONSE
-    // ===========================
+   
 
     return Ok(new
     {
-        message = "Account created successfully. OTP sent to your email.",
+        message = "Account created successfully",
         userId = user.Id,
         email = user.Email
     });
