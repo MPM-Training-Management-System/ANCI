@@ -14,17 +14,28 @@ import AccountStep, {
   AccountSetup,
 } from "./register/AccountStep";
 
+import OTPVerification from "./register/OTPVerification";
+
 import { authApi } from "@/api/api";
 
-export default function RegisterForm() {
-  const [loading, setLoading] = useState(false);
+type RegisterStep =
+  | "account"
+  | "otp";
 
-  const [form, setForm] = useState<AccountSetup>({
-    Username: "",
-    Email: "",
-    Password: "",
-    ConfirmPassword: "",
-  });
+export default function RegisterForm() {
+  const [loading, setLoading] =
+    useState(false);
+
+  const [step, setStep] =
+    useState<RegisterStep>("account");
+
+  const [form, setForm] =
+    useState<AccountSetup>({
+      Username: "",
+      Email: "",
+      Password: "",
+      ConfirmPassword: "",
+    });
 
   const updateForm = (
     values: Partial<AccountSetup>
@@ -41,16 +52,26 @@ export default function RegisterForm() {
     try {
       setLoading(true);
 
-      console.log("REGISTER ACCOUNT:", {
-        Username: form.Username,
-        Email: form.Email,
-      });
+      console.log(
+        "REGISTER ACCOUNT:",
+        {
+          Username: form.Username,
+          Email: form.Email,
+        }
+      );
 
       const response =
         await authApi.register({
-          username: form.Username.trim(),
-          email: form.Email.trim().toLowerCase(),
-          password: form.Password,
+          username:
+            form.Username.trim(),
+
+          email:
+            form.Email
+              .trim()
+              .toLowerCase(),
+
+          password:
+            form.Password,
         });
 
       console.log(
@@ -58,26 +79,20 @@ export default function RegisterForm() {
         response
       );
 
-      Alert.alert(
-        "Account Created",
-        response.message
-      );
-
       /*
-       * NEXT:
+       * Backend already:
        *
-       * Account
-       *    ↓
-       * Register Account API
-       *    ↓
-       * Database
-       *    ↓
-       * Generate OTP
-       *    ↓
-       * Send Email
-       *    ↓
-       * OTP Screen
+       * 1. Created User
+       * 2. Saved User
+       * 3. Generated OTP
+       * 4. Saved OTP
+       * 5. Sent OTP to email
+       *
+       * Now show OTP screen.
        */
+
+      setStep("otp");
+
     } catch (error: any) {
       console.error(
         "REGISTER ACCOUNT ERROR:",
@@ -93,6 +108,39 @@ export default function RegisterForm() {
       setLoading(false);
     }
   };
+
+  /*
+   * =====================================================
+   * OTP STEP
+   * =====================================================
+   */
+
+  if (step === "otp") {
+    return (
+      <OTPVerification
+        email={form.Email}
+        onVerified={() => {
+          /*
+           * After successful OTP verification,
+           * proceed to the next registration step.
+           */
+
+          console.log(
+            "EMAIL VERIFIED"
+          );
+
+          // NEXT STEP LATER
+          // setStep("registration");
+        }}
+      />
+    );
+  }
+
+  /*
+   * =====================================================
+   * ACCOUNT STEP
+   * =====================================================
+   */
 
   return (
     <SafeAreaView
@@ -118,7 +166,9 @@ export default function RegisterForm() {
             form={form}
             updateForm={updateForm}
             loading={loading}
-            onContinue={handleContinue}
+            onContinue={
+              handleContinue
+            }
           />
         </ScrollView>
       </KeyboardAvoidingView>

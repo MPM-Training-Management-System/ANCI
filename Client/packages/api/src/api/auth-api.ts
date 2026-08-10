@@ -44,9 +44,13 @@ export interface SendOtpResponse {
   email: string;
 }
 
-export interface VerifyOtp {
+export interface VerifyOtpResponse {
   email: string;
   otp: string;
+}
+
+export interface OtpResponse{
+  message: string;
 }
 
 export class AuthApi {
@@ -56,8 +60,15 @@ export class AuthApi {
 
 
   sendotp(data: SendOtpResponse) {
-    return this.api.post<SendOtpResponse>(
+    return this.api.post<OtpResponse>(
       "/api/auth/send-otp",
+      data
+    );
+  }
+
+  verifyotp(data: VerifyOtpResponse) {
+    return this.api.post<OtpResponse>(
+      "/api/auth/verify-otp",
       data
     );
   }

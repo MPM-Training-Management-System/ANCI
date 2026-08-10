@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { authApi } from "@/api/api";
 
 import { useLocalSearchParams, useRouter } from "expo-router";
 
@@ -23,18 +24,18 @@ import {
   FormSection,
 } from "@repo/ui-mobile";
 
+interface Props {
+  email: string;
+  onVerified: () => void;
+}
 const OTP_LENGTH = 6;
 const RESEND_SECONDS = 60;
 
-export default function OTPVerification() {
+export default function OTPVerification({
+   email, onVerified
+}: Props) {
   const router = useRouter();
 
-  const params =
-    useLocalSearchParams<{
-      email?: string;
-    }>();
-
-  const email = params.email ?? "";
 
   const [otp, setOtp] = useState(
     Array(OTP_LENGTH).fill("")
@@ -157,56 +158,77 @@ export default function OTPVerification() {
    * =====================================================
    */
 
-  const handleVerify = async () => {
-    const code = otp.join("");
+ const handleVerify = async () => {
+  const code = otp.join("");
 
-    if (code.length !== OTP_LENGTH) {
-      Alert.alert(
-        "Incomplete OTP",
-        "Please enter the 6-digit verification code."
-      );
+  if (code.length !== OTP_LENGTH) {
+    Alert.alert(
+      "Incomplete OTP",
+      "Please enter the 6-digit verification code."
+    );
 
-      return;
-    }
+    return;
+  }
 
-    try {
-      setLoading(true);
+  if (!email) {
+    Alert.alert(
+      "Error",
+      "Email address is missing."
+    );
 
-      console.log(
-        "VERIFY OTP:",
-        code
-      );
+    return;
+  }
 
-      /*
-       * =================================================
-       * TEMPORARY
-       * =================================================
-       *
-       * Backend OTP verification
-       * will be connected here later.
-       *
-       * For now, proceed directly
-       * to participant registration.
-       */
+  try {
+    setLoading(true);
 
-    //   router.replace(
-    //     // "/(auth)/register/registration"
-    //   );
-    } catch (error) {
-      console.error(
-        "OTP ERROR:",
-        error
-      );
+    console.log(
+      "VERIFY OTP:",
+      {
+        email,
+        otp: code,
+      }
+    );
 
-      Alert.alert(
-        "Verification Failed",
-        "Unable to verify the OTP."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+    const response =
+      await authApi.verifyotp({
+        email,
+        otp: code,
+      });
 
+    console.log(
+      "VERIFY OTP RESPONSE:",
+      response
+    );
+
+    Alert.alert(
+      "Email Verified",
+      "Your email has been successfully verified.",
+      [
+        {
+          text: "Continue",
+          onPress: () => {
+            onVerified();
+          },
+        },
+      ]
+    );
+
+  } catch (error: any) {
+    console.error(
+      "OTP ERROR:",
+      error
+    );
+
+    Alert.alert(
+      "Verification Failed",
+      error?.message ||
+        "Invalid or expired OTP."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
   /*
    * =====================================================
    * RESEND OTP
@@ -214,51 +236,67 @@ export default function OTPVerification() {
    */
 
   const handleResend = async () => {
-    if (countdown > 0) {
-      return;
-    }
+  if (countdown > 0) {
+    return;
+  }
 
-    try {
-      setResendLoading(true);
+  if (!email) {
+    Alert.alert(
+      "Error",
+      "Email address is missing."
+    );
 
-      console.log(
-        "RESEND OTP TO:",
-        email
-      );
+    return;
+  }
 
-      /*
-       * Backend resend OTP
-       * will be connected later.
-       */
+  try {
+    setResendLoading(true);
 
-      setCountdown(
-        RESEND_SECONDS
-      );
+    console.log(
+      "RESEND OTP TO:",
+      email
+    );
 
-      setOtp(
-        Array(OTP_LENGTH).fill("")
-      );
+    const response =
+      await authApi.sendotp({
+        email,
+      });
 
-      inputRefs.current[0]?.focus();
+    console.log(
+      "RESEND OTP RESPONSE:",
+      response
+    );
 
-      Alert.alert(
-        "OTP Sent",
-        "A new verification code has been sent."
-      );
-    } catch (error) {
-      console.error(
-        "RESEND OTP ERROR:",
-        error
-      );
+    setCountdown(
+      RESEND_SECONDS
+    );
 
-      Alert.alert(
-        "Error",
+    setOtp(
+      Array(OTP_LENGTH).fill("")
+    );
+
+    inputRefs.current[0]?.focus();
+
+    Alert.alert(
+      "OTP Sent",
+      "A new verification code has been sent."
+    );
+
+  } catch (error: any) {
+    console.error(
+      "RESEND OTP ERROR:",
+      error
+    );
+
+    Alert.alert(
+      "Error",
+      error?.message ||
         "Unable to resend OTP."
-      );
-    } finally {
-      setResendLoading(false);
-    }
-  };
+    );
+  } finally {
+    setResendLoading(false);
+  }
+};
 
   /*
    * =====================================================
