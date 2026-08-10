@@ -1,18 +1,27 @@
 using server.DTOs.Participant;
+using server.Models;
 
-namespace server.Services.Interfaces;
-
-public interface IParticipantService
+namespace server.Services.Interfaces
 {
-    Task RegisterAsync(RegisterParticipantDTO dto);
+    public interface IParticipantService
+    {
+        Task<ParticipantModel> RegisterAsync(
+            RegisterParticipantDTO dto);
 
-    Task<List<ParticipantListDTO>> GetAllAsync();
+        Task<IEnumerable<ParticipantListDTO>> GetAllAsync();
 
-    Task<ParticipantResponseDTO?> GetByIdAsync(Guid id);
+        Task<ParticipantResponseDTO?> GetByIdAsync(
+            Guid id);
 
-    Task UpdateAsync(Guid id, UpdateParticipantDTO dto);
+        Task UpdateAsync(
+            Guid id,
+            UpdateParticipantDTO dto);
 
-    Task DeleteAsync(Guid id);
+        Task DeleteAsync(
+            Guid id);
 
-    Task ChangeStatusAsync(Guid id, bool isActive);
+        Task ChangeStatusAsync(
+            Guid id,
+            bool isActive);
+    }
 }

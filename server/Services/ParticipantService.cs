@@ -20,34 +20,76 @@ public class ParticipantService : IParticipantService
     }
 
     // =====================================================
-    // REGISTER
+    // COMPLETE PARTICIPANT REGISTRATION
     // =====================================================
 
-    public async Task RegisterAsync(RegisterParticipantDTO dto)
+    public async Task<ParticipantModel> RegisterAsync(
+        RegisterParticipantDTO dto)
     {
         using var transaction =
             await _context.Database.BeginTransactionAsync();
 
         try
         {
-            dto.Email = dto.Email.Trim();
-            dto.Username = dto.Username.Trim();
+            // ==========================================
+            // VALIDATE EMAIL
+            // ==========================================
 
-            // Check Email
-            if (await _context.Users.AnyAsync(x =>
-                x.Email.ToLower() == dto.Email.ToLower()))
+            if (string.IsNullOrWhiteSpace(dto.Email))
             {
-                throw new Exception("Email already exists.");
+                throw new Exception("Email is required.");
             }
 
-            // Check Username
-            if (await _context.Users.AnyAsync(x =>
-                x.Username.ToLower() == dto.Username.ToLower()))
+            var email = dto.Email
+                .Trim()
+                .ToLower();
+
+            // ==========================================
+            // FIND EXISTING USER
+            // ==========================================
+
+            var user = await _context.Users
+                .FirstOrDefaultAsync(x =>
+                    x.Email.ToLower() == email);
+
+            if (user == null)
             {
-                throw new Exception("Username already exists.");
+                throw new Exception(
+                    "Account not found. Please register your account first."
+                );
             }
 
-            // Upload Profile Image
+            // ==========================================
+            // CHECK EMAIL VERIFICATION
+            // ==========================================
+
+            if (!user.IsEmailVerified)
+            {
+                throw new Exception(
+                    "Email address has not been verified."
+                );
+            }
+
+            // ==========================================
+            // CHECK EXISTING PARTICIPANT
+            // ==========================================
+
+            var existingParticipant =
+                await _context.Participants
+                    .FirstOrDefaultAsync(x =>
+                        x.UserId == user.Id);
+
+            if (existingParticipant != null)
+            {
+                throw new Exception(
+                    "Participant profile already exists."
+                );
+            }
+
+            // ==========================================
+            // UPLOAD PROFILE IMAGE
+            // ==========================================
+
             string? image = null;
 
             if (dto.ProfileImage != null)
@@ -56,62 +98,69 @@ public class ParticipantService : IParticipantService
                     .UploadImageAsync(dto.ProfileImage);
             }
 
-            // Create User
-            var user = new UserModel
-            {
-                Id = Guid.NewGuid(),
+            // ==========================================
+            // UPDATE USER PERSONAL INFORMATION
+            // ==========================================
 
-                UserId = await GenerateUserId("Participant"),
+            user.FirstName =
+                dto.FirstName.Trim();
 
-                Username = dto.Username,
+            user.MiddleName =
+                dto.MiddleName?.Trim();
 
-                Email = dto.Email,
+            user.LastName =
+                dto.LastName.Trim();
 
-                Password = BCrypt.Net.BCrypt
-                    .HashPassword(dto.Password),
+            // ==========================================
+            // CREATE PARTICIPANT
+            // ==========================================
 
-                Role = "Participant",
-IsActive = true,
-
-                CreatedAt = DateTime.UtcNow,
-               FirstName = dto.FirstName.Trim(),
-
-MiddleName = dto.MiddleName?.Trim(),
-
-LastName = dto.LastName.Trim(),
-            };
-
-            _context.Users.Add(user);
-
-            await _context.SaveChangesAsync();
-
-            // Create Participant
             var participant = new ParticipantModel
             {
                 Id = Guid.NewGuid(),
 
                 UserId = user.Id,
 
+                User = user,
+
                 ProfileImage = image,
 
-                DateOfBirth = dto.DateOfBirth,
+                FirstName =
+                    dto.FirstName.Trim(),
 
-                Gender = dto.Gender,
+                MiddleName =
+                    dto.MiddleName?.Trim(),
 
-                CivilStatus = dto.CivilStatus,
+                LastName =
+                    dto.LastName.Trim(),
 
-                MobileNumber = dto.MobileNumber,
+                DateOfBirth =
+                    dto.DateOfBirth,
 
-                HomeAddress = dto.HomeAddress,
+                Gender =
+                    dto.Gender.Trim(),
+
+                CivilStatus =
+                    dto.CivilStatus.Trim(),
+
+                MobileNumber =
+                    dto.MobileNumber.Trim(),
+
+                HomeAddress =
+                    dto.HomeAddress.Trim(),
 
                 EmergencyContactName =
-                    dto.EmergencyContactName,
+                    dto.EmergencyContactName?.Trim(),
 
                 EmergencyRelationship =
-                    dto.EmergencyRelationship,
+                    dto.EmergencyRelationship?.Trim(),
 
                 EmergencyContactNumber =
-                    dto.EmergencyContactNumber
+                    dto.EmergencyContactNumber?.Trim(),
+
+                IsActive = true,
+
+                CreatedAt = DateTime.UtcNow
             };
 
             _context.Participants.Add(participant);
@@ -119,6 +168,8 @@ LastName = dto.LastName.Trim(),
             await _context.SaveChangesAsync();
 
             await transaction.CommitAsync();
+
+            return participant;
         }
         catch
         {
@@ -128,222 +179,210 @@ LastName = dto.LastName.Trim(),
     }
 
     // =====================================================
-    // TODO
+    // GET ALL
     // =====================================================
 
-    public async Task<List<ParticipantListDTO>> GetAllAsync()
-{
-    return await _context.Participants
-        .Include(x => x.User)
-        .OrderByDescending(x => x.CreatedAt)
-        .Select(x => new ParticipantListDTO
-        {
-            Id = x.Id,
-
-            UserId = x.User.UserId,
-
-            ProfileImage = x.ProfileImage,
-
-            FullName = x.User.Fullname,
-
-            Email = x.User.Email,
-
-            MobileNumber = x.MobileNumber,
-
-            IsActive = x.IsActive
-        })
-        .ToListAsync();
-}
-
-    public async Task<ParticipantResponseDTO?> GetByIdAsync(Guid id)
-{
-    return await _context.Participants
-        .Include(x => x.User)
-        .Where(x => x.Id == id)
-        .Select(x => new ParticipantResponseDTO
-        {
-            Id = x.Id,
-
-            UserId = x.User.UserId,
-
-            Username = x.User.Username,
-
-            Email = x.User.Email,
-
-            FullName = x.User.Fullname,
-
-            ProfileImage = x.ProfileImage,
-
-            FirstName = x.FirstName,
-
-            MiddleName = x.MiddleName,
-
-            LastName = x.LastName,
-            
-
-            DateOfBirth = x.DateOfBirth,
-
-            Gender = x.Gender,
-
-            CivilStatus = x.CivilStatus,
-
-            MobileNumber = x.MobileNumber,
-
-            HomeAddress = x.HomeAddress,
-
-            EmergencyContactName = x.EmergencyContactName,
-
-            EmergencyRelationship = x.EmergencyRelationship,
-
-            EmergencyContactNumber = x.EmergencyContactNumber,
-
-            IsActive = x.IsActive
-        })
-        .FirstOrDefaultAsync();
-}
-   public async Task UpdateAsync(Guid id, UpdateParticipantDTO dto)
-{
-    var participant = await _context.Participants
-        .Include(x => x.User)
-        .FirstOrDefaultAsync(x => x.Id == id);
-
-    if (participant == null)
+    public async Task<IEnumerable<ParticipantListDTO>>
+        GetAllAsync()
     {
-        throw new Exception("Participant not found.");
-    }
-
-    // Upload new image
-    if (dto.ProfileImage != null)
-    {
-        participant.ProfileImage =
-            await _cloudinary.UploadImageAsync(dto.ProfileImage);
-    }
-
-    // Update User
-    participant.User.FirstName =
-    dto.FirstName.Trim();
-
-participant.User.MiddleName =
-    dto.MiddleName?.Trim();
-
-participant.User.LastName =
-    dto.LastName.Trim();
-
-
-
-    // Update Participant
-    participant.FirstName = dto.FirstName;
-    participant.MiddleName = dto.MiddleName;
-    participant.LastName = dto.LastName;
-
-    participant.DateOfBirth = dto.DateOfBirth;
-
-    participant.Gender = dto.Gender;
-
-    participant.CivilStatus = dto.CivilStatus;
-
-    participant.MobileNumber = dto.MobileNumber;
-
-    participant.HomeAddress = dto.HomeAddress;
-
-    participant.EmergencyContactName =
-        dto.EmergencyContactName;
-
-    participant.EmergencyRelationship =
-        dto.EmergencyRelationship;
-
-    participant.EmergencyContactNumber =
-        dto.EmergencyContactNumber;
-
-    await _context.SaveChangesAsync();
-}
-
-   public async Task DeleteAsync(Guid id)
-{
-    var participant = await _context.Participants
-        .Include(x => x.User)
-        .FirstOrDefaultAsync(x => x.Id == id);
-
-    if (participant == null)
-    {
-        throw new Exception("Participant not found.");
-    }
-
-    // Soft Delete
-    participant.IsActive = false;
-
-    participant.User.IsActive = false;
-
-    await _context.SaveChangesAsync();
-}
-
-    public async Task ChangeStatusAsync(Guid id, bool isActive)
-{
-    var participant = await _context.Participants
-        .Include(x => x.User)
-        .FirstOrDefaultAsync(x => x.Id == id);
-
-    if (participant == null)
-    {
-        throw new Exception("Participant not found.");
-    }
-
-    participant.IsActive = isActive;
-
-    participant.User.IsActive = isActive;
-
-    await _context.SaveChangesAsync();
-}
-
-    // =====================================================
-    // HELPERS
-    // =====================================================
-
-    private static string BuildFullName(
-        string first,
-        string? middle,
-        string last)
-    {
-        return string.Join(" ",
-            new[]
+        return await _context.Participants
+            .Include(x => x.User)
+            .OrderByDescending(x => x.CreatedAt)
+            .Select(x => new ParticipantListDTO
             {
-                first.Trim(),
-                middle?.Trim(),
-                last.Trim()
-            }
-            .Where(x => !string.IsNullOrWhiteSpace(x)));
+                Id = x.Id,
+
+                UserId = x.User.UserId,
+
+                ProfileImage = x.ProfileImage,
+
+                FullName = x.User.Fullname,
+
+                Email = x.User.Email,
+
+                MobileNumber = x.MobileNumber,
+
+                IsActive = x.IsActive
+            })
+            .ToListAsync();
     }
 
-    private async Task<string> GenerateUserId(string role)
+    // =====================================================
+    // GET BY ID
+    // =====================================================
+
+    public async Task<ParticipantResponseDTO?>
+        GetByIdAsync(Guid id)
     {
-        var year = DateTime.Now.ToString("yy");
+        return await _context.Participants
+            .Include(x => x.User)
+            .Where(x => x.Id == id)
+            .Select(x => new ParticipantResponseDTO
+            {
+                Id = x.Id,
 
-        var prefix = role switch
-        {
-            "Admin" => "A",
-            "Trainer" => "T",
-            "Participant" => "P",
-            _ => "U"
-        };
+                UserId = x.User.UserId,
 
-        var lastUser = await _context.Users
-            .Where(x => x.UserId.StartsWith($"{prefix}{year}-"))
-            .OrderByDescending(x => x.UserId)
+                Username = x.User.Username,
+
+                Email = x.User.Email,
+
+                FullName = x.User.Fullname,
+
+                ProfileImage = x.ProfileImage,
+
+                FirstName = x.FirstName,
+
+                MiddleName = x.MiddleName,
+
+                LastName = x.LastName,
+
+                DateOfBirth = x.DateOfBirth,
+
+                Gender = x.Gender,
+
+                CivilStatus = x.CivilStatus,
+
+                MobileNumber = x.MobileNumber,
+
+                HomeAddress = x.HomeAddress,
+
+                EmergencyContactName =
+                    x.EmergencyContactName,
+
+                EmergencyRelationship =
+                    x.EmergencyRelationship,
+
+                EmergencyContactNumber =
+                    x.EmergencyContactNumber,
+
+                IsActive = x.IsActive
+            })
             .FirstOrDefaultAsync();
+    }
 
-        int next = 1;
+    // =====================================================
+    // UPDATE
+    // =====================================================
 
-        if (lastUser != null)
+    public async Task UpdateAsync(
+        Guid id,
+        UpdateParticipantDTO dto)
+    {
+        var participant =
+            await _context.Participants
+                .Include(x => x.User)
+                .FirstOrDefaultAsync(x => x.Id == id);
+
+        if (participant == null)
         {
-            var split = lastUser.UserId.Split('-');
-
-            if (split.Length == 2 &&
-                int.TryParse(split[1], out int number))
-            {
-                next = number + 1;
-            }
+            throw new Exception(
+                "Participant not found."
+            );
         }
 
-        return $"{prefix}{year}-{next:D3}";
+        // Upload new image
+        if (dto.ProfileImage != null)
+        {
+            participant.ProfileImage =
+                await _cloudinary
+                    .UploadImageAsync(dto.ProfileImage);
+        }
+
+        // Update User
+        participant.User.FirstName =
+            dto.FirstName.Trim();
+
+        participant.User.MiddleName =
+            dto.MiddleName?.Trim();
+
+        participant.User.LastName =
+            dto.LastName.Trim();
+
+        // Update Participant
+        participant.FirstName =
+            dto.FirstName.Trim();
+
+        participant.MiddleName =
+            dto.MiddleName?.Trim();
+
+        participant.LastName =
+            dto.LastName.Trim();
+
+        participant.DateOfBirth =
+            dto.DateOfBirth;
+
+        participant.Gender =
+            dto.Gender.Trim();
+
+        participant.CivilStatus =
+            dto.CivilStatus.Trim();
+
+        participant.MobileNumber =
+            dto.MobileNumber.Trim();
+
+        participant.HomeAddress =
+            dto.HomeAddress.Trim();
+
+        participant.EmergencyContactName =
+            dto.EmergencyContactName?.Trim();
+
+        participant.EmergencyRelationship =
+            dto.EmergencyRelationship?.Trim();
+
+        participant.EmergencyContactNumber =
+            dto.EmergencyContactNumber?.Trim();
+
+        await _context.SaveChangesAsync();
+    }
+
+    // =====================================================
+    // DELETE
+    // =====================================================
+
+    public async Task DeleteAsync(Guid id)
+    {
+        var participant =
+            await _context.Participants
+                .Include(x => x.User)
+                .FirstOrDefaultAsync(x => x.Id == id);
+
+        if (participant == null)
+        {
+            throw new Exception(
+                "Participant not found."
+            );
+        }
+
+        participant.IsActive = false;
+        participant.User.IsActive = false;
+
+        await _context.SaveChangesAsync();
+    }
+
+    // =====================================================
+    // CHANGE STATUS
+    // =====================================================
+
+    public async Task ChangeStatusAsync(
+        Guid id,
+        bool isActive)
+    {
+        var participant =
+            await _context.Participants
+                .Include(x => x.User)
+                .FirstOrDefaultAsync(x => x.Id == id);
+
+        if (participant == null)
+        {
+            throw new Exception(
+                "Participant not found."
+            );
+        }
+
+        participant.IsActive = isActive;
+        participant.User.IsActive = isActive;
+
+        await _context.SaveChangesAsync();
     }
 }

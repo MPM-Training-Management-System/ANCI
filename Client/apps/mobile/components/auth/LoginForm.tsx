@@ -48,9 +48,13 @@ export default function LoginForm() {
   const [remember, setRemember] =
     useState(false);
 
-  const handleLogin = async () => {
+ const handleLogin = async () => {
     const trimmedLogin =
       login.trim();
+
+    // ===================================================
+    // VALIDATION
+    // ===================================================
 
     if (!trimmedLogin) {
       Alert.alert(
@@ -74,8 +78,20 @@ export default function LoginForm() {
       setLoading(true);
 
       console.log(
-        "Attempting login..."
+        "================================"
       );
+
+      console.log(
+        "ATTEMPTING PARTICIPANT LOGIN"
+      );
+
+      console.log({
+        login: trimmedLogin,
+      });
+
+      // =================================================
+      // LOGIN API
+      // =================================================
 
       const response =
         await authApi.login({
@@ -84,39 +100,101 @@ export default function LoginForm() {
         });
 
       console.log(
-        "Login response:",
+        "LOGIN RESPONSE:",
         response
       );
 
-      /*
-       * Save authentication token
-       */
+      // =================================================
+      // CHECK USER
+      // =================================================
+
+      if (!response?.user) {
+        Alert.alert(
+          "Login Failed",
+          "Unable to retrieve your account information."
+        );
+
+        return;
+      }
+
+     
+
+      const userRole =
+        response.user.role ??
+        response.user.role;
+
+      console.log(
+        "USER ROLE:",
+        userRole
+      );
+
+      // =================================================
+      // PARTICIPANT ONLY
+      // =================================================
+
+      if (
+        !userRole ||
+        userRole.toLowerCase() !==
+          "participant"
+      ) {
+        console.log(
+          "ACCESS DENIED - ROLE:",
+          userRole
+        );
+
+        Alert.alert(
+          "Access Denied",
+          "Only participant accounts can access the mobile application."
+        );
+
+        return;
+      }
+
+      // =================================================
+      // SAVE TOKEN
+      // =================================================
+
       await auth.saveToken(
         response.token
       );
 
-      /*
-       * Save logged-in user
-       */
+      console.log(
+        "TOKEN SAVED"
+      );
+
+      // =================================================
+      // SAVE USER
+      // =================================================
+
       await auth.saveUser(
         response.user
       );
 
-      /*
-       * Optional remember flag.
-       *
-       * SecureStore already keeps
-       * the token between app launches.
-       */
+      console.log(
+        "USER SAVED"
+      );
+
+      // =================================================
+      // REMEMBER ME
+      // =================================================
+
       console.log(
         "Remember me:",
         remember
       );
 
-      /*
-       * Go to authenticated area
-       */
-      router.replace("/(tabs)");
+      // =================================================
+      // PARTICIPANT APP
+      // =================================================
+
+      console.log(
+        "LOGIN SUCCESS"
+      );
+
+      router.replace(
+        "/(tabs)"
+      );
+
     } catch (error) {
       console.error(
         "LOGIN ERROR:",
@@ -130,13 +208,15 @@ export default function LoginForm() {
         error instanceof Error &&
         error.message
       ) {
-        message = error.message;
+        message =
+          error.message;
       }
 
       Alert.alert(
         "Login Failed",
         message
       );
+
     } finally {
       setLoading(false);
     }

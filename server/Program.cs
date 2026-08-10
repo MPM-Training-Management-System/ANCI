@@ -12,19 +12,28 @@ using server.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 
-var connString = builder.Configuration.GetConnectionString("DefaultConnection");
+var connectionString =
+    builder.Configuration.GetConnectionString("DefaultConnection");
 
-try
+if (!string.IsNullOrWhiteSpace(connectionString))
 {
-    using var conn = new NpgsqlConnection(connString);
-    conn.Open();
-    Console.WriteLine("✅ Connected successfully!");
+    var builderConnection =
+        new Npgsql.NpgsqlConnectionStringBuilder(connectionString);
+
+    Console.WriteLine("================================");
+    Console.WriteLine("DATABASE CONFIG");
+    Console.WriteLine($"Host: {builderConnection.Host}");
+    Console.WriteLine($"Port: {builderConnection.Port}");
+    Console.WriteLine($"Database: {builderConnection.Database}");
+    Console.WriteLine($"Username: {builderConnection.Username}");
+    Console.WriteLine("================================");
 }
-catch (Exception ex)
+else
 {
-    Console.WriteLine(ex.ToString());
+    Console.WriteLine("DATABASE CONFIG: CONNECTION STRING IS NULL");
 }
-// Database
+
+
 
 
 builder.Services.AddScoped<
@@ -109,6 +118,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+
 // CORS
 builder.Services.AddCors(options =>
 {
@@ -123,6 +133,12 @@ builder.Services.AddCors(options =>
             .AllowAnyMethod();
     });
 });
+
+
+if (builder.Environment.IsDevelopment())
+{
+    builder.WebHost.UseUrls("http://0.0.0.0:5296");
+}
 
 var app = builder.Build();
 

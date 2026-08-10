@@ -11,13 +11,14 @@ public class ParticipantController : ControllerBase
 {
     private readonly IParticipantService _participantService;
 
-    public ParticipantController(IParticipantService participantService)
+    public ParticipantController(
+        IParticipantService participantService)
     {
         _participantService = participantService;
     }
 
     // ==========================================
-    // REGISTER
+    // COMPLETE PARTICIPANT REGISTRATION
     // ==========================================
 
     [HttpPost("register")]
@@ -26,11 +27,19 @@ public class ParticipantController : ControllerBase
     {
         try
         {
-            await _participantService.RegisterAsync(dto);
+            var participant =
+                await _participantService.RegisterAsync(dto);
 
             return Ok(new
             {
-                message = "Participant registered successfully."
+                message =
+                    "Participant profile completed successfully.",
+
+                participantId = participant.Id,
+
+                userId = participant.UserId,
+
+                email = participant.User.Email
             });
         }
         catch (Exception ex)
@@ -50,7 +59,8 @@ public class ParticipantController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var participants = await _participantService.GetAllAsync();
+        var participants =
+            await _participantService.GetAllAsync();
 
         return Ok(participants);
     }
@@ -63,7 +73,8 @@ public class ParticipantController : ControllerBase
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id)
     {
-        var participant = await _participantService.GetByIdAsync(id);
+        var participant =
+            await _participantService.GetByIdAsync(id);
 
         if (participant == null)
         {
@@ -88,11 +99,14 @@ public class ParticipantController : ControllerBase
     {
         try
         {
-            await _participantService.UpdateAsync(id, dto);
+            await _participantService.UpdateAsync(
+                id,
+                dto);
 
             return Ok(new
             {
-                message = "Participant updated successfully."
+                message =
+                    "Participant updated successfully."
             });
         }
         catch (Exception ex)
@@ -105,7 +119,7 @@ public class ParticipantController : ControllerBase
     }
 
     // ==========================================
-    // DELETE (SOFT DELETE)
+    // DELETE
     // ==========================================
 
     [Authorize]
@@ -118,7 +132,8 @@ public class ParticipantController : ControllerBase
 
             return Ok(new
             {
-                message = "Participant deleted successfully."
+                message =
+                    "Participant deleted successfully."
             });
         }
         catch (Exception ex)
@@ -148,7 +163,8 @@ public class ParticipantController : ControllerBase
 
             return Ok(new
             {
-                message = "Participant status updated successfully."
+                message =
+                    "Participant status updated successfully."
             });
         }
         catch (Exception ex)

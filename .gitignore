@@ -95,3 +95,8 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# Environment / secrets
+server/appsettings.json
+server/appsettings.*.json
+!server/appsettings.example.json

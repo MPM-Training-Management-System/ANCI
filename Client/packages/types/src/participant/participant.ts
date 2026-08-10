@@ -13,7 +13,8 @@ export interface Participant {
 }
 
 export interface RegisterParticipantRequest {
-  profileImage?: File;
+  email: string;
+  profileImage?: string;
 
   FirstName: string;
   MiddleName?: string;
@@ -25,16 +26,14 @@ export interface RegisterParticipantRequest {
   CivilStatus: string;
 
   MobileNumber: string;
-  Email: string;
-  Username: string;
+
 
   HomeAddress: string;
 
   EmergencyContactName?: string;
   EmergencyRelationship?: string;
   EmergencyContactNumber?: string;
-
-  Password: string;
+  
 }
 
 export interface RegisterParticipantResponse {
