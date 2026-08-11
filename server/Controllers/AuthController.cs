@@ -19,6 +19,7 @@ public class AuthController : ControllerBase
     private readonly JwtService _jwtService;
     private readonly AppDbContext _context;
     
+    private readonly ICacheService _cacheService;
     private readonly IOtpService _otpService;
     private readonly IEmailService _emailService;
     private readonly CloudinaryService _cloudinary;
@@ -28,13 +29,15 @@ public class AuthController : ControllerBase
     AppDbContext context,
     IOtpService otpService,
     IEmailService emailService,
-    CloudinaryService cloudinary)
+    CloudinaryService cloudinary,
+     ICacheService cacheService)
 {
     _jwtService = jwtService;
     _context = context;
     _cloudinary = cloudinary;
     _otpService = otpService;
     _emailService = emailService;
+     _cacheService = cacheService;
 }
 
     // ===========================
@@ -53,28 +56,73 @@ public async Task<IActionResult> Login(LoginDTO request)
         });
     }
 
-    var login = request.Login.Trim().ToLower();
+   var login = request.Login.Trim().ToLower();
 
-    var user = await _context.Users
+var cacheKey = $"user:login:{login}";
+
+var user = _cacheService.Get<UserModel>(cacheKey);
+
+if (user == null)
+{
+    Console.WriteLine("CACHE MISS - DATABASE");
+
+    user = await _context.Users
         .FirstOrDefaultAsync(x =>
             x.Email.ToLower() == login ||
             x.Username.ToLower() == login);
 
-    if (user == null)
+    if (user != null)
+    {
+        Console.WriteLine(
+            $"DATABASE USER: {user.Email} | IsActive: {user.IsActive}"
+        );
+
+        _cacheService.Set(
+            cacheKey,
+            user,
+            TimeSpan.FromMinutes(5)
+        );
+    }
+}
+else
+{
+    Console.WriteLine(
+        $"CACHE HIT: {user.Email} | IsActive: {user.IsActive}"
+    );
+}
+
+if (user == null)
+{
+    return Unauthorized(new
+    {
+        message =
+            "Invalid username/email or password."
+    });
+}
+
+if (!BCrypt.Net.BCrypt.Verify(
+    request.Password,
+    user.Password))
+{
+    return Unauthorized(new
+    {
+        message =
+            "Invalid username/email or password."
+    });
+}
+    
+
+
+     if (!user.IsActive)
     {
         return Unauthorized(new
         {
-            message = "Invalid username/email or password."
+            message =
+                "Your account is currently inactive. Please wait for admin approval."
         });
     }
 
-    if (!BCrypt.Net.BCrypt.Verify(request.Password, user.Password))
-    {
-        return Unauthorized(new
-        {
-            message = "Invalid username/email or password."
-        });
-    }
+  
 
     var token = _jwtService.GenerateToken(user);
 
@@ -89,7 +137,9 @@ public async Task<IActionResult> Login(LoginDTO request)
             user.Username,
             user.Email,
             user.Role,
-            user.Fullname
+            user.Fullname,
+            user.IsActive,
+            user.IsEmailVerified
         }
     });
 }
@@ -212,7 +262,9 @@ private async Task<string> GenerateUserId(string role)
     };
 
     var lastUser = await _context.Users
-        .Where(x => x.UserId.StartsWith($"{prefix}{year}-"))
+        .Where(x =>
+            x.Role == role &&
+            x.UserId.StartsWith($"{prefix}{year}-"))
         .OrderByDescending(x => x.UserId)
         .FirstOrDefaultAsync();
 
@@ -231,7 +283,17 @@ private async Task<string> GenerateUserId(string role)
         }
     }
 
-    return $"{prefix}{year}-{next:D3}";
+    // Trainer = 4 digits
+    // Participant = 3 digits
+    var digitCount = role switch
+    {
+        "Trainer" => 4,
+        "Participant" => 3,
+        "Admin" => 3,
+        _ => 3
+    };
+
+    return $"{prefix}{year}-{next.ToString($"D{digitCount}")}";
 }
 [HttpPost("register-account")]
 public async Task<IActionResult> RegisterAccount(
@@ -267,6 +329,17 @@ public async Task<IActionResult> RegisterAccount(
 
     var username = request.Username.Trim();
     var email = request.Email.Trim().ToLower();
+    var role = request.Role.Trim();
+
+
+      if (role != "Participant" && role != "Trainer")
+    {
+        return BadRequest(new
+        {
+            message = "Invalid registration role."
+        });
+    }
+
 
     // ===========================
     // CHECK USERNAME
@@ -308,7 +381,7 @@ public async Task<IActionResult> RegisterAccount(
     {
         Id = Guid.NewGuid(),
 
-        UserId = await GenerateUserId("Participant"),
+        UserId = await GenerateUserId(role),
 
         Username = username,
 
@@ -318,7 +391,7 @@ public async Task<IActionResult> RegisterAccount(
             request.Password
         ),
 
-        Role = "Participant",
+        Role = role,
 
         IsActive = true,
 
@@ -337,7 +410,8 @@ public async Task<IActionResult> RegisterAccount(
     {
         message = "Account created successfully",
         userId = user.Id,
-        email = user.Email
+        email = user.Email,
+        role = user.Role
     });
 }
 

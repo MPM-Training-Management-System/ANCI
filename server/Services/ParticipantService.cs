@@ -10,13 +10,15 @@ public class ParticipantService : IParticipantService
 {
     private readonly AppDbContext _context;
     private readonly CloudinaryService _cloudinary;
-
+    private readonly IParticipantPolicyService _policyService;
     public ParticipantService(
         AppDbContext context,
-        CloudinaryService cloudinary)
+        CloudinaryService cloudinary,
+        IParticipantPolicyService policyService)
     {
         _context = context;
         _cloudinary = cloudinary;
+        _policyService = policyService;
     }
 
     // =====================================================
@@ -69,7 +71,7 @@ public class ParticipantService : IParticipantService
                     "Email address has not been verified."
                 );
             }
-
+            user.IsActive = false;
             // ==========================================
             // CHECK EXISTING PARTICIPANT
             // ==========================================
@@ -87,17 +89,86 @@ public class ParticipantService : IParticipantService
             }
 
             // ==========================================
+// REQUIRED INFORMATION VALIDATION
+// ==========================================
+
+if (string.IsNullOrWhiteSpace(dto.FirstName))
+{
+    throw new Exception("First name is required.");
+}
+
+if (string.IsNullOrWhiteSpace(dto.LastName))
+{
+    throw new Exception("Last name is required.");
+}
+
+if (dto.DateOfBirth == default)
+{
+    throw new Exception("Date of birth is required.");
+}
+
+if (string.IsNullOrWhiteSpace(dto.Gender))
+{
+    throw new Exception("Gender is required.");
+}
+
+if (string.IsNullOrWhiteSpace(dto.CivilStatus))
+{
+    throw new Exception("Civil status is required.");
+}
+
+if (string.IsNullOrWhiteSpace(dto.MobileNumber))
+{
+    throw new Exception("Mobile number is required.");
+}
+
+if (string.IsNullOrWhiteSpace(dto.HomeAddress))
+{
+    throw new Exception("Home address is required.");
+}
+
+// ==========================================
+// REQUIRED DOCUMENTS
+// ==========================================
+
+if (dto.ProfileImage == null ||
+    dto.ProfileImage.Length == 0)
+{
+    throw new Exception(
+        "Profile image is required."
+    );
+}
+
+if (dto.ValidId == null ||
+    dto.ValidId.Length == 0)
+{
+    throw new Exception(
+        "Valid ID is required."
+    );
+}
+
+            // ==========================================
             // UPLOAD PROFILE IMAGE
             // ==========================================
 
-            string? image = null;
+            var profileImage = string.Empty;
+var validId = string.Empty;
 
-            if (dto.ProfileImage != null)
-            {
-                image = await _cloudinary
-                    .UploadImageAsync(dto.ProfileImage);
-            }
+if (dto.ProfileImage != null)
+{
+    profileImage =
+        await _cloudinary.UploadImageAsync(
+            dto.ProfileImage
+        );
+}
 
+if (dto.ValidId != null)
+{
+    validId =
+        await _cloudinary.UploadImageAsync(
+            dto.ValidId
+        );
+}
             // ==========================================
             // UPDATE USER PERSONAL INFORMATION
             // ==========================================
@@ -123,8 +194,8 @@ public class ParticipantService : IParticipantService
 
                 User = user,
 
-                ProfileImage = image,
-
+                ProfileImage = profileImage,
+                ValidId = validId,
                 FirstName =
                     dto.FirstName.Trim(),
 
@@ -158,24 +229,58 @@ public class ParticipantService : IParticipantService
                 EmergencyContactNumber =
                     dto.EmergencyContactNumber?.Trim(),
 
-                IsActive = true,
+                IsActive = false,
 
                 CreatedAt = DateTime.UtcNow
             };
 
-            _context.Participants.Add(participant);
+           _context.Participants.Add(participant);
 
-            await _context.SaveChangesAsync();
+await _context.SaveChangesAsync();
 
-            await transaction.CommitAsync();
 
-            return participant;
-        }
-        catch
-        {
-            await transaction.RollbackAsync();
-            throw;
-        }
+// ==========================================
+// AUTOMATIC POLICY CHECK
+// ==========================================
+
+var policyResult =
+    await _policyService.CheckAsync(user.Id);
+
+
+// ==========================================
+// CREATE APPLICATION
+// ==========================================
+
+var application = new ParticipantApplicationModel
+{
+    Id = Guid.NewGuid(),
+
+    UserId = user.Id,
+
+    Status = ApplicationStatus.Pending,
+
+    PolicyStatus = policyResult.Passed
+        ? PolicyStatus.Passed
+        : PolicyStatus.Failed,
+
+    PolicyRemarks = policyResult.Remarks,
+
+    SubmittedAt = DateTime.UtcNow
+};
+
+_context.ParticipantApplications.Add(application);
+
+await _context.SaveChangesAsync();
+
+await transaction.CommitAsync();
+
+return participant;
+}
+catch
+{
+    await transaction.RollbackAsync();
+    throw;
+}
     }
 
     // =====================================================
@@ -195,6 +300,8 @@ public class ParticipantService : IParticipantService
                 UserId = x.User.UserId,
 
                 ProfileImage = x.ProfileImage,
+
+                ValidId = x.ValidId,
 
                 FullName = x.User.Fullname,
 
@@ -230,6 +337,8 @@ public class ParticipantService : IParticipantService
                 FullName = x.User.Fullname,
 
                 ProfileImage = x.ProfileImage,
+                
+               
 
                 FirstName = x.FirstName,
 

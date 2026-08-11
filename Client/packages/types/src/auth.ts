@@ -5,11 +5,14 @@ export interface LoginRequest {
 
 export interface User {
   id: string;
+  userId: string;
+  username: string;
   fullName: string;
   email: string;
   role: string;
+  isActive: boolean;
+  isEmailVerified: boolean;
 }
-
 export interface LoginResponse {
   token: string;
   refreshToken?: string;

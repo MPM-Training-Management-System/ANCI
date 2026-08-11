@@ -5,6 +5,7 @@ import type {
   RegisterParticipantRequest,
   Participant,
   UpdateParticipantRequest,
+  ValidIdFile
 } from "@repo/types";
 
 export class ParticipantApi {
@@ -56,6 +57,7 @@ export class ParticipantApi {
       data.email
     );
 
+    
     // =================================================
     // PERSONAL INFORMATION
     // =================================================
@@ -160,6 +162,19 @@ export class ParticipantApi {
       );
     }
 
+    if (data.validId) {
+  const validId = data.validId;
+
+  formData.append(
+    "ValidId",
+    {
+      uri: validId.uri,
+      name: validId.name,
+      type: validId.type,
+    } as any
+  );
+}
+
     // =================================================
     // DEBUG
     // =================================================
@@ -186,6 +201,14 @@ export class ParticipantApi {
         data.EmergencyContactNumber,
       ProfileImage:
         data.profileImage,
+        ValidId: data.validId
+  ? {
+      uri: data.validId.uri,
+      name: data.validId.name,
+      type: data.validId.type,
+      idType: data.validId.idType,
+    }
+  : null,
     });
 
     // =================================================

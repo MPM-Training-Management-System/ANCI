@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Eye, EyeOff, GraduationCap } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,11 +24,15 @@ import {
   type RegisterTrainerSchema,
 } from "@/hooks/schema";
 
+import { authApi } from "@/lib/api";
+
 export default function RegisterForm() {
+  const router = useRouter();
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] =
     useState(false);
-    const [agreeTerms, setAgreeTerms] = useState(false);
+  const [agreeTerms, setAgreeTerms] = useState(false);
 
   const {
     register,
@@ -40,8 +45,6 @@ export default function RegisterForm() {
     resolver: zodResolver(registerTrainerSchema),
 
     defaultValues: {
-      firstName: "",
-      lastName: "",
       email: "",
       username: "",
       password: "",
@@ -49,30 +52,50 @@ export default function RegisterForm() {
     },
   });
 
-  async function onSubmit(
-    data: RegisterTrainerSchema
-  ) {
-    console.log(data);
+ async function onSubmit(data: RegisterTrainerSchema) {
+  console.log("SUBMIT FIRED", data);
 
-    // TODO:
-    // await authApi.registerTrainer(data);
+  try {
+    const response = await authApi.register({
+      username: data.username,
+      email: data.email,
+      password: data.password,
+      role: "Trainer",
+    });
+
+    console.log("REGISTER RESPONSE:", response);
+
+    await authApi.sendotp({
+      email: data.email,
+    });
+
+    console.log("OTP SENT");
+
+    router.push(
+      `/register/verify-otp?email=${encodeURIComponent(data.email)}`
+    );
+  } catch (error) {
+    console.error("REGISTRATION ERROR:", error);
+
+    alert(
+      error instanceof Error
+        ? error.message
+        : "Failed to create account."
+    );
   }
+}
 
   return (
-    <Card className="w-full max-w-2xl rounded-3xl border-0 shadow-2xl">
-
+    <Card>
       <CardHeader className="border-b bg-slate-50/60 pb-8">
-       <div className="mb-2">
-        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-teal-700 text-xs font-bold uppercase tracking-widest">
-                     Secure Access Point
-                   </span>
-                   </div>
+        <div className="mb-2">
+          <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase tracking-widest text-teal-700">
+            Secure Access Point
+          </span>
+        </div>
+
         <div className="flex items-center gap-5">
-
-          
-
           <div>
-
             <CardTitle className="text-3xl font-bold">
               Create Trainer Account
             </CardTitle>
@@ -82,70 +105,23 @@ export default function RegisterForm() {
               the ACE NextGen Trainer Portal and begin managing
               training sessions.
             </CardDescription>
-
           </div>
-
         </div>
-
       </CardHeader>
 
       <CardContent className="pt-8">
-
         <form
-          onSubmit={handleSubmit(onSubmit)}
-          className="space-y-6"
-        >
-
-          {/* First Row */}
-
+  onSubmit={handleSubmit(
+    onSubmit,
+    (errors) => {
+      console.log("FORM VALIDATION ERRORS:", errors);
+    }
+  )}
+  className="space-y-6"
+>
+          {/* Email + Username */}
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-
             <div>
-
-              <label className="mb-2 block text-sm font-medium">
-                First Name
-              </label>
-
-              <Input
-                placeholder="Juan"
-                {...register("firstName")}
-              />
-
-              {errors.firstName && (
-                <p className="mt-1 text-sm text-red-500">
-                  {errors.firstName.message}
-                </p>
-              )}
-
-            </div>
-
-            <div>
-
-              <label className="mb-2 block text-sm font-medium">
-                Last Name
-              </label>
-
-              <Input
-                placeholder="Dela Cruz"
-                {...register("lastName")}
-              />
-
-              {errors.lastName && (
-                <p className="mt-1 text-sm text-red-500">
-                  {errors.lastName.message}
-                </p>
-              )}
-
-            </div>
-
-          </div>
-
-          {/* Second Row */}
-
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-
-            <div>
-
               <label className="mb-2 block text-sm font-medium">
                 Email Address
               </label>
@@ -161,11 +137,9 @@ export default function RegisterForm() {
                   {errors.email.message}
                 </p>
               )}
-
             </div>
 
             <div>
-
               <label className="mb-2 block text-sm font-medium">
                 Username
               </label>
@@ -180,30 +154,19 @@ export default function RegisterForm() {
                   {errors.username.message}
                 </p>
               )}
-
             </div>
-
           </div>
-                    {/* Third Row */}
 
+          {/* Password + Confirm Password */}
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-
-            {/* Password */}
-
             <div>
-
               <label className="mb-2 block text-sm font-medium">
                 Password
               </label>
 
               <div className="relative">
-
                 <Input
-                  type={
-                    showPassword
-                      ? "text"
-                      : "password"
-                  }
+                  type={showPassword ? "text" : "password"}
                   placeholder="Enter password"
                   className="pr-12"
                   {...register("password")}
@@ -222,7 +185,6 @@ export default function RegisterForm() {
                     <Eye className="h-5 w-5" />
                   )}
                 </button>
-
               </div>
 
               {errors.password && (
@@ -230,19 +192,14 @@ export default function RegisterForm() {
                   {errors.password.message}
                 </p>
               )}
-
             </div>
 
-            {/* Confirm Password */}
-
             <div>
-
               <label className="mb-2 block text-sm font-medium">
                 Confirm Password
               </label>
 
               <div className="relative">
-
                 <Input
                   type={
                     showConfirmPassword
@@ -269,7 +226,6 @@ export default function RegisterForm() {
                     <Eye className="h-5 w-5" />
                   )}
                 </button>
-
               </div>
 
               {errors.confirmPassword && (
@@ -277,75 +233,58 @@ export default function RegisterForm() {
                   {errors.confirmPassword.message}
                 </p>
               )}
-
             </div>
-
           </div>
+
+          {/* Terms */}
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex items-start gap-3">
+              <Checkbox
+                checked={agreeTerms}
+                onChange={(e) =>
+                  setAgreeTerms(e.target.checked)
+                }
+              />
 
-  <div className="flex items-start gap-3">
+              <div>
+                <label className="text-sm leading-6 text-slate-600">
+                  I have read and agree to the{" "}
+                  <Link
+                    href="/terms-and-conditions"
+                    target="_blank"
+                    className="font-semibold text-primary hover:underline"
+                  >
+                    Terms & Conditions
+                  </Link>{" "}
+                  and{" "}
+                  <Link
+                    href="/privacy-policy"
+                    target="_blank"
+                    className="font-semibold text-primary hover:underline"
+                  >
+                    Privacy Policy
+                  </Link>{" "}
+                  of ACE NextGen.
+                </label>
+              </div>
+            </div>
+          </div>
 
-    <Checkbox
-      checked={agreeTerms}
-      onChange={(e) =>
-        setAgreeTerms(e.target.checked)
-      }
-    />
-
-    <div>
-
-      <label className="text-sm leading-6 text-slate-600">
-
-        I have read and agree to the{" "}
-
-        <Link
-          href="/terms-and-conditions"
-          target="_blank"
-          className="font-semibold text-primary hover:underline"
-        >
-          Terms & Conditions
-        </Link>
-
-        {" "}and{" "}
-
-        <Link
-          href="/privacy-policy"
-          target="_blank"
-          className="font-semibold text-primary hover:underline"
-        >
-          Privacy Policy
-        </Link>
-
-        {" "}of ACE NextGen.
-
-      </label>
-
-    </div>
-
-  </div>
-
-</div>
-
-          {/* Divider */}
-
+          {/* Submit */}
           <div className="border-t border-slate-200 pt-6">
-
             <Button
   type="submit"
   className="w-full"
-  disabled={isSubmitting || !agreeTerms}
+  disabled={isSubmitting}
 >
               {isSubmitting
                 ? "Creating Account..."
                 : "Create Account"}
             </Button>
-
           </div>
 
           {/* Login */}
-
           <div className="space-y-4">
-
             <p className="text-center text-sm text-slate-500">
               Already have a trainer account?{" "}
               <Link
@@ -358,15 +297,11 @@ export default function RegisterForm() {
 
             <p className="text-center text-[11px] uppercase tracking-widest text-slate-400">
               By creating an account, you agree to the
-              platform's Terms of Service and Privacy Policy.
+              platform&apos;s Terms of Service and Privacy Policy.
             </p>
-
           </div>
-
         </form>
-
       </CardContent>
-
     </Card>
   );
 }

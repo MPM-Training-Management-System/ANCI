@@ -30,8 +30,8 @@ interface Props {
 
 type FlashMode =
   | "off"
-  | "auto"
-  | "screen";
+  | "on"
+  | "auto";
 
 export default function ProfilePhotoPicker({
   value,
@@ -94,7 +94,6 @@ export default function ProfilePhotoPicker({
       }
 
       // Request camera permission
-
       if (!permission.granted) {
         const result =
           await requestPermission();
@@ -110,9 +109,7 @@ export default function ProfilePhotoPicker({
       }
 
       setCameraReady(false);
-
       setCameraVisible(true);
-
     } catch (error) {
       console.error(
         "OPEN CAMERA ERROR:",
@@ -149,9 +146,7 @@ export default function ProfilePhotoPicker({
       const permissionResult =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-      if (
-        !permissionResult.granted
-      ) {
+      if (!permissionResult.granted) {
         Alert.alert(
           "Photo Permission Required",
           "Please allow access to your photos so you can choose a profile picture."
@@ -220,7 +215,6 @@ export default function ProfilePhotoPicker({
       onChange(
         selectedAsset.uri
       );
-
     } catch (error) {
       console.error(
         "OPEN GALLERY ERROR:",
@@ -231,7 +225,6 @@ export default function ProfilePhotoPicker({
         "Photo Error",
         "Unable to select a photo from your gallery."
       );
-
     } finally {
       setPickingImage(false);
     }
@@ -247,7 +240,6 @@ export default function ProfilePhotoPicker({
     }
 
     setCameraVisible(false);
-
     setCameraReady(false);
   };
 
@@ -256,40 +248,34 @@ export default function ProfilePhotoPicker({
   // =====================================================
 
   const handleToggleFlash = () => {
-    setFlash((current) => {
-      // AUTO → SCREEN
+  setFlash((current) => {
+    if (current === "auto") {
+      return "on";
+    }
 
-      if (current === "auto") {
-        return "screen";
-      }
+    if (current === "on") {
+      return "off";
+    }
 
-      // SCREEN → OFF
-
-      if (current === "screen") {
-        return "off";
-      }
-
-      // OFF → AUTO
-
-      return "auto";
-    });
-  };
+    return "auto";
+  });
+};
 
   // =====================================================
   // FLASH LABEL
   // =====================================================
 
   const getFlashLabel = () => {
-    if (flash === "auto") {
-      return "AUTO";
-    }
+  if (flash === "auto") {
+    return "AUTO";
+  }
 
-    if (flash === "screen") {
-      return "SCREEN";
-    }
+  if (flash === "on") {
+    return "ON";
+  }
 
-    return "OFF";
-  };
+  return "OFF";
+};
 
   // =====================================================
   // TAKE PHOTO
@@ -367,9 +353,7 @@ export default function ProfilePhotoPicker({
       // =================================================
 
       setCameraVisible(false);
-
       setCameraReady(false);
-
     } catch (error) {
       console.error(
         "TAKE PHOTO ERROR:",
@@ -380,7 +364,6 @@ export default function ProfilePhotoPicker({
         "Camera Error",
         "Unable to take your profile photo. Please try again."
       );
-
     } finally {
       setTakingPhoto(false);
     }
@@ -610,7 +593,9 @@ export default function ProfilePhotoPicker({
               onPress={
                 handleCloseCamera
               }
-              disabled={takingPhoto}
+              disabled={
+                takingPhoto
+              }
               style={
                 styles.closeButton
               }
@@ -636,7 +621,9 @@ export default function ProfilePhotoPicker({
               onPress={
                 handleToggleFlash
               }
-              disabled={takingPhoto}
+              disabled={
+                takingPhoto
+              }
               style={
                 styles.flashButton
               }
@@ -663,14 +650,18 @@ export default function ProfilePhotoPicker({
           </View>
 
           {/* =================================================
-              LIVE CAMERA
+              CAMERA AREA
           ================================================= */}
 
           <View
             style={
-              styles.cameraPreviewWrapper
+              styles.cameraArea
             }
           >
+
+            {/* =================================================
+                LIVE CAMERA
+            ================================================= */}
 
             <CameraView
               ref={cameraRef}
@@ -691,12 +682,85 @@ export default function ProfilePhotoPicker({
             />
 
             {/* =================================================
-                FACE GUIDE
+                DARK FACE MASK
             ================================================= */}
 
             <View
               pointerEvents="none"
-              style={styles.faceGuide}
+              style={
+                styles.faceMask
+              }
+            >
+
+              {/* TOP MASK */}
+
+              <View
+                style={
+                  styles.maskTop
+                }
+              />
+
+              {/* MIDDLE */}
+
+              <View
+                style={
+                  styles.maskMiddle
+                }
+              >
+
+                {/* LEFT */}
+
+                <View
+                  style={
+                    styles.maskSide
+                  }
+                />
+
+                {/* CLEAR FACE AREA */}
+
+                <View
+                  style={
+                    styles.faceCutout
+                  }
+                >
+
+                  <View
+                    style={
+                      styles.faceGuideInner
+                    }
+                  />
+
+                </View>
+
+                {/* RIGHT */}
+
+                <View
+                  style={
+                    styles.maskSide
+                  }
+                />
+
+              </View>
+
+              {/* BOTTOM MASK */}
+
+              <View
+                style={
+                  styles.maskBottom
+                }
+              />
+
+            </View>
+
+            {/* =================================================
+                FACE GUIDE BORDER
+            ================================================= */}
+
+            <View
+              pointerEvents="none"
+              style={
+                styles.faceGuide
+              }
             >
               <View
                 style={
@@ -705,21 +769,111 @@ export default function ProfilePhotoPicker({
               />
             </View>
 
+            {/* =================================================
+                GUIDE CORNERS
+            ================================================= */}
+
+            <View
+              pointerEvents="none"
+              style={
+                styles.cornerTopLeft
+              }
+            />
+
+            <View
+              pointerEvents="none"
+              style={
+                styles.cornerTopRight
+              }
+            />
+
+            <View
+              pointerEvents="none"
+              style={
+                styles.cornerBottomLeft
+              }
+            />
+
+            <View
+              pointerEvents="none"
+              style={
+                styles.cornerBottomRight
+              }
+            />
+
+            {/* =================================================
+                CAMERA LOADING
+            ================================================= */}
+
+            {!cameraReady && (
+              <View
+                style={
+                  styles.loadingOverlay
+                }
+                pointerEvents="none"
+              >
+                <View
+                  style={
+                    styles.loadingCard
+                  }
+                >
+                  <Ionicons
+                    name="camera-outline"
+                    size={30}
+                    color="#FFFFFF"
+                  />
+
+                  <Text
+                    style={
+                      styles.loadingText
+                    }
+                  >
+                    Starting camera...
+                  </Text>
+                </View>
+              </View>
+            )}
+
           </View>
 
           {/* =================================================
-              BOTTOM
+              CAMERA BOTTOM
           ================================================= */}
 
           <View
             style={styles.cameraBottom}
           >
 
+            {/* STATUS */}
+
+            <View
+              style={
+                styles.statusBadge
+              }
+            >
+              <View
+                style={
+                  styles.statusDot
+                }
+              />
+
+              <Text
+                style={
+                  styles.statusText
+                }
+              >
+                Position your face inside
+                the frame
+              </Text>
+            </View>
+
+            {/* HINT */}
+
             <Text
               style={styles.cameraHint}
             >
-              Position your face inside{"\n"}
-              the frame
+              Keep your face centered and
+              look directly at the camera
             </Text>
 
             {/* CAPTURE */}
@@ -743,31 +897,28 @@ export default function ProfilePhotoPicker({
                 style={
                   styles.captureInner
                 }
-              />
+              >
+                {takingPhoto && (
+                  <Ionicons
+                    name="camera"
+                    size={26}
+                    color="#FFFFFF"
+                  />
+                )}
+              </View>
             </Pressable>
 
-          </View>
-
-          {/* =================================================
-              LOADING
-          ================================================= */}
-
-          {!cameraReady && (
-            <View
+            <Text
               style={
-                styles.loadingOverlay
+                styles.captureLabel
               }
-              pointerEvents="none"
             >
-              <Text
-                style={
-                  styles.loadingText
-                }
-              >
-                Starting camera...
-              </Text>
-            </View>
-          )}
+              {takingPhoto
+                ? "Capturing..."
+                : "Take Photo"}
+            </Text>
+
+          </View>
 
         </View>
       </Modal>
@@ -781,6 +932,7 @@ export default function ProfilePhotoPicker({
 // =====================================================
 
 const styles = StyleSheet.create({
+
   // ===================================================
   // MAIN
   // ===================================================
@@ -976,7 +1128,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
 
-    zIndex: 10,
+    zIndex: 20,
   },
 
   closeButton: {
@@ -1033,12 +1185,11 @@ const styles = StyleSheet.create({
   },
 
   // ===================================================
-  // CAMERA PREVIEW
+  // CAMERA AREA
   // ===================================================
 
-  cameraPreviewWrapper: {
+  cameraArea: {
     width: "100%",
-
     aspectRatio: 3 / 4,
 
     alignSelf: "center",
@@ -1055,11 +1206,54 @@ const styles = StyleSheet.create({
   },
 
   // ===================================================
+  // FACE MASK
+  // ===================================================
+
+  faceMask: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 3,
+  },
+
+  maskTop: {
+    flex: 1,
+    backgroundColor:
+      "rgba(0,0,0,0.58)",
+  },
+
+  maskMiddle: {
+    height: "64%",
+
+    flexDirection: "row",
+  },
+
+  maskSide: {
+    flex: 1,
+    backgroundColor:
+      "rgba(0,0,0,0.58)",
+  },
+
+  faceCutout: {
+    width: "62%",
+    height: "100%",
+
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  maskBottom: {
+    flex: 1,
+    backgroundColor:
+      "rgba(0,0,0,0.58)",
+  },
+
+  // ===================================================
   // FACE GUIDE
   // ===================================================
 
   faceGuide: {
     position: "absolute",
+
+    zIndex: 5,
 
     alignSelf: "center",
 
@@ -1067,7 +1261,7 @@ const styles = StyleSheet.create({
 
     width: "62%",
 
-    aspectRatio: 0.76,
+    height: "64%",
 
     borderWidth: 3,
 
@@ -1093,37 +1287,185 @@ const styles = StyleSheet.create({
   },
 
   // ===================================================
-  // BOTTOM
+  // CORNER GUIDES
+  // ===================================================
+
+  cornerTopLeft: {
+    position: "absolute",
+
+    zIndex: 6,
+
+    top: "16%",
+    left: "16%",
+
+    width: 28,
+    height: 28,
+
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+
+    borderColor: "#FFFFFF",
+
+    borderTopLeftRadius: 8,
+  },
+
+  cornerTopRight: {
+    position: "absolute",
+
+    zIndex: 6,
+
+    top: "16%",
+    right: "16%",
+
+    width: 28,
+    height: 28,
+
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+
+    borderColor: "#FFFFFF",
+
+    borderTopRightRadius: 8,
+  },
+
+  cornerBottomLeft: {
+    position: "absolute",
+
+    zIndex: 6,
+
+    bottom: "16%",
+    left: "16%",
+
+    width: 28,
+    height: 28,
+
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+
+    borderColor: "#FFFFFF",
+
+    borderBottomLeftRadius: 8,
+  },
+
+  cornerBottomRight: {
+    position: "absolute",
+
+    zIndex: 6,
+
+    bottom: "16%",
+    right: "16%",
+
+    width: 28,
+    height: 28,
+
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+
+    borderColor: "#FFFFFF",
+
+    borderBottomRightRadius: 8,
+  },
+
+  // ===================================================
+  // LOADING
+  // ===================================================
+
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+
+    backgroundColor:
+      "rgba(0,0,0,0.35)",
+
+    justifyContent: "center",
+    alignItems: "center",
+
+    zIndex: 20,
+  },
+
+  loadingCard: {
+    alignItems: "center",
+    justifyContent: "center",
+
+    paddingHorizontal: 24,
+    paddingVertical: 18,
+
+    borderRadius: 16,
+
+    backgroundColor:
+      "rgba(0,0,0,0.65)",
+  },
+
+  loadingText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "600",
+    marginTop: 8,
+  },
+
+  // ===================================================
+  // CAMERA BOTTOM
   // ===================================================
 
   cameraBottom: {
     alignItems: "center",
 
-    paddingBottom: 45,
-
-    paddingTop: 20,
+    paddingBottom: 35,
+    paddingTop: 15,
+    paddingHorizontal: 20,
   },
 
-  cameraHint: {
+  // ===================================================
+  // STATUS
+  // ===================================================
+
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+
+    borderRadius: 20,
+
+    backgroundColor:
+      "rgba(255,255,255,0.12)",
+
+    marginBottom: 10,
+  },
+
+  statusDot: {
+    width: 8,
+    height: 8,
+
+    borderRadius: 4,
+
+    backgroundColor: "#FCD34D",
+
+    marginRight: 8,
+  },
+
+  statusText: {
     color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "600",
+  },
 
-    fontSize: 14,
+  // ===================================================
+  // HINT
+  // ===================================================
 
-    lineHeight: 20,
+  cameraHint: {
+    color: "#CBD5E1",
 
-    marginBottom: 20,
+    fontSize: 13,
+
+    lineHeight: 19,
+
+    marginBottom: 16,
 
     textAlign: "center",
 
-    textShadowColor:
-      "rgba(0,0,0,0.6)",
-
-    textShadowOffset: {
-      width: 0,
-      height: 1,
-    },
-
-    textShadowRadius: 3,
+    maxWidth: 300,
   },
 
   // ===================================================
@@ -1158,27 +1500,15 @@ const styles = StyleSheet.create({
     borderRadius: 33,
 
     backgroundColor: "#2563EB",
-  },
-
-  // ===================================================
-  // LOADING
-  // ===================================================
-
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-
-    backgroundColor:
-      "rgba(0,0,0,0.35)",
 
     justifyContent: "center",
     alignItems: "center",
-
-    zIndex: 20,
   },
 
-  loadingText: {
+  captureLabel: {
     color: "#FFFFFF",
-    fontSize: 15,
+    fontSize: 12,
     fontWeight: "600",
+    marginTop: 8,
   },
 });

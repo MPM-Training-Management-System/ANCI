@@ -24,6 +24,7 @@ export interface LoginUser {
   email: string;
   role: string;
   profileImage?: string;
+  isActive: boolean;
 }
 
 export interface LoginResponse {
@@ -34,6 +35,7 @@ export interface RegisterRequest {
   username: string;
   email: string;
   password: string;
+  role: string;
 }
 export interface RegisterResponse {
   success: boolean;

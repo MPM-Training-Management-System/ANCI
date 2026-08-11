@@ -128,27 +128,90 @@ export default function LoginForm() {
         userRole
       );
 
-      // =================================================
-      // PARTICIPANT ONLY
-      // =================================================
+     // =================================================
+// PARTICIPANT ONLY
+// =================================================
 
-      if (
-        !userRole ||
-        userRole.toLowerCase() !==
-          "participant"
-      ) {
-        console.log(
-          "ACCESS DENIED - ROLE:",
-          userRole
-        );
+if (
+  !userRole ||
+  userRole.toLowerCase() !== "participant"
+) {
+  console.log(
+    "ACCESS DENIED - ROLE:",
+    userRole
+  );
 
-        Alert.alert(
-          "Access Denied",
-          "Only participant accounts can access the mobile application."
-        );
+  Alert.alert(
+    "Access Denied",
+    "Only participant accounts can access the mobile application."
+  );
 
-        return;
-      }
+  return;
+}
+
+// =================================================
+// ACTIVE ACCOUNT CHECK
+// =================================================
+
+if (!response.user.isActive) {
+  console.log(
+    "ACCESS DENIED - ACCOUNT INACTIVE"
+  );
+
+  console.log(response.user.isActive)
+
+  Alert.alert(
+    "Your application is currently under review.",
+    "Our administrator will review your submitted information and valid ID before activating your account."
+  );
+
+  return;
+}
+
+// =================================================
+// SAVE TOKEN
+// =================================================
+
+await auth.saveToken(
+  response.token
+);
+
+console.log(
+  "TOKEN SAVED"
+);
+
+// =================================================
+// SAVE USER
+// =================================================
+
+await auth.saveUser(
+  response.user
+);
+
+console.log(
+  "USER SAVED"
+);
+
+// =================================================
+// REMEMBER ME
+// =================================================
+
+console.log(
+  "Remember me:",
+  remember
+);
+
+// =================================================
+// PARTICIPANT APP
+// =================================================
+
+console.log(
+  "LOGIN SUCCESS"
+);
+
+router.replace(
+  "/(tabs)"
+);
 
       // =================================================
       // SAVE TOKEN
@@ -195,27 +258,54 @@ export default function LoginForm() {
         "/(tabs)"
       );
 
-    } catch (error) {
-      console.error(
-        "LOGIN ERROR:",
-        error
-      );
+    } catch (error: any) {
+  console.error("LOGIN ERROR:", error);
 
-      let message =
-        "Unable to connect to the server.";
+  const message =
+    error?.message?.toLowerCase() ?? "";
 
-      if (
-        error instanceof Error &&
-        error.message
-      ) {
-        message =
-          error.message;
-      }
+  // =========================================
+  // INACTIVE ACCOUNT
+  // =========================================
 
-      Alert.alert(
-        "Login Failed",
-        message
-      );
+  if (
+    message.includes("account is currently inactive")
+  ) {
+    Alert.alert(
+      "Account Pending Approval",
+      "Your account is currently inactive. Please wait for the administrator to approve your application."
+    );
+
+    return;
+  }
+
+  // =========================================
+  // INVALID CREDENTIALS
+  // =========================================
+
+  if (
+    message.includes("invalid username/email") ||
+    message.includes("invalid username") ||
+    message.includes("invalid email") ||
+    message.includes("invalid username/email or password")
+  ) {
+    Alert.alert(
+      "Login Failed",
+      "Invalid username/email or password."
+    );
+
+    return;
+  }
+
+  // =========================================
+  // OTHER ERRORS
+  // =========================================
+
+  Alert.alert(
+    "Login Failed",
+    "Unable to login. Please try again."
+  );
+
 
     } finally {
       setLoading(false);

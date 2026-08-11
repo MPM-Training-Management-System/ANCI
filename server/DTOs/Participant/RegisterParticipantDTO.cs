@@ -6,6 +6,8 @@ namespace server.DTOs.Participant
   {
     public IFormFile? ProfileImage { get; set; }
 
+    public IFormFile? ValidId { get; set; }
+
     public string FirstName { get; set; } = string.Empty;
 
     public string? MiddleName { get; set; }

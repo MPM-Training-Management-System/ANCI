@@ -34,4 +34,5 @@ public interface ITrainerService
     Task VerifyAsync(
         Guid id,
         bool isVerified);
+        
 }

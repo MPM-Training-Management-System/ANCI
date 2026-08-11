@@ -24,6 +24,8 @@ namespace server.Data
 
         public DbSet<OtpCodeModel> OtpCodes { get; set; }
 
+        public DbSet<ParticipantApplicationModel> ParticipantApplications
+    => Set<ParticipantApplicationModel>();
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -36,7 +38,13 @@ namespace server.Data
                 .WithOne(p => p.User)
                 .HasForeignKey<ParticipantModel>(p => p.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+            
 
+            modelBuilder.Entity<ParticipantApplicationModel>()
+    .HasOne(a => a.User)
+    .WithOne(u => u.ParticipantApplication)
+    .HasForeignKey<ParticipantApplicationModel>(a => a.UserId)
+    .OnDelete(DeleteBehavior.Cascade);
             // ============================================
             // User ↔ Trainer (One-to-One)
             // ============================================
@@ -92,6 +100,10 @@ namespace server.Data
                 .HasIndex(u => u.Email)
                 .IsUnique();
 
+                modelBuilder.Entity<ParticipantApplicationModel>()
+    .HasIndex(a => a.UserId)
+    .IsUnique();
+
             modelBuilder.Entity<UserModel>()
                 .HasIndex(u => u.Username)
                 .IsUnique();
@@ -100,6 +112,12 @@ namespace server.Data
                 .HasIndex(p => p.UserId)
                 .IsUnique();
 
+
+            modelBuilder.Entity<ParticipantApplicationModel>()
+    .Property(a => a.SubmittedAt)
+    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+    
             modelBuilder.Entity<TrainerModel>()
                 .HasIndex(t => t.UserId)
                 .IsUnique();

@@ -30,7 +30,9 @@ import EmergencyContactStep, {
 } from "./register/EmergencyContactStep";
 
 import ProfilePhotoPicker from "./register/ProfilePhotoPicker";
-
+import ValidIdPicker, {
+  ValidIdFile,
+} from "./register/ValidIdPicker";
 import { authApi, participantApi } from "@/api/api";
 import { router } from "expo-router";
 
@@ -95,11 +97,13 @@ export default function RegisterForm() {
 
   const [profileImage, setProfileImage] =
     useState<string>("");
-
+const [validId, setValidId] =
+  useState<ValidIdFile | null>(null);
   // =====================================================
   // UPDATE ACCOUNT FORM
   // =====================================================
 
+  
   const updateForm = (
     values: Partial<AccountSetup>
   ) => {
@@ -148,6 +152,7 @@ export default function RegisterForm() {
           username,
           email,
           password: form.Password,
+          role: "Participant"
         });
 
       console.log(
@@ -284,6 +289,22 @@ export default function RegisterForm() {
     setProfileImage(uri);
   };
 
+  const handleValidIdChange = (
+  file: ValidIdFile | null
+) => {
+  console.log(
+    "================================"
+  );
+
+  console.log(
+    "VALID ID SELECTED:"
+  );
+
+  console.log(file);
+
+  setValidId(file);
+};
+
   // =====================================================
   // BACK FROM EMERGENCY
   // STEP 2 → STEP 1
@@ -353,6 +374,15 @@ export default function RegisterForm() {
 
         return;
       }
+
+      if (!validId) {
+  Alert.alert(
+    "Valid ID Required",
+    "Please select an accepted ID and capture a clear photo of it."
+  );
+
+  return;
+}
 
       try {
         setLoading(true);
@@ -444,6 +474,8 @@ export default function RegisterForm() {
             // =============================================
             // PROFILE PHOTO
             // =============================================
+            validId:
+  validId,
 
             profileImage:
               profileImage,
@@ -808,13 +840,25 @@ export default function RegisterForm() {
                 for your participant profile.
               </Text>
 
-              <ProfilePhotoPicker
-                value={profileImage}
-                onChange={
-                  handleProfilePhotoChange
-                }
-                disabled={loading}
-              />
+             <ProfilePhotoPicker
+  value={profileImage}
+  onChange={
+    handleProfilePhotoChange
+  }
+  disabled={loading}
+/>
+
+<View style={styles.validIdContainer}>
+
+  <ValidIdPicker
+    value={validId}
+    onChange={
+      handleValidIdChange
+    }
+    disabled={loading}
+  />
+
+</View>
 
               {/* ACTION BUTTONS */}
 
@@ -851,14 +895,15 @@ export default function RegisterForm() {
                 <Pressable
                   disabled={
                     loading ||
-                    !profileImage
+                    !profileImage ||
+                    !validId
                   }
                   onPress={
                     handleCompleteRegistration
                   }
                   style={[
                     styles.completeButton,
-                    (!profileImage ||
+                    (!profileImage ||!validId||
                       loading) &&
                       styles.buttonDisabled,
                   ]}
@@ -1036,7 +1081,9 @@ const styles = StyleSheet.create({
   photoContainer: {
     width: "100%",
   },
-
+validIdContainer: {
+  marginTop: 24,
+},
   photoStepTitle: {
     fontSize: 22,
     fontWeight: "700",

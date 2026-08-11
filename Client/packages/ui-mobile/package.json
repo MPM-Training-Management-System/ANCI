@@ -3,23 +3,23 @@
   "version": "1.0.0",
   "main": "index.ts",
   "types": "index.ts",
+
   "peerDependencies": {
-    "expo": "*",
-    "react": "*",
-    "react-native": "*"
+    "expo": "~54.0.36",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-safe-area-context": "~5.6.0",
+    "@expo/vector-icons": "^15.1.1"
   },
+
   "dependencies": {
-    "@expo/vector-icons": "^15.1.1",
     "@repo/lib": "workspace:*",
     "@repo/token": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "expo-secure-store": "~15.0.7",
-    "lucide-react-native": "^1.28.0",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "react-native": "0.81.5",
-    "react-native-safe-area-context": "5.8.0"
+    "lucide-react-native": "^1.28.0"
   },
+
   "devDependencies": {
     "@types/react": "^19",
     "@types/react-dom": "^19",

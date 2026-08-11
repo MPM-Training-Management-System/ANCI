@@ -13,9 +13,7 @@ export default function AuthLayout({
 
         <div className="grid lg:grid-cols-2">
 
-          {/* ========================= */}
-          {/* LEFT PANEL (Desktop Only) */}
-          {/* ========================= */}
+   
 
           <div className="relative hidden overflow-hidden bg-gradient-to-br from-[#0d2142] via-[#13366B] to-[#0A5FB8] px-10 py-10 text-white lg:block lg:min-h-[760px]">
 

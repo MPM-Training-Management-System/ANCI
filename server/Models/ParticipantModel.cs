@@ -14,6 +14,8 @@ namespace server.Models
 
     public string? ProfileImage { get; set; }
 
+    public string? ValidId { get; set; }
+
     public string FirstName { get; set; } = string.Empty;
 
     public string? MiddleName { get; set; }

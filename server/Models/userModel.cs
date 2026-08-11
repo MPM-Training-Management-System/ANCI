@@ -33,6 +33,7 @@ namespace server.Models
 
         public TrainerModel? Trainer { get; set; }
 
+        public ParticipantApplicationModel? ParticipantApplication { get; set; }
         public bool IsEmailVerified { get; set; } = false;
 
       public ICollection<OtpCodeModel> OtpCodes { get; set; }

@@ -12,6 +12,8 @@ public class ParticipantListDTO
 
     public string? ProfileImage { get; set; }
 
+    public string? ValidId { get; set; }
+
     public string FullName { get; set; } = string.Empty;
 
     public string Email { get; set; } = string.Empty;
