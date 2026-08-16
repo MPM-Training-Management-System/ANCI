@@ -1,0 +1,11 @@
+node_modules/
+.expo/
+dist/
+web-build/
+.metro-health-check*
+*.tsbuildinfo
+.env
+.env.*
+android/.gradle/
+android/build/
+android/app/build/
