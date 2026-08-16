@@ -1,0 +1,28 @@
+{
+  "name": "@repo/ui-mobile",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "types": "index.ts",
+
+  "peerDependencies": {
+    "expo": "~54.0.36",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-safe-area-context": "~5.6.0",
+    "@expo/vector-icons": "^15.1.1"
+  },
+
+  "dependencies": {
+    "@repo/lib": "workspace:*",
+    "@repo/token": "workspace:*",
+    "class-variance-authority": "^0.7.1",
+    "expo-secure-store": "~15.0.7",
+    "lucide-react-native": "^1.28.0"
+  },
+
+  "devDependencies": {
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5"
+  }
+}

@@ -1,0 +1,77 @@
+
+@import "@repo/tailwind-config/shared-styles.css";
+
+
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Inter, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* =========================
+   Selection
+========================= */
+
+::selection {
+  background: rgba(0, 107, 95, 0.15);
+}
+
+/* =========================
+   Scrollbar
+========================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f2f4f6;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c5c6cf;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #75777f;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+}
+
+/* =========================
+   Focus
+========================= */
+
+:focus-visible {
+  outline: 2px solid #006b5f;
+  outline-offset: 2px;
+}
+
+/* =========================
+   Images
+========================= */
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+/* =========================
+   Buttons
+========================= */
+
+button {
+  cursor: pointer;
+}
