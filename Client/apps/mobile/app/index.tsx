@@ -3,7 +3,6 @@ import { useEffect } from "react";
 import { useRouter } from "expo-router";
 
 import LoadingScreen from "@/src/screens/LoadingScreen";
-
 import { auth } from "@/api/auth";
 
 export default function Index() {
@@ -22,15 +21,13 @@ export default function Index() {
           "INITIALIZING ANCI"
         );
 
+        console.log(
+          "================================"
+        );
+
         // =================================================
-        // KEEP LOADING SCREEN VISIBLE
+        // LOADING SCREEN
         // =================================================
-        //
-        // LoadingScreen stays visible while this
-        // initialization is happening.
-        //
-        // 5000 = 5 seconds
-        //
 
         await new Promise((resolve) =>
           setTimeout(resolve, 5000)
@@ -45,27 +42,39 @@ export default function Index() {
         );
 
         // =================================================
-        // CHECK SAVED TOKEN
+        // CHECK TOKEN
         // =================================================
 
         const token =
           await auth.getToken();
 
         // =================================================
-        // CHECK SAVED USER
+        // CHECK USER
         // =================================================
 
         const user =
           await auth.getUser();
 
+        // =================================================
+        // CHECK ONBOARDING
+        // =================================================
+
+        const onboardingCompleted =
+          await auth.isOnboardingCompleted();
+
         console.log(
-          "SAVED TOKEN:",
+          "HAS TOKEN:",
           !!token
         );
 
         console.log(
-          "SAVED USER:",
-          user
+          "HAS USER:",
+          !!user
+        );
+
+        console.log(
+          "ONBOARDING COMPLETED:",
+          onboardingCompleted
         );
 
         if (!mounted) {
@@ -79,6 +88,30 @@ export default function Index() {
         if (!token || !user) {
           console.log(
             "NO SAVED SESSION"
+          );
+
+          // -------------------------------------------------
+          // FIRST TIME USER
+          // -------------------------------------------------
+
+          if (!onboardingCompleted) {
+            console.log(
+              "FIRST TIME USER"
+            );
+
+            router.replace(
+              "/(onboarding)"
+            );
+
+            return;
+          }
+
+          // -------------------------------------------------
+          // RETURNING USER
+          // -------------------------------------------------
+
+          console.log(
+            "RETURNING USER → LOGIN"
           );
 
           router.replace(
@@ -107,7 +140,7 @@ export default function Index() {
             "participant"
         ) {
           console.log(
-            "SAVED USER IS NOT PARTICIPANT"
+            "USER IS NOT PARTICIPANT"
           );
 
           await auth.logout();
@@ -154,7 +187,7 @@ export default function Index() {
         );
 
         // =================================================
-        // CHECK BIOMETRIC
+        // BIOMETRIC
         // =================================================
 
         const biometricEnabled =
@@ -170,22 +203,13 @@ export default function Index() {
         }
 
         // =================================================
-        // BIOMETRIC ENABLED
+        // BIOMETRIC LOGIN
         // =================================================
 
         if (biometricEnabled) {
           console.log(
             "BIOMETRIC LOGIN REQUIRED"
           );
-
-          /**
-           * IMPORTANT:
-           *
-           * Do NOT go directly to dashboard.
-           *
-           * LoginForm will automatically
-           * trigger Face ID / Fingerprint.
-           */
 
           router.replace(
             "/(auth)/login"
@@ -195,17 +219,15 @@ export default function Index() {
         }
 
         // =================================================
-        // BIOMETRIC NOT ENABLED
+        // DIRECT DASHBOARD
         // =================================================
 
         console.log(
-          "BIOMETRIC LOGIN NOT ENABLED"
+          "GOING TO PARTICIPANT DASHBOARD"
         );
 
-   
-
         router.replace(
-          "/(auth)/login"
+          "/(tabs)"
         );
 
       } catch (error) {
@@ -221,7 +243,7 @@ export default function Index() {
         try {
           await auth.logout();
         } catch {
-          // Ignore logout cleanup errors.
+          // Ignore cleanup error.
         }
 
         router.replace(
@@ -236,8 +258,6 @@ export default function Index() {
       mounted = false;
     };
   }, [router]);
-
- 
 
   return <LoadingScreen />;
 }

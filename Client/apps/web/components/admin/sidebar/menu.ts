@@ -32,7 +32,7 @@ export const sidebarMenu: SidebarSectionType[] = [
     title: "MANAGEMENT",
     items: [
       {
-        title: "My Classes",
+        title: "My Training",
         href: "/training",
         icon: UserRound,
       },
@@ -43,7 +43,7 @@ export const sidebarMenu: SidebarSectionType[] = [
       },
       {
         title: "Grading",
-        href: "/services",
+        href: "/grading",
         icon: BriefcaseBusiness,
       },
        {
@@ -63,8 +63,8 @@ export const sidebarMenu: SidebarSectionType[] = [
         icon: BookOpen,
       },
       {
-        title: "Schedules",
-        href: "/schedule",
+        title: "Assessment",
+        href: "/assessment",
         icon: CalendarDays,
       },
     ],
@@ -81,26 +81,6 @@ export const sidebarMenu: SidebarSectionType[] = [
     ],
   },
 
-  {
-    title: "COMMUNICATION",
-    items: [
-      {
-        title: "Announcements",
-        href: "/announcement",
-        icon: Megaphone,
-      },
-      {
-        title: "Notifications",
-        href: "/notification",
-        icon: Bell,
-      },
-      {
-        title: "Messages",
-        href: "/message",
-        icon: MessageSquare,
-      },
-    ],
-  },
 
   {
     title: "SETTINGS",

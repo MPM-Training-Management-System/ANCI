@@ -48,11 +48,13 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IParticipantService,
     ParticipantService>();
+builder.Services.AddScoped<OcrService>();
 
-    builder.Services.AddScoped<
-    IParticipantApplicationService,
-    ParticipantApplicationService
+builder.Services.AddScoped<
+    IIdValidationService,
+    IdValidationService
 >();
+    
 builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.Configure<EmailSettings>(
     builder.Configuration.GetSection("EmailSettings")

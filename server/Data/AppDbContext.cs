@@ -217,6 +217,11 @@ namespace server.Data
             modelBuilder.Entity<TrainingAssignmentModel>()
                 .Property(t => t.AppliedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                
         }
+        
+        
     }
+    
 }

@@ -15,10 +15,15 @@ namespace server.Controllers
         private readonly IUserApplicationService
             _service;
 
+        private readonly ICacheService
+            _cacheService;
+
         public UserApplicationController(
-            IUserApplicationService service)
+            IUserApplicationService service,
+            ICacheService cacheService)
         {
             _service = service;
+            _cacheService = cacheService;
         }
 
         // =====================================================
@@ -98,6 +103,10 @@ namespace server.Controllers
         {
             try
             {
+                // =================================================
+                // GET ADMIN ID
+                // =================================================
+
                 var adminIdClaim =
                     User.FindFirst(
                         ClaimTypes.NameIdentifier
@@ -117,9 +126,77 @@ namespace server.Controllers
                     });
                 }
 
+                // =================================================
+                // CHECK APPLICATION FIRST
+                // =================================================
+
+                var application =
+                    await _service.GetByIdAsync(id);
+
+                if (application == null)
+                {
+                    return NotFound(new
+                    {
+                        message =
+                            "Application not found."
+                    });
+                }
+
+                // =================================================
+                // APPROVE
+                // =================================================
+
                 await _service.ApproveAsync(
                     id,
                     adminId
+                );
+
+                // =================================================
+                // CLEAR APPLICATION CACHE
+                // =================================================
+
+                _cacheService.Remove(
+                    $"application:{id}"
+                );
+
+                _cacheService.Remove(
+                    $"user-application:{id}"
+                );
+
+                // =================================================
+                // CLEAR PENDING APPLICATION CACHE
+                // =================================================
+
+                _cacheService.Remove(
+                    "pending-applications"
+                );
+
+                _cacheService.Remove(
+                    "user-applications:pending"
+                );
+
+                // =================================================
+                // LOG
+                // =================================================
+
+                Console.WriteLine(
+                    "================================"
+                );
+
+                Console.WriteLine(
+                    "APPLICATION APPROVED"
+                );
+
+                Console.WriteLine(
+                    $"APPLICATION ID: {id}"
+                );
+
+                Console.WriteLine(
+                    "APPLICATION CACHE CLEARED"
+                );
+
+                Console.WriteLine(
+                    "================================"
                 );
 
                 return Ok(new
@@ -130,6 +207,14 @@ namespace server.Controllers
             }
             catch (Exception ex)
             {
+                Console.WriteLine(
+                    "APPLICATION APPROVAL ERROR:"
+                );
+
+                Console.WriteLine(
+                    ex.Message
+                );
+
                 return BadRequest(new
                 {
                     message = ex.Message
@@ -153,6 +238,10 @@ namespace server.Controllers
         {
             try
             {
+                // =================================================
+                // GET ADMIN ID
+                // =================================================
+
                 var adminIdClaim =
                     User.FindFirst(
                         ClaimTypes.NameIdentifier
@@ -172,6 +261,10 @@ namespace server.Controllers
                     });
                 }
 
+                // =================================================
+                // VALIDATE REASON
+                // =================================================
+
                 if (
                     string.IsNullOrWhiteSpace(
                         request.Reason
@@ -185,10 +278,78 @@ namespace server.Controllers
                     });
                 }
 
+                // =================================================
+                // CHECK APPLICATION
+                // =================================================
+
+                var application =
+                    await _service.GetByIdAsync(id);
+
+                if (application == null)
+                {
+                    return NotFound(new
+                    {
+                        message =
+                            "Application not found."
+                    });
+                }
+
+                // =================================================
+                // REJECT
+                // =================================================
+
                 await _service.RejectAsync(
                     id,
                     adminId,
                     request.Reason
+                );
+
+                // =================================================
+                // CLEAR APPLICATION CACHE
+                // =================================================
+
+                _cacheService.Remove(
+                    $"application:{id}"
+                );
+
+                _cacheService.Remove(
+                    $"user-application:{id}"
+                );
+
+                // =================================================
+                // CLEAR PENDING APPLICATION CACHE
+                // =================================================
+
+                _cacheService.Remove(
+                    "pending-applications"
+                );
+
+                _cacheService.Remove(
+                    "user-applications:pending"
+                );
+
+                // =================================================
+                // LOG
+                // =================================================
+
+                Console.WriteLine(
+                    "================================"
+                );
+
+                Console.WriteLine(
+                    "APPLICATION REJECTED"
+                );
+
+                Console.WriteLine(
+                    $"APPLICATION ID: {id}"
+                );
+
+                Console.WriteLine(
+                    "APPLICATION CACHE CLEARED"
+                );
+
+                Console.WriteLine(
+                    "================================"
                 );
 
                 return Ok(new
@@ -199,6 +360,14 @@ namespace server.Controllers
             }
             catch (Exception ex)
             {
+                Console.WriteLine(
+                    "APPLICATION REJECTION ERROR:"
+                );
+
+                Console.WriteLine(
+                    ex.Message
+                );
+
                 return BadRequest(new
                 {
                     message = ex.Message

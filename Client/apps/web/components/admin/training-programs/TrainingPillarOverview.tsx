@@ -48,8 +48,7 @@ export default function TrainingPillarOverview() {
           value={pillar.value}
           description={pillar.description}
           icon={pillar.icon}
-          trend={pillar.trend}
-          trendLabel={pillar.trendLabel}
+       
         />
       ))}
     </StatsGrid>

@@ -765,6 +765,141 @@ export default function DashboardPage() {
     }
   }
 
+  async function handleToggleStatus(
+  participant: Participant
+) {
+  const nextStatus =
+    !participant.isActive;
+
+  const action =
+    nextStatus
+      ? "Activate"
+      : "Deactivate";
+
+  const confirmed =
+    window.confirm(
+      `${action} ${participant.fullname}?`
+    );
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    const role =
+      participant.role.toLowerCase();
+
+    console.log(
+      "================================"
+    );
+
+    console.log(
+      "CHANGING USER STATUS"
+    );
+
+    console.log(
+      "Name:",
+      participant.fullname
+    );
+
+    console.log(
+      "Role:",
+      participant.role
+    );
+
+    console.log(
+      "Participant ID:",
+      participant.id
+    );
+
+    console.log(
+      "User ID:",
+      participant.userId
+    );
+
+    console.log(
+      "Current Status:",
+      participant.isActive
+    );
+
+    console.log(
+      "New Status:",
+      nextStatus
+    );
+
+    console.log(
+      "================================"
+    );
+
+    // ============================================
+    // PARTICIPANT
+    // ============================================
+
+    if (
+      role === "participant"
+    ) {
+      await participantApi.changeStatus(
+        participant.id,
+        nextStatus
+      );
+    }
+
+    // ============================================
+    // TRAINER
+    // ============================================
+
+    else if (
+      role === "trainer"
+    ) {
+      await trainerApi.changeStatus(
+        participant.userId,
+        nextStatus
+      );
+    }
+
+    // ============================================
+    // ADMIN
+    // ============================================
+
+    else if (
+      role === "admin"
+    ) {
+      window.alert(
+        "Admin account status cannot be changed here."
+      );
+
+      return;
+    }
+
+    // ============================================
+    // REFRESH DATA
+    // ============================================
+
+    await refresh();
+
+    window.alert(
+      `${participant.fullname} has been ${
+        nextStatus
+          ? "activated"
+          : "deactivated"
+      } successfully.`
+    );
+  } catch (error) {
+    console.error(
+      "Failed to change user status:",
+      error
+    );
+
+    window.alert(
+      `Failed to ${
+        nextStatus
+          ? "activate"
+          : "deactivate"
+      } ${participant.fullname}.`
+    );
+  }
+}
+
   // =====================================================
   // DELETE USER
   // =====================================================
@@ -1108,29 +1243,27 @@ export default function DashboardPage() {
       ================================================= */}
 
       <div
-        className="
-          grid
-          grid-cols-1
-          gap-6
-          xl:grid-cols-[minmax(0,1fr)_360px]
-        "
-      >
+  className="
+    relative
+    z-10
+    grid
+    grid-cols-1
+    gap-6
+    xl:grid-cols-[minmax(0,1fr)_360px]
+  "
+>
         {/* ===============================================
             DATA TABLE
         =============================================== */}
 
-        <div className="min-w-0">
-          <DataTable
-            columns={columns({
-              onEdit:
-                handleEdit,
-
-              onDelete:
-                handleDelete,
-            })}
-            data={
-              filteredParticipants
-            }
+        <div className="relative z-10 min-w-0">
+  <DataTable
+    columns={columns({
+      onEdit: handleEdit,
+      onDelete: handleDelete,
+      onToggleStatus: handleToggleStatus,
+    })}
+    data={filteredParticipants}
             addButton={{
               label:
                 "Add User",

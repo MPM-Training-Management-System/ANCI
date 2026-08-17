@@ -340,8 +340,7 @@ export default function TrainerRegistration() {
           updateForm={updateForm}
           onBack={handleBack}
           onSubmit={handleSubmit}
-          loading={loading}
-        />
+          loading={loading} userId={""}        />
       )}
 
     </div>

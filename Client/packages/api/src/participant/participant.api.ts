@@ -20,6 +20,22 @@ export class ParticipantApi {
       ParticipantEndpoints.list
     );
   }
+  
+
+   changeStatus(
+    id: number,
+    isActive: boolean
+  ) {
+    return this.api.request(
+      ParticipantEndpoints.status(
+        id,
+        isActive
+      ),
+      {
+        method: "PATCH",
+      }
+    );
+  }
 
   // =====================================================
   // GET ALL PARTICIPANTS

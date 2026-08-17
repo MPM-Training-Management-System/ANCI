@@ -1,6 +1,8 @@
 using System.Security.Claims;
+
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+
 using server.DTOs.Trainer;
 using server.Services.Interfaces;
 
@@ -11,11 +13,14 @@ namespace server.Controllers;
 public class TrainerController : ControllerBase
 {
     private readonly ITrainerService _trainerService;
+    private readonly IIdValidationService _idValidationService;
 
     public TrainerController(
-        ITrainerService trainerService)
+        ITrainerService trainerService,
+        IIdValidationService idValidationService)
     {
         _trainerService = trainerService;
+        _idValidationService = idValidationService;
     }
 
     // =====================================================
@@ -56,6 +61,7 @@ public class TrainerController : ControllerBase
         return Ok(trainer);
     }
 
+ 
     // =====================================================
     // COMPLETE PROFILE
     // =====================================================
@@ -88,6 +94,10 @@ public class TrainerController : ControllerBase
                         "User ID was not found in authentication token."
                 });
             }
+
+            // =================================================
+            // PARSE USER ID
+            // =================================================
 
             if (!Guid.TryParse(
                     userIdClaim,
@@ -129,7 +139,7 @@ public class TrainerController : ControllerBase
             }
 
             // =================================================
-            // SUBMIT
+            // SUBMIT TRAINER PROFILE
             // =================================================
 
             var trainer =
@@ -138,6 +148,10 @@ public class TrainerController : ControllerBase
                         userId,
                         dto
                     );
+
+            // =================================================
+            // RESPONSE
+            // =================================================
 
             return Ok(new
             {
@@ -322,4 +336,4 @@ public class TrainerController : ControllerBase
             });
         }
     }
-}
+} 

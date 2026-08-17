@@ -12,8 +12,8 @@ import {
 } from "lucide-react";
 
 import type { LoginUser } from "@repo/api";
-import { authApi } from "@/lib/api";
-import { auth } from "@/lib/auth";
+import { authApi,auth } from "@/lib/api";
+
 
 import {
   Button,

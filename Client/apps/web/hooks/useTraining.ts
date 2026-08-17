@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { trainingApi } from "@repo/api";
 import type { Training } from "@repo/types";
+import { trainingApi } from "@/lib/api";
 
 export function useTraining() {
   const [trainings, setTrainings] = useState<Training[]>([]);

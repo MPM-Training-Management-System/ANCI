@@ -14,11 +14,11 @@ export const TrainerEndpoints = {
   delete: (id: string) =>
     `/api/trainer/${id}`,
 
-  status: (
-    id: string,
-    isActive: boolean
-  ) =>
-    `/api/trainer/${id}/status`,
+status: (
+  id: string,
+  isActive: boolean
+) =>
+  `/api/trainer/${id}/status`,
 
   verify: (
     id: string,

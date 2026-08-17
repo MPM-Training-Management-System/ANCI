@@ -10,4 +10,10 @@ export const ParticipantEndpoints = {
   update: (id: number) => `/api/User/${id}`,
 
   delete: (id: number) => `/api/User/${id}`,
+  
+   status: (
+    id: number,
+    isActive: boolean
+  ) =>
+    `/api/User/${id}/status?isActive=${isActive}`,
 } 

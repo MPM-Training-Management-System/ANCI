@@ -1,13 +1,13 @@
 export const ParticipantApplicationEndpoints = {
   pending:
-    "/api/admin/participant-applications/pending",
+    "/api/admin/applications/pending",
 
   byId: (id: string) =>
-    `/api/admin/participant-applications/${id}`,
+    `/api/admin/applications/${id}`,
 
   approve: (id: string) =>
-    `/api/admin/participant-applications/${id}/approve`,
+    `/api/admin/applications/${id}/approve`,
 
   reject: (id: string) =>
-    `/api/admin/participant-applications/${id}/reject`,
+    `/api/admin/applications/${id}/reject`,
 };

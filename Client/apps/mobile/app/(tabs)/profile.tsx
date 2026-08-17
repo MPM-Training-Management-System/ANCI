@@ -1,5 +1,8 @@
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
 import {
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -8,14 +11,90 @@ import {
 } from "react-native";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useRouter } from "expo-router";
+
+import { auth } from "@/api/auth";
 
 export default function ProfileScreen() {
+  const router = useRouter();
+
+  const [isLoggingOut, setIsLoggingOut] =
+    useState(false);
+
+  // =====================================================
+  // LOGOUT
+  // =====================================================
+
+  async function handleLogout() {
+    if (isLoggingOut) {
+      return;
+    }
+
+    Alert.alert(
+      "Sign Out",
+      "Are you sure you want to sign out?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Sign Out",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setIsLoggingOut(true);
+
+              console.log(
+                "MOBILE LOGOUT STARTED"
+              );
+
+              // =================================================
+              // REMOVE TOKEN
+              // REMOVE USER
+              // DISABLE BIOMETRIC LOGIN
+              // =================================================
+
+              await auth.logout();
+
+              console.log(
+                "MOBILE LOGOUT SUCCESS"
+              );
+
+              // =================================================
+              // RETURN TO LOGIN
+              // =================================================
+
+              router.replace("/login");
+            } catch (error) {
+              console.error(
+                "MOBILE LOGOUT ERROR:",
+                error
+              );
+
+              Alert.alert(
+                "Logout Failed",
+                "Something went wrong while signing out. Please try again."
+              );
+            } finally {
+              setIsLoggingOut(false);
+            }
+          },
+        },
+      ]
+    );
+  }
+
   return (
     <View style={styles.container}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
+        {/* =====================================================
+            HEADER
+        ===================================================== */}
+
         <Text style={styles.title}>
           My Profile
         </Text>
@@ -24,7 +103,9 @@ export default function ProfileScreen() {
           Manage your participant account.
         </Text>
 
-        {/* Profile Header */}
+        {/* =====================================================
+            PROFILE HEADER
+        ===================================================== */}
 
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
@@ -44,13 +125,17 @@ export default function ProfileScreen() {
           </Text>
 
           <View style={styles.participantBadge}>
-            <Text style={styles.participantBadgeText}>
+            <Text
+              style={styles.participantBadgeText}
+            >
               PARTICIPANT
             </Text>
           </View>
         </View>
 
-        {/* Account */}
+        {/* =====================================================
+            ACCOUNT
+        ===================================================== */}
 
         <Text style={styles.sectionTitle}>
           Account
@@ -76,7 +161,9 @@ export default function ProfileScreen() {
           />
         </View>
 
-        {/* Security */}
+        {/* =====================================================
+            SECURITY
+        ===================================================== */}
 
         <Text style={styles.sectionTitle}>
           Security
@@ -97,9 +184,19 @@ export default function ProfileScreen() {
           />
         </View>
 
-        {/* Logout */}
+        {/* =====================================================
+            LOGOUT
+        ===================================================== */}
 
-        <Pressable style={styles.logoutButton}>
+        <Pressable
+          style={[
+            styles.logoutButton,
+            isLoggingOut &&
+              styles.logoutButtonDisabled,
+          ]}
+          onPress={handleLogout}
+          disabled={isLoggingOut}
+        >
           <Ionicons
             name="log-out-outline"
             size={21}
@@ -107,9 +204,15 @@ export default function ProfileScreen() {
           />
 
           <Text style={styles.logoutText}>
-            Sign Out
+            {isLoggingOut
+              ? "Signing Out..."
+              : "Sign Out"}
           </Text>
         </Pressable>
+
+        {/* =====================================================
+            VERSION
+        ===================================================== */}
 
         <Text style={styles.version}>
           ACE NextGen Participant App{"\n"}
@@ -121,6 +224,10 @@ export default function ProfileScreen() {
     </View>
   );
 }
+
+// =========================================================
+// MENU ITEM
+// =========================================================
 
 function MenuItem({
   icon,
@@ -169,6 +276,10 @@ function MenuItem({
     </Pressable>
   );
 }
+
+// =========================================================
+// STYLES
+// =========================================================
 
 const styles = StyleSheet.create({
   container: {
@@ -301,6 +412,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
+  },
+
+  logoutButtonDisabled: {
+    opacity: 0.6,
   },
 
   logoutText: {

@@ -7,3 +7,4 @@ export * from "./training";
 export * from "./application";
 export * from "./trainer";
 export * from "./User";
+export * from  "./id-validation";

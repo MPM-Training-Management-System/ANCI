@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Image,
   Pressable,
@@ -11,12 +11,32 @@ import {
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 
+
+import { authApi } from "@/api/api";
+import {auth } from "@/api/auth"
+import { LoginUser } from "@repo/api";
+
 export default function HomeScreen() {
   const router = useRouter();
 
-  // Temporary data
-  // Later these will come from /api/auth/me
-  // and the dashboard APIs.
+   const [user, setUser] = useState<LoginUser | null>(null);
+
+
+    useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const data = await authApi.me();
+        console.log(data);
+        setUser(data);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    loadUser();
+  }, []);
+
+
   const participant = {
     name: "Juan Dela Cruz",
     firstName: "Juan",
@@ -53,21 +73,19 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
-        {/* =========================================
-            PROFILE HEADER
-        ========================================= */}
+      
 
         <View style={styles.profileHeader}>
           <View style={styles.profileLeft}>
             <View style={styles.avatarWrapper}>
               <Image
                 source={{
-                  uri: participant.profileImage,
+                  uri: user?.profileImage,
                 }}
                 style={styles.avatar}
               />
 
-              {participant.verified && (
+             {user?.isActive === true && (
                 <View style={styles.verifiedIcon}>
                   <Ionicons
                     name="checkmark"
@@ -84,7 +102,7 @@ export default function HomeScreen() {
               </Text>
 
               <Text style={styles.name}>
-                {participant.name}
+                {user?.fullName}
               </Text>
 
               {participant.verified && (
@@ -96,7 +114,7 @@ export default function HomeScreen() {
                   />
 
                   <Text style={styles.verifiedText}>
-                    Verified Participant
+                    Verified
                   </Text>
                 </View>
               )}

@@ -4,7 +4,7 @@ import { ParticipantApplicationEndpoints } from "./participantApplication.endpoi
 import type {
   ParticipantApplication,
   ParticipantApplicationDetails,
-  RejectApplicationRequest,
+  RejectUserApplicationRequest,
 } from "@repo/types";
 
 export class ParticipantApplicationApi {
@@ -51,7 +51,7 @@ export class ParticipantApplicationApi {
     id: string,
     reason: string
   ) {
-    const data: RejectApplicationRequest = {
+    const data: RejectUserApplicationRequest = {
       reason,
     };
 

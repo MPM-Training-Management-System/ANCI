@@ -1,8 +1,0 @@
-{
-  "extends": "@repo/typescript-config/base.json",
-  "compilerOptions": {
-     "types": ["node"],
-    "strict": true
-  },
-  "include": ["src"]
-}

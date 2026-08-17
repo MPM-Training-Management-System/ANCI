@@ -11,13 +11,16 @@
     "lint": "expo lint"
   },
   "dependencies": {
-    "@expo/vector-icons": "^15.0.3",
+    "@expo/vector-icons": "^15.1.1",
+    "@react-native/debugger-frontend": "^0.87.0",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
     "@repo/api": "workspace:*",
+    "@repo/types": "workspace:*",
     "@repo/ui-mobile": "workspace:*",
     "expo": "~54.0.36",
+    "expo-asset": "~12.0.13",
     "expo-camera": "~17.0.10",
     "expo-constants": "~18.0.13",
     "expo-dev-client": "~6.0.21",
@@ -51,7 +54,7 @@
     "react-native-worklets-core": "^1.6.3"
   },
   "devDependencies": {
-    "@types/react": "~19.1.0",
+    "@types/react": "~19.1.17",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
     "metro": "0.83.3",

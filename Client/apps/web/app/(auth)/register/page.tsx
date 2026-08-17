@@ -1,35 +1,19 @@
-"use client";
+import { Suspense } from "react";
 
-import { useSearchParams } from "next/navigation";
-
-import RegisterForm from "./RegisterForm";
-
-import TrainerRegistration from "@/app/(auth)/register/register";
+import RegisterPageContent from "./RegisterPageContent";
 
 export default function RegisterPage() {
-  const searchParams = useSearchParams();
-
-  const step = searchParams.get("step");
-
-  // ==========================================
-  // TRAINER PROFILE REGISTRATION
-  // ==========================================
-
-  if (step === "trainer") {
-    return (
-      <div className="flex justify-center">
-        <TrainerRegistration />
-      </div>
-    );
-  }
-
-  // ==========================================
-  // ACCOUNT SETUP
-  // ==========================================
-
   return (
-    <div className="flex justify-center">
-      <RegisterForm />
-    </div>
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="text-sm text-muted-foreground">
+            Loading registration...
+          </div>
+        </div>
+      }
+    >
+      <RegisterPageContent />
+    </Suspense>
   );
 }
