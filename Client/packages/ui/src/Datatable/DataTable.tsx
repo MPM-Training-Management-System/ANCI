@@ -43,10 +43,14 @@ export function DataTable<TData>({
   emptyTitle = "No records found",
 
   emptyDescription = "There are no available records.",
-}: DataTableProps<TData>) {
-  const [sorting, setSorting] = React.useState<SortingState>([]);
 
-  const [globalFilter, setGlobalFilter] = React.useState("");
+  meta,
+}: DataTableProps<TData>) {
+  const [sorting, setSorting] =
+    React.useState<SortingState>([]);
+
+  const [globalFilter, setGlobalFilter] =
+    React.useState("");
 
   const table = useReactTable({
     data,
@@ -57,6 +61,8 @@ export function DataTable<TData>({
       sorting,
       globalFilter,
     },
+
+    meta,
 
     onSortingChange: setSorting,
 
@@ -72,7 +78,18 @@ export function DataTable<TData>({
   });
 
   return (
-    <section className="overflow-hidden mt-5 rounded-xl border border-gray-200 bg-white shadow-sm">
+    <section
+      className="
+        mt-5
+        overflow-hidden
+        rounded-xl
+        border
+        border-gray-200
+        bg-white
+        shadow-sm
+      "
+    >
+      {/* HEADER */}
 
       <DataTableHeader
         title={title}
@@ -80,134 +97,135 @@ export function DataTable<TData>({
         addButton={addButton}
       />
 
+      {/* TOOLBAR */}
+
       <DataTableToolbar
         searchable={searchable}
         searchPlaceholder={searchPlaceholder}
         value={globalFilter}
         onChange={setGlobalFilter}
       >
-         {addButton && (
-    <Button variant="primary" onClick={addButton.onClick}>
-      {addButton.icon}
-      {addButton.label}
-    </Button>
-  )}
+        {addButton && (
+          <Button
+            variant="primary"
+            onClick={addButton.onClick}
+          >
+            {addButton.icon}
+
+            {addButton.label}
+          </Button>
+        )}
+
         {toolbar}
       </DataTableToolbar>
 
-      <div className="overflow-x-auto">
+      {/* TABLE */}
 
+      <div className="overflow-x-auto">
         <table className="min-w-full border-collapse">
+          {/* TABLE HEADER */}
 
           <thead className="bg-gray-50">
-
-            {table.getHeaderGroups().map((group) => (
-
-              <tr key={group.id}>
-
-                {group.headers.map((header) => (
-
-                  <th
-                    key={header.id}
-                    className="
-                    border-b
-                    border-gray-200
-                    px-6
-                    py-3
-                    text-left
-                    text-xs
-                    font-semibold
-                    uppercase
-                    tracking-wider
-                    text-gray-500
-                    "
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </th>
-
-                ))}
-
-              </tr>
-
-            ))}
-
+            {table
+              .getHeaderGroups()
+              .map((group) => (
+                <tr key={group.id}>
+                  {group.headers.map(
+                    (header) => (
+                      <th
+                        key={header.id}
+                        className="
+                          border-b
+                          border-gray-200
+                          px-6
+                          py-3
+                          text-left
+                          text-xs
+                          font-semibold
+                          uppercase
+                          tracking-wider
+                          text-gray-500
+                        "
+                      >
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column
+                                .columnDef
+                                .header,
+                              header.getContext()
+                            )}
+                      </th>
+                    )
+                  )}
+                </tr>
+              ))}
           </thead>
 
+          {/* TABLE BODY */}
+
           <tbody>
-
             {loading ? (
-
               <DataTableLoading
                 rows={8}
                 columns={columns.length}
               />
-
-            ) : table.getRowModel().rows.length === 0 ? (
-
+            ) : table.getRowModel()
+                .rows.length === 0 ? (
               <DataTableEmpty
                 columns={columns.length}
                 title={emptyTitle}
-                description={emptyDescription}
+                description={
+                  emptyDescription
+                }
               />
-
             ) : (
-
-              table.getRowModel().rows.map((row) => (
-
-                <tr
-                  key={row.id}
-                  className="
-                  transition-colors
-                  hover:bg-gray-50
-                  "
-                >
-
-                  {row.getVisibleCells().map((cell) => (
-
-                    <td
-                      key={cell.id}
-                      className="
-                      border-b
-                      border-gray-100
-                      px-6
-                      py-4
-                      text-sm
-                      text-gray-700
-                      "
-                    >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </td>
-
-                  ))}
-
-                </tr>
-
-              ))
-
+              table
+                .getRowModel()
+                .rows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="
+                      transition-colors
+                      hover:bg-gray-50
+                    "
+                  >
+                    {row
+                      .getVisibleCells()
+                      .map((cell) => (
+                        <td
+                          key={cell.id}
+                          className="
+                            border-b
+                            border-gray-100
+                            px-6
+                            py-4
+                            text-sm
+                            text-gray-700
+                          "
+                        >
+                          {flexRender(
+                            cell.column
+                              .columnDef
+                              .cell,
+                            cell.getContext()
+                          )}
+                        </td>
+                      ))}
+                  </tr>
+                ))
             )}
-
           </tbody>
-
         </table>
-
       </div>
 
-      {showPagination && (
+      {/* PAGINATION */}
 
+      {showPagination && (
         <DataTablePagination
           table={table}
         />
-
       )}
-
     </section>
   );
 }

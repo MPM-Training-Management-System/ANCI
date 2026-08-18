@@ -173,20 +173,14 @@ export default function DashboardPage() {
   const filteredParticipants =
     participants.filter(
       (participant) => {
-        // ===============================================
-        // ROLE
-        // ===============================================
-
+    
         const matchRole =
           !appliedFilters.role ||
           participant.role
             .toLowerCase() ===
             appliedFilters.role.toLowerCase();
 
-        // ===============================================
-        // STATUS
-        // ===============================================
-
+     
         const matchStatus =
           !appliedFilters.status ||
           (
@@ -196,9 +190,6 @@ export default function DashboardPage() {
               : !participant.isActive
           );
 
-        // ===============================================
-        // DATE
-        // ===============================================
 
         const matchDate =
           !appliedFilters.createdAt ||

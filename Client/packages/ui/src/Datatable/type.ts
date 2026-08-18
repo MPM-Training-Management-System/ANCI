@@ -1,4 +1,4 @@
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef,TableMeta } from "@tanstack/react-table";
 import { ReactNode } from "react";
 
 export interface DataTableActionButton {
@@ -6,11 +6,6 @@ export interface DataTableActionButton {
   onClick: () => void;
   icon?: ReactNode;
 }
-
-
-
-
-
 
 
 export interface DataTableProps<TData> {
@@ -33,4 +28,6 @@ export interface DataTableProps<TData> {
 
   emptyTitle?: string;
   emptyDescription?: string;
+meta?: TableMeta<TData>;
+
 }

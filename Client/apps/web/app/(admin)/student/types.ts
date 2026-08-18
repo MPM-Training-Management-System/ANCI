@@ -1,17 +1,52 @@
-export interface Participant {
+export type ParticipantStatus =
+  | "Active"
+  | "Completed"
+  | "Dropped";
+
+export type AssessmentStatus =
+  | "Passed"
+  | "Pending"
+  | "Failed"
+  | "Not Started";
+
+export type CompletionStatus =
+  | "In Progress"
+  | "Completed"
+  | "Eligible"
+  | "Dropped";
+
+export type Participant = {
   id: string;
 
-  fullName: string;
+  participantId: string;
 
-  username: string;
+  name: string;
 
   email: string;
 
-  profileImage?: string;
+  mobile: string;
 
-  status: "Active" | "Pending" | "Inactive";
+  training: string;
 
-  progress?: number;
+  trainingCode: string;
 
-  programName?: string;
-}
+  enrollmentDate: string;
+
+  status: ParticipantStatus;
+
+  attendance: number;
+
+  assessment: AssessmentStatus;
+
+  completion: CompletionStatus;
+
+  completedModules: number;
+
+  totalModules: number;
+
+  address: string;
+
+  emergencyContact: string;
+
+  emergencyNumber: string;
+};

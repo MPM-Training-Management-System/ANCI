@@ -2,42 +2,24 @@
 
 import { useMemo, useState } from "react";
 
-type ParticipantStatus =
-  | "Active"
-  | "Completed"
-  | "Dropped";
+import {
+  DataTable,
+  StatCard,
+  StatGrid,
+} from "@repo/ui/index";
 
-type AssessmentStatus =
-  | "Passed"
-  | "Pending"
-  | "Failed"
-  | "Not Started";
+import {
+  columns,
+  type ParticipantTableMeta,
+} from "./columns";
 
-type CompletionStatus =
-  | "In Progress"
-  | "Completed"
-  | "Eligible"
-  | "Dropped";
+import type {
+  Participant,
+} from "./types";
 
-type Participant = {
-  id: string;
-  participantId: string;
-  name: string;
-  email: string;
-  mobile: string;
-  training: string;
-  trainingCode: string;
-  enrollmentDate: string;
-  status: ParticipantStatus;
-  attendance: number;
-  assessment: AssessmentStatus;
-  completion: CompletionStatus;
-  completedModules: number;
-  totalModules: number;
-  address: string;
-  emergencyContact: string;
-  emergencyNumber: string;
-};
+/* =========================================================
+   MOCK DATA
+========================================================= */
 
 const mockParticipants: Participant[] = [
   {
@@ -46,9 +28,11 @@ const mockParticipants: Participant[] = [
     name: "Juan Dela Cruz",
     email: "juan.delacruz@example.com",
     mobile: "0917 123 4567",
-    training: "Computer Systems Servicing NC II",
+    training:
+      "Computer Systems Servicing NC II",
     trainingCode: "CSS-NCII",
-    enrollmentDate: "August 10, 2026",
+    enrollmentDate:
+      "August 10, 2026",
     status: "Active",
     attendance: 96,
     assessment: "Passed",
@@ -56,18 +40,23 @@ const mockParticipants: Participant[] = [
     completedModules: 8,
     totalModules: 8,
     address: "Montalban, Rizal",
-    emergencyContact: "Pedro Dela Cruz",
-    emergencyNumber: "0918 222 3344",
+    emergencyContact:
+      "Pedro Dela Cruz",
+    emergencyNumber:
+      "0918 222 3344",
   },
+
   {
     id: "P-002",
     participantId: "PT-2026-002",
     name: "Maria Garcia",
     email: "maria.garcia@example.com",
     mobile: "0918 222 1111",
-    training: "Computer Systems Servicing NC II",
+    training:
+      "Computer Systems Servicing NC II",
     trainingCode: "CSS-NCII",
-    enrollmentDate: "August 10, 2026",
+    enrollmentDate:
+      "August 10, 2026",
     status: "Active",
     attendance: 91,
     assessment: "Passed",
@@ -75,18 +64,23 @@ const mockParticipants: Participant[] = [
     completedModules: 8,
     totalModules: 8,
     address: "San Mateo, Rizal",
-    emergencyContact: "Ana Garcia",
-    emergencyNumber: "0919 555 6677",
+    emergencyContact:
+      "Ana Garcia",
+    emergencyNumber:
+      "0919 555 6677",
   },
+
   {
     id: "P-003",
     participantId: "PT-2026-003",
     name: "Pedro Santos",
     email: "pedro.santos@example.com",
     mobile: "0920 333 4444",
-    training: "Computer Systems Servicing NC II",
+    training:
+      "Computer Systems Servicing NC II",
     trainingCode: "CSS-NCII",
-    enrollmentDate: "August 11, 2026",
+    enrollmentDate:
+      "August 11, 2026",
     status: "Active",
     attendance: 87,
     assessment: "Pending",
@@ -94,18 +88,23 @@ const mockParticipants: Participant[] = [
     completedModules: 6,
     totalModules: 8,
     address: "Rodriguez, Rizal",
-    emergencyContact: "Rosa Santos",
-    emergencyNumber: "0921 888 9999",
+    emergencyContact:
+      "Rosa Santos",
+    emergencyNumber:
+      "0921 888 9999",
   },
+
   {
     id: "P-004",
     participantId: "PT-2026-004",
     name: "Ana Reyes",
     email: "ana.reyes@example.com",
     mobile: "0922 555 6666",
-    training: "Computer Systems Servicing NC II",
+    training:
+      "Computer Systems Servicing NC II",
     trainingCode: "CSS-NCII",
-    enrollmentDate: "August 11, 2026",
+    enrollmentDate:
+      "August 11, 2026",
     status: "Active",
     attendance: 94,
     assessment: "Passed",
@@ -113,18 +112,24 @@ const mockParticipants: Participant[] = [
     completedModules: 8,
     totalModules: 8,
     address: "Quezon City",
-    emergencyContact: "Jose Reyes",
-    emergencyNumber: "0923 111 2233",
+    emergencyContact:
+      "Jose Reyes",
+    emergencyNumber:
+      "0923 111 2233",
   },
+
   {
     id: "P-005",
     participantId: "PT-2026-005",
     name: "Mark Villanueva",
-    email: "mark.villanueva@example.com",
+    email:
+      "mark.villanueva@example.com",
     mobile: "0924 777 8888",
-    training: "Computer Systems Servicing NC II",
+    training:
+      "Computer Systems Servicing NC II",
     trainingCode: "CSS-NCII",
-    enrollmentDate: "August 12, 2026",
+    enrollmentDate:
+      "August 12, 2026",
     status: "Active",
     attendance: 79,
     assessment: "Pending",
@@ -132,18 +137,24 @@ const mockParticipants: Participant[] = [
     completedModules: 5,
     totalModules: 8,
     address: "Antipolo, Rizal",
-    emergencyContact: "Liza Villanueva",
-    emergencyNumber: "0925 444 5566",
+    emergencyContact:
+      "Liza Villanueva",
+    emergencyNumber:
+      "0925 444 5566",
   },
+
   {
     id: "P-006",
     participantId: "PT-2026-006",
     name: "Kevin Ramos",
-    email: "kevin.ramos@example.com",
+    email:
+      "kevin.ramos@example.com",
     mobile: "0926 123 7890",
-    training: "Web Development Fundamentals",
+    training:
+      "Web Development Fundamentals",
     trainingCode: "WEB-DEV",
-    enrollmentDate: "August 12, 2026",
+    enrollmentDate:
+      "August 12, 2026",
     status: "Active",
     attendance: 88,
     assessment: "Not Started",
@@ -151,18 +162,24 @@ const mockParticipants: Participant[] = [
     completedModules: 2,
     totalModules: 6,
     address: "Marikina City",
-    emergencyContact: "Robert Ramos",
-    emergencyNumber: "0927 888 1111",
+    emergencyContact:
+      "Robert Ramos",
+    emergencyNumber:
+      "0927 888 1111",
   },
+
   {
     id: "P-007",
     participantId: "PT-2026-007",
     name: "Sarah Mendoza",
-    email: "sarah.mendoza@example.com",
+    email:
+      "sarah.mendoza@example.com",
     mobile: "0928 333 4444",
-    training: "Web Development Fundamentals",
+    training:
+      "Web Development Fundamentals",
     trainingCode: "WEB-DEV",
-    enrollmentDate: "August 12, 2026",
+    enrollmentDate:
+      "August 12, 2026",
     status: "Active",
     attendance: 93,
     assessment: "Passed",
@@ -170,18 +187,24 @@ const mockParticipants: Participant[] = [
     completedModules: 5,
     totalModules: 6,
     address: "Pasig City",
-    emergencyContact: "Michael Mendoza",
-    emergencyNumber: "0929 555 6666",
+    emergencyContact:
+      "Michael Mendoza",
+    emergencyNumber:
+      "0929 555 6666",
   },
+
   {
     id: "P-008",
     participantId: "PT-2026-008",
     name: "Daniel Torres",
-    email: "daniel.torres@example.com",
+    email:
+      "daniel.torres@example.com",
     mobile: "0930 777 2222",
-    training: "Web Development Fundamentals",
+    training:
+      "Web Development Fundamentals",
     trainingCode: "WEB-DEV",
-    enrollmentDate: "August 13, 2026",
+    enrollmentDate:
+      "August 13, 2026",
     status: "Active",
     attendance: 84,
     assessment: "Pending",
@@ -189,18 +212,24 @@ const mockParticipants: Participant[] = [
     completedModules: 4,
     totalModules: 6,
     address: "Cainta, Rizal",
-    emergencyContact: "Elena Torres",
-    emergencyNumber: "0931 111 2222",
+    emergencyContact:
+      "Elena Torres",
+    emergencyNumber:
+      "0931 111 2222",
   },
+
   {
     id: "P-009",
     participantId: "PT-2026-009",
     name: "Michael Aquino",
-    email: "michael.aquino@example.com",
+    email:
+      "michael.aquino@example.com",
     mobile: "0932 444 5555",
-    training: "Electrical Installation and Maintenance NC II",
+    training:
+      "Electrical Installation and Maintenance NC II",
     trainingCode: "EIM-NCII",
-    enrollmentDate: "May 20, 2026",
+    enrollmentDate:
+      "May 20, 2026",
     status: "Completed",
     attendance: 97,
     assessment: "Passed",
@@ -208,18 +237,24 @@ const mockParticipants: Participant[] = [
     completedModules: 10,
     totalModules: 10,
     address: "Mandaluyong City",
-    emergencyContact: "Carlos Aquino",
-    emergencyNumber: "0933 888 9999",
+    emergencyContact:
+      "Carlos Aquino",
+    emergencyNumber:
+      "0933 888 9999",
   },
+
   {
     id: "P-010",
     participantId: "PT-2026-010",
     name: "James Bautista",
-    email: "james.bautista@example.com",
+    email:
+      "james.bautista@example.com",
     mobile: "0934 123 4567",
-    training: "Electrical Installation and Maintenance NC II",
+    training:
+      "Electrical Installation and Maintenance NC II",
     trainingCode: "EIM-NCII",
-    enrollmentDate: "May 20, 2026",
+    enrollmentDate:
+      "May 20, 2026",
     status: "Completed",
     attendance: 95,
     assessment: "Passed",
@@ -227,18 +262,24 @@ const mockParticipants: Participant[] = [
     completedModules: 10,
     totalModules: 10,
     address: "Pasay City",
-    emergencyContact: "Ramon Bautista",
-    emergencyNumber: "0935 666 7777",
+    emergencyContact:
+      "Ramon Bautista",
+    emergencyNumber:
+      "0935 666 7777",
   },
+
   {
     id: "P-011",
     participantId: "PT-2026-011",
     name: "Carlo Fernandez",
-    email: "carlo.fernandez@example.com",
+    email:
+      "carlo.fernandez@example.com",
     mobile: "0936 222 3333",
-    training: "Electrical Installation and Maintenance NC II",
+    training:
+      "Electrical Installation and Maintenance NC II",
     trainingCode: "EIM-NCII",
-    enrollmentDate: "May 21, 2026",
+    enrollmentDate:
+      "May 21, 2026",
     status: "Dropped",
     attendance: 58,
     assessment: "Failed",
@@ -246,10 +287,16 @@ const mockParticipants: Participant[] = [
     completedModules: 4,
     totalModules: 10,
     address: "Valenzuela City",
-    emergencyContact: "Mario Fernandez",
-    emergencyNumber: "0937 444 5555",
+    emergencyContact:
+      "Mario Fernandez",
+    emergencyNumber:
+      "0937 444 5555",
   },
 ];
+
+/* =========================================================
+   FILTER OPTIONS
+========================================================= */
 
 const trainingOptions = [
   "All Trainings",
@@ -273,45 +320,9 @@ const assessmentOptions = [
   "Not Started",
 ];
 
-const participantStatusStyles: Record<
-  ParticipantStatus,
-  string
-> = {
-  Active:
-    "border-emerald-200 bg-emerald-50 text-emerald-700",
-  Completed:
-    "border-blue-200 bg-blue-50 text-blue-700",
-  Dropped:
-    "border-red-200 bg-red-50 text-red-700",
-};
-
-const assessmentStyles: Record<
-  AssessmentStatus,
-  string
-> = {
-  Passed:
-    "border-emerald-200 bg-emerald-50 text-emerald-700",
-  Pending:
-    "border-amber-200 bg-amber-50 text-amber-700",
-  Failed:
-    "border-red-200 bg-red-50 text-red-700",
-  "Not Started":
-    "border-gray-200 bg-gray-100 text-gray-600",
-};
-
-const completionStyles: Record<
-  CompletionStatus,
-  string
-> = {
-  "In Progress":
-    "border-amber-200 bg-amber-50 text-amber-700",
-  Completed:
-    "border-emerald-200 bg-emerald-50 text-emerald-700",
-  Eligible:
-    "border-blue-200 bg-blue-50 text-blue-700",
-  Dropped:
-    "border-red-200 bg-red-50 text-red-700",
-};
+/* =========================================================
+   PAGE
+========================================================= */
 
 export default function TrainerParticipantsPage() {
   const [participants] = useState(
@@ -327,20 +338,27 @@ export default function TrainerParticipantsPage() {
   const [statusFilter, setStatusFilter] =
     useState("All Status");
 
-  const [assessmentFilter, setAssessmentFilter] =
-    useState("All Assessments");
+  const [
+    assessmentFilter,
+    setAssessmentFilter,
+  ] = useState("All Assessments");
 
   const [selected, setSelected] =
-    useState<Participant | null>(null);
+    useState<Participant | null>(
+      null,
+    );
 
   const [showModal, setShowModal] =
     useState(false);
 
+  /* =======================================================
+     FILTER
+  ======================================================= */
+
   const filteredParticipants =
     useMemo(() => {
-      const query = search
-        .toLowerCase()
-        .trim();
+      const query =
+        search.toLowerCase().trim();
 
       return participants.filter(
         (participant) => {
@@ -365,7 +383,8 @@ export default function TrainerParticipantsPage() {
               trainingFilter;
 
           const matchesStatus =
-            statusFilter === "All Status" ||
+            statusFilter ===
+              "All Status" ||
             participant.status ===
               statusFilter;
 
@@ -391,10 +410,15 @@ export default function TrainerParticipantsPage() {
       assessmentFilter,
     ]);
 
-  const activeCount = participants.filter(
-    (participant) =>
-      participant.status === "Active",
-  ).length;
+  /* =======================================================
+     STATISTICS
+  ======================================================= */
+
+  const activeCount =
+    participants.filter(
+      (participant) =>
+        participant.status === "Active",
+    ).length;
 
   const completedCount =
     participants.filter(
@@ -403,16 +427,10 @@ export default function TrainerParticipantsPage() {
         "Completed",
     ).length;
 
-  const droppedCount = participants.filter(
-    (participant) =>
-      participant.status === "Dropped",
-  ).length;
-
-  const eligibleCount =
+  const droppedCount =
     participants.filter(
       (participant) =>
-        participant.completion ===
-        "Eligible",
+        participant.status === "Dropped",
     ).length;
 
   const averageAttendance =
@@ -420,11 +438,16 @@ export default function TrainerParticipantsPage() {
       ? Math.round(
           participants.reduce(
             (sum, participant) =>
-              sum + participant.attendance,
+              sum +
+              participant.attendance,
             0,
           ) / participants.length,
         )
       : 0;
+
+  /* =======================================================
+     VIEW
+  ======================================================= */
 
   function openParticipant(
     participant: Participant,
@@ -438,12 +461,25 @@ export default function TrainerParticipantsPage() {
     setShowModal(false);
   }
 
+  /* =======================================================
+     TABLE META
+  ======================================================= */
+
+  const tableMeta: ParticipantTableMeta =
+    {
+      onView: openParticipant,
+    };
+
+  /* =======================================================
+     RENDER
+  ======================================================= */
+
   return (
     <div className="space-y-6">
 
-      {/* =====================================================
+      {/* ===================================================
           HEADER
-      ===================================================== */}
+      =================================================== */}
 
       <div>
 
@@ -460,15 +496,16 @@ export default function TrainerParticipantsPage() {
         </h1>
 
         <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
-          View and monitor participants enrolled
-          in your assigned training programs.
+          View and monitor participants
+          enrolled in your assigned
+          training programs.
         </p>
 
       </div>
 
-      {/* =====================================================
-          TRAINER INFO
-      ===================================================== */}
+      {/* ===================================================
+          INFO
+      =================================================== */}
 
       <div className="flex items-start gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
 
@@ -483,65 +520,63 @@ export default function TrainerParticipantsPage() {
           </p>
 
           <p className="mt-1 text-xs leading-5 text-blue-700">
-            You can view participants enrolled in
-            the training programs assigned to you.
-            Attendance and assessment records are
-            managed from their respective modules.
+            You can view participants
+            enrolled in the training
+            programs assigned to you.
+            Attendance and assessment
+            records are managed from
+            their respective modules.
           </p>
 
         </div>
 
       </div>
 
-      {/* =====================================================
-          SUMMARY
-      ===================================================== */}
+      {/* ===================================================
+          STATS
+      =================================================== */}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <StatGrid >
 
-        <SummaryCard
-          label="Total Participants"
+        <StatCard
+          title="Total Participants"
           value={participants.length}
           description="Across assigned trainings"
-          icon="♙"
+          variant="primary"
         />
 
-        <SummaryCard
-          label="Active"
+        <StatCard
+          title="Active"
           value={activeCount}
           description="Currently training"
-          icon="✓"
-          type="success"
+          variant="success"
         />
 
-        <SummaryCard
-          label="Completed"
+        <StatCard
+          title="Completed"
           value={completedCount}
           description="Completed training"
-          icon="◆"
-          type="info"
+          variant="success"
         />
 
-        <SummaryCard
-          label="Needs Attention"
+        <StatCard
+          title="Needs Attention"
           value={droppedCount}
           description="Dropped participants"
-          icon="!"
-          type="warning"
+          variant="warning"
         />
 
-        <SummaryCard
-          label="Avg. Attendance"
-          value={averageAttendance}
+        <StatCard
+          title="Avg. Attendance"
+          value={`${averageAttendance}%`}
           description="Overall attendance rate"
-          icon="%"
         />
 
-      </div>
+      </StatGrid>
 
-      {/* =====================================================
+      {/* ===================================================
           FILTERS
-      ===================================================== */}
+      =================================================== */}
 
       <section className="rounded-2xl border border-[#e7e9ec] bg-white p-5">
 
@@ -554,15 +589,16 @@ export default function TrainerParticipantsPage() {
             </h2>
 
             <p className="mt-1 text-xs text-gray-500">
-              Search and filter participants by
-              training, status, or assessment.
+              Search and filter
+              participants by training,
+              status, or assessment.
             </p>
 
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
 
-            {/* Search */}
+            {/* SEARCH */}
 
             <div className="relative">
 
@@ -583,7 +619,7 @@ export default function TrainerParticipantsPage() {
 
             </div>
 
-            {/* Training */}
+            {/* TRAINING */}
 
             <select
               value={trainingFilter}
@@ -594,7 +630,6 @@ export default function TrainerParticipantsPage() {
               }
               className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none transition focus:border-gray-300 focus:bg-white"
             >
-
               {trainingOptions.map(
                 (training) => (
                   <option
@@ -605,10 +640,9 @@ export default function TrainerParticipantsPage() {
                   </option>
                 ),
               )}
-
             </select>
 
-            {/* Status */}
+            {/* STATUS */}
 
             <select
               value={statusFilter}
@@ -619,7 +653,6 @@ export default function TrainerParticipantsPage() {
               }
               className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none transition focus:border-gray-300 focus:bg-white"
             >
-
               {statusOptions.map(
                 (status) => (
                   <option
@@ -630,10 +663,9 @@ export default function TrainerParticipantsPage() {
                   </option>
                 ),
               )}
-
             </select>
 
-            {/* Assessment */}
+            {/* ASSESSMENT */}
 
             <select
               value={assessmentFilter}
@@ -644,7 +676,6 @@ export default function TrainerParticipantsPage() {
               }
               className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none transition focus:border-gray-300 focus:bg-white"
             >
-
               {assessmentOptions.map(
                 (assessment) => (
                   <option
@@ -655,7 +686,6 @@ export default function TrainerParticipantsPage() {
                   </option>
                 ),
               )}
-
             </select>
 
           </div>
@@ -664,222 +694,19 @@ export default function TrainerParticipantsPage() {
 
       </section>
 
-      {/* =====================================================
-          TABLE
-      ===================================================== */}
+      {/* ===================================================
+          DATA TABLE
+      =================================================== */}
 
       <section className="overflow-hidden rounded-2xl border border-[#e7e9ec] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
 
         <div className="overflow-x-auto">
 
-          <table className="w-full min-w-[1100px]">
-
-            <thead>
-
-              <tr className="border-b border-[#eef0f2] bg-[#fafbfc]">
-
-                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Participant
-                </th>
-
-                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Training
-                </th>
-
-                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Status
-                </th>
-
-                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Attendance
-                </th>
-
-                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Assessment
-                </th>
-
-                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Completion
-                </th>
-
-                <th className="px-5 py-3 text-right text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Action
-                </th>
-
-              </tr>
-
-            </thead>
-
-            <tbody className="divide-y divide-[#eef0f2]">
-
-              {filteredParticipants.map(
-                (participant) => (
-                  <tr
-                    key={participant.id}
-                    className="transition hover:bg-[#fafbfc]"
-                  >
-
-                    {/* PARTICIPANT */}
-
-                    <td className="px-5 py-4">
-
-                      <div className="flex items-center gap-3">
-
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#191c1e] text-[10px] font-bold text-white">
-                          {getInitials(
-                            participant.name,
-                          )}
-                        </div>
-
-                        <div className="min-w-0">
-
-                          <p className="truncate text-xs font-semibold">
-                            {participant.name}
-                          </p>
-
-                          <p className="mt-0.5 font-mono text-[10px] text-gray-400">
-                            {participant.participantId}
-                          </p>
-
-                        </div>
-
-                      </div>
-
-                    </td>
-
-                    {/* TRAINING */}
-
-                    <td className="px-5 py-4">
-
-                      <p className="max-w-[220px] text-xs font-semibold leading-5">
-                        {participant.training}
-                      </p>
-
-                      <p className="mt-0.5 font-mono text-[10px] text-gray-400">
-                        {participant.trainingCode}
-                      </p>
-
-                    </td>
-
-                    {/* STATUS */}
-
-                    <td className="px-5 py-4">
-
-                      <span
-                        className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold ${participantStatusStyles[participant.status]}`}
-                      >
-                        {participant.status}
-                      </span>
-
-                    </td>
-
-                    {/* ATTENDANCE */}
-
-                    <td className="px-5 py-4">
-
-                      <div className="w-24">
-
-                        <div className="flex items-center justify-between">
-
-                          <span
-                            className={`text-xs font-bold ${
-                              participant.attendance >=
-                              90
-                                ? "text-emerald-600"
-                                : participant.attendance >=
-                                    80
-                                  ? "text-amber-600"
-                                  : "text-red-600"
-                            }`}
-                          >
-                            {
-                              participant.attendance
-                            }
-                            %
-                          </span>
-
-                        </div>
-
-                        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-100">
-
-                          <div
-                            className={`h-full rounded-full ${
-                              participant.attendance >=
-                              90
-                                ? "bg-emerald-500"
-                                : participant.attendance >=
-                                    80
-                                  ? "bg-amber-500"
-                                  : "bg-red-500"
-                            }`}
-                            style={{
-                              width: `${participant.attendance}%`,
-                            }}
-                          />
-
-                        </div>
-
-                      </div>
-
-                    </td>
-
-                    {/* ASSESSMENT */}
-
-                    <td className="px-5 py-4">
-
-                      <span
-                        className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold ${assessmentStyles[participant.assessment]}`}
-                      >
-                        {
-                          participant.assessment
-                        }
-                      </span>
-
-                    </td>
-
-                    {/* COMPLETION */}
-
-                    <td className="px-5 py-4">
-
-                      <span
-                        className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold ${completionStyles[participant.completion]}`}
-                      >
-                        {
-                          participant.completion
-                        }
-                      </span>
-
-                    </td>
-
-                    {/* ACTION */}
-
-                    <td className="px-5 py-4">
-
-                      <div className="flex justify-end">
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            openParticipant(
-                              participant,
-                            )
-                          }
-                          className="rounded-lg border border-[#e7e9ec] px-3 py-2 text-[11px] font-semibold text-gray-600 transition hover:bg-gray-50"
-                        >
-                          View
-                        </button>
-
-                      </div>
-
-                    </td>
-
-                  </tr>
-                ),
-              )}
-
-            </tbody>
-
-          </table>
+          <DataTable
+            columns={columns}
+            data={filteredParticipants}
+            meta={tableMeta}
+          />
 
         </div>
 
@@ -914,9 +741,9 @@ export default function TrainerParticipantsPage() {
 
       </section>
 
-      {/* =====================================================
-          PARTICIPANT MODAL
-      ===================================================== */}
+      {/* ===================================================
+          MODAL
+      =================================================== */}
 
       {showModal && selected && (
         <ParticipantModal
@@ -929,9 +756,9 @@ export default function TrainerParticipantsPage() {
   );
 }
 
-/* ==========================================================
+/* =========================================================
    PARTICIPANT MODAL
-========================================================== */
+========================================================= */
 
 function ParticipantModal({
   participant,
@@ -951,7 +778,8 @@ function ParticipantModal({
 
   const isEligible =
     participant.attendance >= 90 &&
-    participant.assessment === "Passed";
+    participant.assessment ===
+      "Passed";
 
   return (
     <div
@@ -968,9 +796,7 @@ function ParticipantModal({
 
       <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-white/50 bg-white shadow-2xl">
 
-        {/* =================================================
-            HEADER
-        ================================================= */}
+        {/* HEADER */}
 
         <div className="flex shrink-0 items-start justify-between border-b border-[#eef0f2] bg-white px-6 py-5">
 
@@ -1000,8 +826,6 @@ function ParticipantModal({
 
           </div>
 
-          {/* FIXED X */}
-
           <button
             type="button"
             onClick={onClose}
@@ -1013,9 +837,7 @@ function ParticipantModal({
 
         </div>
 
-        {/* =================================================
-            SCROLLABLE BODY
-        ================================================= */}
+        {/* BODY */}
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
 
@@ -1025,24 +847,21 @@ function ParticipantModal({
 
             <div className="flex flex-wrap gap-2">
 
-              <span
-                className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${participantStatusStyles[participant.status]}`}
-              >
-                {participant.status}
-              </span>
+              <StatusBadge
+                status={participant.status}
+              />
 
-              <span
-                className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${assessmentStyles[participant.assessment]}`}
-              >
-                Assessment:{" "}
-                {participant.assessment}
-              </span>
+              <AssessmentBadge
+                status={
+                  participant.assessment
+                }
+              />
 
-              <span
-                className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${completionStyles[participant.completion]}`}
-              >
-                {participant.completion}
-              </span>
+              <CompletionBadge
+                status={
+                  participant.completion
+                }
+              />
 
             </div>
 
@@ -1062,12 +881,14 @@ function ParticipantModal({
 
               <StatBox
                 label="Assessment"
-                value={participant.assessment}
+                value={
+                  participant.assessment
+                }
               />
 
             </div>
 
-            {/* CONTACT INFORMATION */}
+            {/* PARTICIPANT INFO */}
 
             <section className="rounded-2xl border border-[#e7e9ec] p-5">
 
@@ -1178,9 +999,13 @@ function ParticipantModal({
                   </p>
 
                   <p className="mt-1 text-sm font-bold">
-                    {participant.completedModules}{" "}
+                    {
+                      participant.completedModules
+                    }{" "}
                     of{" "}
-                    {participant.totalModules}{" "}
+                    {
+                      participant.totalModules
+                    }{" "}
                     modules completed
                   </p>
 
@@ -1296,11 +1121,11 @@ function ParticipantModal({
 
                 </div>
 
-                <span
-                  className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${assessmentStyles[participant.assessment]}`}
-                >
-                  {participant.assessment}
-                </span>
+                <AssessmentBadge
+                  status={
+                    participant.assessment
+                  }
+                />
 
               </div>
 
@@ -1394,9 +1219,7 @@ function ParticipantModal({
 
         </div>
 
-        {/* =================================================
-            FOOTER
-        ================================================= */}
+        {/* FOOTER */}
 
         <div className="flex shrink-0 flex-col gap-2 border-t border-[#eef0f2] bg-white px-6 py-4 sm:flex-row sm:justify-end">
 
@@ -1440,74 +1263,9 @@ function ParticipantModal({
   );
 }
 
-/* ==========================================================
-   SUMMARY CARD
-========================================================== */
-
-function SummaryCard({
-  label,
-  value,
-  description,
-  icon,
-  type,
-}: {
-  label: string;
-  value: number;
-  description: string;
-  icon: string;
-  type?: "success" | "warning" | "info";
-}) {
-  const styles = {
-    success:
-      "bg-emerald-50 text-emerald-700",
-    warning:
-      "bg-amber-50 text-amber-700",
-    info:
-      "bg-blue-50 text-blue-700",
-  };
-
-  return (
-    <div className="rounded-2xl border border-[#e7e9ec] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-
-      <div className="flex items-start justify-between">
-
-        <div>
-
-          <p className="text-xs font-medium text-gray-500">
-            {label}
-          </p>
-
-          <p className="mt-2 text-2xl font-bold tracking-tight">
-            {value}
-            {label ===
-              "Avg. Attendance" && "%"}
-          </p>
-
-        </div>
-
-        <div
-          className={`flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold ${
-            type
-              ? styles[type]
-              : "bg-[#f4f5f6] text-gray-600"
-          }`}
-        >
-          {icon}
-        </div>
-
-      </div>
-
-      <p className="mt-4 text-[11px] text-gray-400">
-        {description}
-      </p>
-
-    </div>
-  );
-}
-
-/* ==========================================================
+/* =========================================================
    STAT BOX
-========================================================== */
+========================================================= */
 
 function StatBox({
   label,
@@ -1531,9 +1289,9 @@ function StatBox({
   );
 }
 
-/* ==========================================================
+/* =========================================================
    INFO
-========================================================== */
+========================================================= */
 
 function Info({
   label,
@@ -1557,9 +1315,9 @@ function Info({
   );
 }
 
-/* ==========================================================
-   EMPTY STATE
-========================================================== */
+/* =========================================================
+   EMPTY
+========================================================= */
 
 function EmptyState() {
   return (
@@ -1574,24 +1332,119 @@ function EmptyState() {
       </h3>
 
       <p className="mt-1 text-xs text-gray-500">
-        Try changing your search or filters.
+        Try changing your search or
+        filters.
       </p>
 
     </div>
   );
 }
 
-/* ==========================================================
+/* =========================================================
    INITIALS
-========================================================== */
+========================================================= */
 
-function getInitials(
-  name: string,
-) {
+function getInitials(name: string) {
   return name
     .split(" ")
     .map((part) => part[0])
     .join("")
     .slice(0, 2)
     .toUpperCase();
+}
+
+/* =========================================================
+   LOCAL BADGES FOR MODAL
+========================================================= */
+
+function StatusBadge({
+  status,
+}: {
+  status:
+    | "Active"
+    | "Completed"
+    | "Dropped";
+}) {
+  const styles = {
+    Active:
+      "border-emerald-200 bg-emerald-50 text-emerald-700",
+
+    Completed:
+      "border-blue-200 bg-blue-50 text-blue-700",
+
+    Dropped:
+      "border-red-200 bg-red-50 text-red-700",
+  };
+
+  return (
+    <span
+      className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold ${styles[status]}`}
+    >
+      {status}
+    </span>
+  );
+}
+
+function AssessmentBadge({
+  status,
+}: {
+  status:
+    | "Passed"
+    | "Pending"
+    | "Failed"
+    | "Not Started";
+}) {
+  const styles = {
+    Passed:
+      "border-emerald-200 bg-emerald-50 text-emerald-700",
+
+    Pending:
+      "border-amber-200 bg-amber-50 text-amber-700",
+
+    Failed:
+      "border-red-200 bg-red-50 text-red-700",
+
+    "Not Started":
+      "border-gray-200 bg-gray-100 text-gray-600",
+  };
+
+  return (
+    <span
+      className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold ${styles[status]}`}
+    >
+      {status}
+    </span>
+  );
+}
+
+function CompletionBadge({
+  status,
+}: {
+  status:
+    | "In Progress"
+    | "Completed"
+    | "Eligible"
+    | "Dropped";
+}) {
+  const styles = {
+    "In Progress":
+      "border-amber-200 bg-amber-50 text-amber-700",
+
+    Completed:
+      "border-emerald-200 bg-emerald-50 text-emerald-700",
+
+    Eligible:
+      "border-blue-200 bg-blue-50 text-blue-700",
+
+    Dropped:
+      "border-red-200 bg-red-50 text-red-700",
+  };
+
+  return (
+    <span
+      className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold ${styles[status]}`}
+    >
+      {status}
+    </span>
+  );
 }
