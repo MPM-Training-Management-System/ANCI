@@ -6,30 +6,28 @@ import {
 } from "react";
 
 import type {
-  TrainerNotificationSettings,
-  TrainerPreferenceSettings,
-  TrainerProfile,
-  TrainerSystemSettings,
+  AdminProfile,
+  NotificationSettings,
+  SystemSettings,
+  TrainingSettings,
 } from "./type";
 
 /* =========================================================
-   PAGE
+   SETTINGS PAGE
 ========================================================= */
 
-export default function TrainerSettingsPage() {
+export default function AdminSettingsPage() {
   /* =======================================================
      PROFILE
   ======================================================= */
 
   const [profile, setProfile] =
-    useState<TrainerProfile>({
-      firstName: "Maria",
-      lastName: "Santos",
-      email: "maria.santos@anci.edu.ph",
-      mobileNumber: "0917 456 7890",
-      specialization:
-        "Computer Systems Servicing NC II",
-      trainerId: "TRN-001",
+    useState<AdminProfile>({
+      firstName: "Ralph",
+      lastName: "Gerente",
+      email: "admin@anci.edu.ph",
+      mobileNumber: "0917 123 4567",
+      role: "Administrator",
     });
 
   /* =======================================================
@@ -40,29 +38,27 @@ export default function TrainerSettingsPage() {
     notifications,
     setNotifications,
   ] =
-    useState<TrainerNotificationSettings>({
-      assignmentAlerts: true,
-      scheduleAlerts: true,
+    useState<NotificationSettings>({
+      enrollmentAlerts: true,
       attendanceAlerts: true,
       assessmentAlerts: true,
-      announcementAlerts: true,
+      systemAlerts: true,
       emailNotifications: true,
     });
 
   /* =======================================================
-     TRAINER PREFERENCES
+     TRAINING
   ======================================================= */
 
   const [
-    preferences,
-    setPreferences,
+    trainingSettings,
+    setTrainingSettings,
   ] =
-    useState<TrainerPreferenceSettings>({
-      availability: "Available",
-      preferredSession: "Morning",
-      defaultAttendanceMode: "Manual",
-      allowParticipantMessages: true,
-      showProfileToParticipants: true,
+    useState<TrainingSettings>({
+      defaultCapacity: 30,
+      autoEnrollmentReview: false,
+      allowWaitlist: true,
+      requireTrainerAssignment: true,
     });
 
   /* =======================================================
@@ -73,7 +69,7 @@ export default function TrainerSettingsPage() {
     systemSettings,
     setSystemSettings,
   ] =
-    useState<TrainerSystemSettings>({
+    useState<SystemSettings>({
       timezone: "Asia/Manila",
       dateFormat: "MMM DD, YYYY",
       language: "English",
@@ -99,7 +95,7 @@ export default function TrainerSettingsPage() {
   ] = useState(false);
 
   /* =======================================================
-     SAVED
+     SAVED MESSAGE
   ======================================================= */
 
   const [saved, setSaved] =
@@ -114,49 +110,14 @@ export default function TrainerSettingsPage() {
   }
 
   /* =======================================================
-     NOTIFICATION TOGGLE
-  ======================================================= */
-
-  function toggleNotification(
-    key: keyof TrainerNotificationSettings,
-  ) {
-    setNotifications(
-      (current) => ({
-        ...current,
-        [key]: !current[key],
-      }),
-    );
-
-    showSaved();
-  }
-
-  /* =======================================================
-     PREFERENCE TOGGLE
-  ======================================================= */
-
-  function togglePreference(
-    key:
-      | "allowParticipantMessages"
-      | "showProfileToParticipants",
-  ) {
-    setPreferences(
-      (current) => ({
-        ...current,
-        [key]: !current[key],
-      }),
-    );
-
-    showSaved();
-  }
-
-  /* =======================================================
      PROFILE SAVE
   ======================================================= */
 
   function handleProfileSave(
-    updated: TrainerProfile,
+    event: FormEvent<HTMLFormElement>,
   ) {
-    setProfile(updated);
+    event.preventDefault();
+
     setProfileModal(false);
     showSaved();
   }
@@ -172,6 +133,39 @@ export default function TrainerSettingsPage() {
 
     setPasswordModal(false);
     showSaved();
+  }
+
+  /* =======================================================
+     NOTIFICATION TOGGLE
+  ======================================================= */
+
+  function toggleNotification(
+    key: keyof NotificationSettings,
+  ) {
+    setNotifications(
+      (current) => ({
+        ...current,
+        [key]: !current[key],
+      }),
+    );
+  }
+
+  /* =======================================================
+     TRAINING TOGGLE
+  ======================================================= */
+
+  function toggleTraining(
+    key:
+      | "autoEnrollmentReview"
+      | "allowWaitlist"
+      | "requireTrainerAssignment",
+  ) {
+    setTrainingSettings(
+      (current) => ({
+        ...current,
+        [key]: !current[key],
+      }),
+    );
   }
 
   return (
@@ -192,12 +186,12 @@ export default function TrainerSettingsPage() {
             <span className="h-2 w-2 rounded-full bg-gray-900" />
 
             <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-400">
-              Trainer Portal
+              Administration
             </span>
 
           </div>
 
-          <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
+          <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
 
             <div>
 
@@ -206,33 +200,26 @@ export default function TrainerSettingsPage() {
               </h1>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
-                Manage your trainer profile,
-                notifications, availability,
-                training preferences, and
-                account security.
+                Manage your administrator account,
+                system preferences, training rules,
+                notifications, and security settings.
               </p>
 
             </div>
 
-            <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-3">
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
 
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gray-950 text-sm font-bold text-white">
-                {profile.firstName.charAt(0)}
-                {profile.lastName.charAt(0)}
-              </div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                Account
+              </p>
 
-              <div>
+              <p className="mt-1 text-sm font-semibold text-gray-900">
+                {profile.email}
+              </p>
 
-                <p className="text-sm font-bold text-gray-900">
-                  {profile.firstName}{" "}
-                  {profile.lastName}
-                </p>
-
-                <p className="mt-0.5 text-[10px] text-gray-500">
-                  {profile.trainerId}
-                </p>
-
-              </div>
+              <p className="mt-1 text-[10px] text-gray-500">
+                {profile.role}
+              </p>
 
             </div>
 
@@ -260,7 +247,7 @@ export default function TrainerSettingsPage() {
             </p>
 
             <p className="text-[10px] text-emerald-600">
-              Your trainer settings have been updated.
+              Your settings have been updated.
             </p>
 
           </div>
@@ -269,7 +256,7 @@ export default function TrainerSettingsPage() {
       )}
 
       {/* =================================================
-          PROFILE + SECURITY
+          ACCOUNT
       ================================================= */}
 
       <section className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
@@ -278,8 +265,8 @@ export default function TrainerSettingsPage() {
 
         <SettingsCard
           eyebrow="Account"
-          title="Trainer Profile"
-          description="Your trainer identity and professional information."
+          title="Administrator Profile"
+          description="Your personal information and administrator identity."
         >
 
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
@@ -300,16 +287,8 @@ export default function TrainerSettingsPage() {
                 {profile.email}
               </p>
 
-              <div className="mt-3 flex flex-wrap gap-2">
-
-                <span className="rounded-full bg-gray-100 px-3 py-1 text-[10px] font-bold text-gray-600">
-                  Trainer
-                </span>
-
-                <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-bold text-emerald-600">
-                  Active
-                </span>
-
+              <div className="mt-3 inline-flex rounded-full bg-gray-100 px-3 py-1 text-[10px] font-bold text-gray-600">
+                {profile.role}
               </div>
 
             </div>
@@ -326,22 +305,6 @@ export default function TrainerSettingsPage() {
 
           </div>
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-
-            <InfoBox
-              label="Trainer ID"
-              value={profile.trainerId}
-            />
-
-            <InfoBox
-              label="Specialization"
-              value={
-                profile.specialization
-              }
-            />
-
-          </div>
-
         </SettingsCard>
 
         {/* SECURITY */}
@@ -349,7 +312,7 @@ export default function TrainerSettingsPage() {
         <SettingsCard
           eyebrow="Security"
           title="Account Security"
-          description="Protect your trainer account and personal information."
+          description="Keep your administrator account protected."
         >
 
           <div className="space-y-3">
@@ -389,7 +352,7 @@ export default function TrainerSettingsPage() {
                 </p>
 
                 <p className="mt-1 text-[10px] text-gray-500">
-                  Add additional protection to your account
+                  Add another layer of protection
                 </p>
 
               </div>
@@ -413,40 +376,27 @@ export default function TrainerSettingsPage() {
       <SettingsCard
         eyebrow="Preferences"
         title="Notifications"
-        description="Choose which trainer events should generate notifications."
+        description="Choose which events should generate notifications."
       >
 
         <div className="grid gap-x-8 gap-y-1 md:grid-cols-2">
 
           <SettingToggle
-            title="Training Assignments"
-            description="Notify me when I am assigned to a training program."
+            title="Enrollment Alerts"
+            description="Notify me when a participant submits an enrollment."
             enabled={
-              notifications.assignmentAlerts
+              notifications.enrollmentAlerts
             }
             onChange={() =>
               toggleNotification(
-                "assignmentAlerts",
-              )
-            }
-          />
-
-          <SettingToggle
-            title="Schedule Alerts"
-            description="Notify me about upcoming training schedules and changes."
-            enabled={
-              notifications.scheduleAlerts
-            }
-            onChange={() =>
-              toggleNotification(
-                "scheduleAlerts",
+                "enrollmentAlerts",
               )
             }
           />
 
           <SettingToggle
             title="Attendance Alerts"
-            description="Notify me about attendance records and missing submissions."
+            description="Notify me about missing or incomplete attendance."
             enabled={
               notifications.attendanceAlerts
             }
@@ -459,7 +409,7 @@ export default function TrainerSettingsPage() {
 
           <SettingToggle
             title="Assessment Alerts"
-            description="Notify me when assessment results or evaluations require attention."
+            description="Notify me when assessment results are submitted."
             enabled={
               notifications.assessmentAlerts
             }
@@ -471,21 +421,21 @@ export default function TrainerSettingsPage() {
           />
 
           <SettingToggle
-            title="Announcements"
-            description="Receive important announcements from administrators."
+            title="System Alerts"
+            description="Receive important system and operational alerts."
             enabled={
-              notifications.announcementAlerts
+              notifications.systemAlerts
             }
             onChange={() =>
               toggleNotification(
-                "announcementAlerts",
+                "systemAlerts",
               )
             }
           />
 
           <SettingToggle
             title="Email Notifications"
-            description="Receive trainer notifications through email."
+            description="Receive administrator notifications through email."
             enabled={
               notifications.emailNotifications
             }
@@ -501,174 +451,106 @@ export default function TrainerSettingsPage() {
       </SettingsCard>
 
       {/* =================================================
-          TRAINER PREFERENCES
+          TRAINING SETTINGS
       ================================================= */}
 
       <SettingsCard
-        eyebrow="Trainer Preferences"
+        eyebrow="Training Management"
         title="Training Preferences"
-        description="Configure your availability and default training behavior."
+        description="Configure default rules used by the training management system."
       >
 
         <div className="grid gap-6 lg:grid-cols-2">
 
-          {/* AVAILABILITY */}
+          {/* CAPACITY */}
 
-          <div className="space-y-4">
+          <div className="rounded-2xl border border-gray-200 p-4">
 
-            <SelectSetting
-              label="Availability Status"
-              value={
-                preferences.availability
-              }
-              options={[
-                "Available",
-                "Limited Availability",
-                "Unavailable",
-              ]}
-              onChange={(value) => {
-                setPreferences(
-                  (current) => ({
-                    ...current,
-                    availability:
-                      value,
-                  }),
-                );
+            <label className="text-xs font-bold text-gray-900">
+              Default Training Capacity
+            </label>
 
-                showSaved();
-              }}
-            />
+            <p className="mt-1 text-[10px] leading-5 text-gray-500">
+              Default number of participants allowed
+              in a newly created training batch.
+            </p>
 
-            <SelectSetting
-              label="Preferred Training Session"
-              value={
-                preferences.preferredSession
-              }
-              options={[
-                "Morning",
-                "Afternoon",
-                "Evening",
-                "Any Session",
-              ]}
-              onChange={(value) => {
-                setPreferences(
-                  (current) => ({
-                    ...current,
-                    preferredSession:
-                      value,
-                  }),
-                );
+            <div className="mt-4 flex items-center gap-3">
 
-                showSaved();
-              }}
-            />
+              <input
+                type="number"
+                min={1}
+                max={500}
+                value={
+                  trainingSettings.defaultCapacity
+                }
+                onChange={(event) =>
+                  setTrainingSettings(
+                    (current) => ({
+                      ...current,
+                      defaultCapacity:
+                        Number(
+                          event.target
+                            .value,
+                        ),
+                    }),
+                  )
+                }
+                className="h-11 w-28 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm font-semibold outline-none transition focus:border-gray-400 focus:bg-white"
+              />
 
-            <SelectSetting
-              label="Default Attendance Mode"
-              value={
-                preferences.defaultAttendanceMode
-              }
-              options={[
-                "Manual",
-                "QR Code",
-                "Biometric",
-              ]}
-              onChange={(value) => {
-                setPreferences(
-                  (current) => ({
-                    ...current,
-                    defaultAttendanceMode:
-                      value,
-                  }),
-                );
+              <span className="text-xs text-gray-500">
+                participants
+              </span>
 
-                showSaved();
-              }}
-            />
+            </div>
 
           </div>
 
-          {/* TRAINER VISIBILITY */}
+          {/* RULES */}
 
-          <div>
+          <div className="space-y-1">
 
             <SettingToggle
-              title="Participant Messages"
-              description="Allow participants enrolled in your training to send you messages."
+              title="Allow Waitlist"
+              description="Allow participants to join when a batch reaches capacity."
               enabled={
-                preferences.allowParticipantMessages
+                trainingSettings.allowWaitlist
               }
               onChange={() =>
-                togglePreference(
-                  "allowParticipantMessages",
+                toggleTraining(
+                  "allowWaitlist",
                 )
               }
             />
 
             <SettingToggle
-              title="Show Trainer Profile"
-              description="Allow participants to view your trainer profile and specialization."
+              title="Require Trainer Assignment"
+              description="Require every active training batch to have an assigned trainer."
               enabled={
-                preferences.showProfileToParticipants
+                trainingSettings.requireTrainerAssignment
               }
               onChange={() =>
-                togglePreference(
-                  "showProfileToParticipants",
+                toggleTraining(
+                  "requireTrainerAssignment",
+                )
+              }
+            />
+
+            <SettingToggle
+              title="Automatic Enrollment Review"
+              description="Automatically approve eligible enrollment requests."
+              enabled={
+                trainingSettings.autoEnrollmentReview
+              }
+              onChange={() =>
+                toggleTraining(
+                  "autoEnrollmentReview",
                 )
               }
             />
 
           </div>
-
-        </div>
-
-      </SettingsCard>
-
-      {/* =================================================
-          PROFESSIONAL INFORMATION
-      ================================================= */}
-
-      <SettingsCard
-        eyebrow="Professional"
-        title="Trainer Information"
-        description="Information used by the training management system when assigning programs."
-      >
-
-        <div className="grid gap-4 md:grid-cols-3">
-
-          <InfoBox
-            label="Trainer ID"
-            value={profile.trainerId}
-          />
-
-          <InfoBox
-            label="Specialization"
-            value={
-              profile.specialization
-            }
-          />
-
-          <InfoBox
-            label="Current Status"
-            value="Active"
-            success
-          />
-
-        </div>
-
-        <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
-
-          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-            Assignment Note
-          </p>
-
-          <p className="mt-2 text-xs leading-5 text-gray-600">
-            Your specialization and availability
-            are used by administrators when assigning
-            you to training programs. Keep this
-            information updated to ensure appropriate
-            training assignments.
-          </p>
 
         </div>
 
@@ -681,7 +563,7 @@ export default function TrainerSettingsPage() {
       <SettingsCard
         eyebrow="System"
         title="System Preferences"
-        description="Configure how information is displayed in your trainer portal."
+        description="Configure how information is displayed throughout the administrator portal."
       >
 
         <div className="grid gap-4 md:grid-cols-3">
@@ -697,16 +579,14 @@ export default function TrainerSettingsPage() {
               "Asia/Tokyo",
               "UTC",
             ]}
-            onChange={(value) => {
+            onChange={(value) =>
               setSystemSettings(
                 (current) => ({
                   ...current,
                   timezone: value,
                 }),
-              );
-
-              showSaved();
-            }}
+              )
+            }
           />
 
           <SelectSetting
@@ -720,16 +600,14 @@ export default function TrainerSettingsPage() {
               "MM/DD/YYYY",
               "YYYY-MM-DD",
             ]}
-            onChange={(value) => {
+            onChange={(value) =>
               setSystemSettings(
                 (current) => ({
                   ...current,
                   dateFormat: value,
                 }),
-              );
-
-              showSaved();
-            }}
+              )
+            }
           />
 
           <SelectSetting
@@ -741,16 +619,14 @@ export default function TrainerSettingsPage() {
               "English",
               "Filipino",
             ]}
-            onChange={(value) => {
+            onChange={(value) =>
               setSystemSettings(
                 (current) => ({
                   ...current,
                   language: value,
                 }),
-              );
-
-              showSaved();
-            }}
+              )
+            }
           />
 
         </div>
@@ -758,15 +634,50 @@ export default function TrainerSettingsPage() {
       </SettingsCard>
 
       {/* =================================================
-          SESSION
+          SYSTEM INFORMATION
       ================================================= */}
 
       <section className="grid gap-6 lg:grid-cols-2">
 
         <SettingsCard
+          eyebrow="Information"
+          title="System Information"
+          description="Technical information about the current ANCI portal."
+        >
+
+          <div className="grid gap-4 sm:grid-cols-2">
+
+            <InfoItem
+              label="Application"
+              value="ANCI Training Management"
+            />
+
+            <InfoItem
+              label="Version"
+              value="1.0.0"
+            />
+
+            <InfoItem
+              label="Environment"
+              value="Production"
+            />
+
+            <InfoItem
+              label="Database"
+              value="Connected"
+              success
+            />
+
+          </div>
+
+        </SettingsCard>
+
+        {/* SESSION */}
+
+        <SettingsCard
           eyebrow="Session"
           title="Current Session"
-          description="Information about your current trainer session."
+          description="Information about your current administrator session."
         >
 
           <div className="space-y-3">
@@ -777,51 +688,19 @@ export default function TrainerSettingsPage() {
             />
 
             <InfoRow
-              label="Trainer ID"
-              value={profile.trainerId}
+              label="Role"
+              value={profile.role}
             />
 
             <InfoRow
-              label="Role"
-              value="Trainer"
+              label="Last activity"
+              value="Just now"
             />
 
             <InfoRow
               label="Session status"
               value="Active"
               success
-            />
-
-          </div>
-
-        </SettingsCard>
-
-        <SettingsCard
-          eyebrow="Information"
-          title="Portal Information"
-          description="Current ANCI trainer portal information."
-        >
-
-          <div className="grid gap-3 sm:grid-cols-2">
-
-            <InfoBox
-              label="Application"
-              value="ANCI Training Management"
-            />
-
-            <InfoBox
-              label="Portal"
-              value="Trainer Portal"
-            />
-
-            <InfoBox
-              label="Version"
-              value="1.0.0"
-            />
-
-            <InfoBox
-              label="Environment"
-              value="Production"
             />
 
           </div>
@@ -839,15 +718,16 @@ export default function TrainerSettingsPage() {
         <div className="border-b border-red-100 bg-red-50/50 px-5 py-4">
 
           <p className="text-[10px] font-bold uppercase tracking-widest text-red-400">
-            Account
+            Danger Zone
           </p>
 
           <h2 className="mt-1 text-base font-bold text-red-900">
-            Sign Out
+            Account Actions
           </h2>
 
           <p className="mt-1 text-xs text-red-600">
-            End your current trainer portal session.
+            These actions affect your current administrator
+            session.
           </p>
 
         </div>
@@ -857,12 +737,11 @@ export default function TrainerSettingsPage() {
           <div>
 
             <p className="text-sm font-bold text-gray-900">
-              Sign out of trainer portal
+              Sign out of administrator portal
             </p>
 
             <p className="mt-1 text-xs text-gray-500">
-              You will need to sign in again to access
-              your trainer account.
+              End your current administrator session.
             </p>
 
           </div>
@@ -891,7 +770,11 @@ export default function TrainerSettingsPage() {
           onClose={() =>
             setProfileModal(false)
           }
-          onSave={handleProfileSave}
+          onSave={(updated) => {
+            setProfile(updated);
+            setProfileModal(false);
+            showSaved();
+          }}
         />
       )}
 
@@ -917,17 +800,17 @@ export default function TrainerSettingsPage() {
       {logoutModal && (
         <ConfirmModal
           title="Sign out?"
-          description="You will be signed out of the ANCI trainer portal and will need to sign in again."
+          description="You will be signed out of the ANCI administrator portal and will need to sign in again."
           confirmText="Sign Out"
+          danger
           onClose={() =>
             setLogoutModal(false)
           }
           onConfirm={() => {
             setLogoutModal(false);
 
-            // Replace with your actual auth logout:
+            // Replace this with your real auth logout:
             // await auth.logout();
-
             window.location.href =
               "/login";
           }}
@@ -981,7 +864,7 @@ function SettingsCard({
 }
 
 /* =========================================================
-   TOGGLE
+   SETTING TOGGLE
 ========================================================= */
 
 function SettingToggle({
@@ -1039,7 +922,7 @@ function SettingToggle({
 }
 
 /* =========================================================
-   SELECT
+   SELECT SETTING
 ========================================================= */
 
 function SelectSetting({
@@ -1090,10 +973,10 @@ function SelectSetting({
 }
 
 /* =========================================================
-   INFO BOX
+   INFO ITEM
 ========================================================= */
 
-function InfoBox({
+function InfoItem({
   label,
   value,
   success = false,
@@ -1176,10 +1059,10 @@ function ProfileModal({
   onClose,
   onSave,
 }: {
-  profile: TrainerProfile;
+  profile: AdminProfile;
   onClose: () => void;
   onSave: (
-    profile: TrainerProfile,
+    profile: AdminProfile,
   ) => void;
 }) {
   const [
@@ -1188,7 +1071,7 @@ function ProfileModal({
   ] = useState(profile);
 
   function update(
-    key: keyof TrainerProfile,
+    key: keyof AdminProfile,
     value: string,
   ) {
     setForm(
@@ -1201,8 +1084,8 @@ function ProfileModal({
 
   return (
     <ModalShell
-      title="Edit Trainer Profile"
-      description="Update your trainer information."
+      title="Edit Administrator Profile"
+      description="Update the information associated with your administrator account."
       onClose={onClose}
     >
 
@@ -1265,40 +1148,19 @@ function ProfileModal({
 
         </div>
 
-        <div>
-
-          <label className="text-xs font-bold text-gray-900">
-            Specialization
-          </label>
-
-          <textarea
-            value={
-              form.specialization
-            }
-            onChange={(event) =>
-              update(
-                "specialization",
-                event.target.value,
-              )
-            }
-            rows={3}
-            className="mt-2 w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs font-medium text-gray-800 outline-none transition focus:border-gray-400 focus:bg-white"
-          />
-
-        </div>
-
         <div className="rounded-xl bg-gray-50 p-4">
 
           <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-            Trainer ID
+            Role
           </p>
 
           <p className="mt-1 text-xs font-bold text-gray-900">
-            {form.trainerId}
+            {form.role}
           </p>
 
           <p className="mt-1 text-[10px] text-gray-500">
-            Trainer ID is assigned by the system.
+            Administrator role is managed by the
+            system.
           </p>
 
         </div>
@@ -1384,7 +1246,7 @@ function PasswordModal({
   return (
     <ModalShell
       title="Change Password"
-      description="Update your trainer account password."
+      description="Update your administrator account password."
       onClose={onClose}
     >
 
@@ -1439,12 +1301,14 @@ function ConfirmModal({
   title,
   description,
   confirmText,
+  danger = false,
   onClose,
   onConfirm,
 }: {
   title: string;
   description: string;
   confirmText: string;
+  danger?: boolean;
   onClose: () => void;
   onConfirm: () => void;
 }) {
@@ -1455,9 +1319,16 @@ function ConfirmModal({
       onClose={onClose}
     >
 
-      <div className="flex items-center justify-center py-4">
+      <div className="flex items-center justify-center py-3">
 
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-xl font-bold text-red-600">
+        <div
+          className={[
+            "flex h-14 w-14 items-center justify-center rounded-2xl text-xl font-bold",
+            danger
+              ? "bg-red-50 text-red-600"
+              : "bg-gray-100 text-gray-700",
+          ].join(" ")}
+        >
           !
         </div>
 
@@ -1467,7 +1338,7 @@ function ConfirmModal({
         onCancel={onClose}
         onSubmit={onConfirm}
         submitText={confirmText}
-        danger
+        danger={danger}
       />
 
     </ModalShell>
@@ -1520,7 +1391,7 @@ function ModalShell({
 
         </div>
 
-        {/* SCROLLABLE BODY */}
+        {/* BODY */}
 
         <div className="min-h-0 flex-1 overflow-y-auto p-5">
           {children}
@@ -1559,11 +1430,7 @@ function ModalActions({
       </button>
 
       <button
-        type={
-          onSubmit
-            ? "button"
-            : "submit"
-        }
+        type={onSubmit ? "button" : "submit"}
         onClick={onSubmit}
         className={[
           "rounded-xl px-4 py-2.5 text-xs font-bold text-white transition",

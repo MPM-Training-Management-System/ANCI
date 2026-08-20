@@ -7,66 +7,29 @@ import {
   type SetStateAction,
 } from "react";
 
+import {
+  DataTable,
+  StatCard,
+  StatGrid,
+} from "@repo/ui/index";
+
+import {
+  columns,
+  type Assessment,
+  type AssessmentStatus,
+  type AssessmentType,
+  type Criterion,
+  type Question,
+} from "./column"
+
 /* ==========================================================
-   TYPES
+   TRAINING OPTIONS
 ========================================================== */
-
-type AssessmentType =
-  | "Written Exam"
-  | "Practical Assessment";
-
-type AssessmentStatus =
-  | "Draft"
-  | "Published";
 
 type TrainingOption = {
   name: string;
   code: string;
 };
-
-type Question = {
-  id: string;
-  question: string;
-  choices: string[];
-  correctAnswer: string;
-  points: number;
-};
-
-type Criterion = {
-  id: string;
-  name: string;
-  description: string;
-  maxScore: number;
-};
-
-type Assessment = {
-  id: string;
-
-  title: string;
-  description: string;
-
-  training: string;
-  trainingCode: string;
-
-  type: AssessmentType;
-  status: AssessmentStatus;
-
-  passingScore: number;
-  duration: number;
-  attemptsAllowed: number;
-
-  instructions: string;
-
-  questions: Question[];
-  criteria: Criterion[];
-
-  createdAt: string;
-  updatedAt: string;
-};
-
-/* ==========================================================
-   MOCK DATA
-========================================================== */
 
 const trainingOptions: TrainingOption[] = [
   {
@@ -82,6 +45,10 @@ const trainingOptions: TrainingOption[] = [
     code: "EIM-NCII",
   },
 ];
+
+/* ==========================================================
+   MOCK DATA
+========================================================== */
 
 const initialAssessments: Assessment[] = [
   {
@@ -108,6 +75,7 @@ const initialAssessments: Assessment[] = [
     questions: [
       {
         id: "Q-001",
+
         question:
           "What is the main function of RAM?",
 
@@ -126,6 +94,7 @@ const initialAssessments: Assessment[] = [
 
       {
         id: "Q-002",
+
         question:
           "Which component is responsible for processing instructions?",
 
@@ -143,6 +112,7 @@ const initialAssessments: Assessment[] = [
 
       {
         id: "Q-003",
+
         question:
           "Which device is primarily used for permanent data storage?",
 
@@ -322,12 +292,7 @@ const emptyAssessment = {
 const emptyQuestion = {
   question: "",
 
-  choices: [
-    "",
-    "",
-    "",
-    "",
-  ],
+  choices: ["", "", "", ""],
 
   correctAnswer: "",
 
@@ -360,11 +325,6 @@ export default function TrainerAssessmentsPage() {
   ] = useState<Assessment[]>(
     initialAssessments,
   );
-
-  const [
-    search,
-    setSearch,
-  ] = useState("");
 
   const [
     statusFilter,
@@ -441,14 +401,9 @@ export default function TrainerAssessmentsPage() {
 
   const filteredAssessments =
     useMemo(() => {
-      const query =
-        search.toLowerCase().trim();
-
       return trainingAssessments
         .filter((assessment) => {
-          if (
-            statusFilter === "All"
-          ) {
+          if (statusFilter === "All") {
             return true;
           }
 
@@ -457,11 +412,8 @@ export default function TrainerAssessmentsPage() {
             statusFilter
           );
         })
-
         .filter((assessment) => {
-          if (
-            typeFilter === "All"
-          ) {
+          if (typeFilter === "All") {
             return true;
           }
 
@@ -470,22 +422,6 @@ export default function TrainerAssessmentsPage() {
             typeFilter
           );
         })
-
-        .filter((assessment) => {
-          if (!query) {
-            return true;
-          }
-
-          return (
-            assessment.title
-              .toLowerCase()
-              .includes(query) ||
-            assessment.description
-              .toLowerCase()
-              .includes(query)
-          );
-        })
-
         .sort((a, b) =>
           a.title.localeCompare(
             b.title,
@@ -497,7 +433,6 @@ export default function TrainerAssessmentsPage() {
         );
     }, [
       trainingAssessments,
-      search,
       statusFilter,
       typeFilter,
     ]);
@@ -867,12 +802,10 @@ export default function TrainerAssessmentsPage() {
   }
 
   /* ========================================================
-     CLEAR FILTERS
+     RESET FILTERS
   ======================================================== */
 
   function clearFilters() {
-    setSearch("");
-
     setStatusFilter("All");
 
     setTypeFilter("All");
@@ -892,9 +825,7 @@ export default function TrainerAssessmentsPage() {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
 
         <div>
-
           <div className="mb-2 flex items-center gap-2 text-xs text-gray-400">
-
             <span>Trainer</span>
 
             <span>/</span>
@@ -902,7 +833,6 @@ export default function TrainerAssessmentsPage() {
             <span className="font-medium text-gray-600">
               Assessments
             </span>
-
           </div>
 
           <h1 className="text-2xl font-bold tracking-tight text-[#17191c] sm:text-3xl">
@@ -914,7 +844,6 @@ export default function TrainerAssessmentsPage() {
             and practical assessments for
             your assigned training programs.
           </p>
-
         </div>
 
         <button
@@ -930,7 +859,6 @@ export default function TrainerAssessmentsPage() {
 
           Create Assessment
         </button>
-
       </div>
 
       {/* ==================================================
@@ -944,7 +872,6 @@ export default function TrainerAssessmentsPage() {
         </div>
 
         <div>
-
           <p className="text-sm font-semibold text-blue-900">
             Trainer-created assessments
           </p>
@@ -955,7 +882,6 @@ export default function TrainerAssessmentsPage() {
             assessments that can be manually
             graded by the trainer.
           </p>
-
         </div>
 
       </div>
@@ -979,11 +905,7 @@ export default function TrainerAssessmentsPage() {
                 event.target.value,
               );
 
-              setSearch("");
-
-              setStatusFilter(
-                "All",
-              );
+              setStatusFilter("All");
 
               setTypeFilter("All");
             }}
@@ -1006,538 +928,190 @@ export default function TrainerAssessmentsPage() {
       </section>
 
       {/* ==================================================
-          SUMMARY
+          STATISTICS
       ================================================== */}
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <StatGrid>
 
-        <SummaryCard
-          label="Total"
+        <StatCard
+          title="Total Assessments"
+          description="All assessments"
           value={
             trainingAssessments.length
           }
         />
 
-        <SummaryCard
-          label="Published"
+        <StatCard
+          title="Published"
+          description="Available to participants"
           value={publishedCount}
-          type="success"
+          variant="success"
         />
 
-        <SummaryCard
-          label="Draft"
+        <StatCard
+          title="Draft"
+          description="Still being prepared"
           value={draftCount}
-          type="warning"
+          variant="warning"
         />
 
-        <SummaryCard
-          label="Written / Practical"
+        <StatCard
+          title="Written / Practical"
+          description="Assessment types"
           value={`${writtenCount} / ${practicalCount}`}
-          type="info"
         />
 
-      </div>
+      </StatGrid>
 
       {/* ==================================================
-          TABLE
+          FILTER STATUS
       ================================================== */}
 
-      <section className="overflow-hidden rounded-2xl border border-[#e7e9ec] bg-white">
+      {(statusFilter !== "All" ||
+        typeFilter !== "All") && (
+        <div className="flex items-center gap-2">
 
-        {/* TABLE TOOLBAR */}
+          <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[9px] font-semibold text-gray-500">
+            {filteredAssessments.length}{" "}
+            result
+            {filteredAssessments.length !==
+            1
+              ? "s"
+              : ""}
+          </span>
 
-        <div className="border-b border-[#eef0f2] p-5">
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="text-[10px] font-semibold text-gray-500 underline underline-offset-2 transition hover:text-gray-800"
+          >
+            Clear filters
+          </button>
 
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        </div>
+      )}
 
-            <div>
+      {/* ==================================================
+          DATA TABLE
+      ================================================== */}
 
-              <h2 className="text-sm font-bold">
-                Assessment List
-              </h2>
+      <DataTable
+        title="Assessment List"
+        description={`Assessments created for ${selectedTraining}.`}
+        columns={columns}
+        data={filteredAssessments}
+        searchable
+        searchPlaceholder="Search assessment..."
+        showPagination
+        emptyTitle="No assessments found"
+        emptyDescription="Try changing your filters or create a new assessment."
+        meta={{
+          onContent:
+            openContent,
 
-              <p className="mt-1 text-xs text-gray-500">
-                Assessments created for{" "}
-                {selectedTraining}.
-              </p>
+          onPreview:
+            openPreview,
 
-            </div>
+          onSettings:
+            openSettings,
 
-            <div className="flex w-full flex-col gap-2 md:flex-row xl:w-auto">
+          onTogglePublish:
+            togglePublish,
 
-              {/* SEARCH */}
+          onDelete:
+            openDelete,
+        }}
+        toolbar={
+          <div className="flex flex-wrap gap-2">
 
-              <div className="relative w-full md:w-64">
+            {/* TYPE FILTER */}
 
-                <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-gray-400">
-                  ⌕
-                </span>
+            <select
+              value={typeFilter}
+              onChange={(event) =>
+                setTypeFilter(
+                  event.target
+                    .value as
+                    | "All"
+                    | AssessmentType,
+                )
+              }
+              className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none transition focus:border-gray-300 focus:bg-white"
+            >
+              <option value="All">
+                All Types
+              </option>
 
-                <input
-                  value={search}
-                  onChange={(event) =>
-                    setSearch(
-                      event.target.value,
-                    )
-                  }
-                  placeholder="Search assessment..."
-                  className="h-10 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] pl-9 pr-9 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
-                />
+              <option value="Written Exam">
+                Written Exam
+              </option>
 
-                {search && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setSearch("")
-                    }
-                    className="absolute right-2.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-xs text-gray-400 transition hover:bg-gray-200 hover:text-gray-700"
-                  >
-                    ×
-                  </button>
-                )}
+              <option value="Practical Assessment">
+                Practical Assessment
+              </option>
+            </select>
 
-              </div>
+            {/* STATUS FILTER */}
 
-              {/* TYPE */}
+            <select
+              value={statusFilter}
+              onChange={(event) =>
+                setStatusFilter(
+                  event.target
+                    .value as
+                    | "All"
+                    | AssessmentStatus,
+                )
+              }
+              className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none transition focus:border-gray-300 focus:bg-white"
+            >
+              <option value="All">
+                All Status
+              </option>
 
-              <select
-                value={typeFilter}
-                onChange={(event) =>
-                  setTypeFilter(
-                    event.target.value as
-                      | "All"
-                      | AssessmentType,
-                  )
-                }
-                className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none transition focus:border-gray-300 focus:bg-white"
-              >
-                <option value="All">
-                  All Types
-                </option>
+              <option value="Published">
+                Published
+              </option>
 
-                <option value="Written Exam">
-                  Written Exam
-                </option>
-
-                <option value="Practical Assessment">
-                  Practical Assessment
-                </option>
-              </select>
-
-              {/* STATUS */}
-
-              <select
-                value={statusFilter}
-                onChange={(event) =>
-                  setStatusFilter(
-                    event.target.value as
-                      | "All"
-                      | AssessmentStatus,
-                  )
-                }
-                className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none transition focus:border-gray-300 focus:bg-white"
-              >
-                <option value="All">
-                  All Status
-                </option>
-
-                <option value="Published">
-                  Published
-                </option>
-
-                <option value="Draft">
-                  Draft
-                </option>
-              </select>
-
-            </div>
+              <option value="Draft">
+                Draft
+              </option>
+            </select>
 
           </div>
-
-          {(search ||
-            statusFilter !==
-              "All" ||
-            typeFilter !==
-              "All") && (
-            <div className="mt-4 flex items-center gap-2">
-
-              <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[9px] font-semibold text-gray-500">
-                {
-                  filteredAssessments.length
-                }{" "}
-                result
-                {filteredAssessments.length !==
-                1
-                  ? "s"
-                  : ""}
-              </span>
-
-              <button
-                type="button"
-                onClick={
-                  clearFilters
-                }
-                className="text-[10px] font-semibold text-gray-500 underline underline-offset-2 transition hover:text-gray-800"
-              >
-                Clear filters
-              </button>
-
-            </div>
-          )}
-
-        </div>
-
-        {/* TABLE */}
-
-        <div className="overflow-x-auto">
-
-          <table className="w-full min-w-[1180px]">
-
-            <thead>
-
-              <tr className="border-b border-[#eef0f2] bg-[#fafbfc]">
-
-                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Assessment
-                </th>
-
-                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Type
-                </th>
-
-                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Content
-                </th>
-
-                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Passing
-                </th>
-
-                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Duration
-                </th>
-
-                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Status
-                </th>
-
-                <th className="px-5 py-3 text-right text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Actions
-                </th>
-
-              </tr>
-
-            </thead>
-
-            <tbody className="divide-y divide-[#eef0f2]">
-
-              {filteredAssessments.map(
-                (assessment) => {
-                  const contentCount =
-                    assessment.type ===
-                    "Written Exam"
-                      ? assessment
-                          .questions
-                          .length
-                      : assessment
-                          .criteria
-                          .length;
-
-                  const contentLabel =
-                    assessment.type ===
-                    "Written Exam"
-                      ? "questions"
-                      : "criteria";
-
-                  return (
-                    <tr
-                      key={
-                        assessment.id
-                      }
-                      className="transition hover:bg-[#fafbfc]"
-                    >
-
-                      {/* ASSESSMENT */}
-
-                      <td className="px-5 py-4">
-
-                        <div className="flex items-center gap-3">
-
-                          <div
-                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold ${
-                              assessment.type ===
-                              "Written Exam"
-                                ? "bg-violet-50 text-violet-700"
-                                : "bg-emerald-50 text-emerald-700"
-                            }`}
-                          >
-                            {assessment.type ===
-                            "Written Exam"
-                              ? "Q"
-                              : "P"}
-                          </div>
-
-                          <div className="max-w-[330px]">
-
-                            <p className="truncate text-xs font-semibold">
-                              {
-                                assessment.title
-                              }
-                            </p>
-
-                            <p className="mt-1 truncate text-[10px] text-gray-400">
-                              {
-                                assessment.id
-                              }{" "}
-                              ·{" "}
-                              {
-                                assessment.trainingCode
-                              }
-                            </p>
-
-                          </div>
-
-                        </div>
-
-                      </td>
-
-                      {/* TYPE */}
-
-                      <td className="px-5 py-4">
-
-                        <span
-                          className={`inline-flex rounded-lg px-2.5 py-1.5 text-[9px] font-bold ${
-                            assessment.type ===
-                            "Written Exam"
-                              ? "bg-violet-50 text-violet-700"
-                              : "bg-emerald-50 text-emerald-700"
-                          }`}
-                        >
-                          {
-                            assessment.type
-                          }
-                        </span>
-
-                      </td>
-
-                      {/* CONTENT */}
-
-                      <td className="px-5 py-4">
-
-                        <p className="text-sm font-bold">
-                          {
-                            contentCount
-                          }
-                        </p>
-
-                        <p className="mt-1 text-[9px] text-gray-400">
-                          {
-                            contentLabel
-                          }
-                        </p>
-
-                      </td>
-
-                      {/* PASSING */}
-
-                      <td className="px-5 py-4">
-
-                        <span className="text-sm font-bold">
-                          {
-                            assessment.passingScore
-                          }
-                          %
-                        </span>
-
-                      </td>
-
-                      {/* DURATION */}
-
-                      <td className="px-5 py-4">
-
-                        <span className="text-xs text-gray-600">
-                          {
-                            assessment.duration
-                          }{" "}
-                          min
-                        </span>
-
-                      </td>
-
-                      {/* STATUS */}
-
-                      <td className="px-5 py-4">
-
-                        <span
-                          className={`inline-flex rounded-full border px-2.5 py-1 text-[9px] font-bold ${
-                            assessment.status ===
-                            "Published"
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                              : "border-amber-200 bg-amber-50 text-amber-700"
-                          }`}
-                        >
-                          {
-                            assessment.status
-                          }
-                        </span>
-
-                      </td>
-
-                      {/* ACTIONS */}
-
-                      <td className="px-5 py-4">
-
-                        <div className="flex justify-end gap-1.5">
-
-                          {/* CONTENT */}
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              openContent(
-                                assessment,
-                              )
-                            }
-                            className="rounded-lg bg-[#191c1e] px-3 py-2 text-[10px] font-semibold text-white transition hover:opacity-90"
-                          >
-                            Content
-                          </button>
-
-                          {/* PREVIEW */}
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              openPreview(
-                                assessment,
-                              )
-                            }
-                            className="rounded-lg border border-[#e7e9ec] px-3 py-2 text-[10px] font-semibold text-gray-600 transition hover:bg-gray-50"
-                          >
-                            Preview
-                          </button>
-
-                          {/* SETTINGS */}
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              openSettings(
-                                assessment,
-                              )
-                            }
-                            className="rounded-lg border border-[#e7e9ec] px-3 py-2 text-[10px] font-semibold text-gray-600 transition hover:bg-gray-50"
-                          >
-                            Settings
-                          </button>
-
-                          {/* PUBLISH */}
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              togglePublish(
-                                assessment,
-                              )
-                            }
-                            className={`rounded-lg px-3 py-2 text-[10px] font-semibold transition ${
-                              assessment.status ===
-                              "Published"
-                                ? "bg-amber-50 text-amber-700 hover:bg-amber-100"
-                                : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                            }`}
-                          >
-                            {assessment.status ===
-                            "Published"
-                              ? "Unpublish"
-                              : "Publish"}
-                          </button>
-
-                          {/* DELETE */}
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              openDelete(
-                                assessment,
-                              )
-                            }
-                            className="rounded-lg bg-red-50 px-3 py-2 text-[10px] font-semibold text-red-600 transition hover:bg-red-100"
-                          >
-                            Delete
-                          </button>
-
-                        </div>
-
-                      </td>
-
-                    </tr>
-                  );
-                },
-              )}
-
-            </tbody>
-
-          </table>
-
-        </div>
-
-        {filteredAssessments.length ===
-          0 && (
-          <EmptyState />
-        )}
-
-        {/* FOOTER */}
-
-        <div className="flex flex-col gap-2 border-t border-[#eef0f2] bg-[#fafbfc] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-
-          <p className="text-[10px] text-gray-400">
-            Assessments are sorted
-            alphabetically by title.
-          </p>
-
-          <p className="text-[10px] font-medium text-gray-500">
-            {
-              filteredAssessments.length
-            }{" "}
-            displayed
-          </p>
-
-        </div>
-
-      </section>
+        }
+      />
 
       {/* ==================================================
           SETTINGS MODAL
       ================================================== */}
 
-      {showAssessmentModal &&
-        (
-          <AssessmentSettingsModal
-            editing={
-              editingAssessment
-            }
-            form={assessmentForm}
-            setForm={
-              setAssessmentForm
-            }
-            onClose={() => {
-              setShowAssessmentModal(
-                false,
-              );
+      {showAssessmentModal && (
+        <AssessmentSettingsModal
+          editing={
+            editingAssessment
+          }
+          form={assessmentForm}
+          setForm={
+            setAssessmentForm
+          }
+          onClose={() => {
+            setShowAssessmentModal(
+              false,
+            );
 
-              setEditingAssessment(
-                null,
-              );
-            }}
-            onSave={
-              saveAssessment
-            }
-          />
-        )}
+            setEditingAssessment(
+              null,
+            );
+          }}
+          onSave={
+            saveAssessment
+          }
+        />
+      )}
 
       {/* ==================================================
-          CONTENT BUILDER
+          CONTENT BUILDER MODAL
       ================================================== */}
 
       {showBuilderModal &&
@@ -1562,7 +1136,7 @@ export default function TrainerAssessmentsPage() {
         )}
 
       {/* ==================================================
-          PREVIEW
+          PREVIEW MODAL
       ================================================== */}
 
       {showPreviewModal &&
@@ -1584,7 +1158,7 @@ export default function TrainerAssessmentsPage() {
         )}
 
       {/* ==================================================
-          DELETE
+          DELETE MODAL
       ================================================== */}
 
       {showDeleteModal &&
@@ -1649,7 +1223,6 @@ function AssessmentSettingsModal({
         }
       }}
     >
-
       <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
 
         {/* HEADER */}
@@ -1657,7 +1230,6 @@ function AssessmentSettingsModal({
         <div className="flex shrink-0 items-start justify-between border-b border-[#eef0f2] px-6 py-5">
 
           <div>
-
             <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
               Assessment Settings
             </p>
@@ -1672,7 +1244,6 @@ function AssessmentSettingsModal({
               Configure the basic information
               and rules for the assessment.
             </p>
-
           </div>
 
           <button
@@ -1694,7 +1265,6 @@ function AssessmentSettingsModal({
             {/* TITLE */}
 
             <div>
-
               <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
                 Assessment Title
               </label>
@@ -1707,21 +1277,18 @@ function AssessmentSettingsModal({
                       ...current,
 
                       title:
-                        event.target
-                          .value,
+                        event.target.value,
                     }),
                   )
                 }
                 placeholder="e.g. Computer Hardware Fundamentals"
                 className="h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
               />
-
             </div>
 
             {/* DESCRIPTION */}
 
             <div>
-
               <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
                 Description
               </label>
@@ -1745,7 +1312,6 @@ function AssessmentSettingsModal({
                 placeholder="Describe the assessment..."
                 className="w-full resize-none rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 py-3 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
               />
-
             </div>
 
             {/* TYPE + STATUS */}
@@ -1753,7 +1319,6 @@ function AssessmentSettingsModal({
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 
               <div>
-
                 <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
                   Assessment Type
                 </label>
@@ -1773,7 +1338,6 @@ function AssessmentSettingsModal({
                   }
                   className="h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
                 >
-
                   <option value="Written Exam">
                     Written Exam
                   </option>
@@ -1781,13 +1345,10 @@ function AssessmentSettingsModal({
                   <option value="Practical Assessment">
                     Practical Assessment
                   </option>
-
                 </select>
-
               </div>
 
               <div>
-
                 <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
                   Status
                 </label>
@@ -1807,7 +1368,6 @@ function AssessmentSettingsModal({
                   }
                   className="h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
                 >
-
                   <option value="Draft">
                     Draft
                   </option>
@@ -1815,9 +1375,7 @@ function AssessmentSettingsModal({
                   <option value="Published">
                     Published
                   </option>
-
                 </select>
-
               </div>
 
             </div>
@@ -1829,7 +1387,6 @@ function AssessmentSettingsModal({
               {/* PASSING */}
 
               <div>
-
                 <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
                   Passing Score
                 </label>
@@ -1864,13 +1421,11 @@ function AssessmentSettingsModal({
                   </span>
 
                 </div>
-
               </div>
 
               {/* DURATION */}
 
               <div>
-
                 <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
                   Duration
                 </label>
@@ -1904,13 +1459,11 @@ function AssessmentSettingsModal({
                   </span>
 
                 </div>
-
               </div>
 
               {/* ATTEMPTS */}
 
               <div>
-
                 <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
                   Attempts
                 </label>
@@ -1936,7 +1489,6 @@ function AssessmentSettingsModal({
                   }
                   className="h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
                 />
-
               </div>
 
             </div>
@@ -1944,7 +1496,6 @@ function AssessmentSettingsModal({
             {/* INSTRUCTIONS */}
 
             <div>
-
               <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
                 Instructions
               </label>
@@ -1968,7 +1519,6 @@ function AssessmentSettingsModal({
                 placeholder="Instructions for participants..."
                 className="w-full resize-none rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 py-3 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
               />
-
             </div>
 
             {/* INFO */}
@@ -1990,7 +1540,6 @@ function AssessmentSettingsModal({
             </div>
 
           </div>
-
         </div>
 
         {/* FOOTER */}
@@ -2018,7 +1567,6 @@ function AssessmentSettingsModal({
         </div>
 
       </div>
-
     </div>
   );
 }
@@ -2089,12 +1637,7 @@ function AssessmentContentModal({
     setQuestionForm({
       ...emptyQuestion,
 
-      choices: [
-        "",
-        "",
-        "",
-        "",
-      ],
+      choices: ["", "", "", ""],
     });
 
     setShowQuestionForm(true);
@@ -2251,12 +1794,7 @@ function AssessmentContentModal({
     setQuestionForm({
       ...emptyQuestion,
 
-      choices: [
-        "",
-        "",
-        "",
-        "",
-      ],
+      choices: ["", "", "", ""],
     });
   }
 
@@ -2479,9 +2017,7 @@ function AssessmentContentModal({
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
 
-          {/* =================================================
-              WRITTEN EXAM
-          ================================================= */}
+          {/* WRITTEN EXAM */}
 
           {current.type ===
             "Written Exam" && (
@@ -2639,9 +2175,7 @@ function AssessmentContentModal({
             </div>
           )}
 
-          {/* =================================================
-              PRACTICAL ASSESSMENT
-          ================================================= */}
+          {/* PRACTICAL */}
 
           {current.type ===
             "Practical Assessment" && (
@@ -2786,12 +2320,10 @@ function AssessmentContentModal({
         <div className="flex shrink-0 flex-col gap-3 border-t border-[#eef0f2] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
 
           <div className="text-[10px] text-gray-400">
-
             {current.type ===
             "Written Exam"
               ? `${current.questions.length} questions · ${totalQuestionPoints} points`
               : `${current.criteria.length} criteria · ${totalCriteriaPoints} points`}
-
           </div>
 
           <div className="flex gap-3">
@@ -2822,9 +2354,7 @@ function AssessmentContentModal({
 
       </div>
 
-      {/* ==================================================
-          QUESTION FORM
-      ================================================== */}
+      {/* QUESTION FORM */}
 
       {showQuestionForm && (
         <QuestionForm
@@ -2844,9 +2374,7 @@ function AssessmentContentModal({
         />
       )}
 
-      {/* ==================================================
-          CRITERION FORM
-      ================================================== */}
+      {/* CRITERION FORM */}
 
       {showCriterionForm && (
         <CriterionForm
@@ -2934,8 +2462,6 @@ function QuestionForm({
 
       <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
 
-        {/* HEADER */}
-
         <div className="flex shrink-0 items-start justify-between border-b border-[#eef0f2] px-6 py-5">
 
           <div>
@@ -2966,8 +2492,6 @@ function QuestionForm({
           </button>
 
         </div>
-
-        {/* BODY */}
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
 
@@ -3030,7 +2554,7 @@ function QuestionForm({
                       key={index}
                       className={`flex items-center gap-3 rounded-xl border p-2 transition ${
                         form.correctAnswer ===
-                        choice &&
+                          choice &&
                         choice.trim()
                           ? "border-emerald-200 bg-emerald-50/50"
                           : "border-transparent"
@@ -3125,8 +2649,6 @@ function QuestionForm({
 
         </div>
 
-        {/* FOOTER */}
-
         <div className="flex shrink-0 justify-end gap-3 border-t border-[#eef0f2] px-6 py-4">
 
           <button
@@ -3150,7 +2672,6 @@ function QuestionForm({
         </div>
 
       </div>
-
     </div>
   );
 }
@@ -3185,8 +2706,6 @@ function CriterionForm({
 
       <div className="flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
 
-        {/* HEADER */}
-
         <div className="flex shrink-0 items-start justify-between border-b border-[#eef0f2] px-6 py-5">
 
           <div>
@@ -3217,8 +2736,6 @@ function CriterionForm({
           </button>
 
         </div>
-
-        {/* BODY */}
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
 
@@ -3317,8 +2834,6 @@ function CriterionForm({
 
         </div>
 
-        {/* FOOTER */}
-
         <div className="flex shrink-0 justify-end gap-3 border-t border-[#eef0f2] px-6 py-4">
 
           <button
@@ -3342,13 +2857,12 @@ function CriterionForm({
         </div>
 
       </div>
-
     </div>
   );
 }
 
 /* ==========================================================
-   PREVIEW
+   PREVIEW MODAL
 ========================================================== */
 
 function PreviewModal({
@@ -3377,8 +2891,6 @@ function PreviewModal({
     >
 
       <div className="flex max-h-[94vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-
-        {/* HEADER */}
 
         <div className="flex shrink-0 items-start justify-between border-b border-[#eef0f2] px-6 py-5">
 
@@ -3417,8 +2929,6 @@ function PreviewModal({
           </button>
 
         </div>
-
-        {/* BODY */}
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
 
@@ -3564,7 +3074,6 @@ function PreviewModal({
 
             </div>
           ) : (
-            /* PRACTICAL */
             <div className="space-y-3">
 
               {assessment.criteria
@@ -3635,8 +3144,6 @@ function PreviewModal({
 
         </div>
 
-        {/* FOOTER */}
-
         <div className="flex shrink-0 justify-end border-t border-[#eef0f2] px-6 py-4">
 
           <button
@@ -3650,7 +3157,6 @@ function PreviewModal({
         </div>
 
       </div>
-
     </div>
   );
 }
@@ -3760,82 +3266,6 @@ function DeleteModal({
         </div>
 
       </div>
-
-    </div>
-  );
-}
-
-/* ==========================================================
-   SUMMARY CARD
-========================================================== */
-
-function SummaryCard({
-  label,
-  value,
-  type,
-}: {
-  label: string;
-
-  value: string | number;
-
-  type?:
-    | "success"
-    | "warning"
-    | "info";
-}) {
-  const styles = {
-    success:
-      "text-emerald-700",
-
-    warning:
-      "text-amber-700",
-
-    info:
-      "text-blue-700",
-  };
-
-  return (
-    <div className="rounded-2xl border border-[#e7e9ec] bg-white p-4">
-
-      <p className="text-[11px] font-medium text-gray-500">
-        {label}
-      </p>
-
-      <p
-        className={`mt-2 text-2xl font-bold ${
-          type
-            ? styles[type]
-            : "text-[#191c1e]"
-        }`}
-      >
-        {value}
-      </p>
-
-    </div>
-  );
-}
-
-/* ==========================================================
-   EMPTY STATE
-========================================================== */
-
-function EmptyState() {
-  return (
-    <div className="px-6 py-16 text-center">
-
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-lg text-gray-400">
-        ?
-      </div>
-
-      <h3 className="mt-4 text-sm font-bold">
-        No assessments found
-      </h3>
-
-      <p className="mt-1 text-xs text-gray-500">
-        Try changing your search or
-        filters.
-      </p>
-
     </div>
   );
 }

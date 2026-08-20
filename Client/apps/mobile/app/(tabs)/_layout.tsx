@@ -1,4 +1,5 @@
 import React from "react";
+
 import {
   GestureResponderEvent,
   Pressable,
@@ -6,7 +7,9 @@ import {
   Text,
   View,
 } from "react-native";
+
 import { Tabs } from "expo-router";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 type AttendanceButtonProps = {
@@ -28,7 +31,8 @@ function AttendanceButton({
   onLongPress,
   accessibilityState,
 }: AttendanceButtonProps) {
-  const focused = accessibilityState?.selected;
+  const focused =
+    accessibilityState?.selected;
 
   return (
     <Pressable
@@ -39,7 +43,8 @@ function AttendanceButton({
       <View
         style={[
           styles.attendanceButton,
-          focused && styles.attendanceButtonActive,
+          focused &&
+            styles.attendanceButtonActive,
         ]}
       >
         <Ionicons
@@ -52,7 +57,8 @@ function AttendanceButton({
       <Text
         style={[
           styles.attendanceLabel,
-          focused && styles.attendanceLabelActive,
+          focused &&
+            styles.attendanceLabelActive,
         ]}
       >
         Attend
@@ -68,6 +74,7 @@ export default function ParticipantTabsLayout() {
         headerShown: false,
 
         tabBarActiveTintColor: "#2563EB",
+
         tabBarInactiveTintColor: "#94A3B8",
 
         tabBarStyle: styles.tabBar,
@@ -82,7 +89,7 @@ export default function ParticipantTabsLayout() {
         },
       }}
     >
-      {/* HOME */}
+   
 
       <Tabs.Screen
         name="index"
@@ -107,7 +114,9 @@ export default function ParticipantTabsLayout() {
         }}
       />
 
-      {/* TRAINING */}
+      {/* =====================================================
+          TRAINING
+      ===================================================== */}
 
       <Tabs.Screen
         name="training"
@@ -132,20 +141,24 @@ export default function ParticipantTabsLayout() {
         }}
       />
 
-      {/* ATTENDANCE */}
+      {/* =====================================================
+          ATTENDANCE
+      ===================================================== */}
 
       <Tabs.Screen
-        name="attendance"
+        name="QR"
         options={{
-          title: "",
+          title: "QR",
 
           tabBarButton: (props) => (
             <AttendanceButton
               onPress={
-                props.onPress ?? undefined
+                props.onPress ??
+                undefined
               }
               onLongPress={
-                props.onLongPress ?? undefined
+                props.onLongPress ??
+                undefined
               }
               accessibilityState={
                 props.accessibilityState
@@ -155,32 +168,31 @@ export default function ParticipantTabsLayout() {
         }}
       />
 
-      {/* CERTIFICATE */}
-
-      <Tabs.Screen
-        name="certificate"
-        options={{
-          title: "Certificate",
-
-          tabBarIcon: ({
-            color,
-            size,
-            focused,
-          }) => (
-            <Ionicons
-              name={
-                focused
-                  ? "ribbon"
-                  : "ribbon-outline"
-              }
-              size={size}
-              color={color}
-            />
-          ),
-        }}
+     <Tabs.Screen
+  name="learning"
+  options={{
+    title: "Learn",
+    tabBarIcon: ({
+      color,
+      size,
+      focused,
+    }) => (
+      <Ionicons
+        name={
+          focused
+            ? "book"
+            : "book-outline"
+        }
+        size={size}
+        color={color}
       />
+    ),
+  }}
+/>
 
-      {/* PROFILE */}
+      {/* =====================================================
+          PROFILE
+      ===================================================== */}
 
       <Tabs.Screen
         name="profile"
@@ -223,6 +235,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
 
     borderWidth: 1,
+
     borderColor: "#E2E8F0",
 
     elevation: 8,
@@ -239,6 +252,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
 
     paddingTop: 5,
+
     paddingBottom: 7,
 
     overflow: "visible",
@@ -246,6 +260,7 @@ const styles = StyleSheet.create({
 
   attendanceWrapper: {
     width: 82,
+
     height: 82,
 
     alignItems: "center",
@@ -255,6 +270,7 @@ const styles = StyleSheet.create({
 
   attendanceButton: {
     width: 62,
+
     height: 62,
 
     borderRadius: 31,
@@ -262,9 +278,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#2563EB",
 
     alignItems: "center",
+
     justifyContent: "center",
 
     borderWidth: 5,
+
     borderColor: "#FFFFFF",
 
     elevation: 10,
