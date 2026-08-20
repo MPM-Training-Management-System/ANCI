@@ -1,39 +1,51 @@
-using server.Data;
+using server.DTOs.Auth;
+using server.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace ACE.NextGen.Api.Controllers;
 
 [ApiController]
-[Route("api/users")]
-public class UsersController : ControllerBase
+[Route("api/auth")]
+public class AuthController : ControllerBase
 {
-    private readonly ApplicationDbContext _db;
+    private readonly IAuthService _authService;
 
-    public UsersController(ApplicationDbContext db)
+    public AuthController(
+        IAuthService authService)
     {
-        _db = db;
+        _authService = authService;
     }
 
-    [HttpGet]
-    public async Task<IActionResult> GetUsers()
+    [HttpPost("register")]
+    public async Task<IActionResult> Register(
+        [FromBody] RegisterRequest request)
     {
-        var users = await _db.Users
-            .AsNoTracking()
-            .Select(x => new
-            {
-                x.Id,
-                x.UserCode,
-                x.FullName,
-                x.Email,
-                x.Role,
-                x.Status,
-                x.IsEmailVerified,
-                x.CreatedAt,
-                x.UpdatedAt
-            })
-            .ToListAsync();
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(
+                ModelState
+            );
+        }
 
-        return Ok(users);
+        try
+        {
+            var result =
+                await _authService
+                    .RegisterParticipantAsync(
+                        request
+                    );
+
+            return StatusCode(
+                StatusCodes.Status201Created,
+                result
+            );
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new
+            {
+                message = ex.Message
+            });
+        }
     }
 }
