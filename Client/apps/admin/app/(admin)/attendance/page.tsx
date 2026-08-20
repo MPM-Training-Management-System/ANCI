@@ -1,330 +1,480 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import {
+  useMemo,
+  useState,
+} from "react";
 
-type SubmissionStatus =
-  | "Draft"
-  | "Submitted"
-  | "Verified"
-  | "Returned";
+import {
+  DataTable,
+  StatCard,
+  StatGrid,
+  Button,
+} from "@repo/ui/index";
 
-type AttendanceStatus =
-  | "Present"
-  | "Late"
-  | "Absent"
-  | "Excused";
+import {
+  columns,
+  type AttendanceRecord,
+  type AttendanceStatus,
+  type AttendanceSubmission,
+  type SubmissionStatus,
+} from "./column";
 
-type AttendanceMethod = "QR" | "Manual";
 
-type AttendanceRecord = {
-  id: string;
-  participantId: string;
-  participantName: string;
-  timeIn: string;
-  timeOut: string;
-  status: AttendanceStatus;
-  method: AttendanceMethod;
-  remarks: string;
-};
+// ============================================================
+// MOCK DATA
+// ============================================================
 
-type AttendanceSubmission = {
-  id: string;
-  trainingId: string;
-  trainingName: string;
-  sessionId: string;
-  sessionName: string;
-  date: string;
+const mockSubmissions:
+  AttendanceSubmission[] = [
+    {
+      id: "AS-001",
 
-  trainerId: string;
-  trainerName: string;
+      trainingId: "TRN-001",
 
-  submittedAt: string | null;
-  submittedBy: string | null;
+      trainingName:
+        "Computer Systems Servicing NC II",
 
-  status: SubmissionStatus;
-  remarks: string;
+      sessionId: "SES-001",
 
-  records: AttendanceRecord[];
-};
+      sessionName:
+        "Session 1 - Hardware Fundamentals",
 
-/* =========================================================
-   MOCK DATA
-========================================================= */
+      date: "2026-08-16",
 
-const mockSubmissions: AttendanceSubmission[] = [
-  {
-    id: "AS-001",
-    trainingId: "TRN-001",
-    trainingName: "Computer Systems Servicing NC II",
-    sessionId: "SES-001",
-    sessionName: "Session 1 - Hardware Fundamentals",
-    date: "2026-08-16",
+      trainerId: "TR-001",
 
-    trainerId: "TR-001",
-    trainerName: "Maria Santos",
+      trainerName:
+        "Maria Santos",
 
-    submittedAt: "2026-08-16T16:45:00",
-    submittedBy: "Maria Santos",
+      submittedAt:
+        "2026-08-16T16:45:00",
 
-    status: "Submitted",
-    remarks: "Regular attendance submission.",
+      submittedBy:
+        "Maria Santos",
 
-    records: [
-      {
-        id: "ATT-001",
-        participantId: "PT-001",
-        participantName: "Juan Dela Cruz",
-        timeIn: "07:52 AM",
-        timeOut: "04:30 PM",
-        status: "Present",
-        method: "QR",
-        remarks: "Complete attendance",
-      },
-      {
-        id: "ATT-002",
-        participantId: "PT-002",
-        participantName: "Maria Garcia",
-        timeIn: "08:17 AM",
-        timeOut: "04:30 PM",
-        status: "Late",
-        method: "QR",
-        remarks: "Arrived 17 minutes late",
-      },
-      {
-        id: "ATT-003",
-        participantId: "PT-003",
-        participantName: "Pedro Reyes",
-        timeIn: "--",
-        timeOut: "--",
-        status: "Absent",
-        method: "Manual",
-        remarks: "No attendance recorded",
-      },
-      {
-        id: "ATT-004",
-        participantId: "PT-004",
-        participantName: "Ana Mendoza",
-        timeIn: "07:48 AM",
-        timeOut: "04:25 PM",
-        status: "Present",
-        method: "QR",
-        remarks: "Complete attendance",
-      },
-      {
-        id: "ATT-005",
-        participantId: "PT-005",
-        participantName: "Mark Villanueva",
-        timeIn: "07:55 AM",
-        timeOut: "04:20 PM",
-        status: "Present",
-        method: "QR",
-        remarks: "Complete attendance",
-      },
-    ],
-  },
+      status: "Submitted",
 
-  {
-    id: "AS-002",
-    trainingId: "TRN-001",
-    trainingName: "Computer Systems Servicing NC II",
-    sessionId: "SES-002",
-    sessionName: "Session 2 - Operating Systems",
-    date: "2026-08-17",
+      remarks:
+        "Regular attendance submission.",
 
-    trainerId: "TR-001",
-    trainerName: "Maria Santos",
+      records: [
+        {
+          id: "ATT-001",
 
-    submittedAt: "2026-08-17T16:52:00",
-    submittedBy: "Maria Santos",
+          participantId:
+            "PT-001",
 
-    status: "Verified",
-    remarks: "Attendance verified by Admin.",
+          participantName:
+            "Juan Dela Cruz",
 
-    records: [
-      {
-        id: "ATT-006",
-        participantId: "PT-001",
-        participantName: "Juan Dela Cruz",
-        timeIn: "07:50 AM",
-        timeOut: "04:30 PM",
-        status: "Present",
-        method: "QR",
-        remarks: "",
-      },
-      {
-        id: "ATT-007",
-        participantId: "PT-002",
-        participantName: "Maria Garcia",
-        timeIn: "08:12 AM",
-        timeOut: "04:30 PM",
-        status: "Late",
-        method: "QR",
-        remarks: "Late arrival",
-      },
-      {
-        id: "ATT-008",
-        participantId: "PT-003",
-        participantName: "Pedro Reyes",
-        timeIn: "--",
-        timeOut: "--",
-        status: "Absent",
-        method: "Manual",
-        remarks: "",
-      },
-      {
-        id: "ATT-009",
-        participantId: "PT-004",
-        participantName: "Ana Mendoza",
-        timeIn: "07:49 AM",
-        timeOut: "04:30 PM",
-        status: "Present",
-        method: "QR",
-        remarks: "",
-      },
-      {
-        id: "ATT-010",
-        participantId: "PT-005",
-        participantName: "Mark Villanueva",
-        timeIn: "07:53 AM",
-        timeOut: "04:30 PM",
-        status: "Present",
-        method: "QR",
-        remarks: "",
-      },
-    ],
-  },
+          timeIn: "07:52 AM",
 
-  {
-    id: "AS-003",
-    trainingId: "TRN-002",
-    trainingName: "Web Development Fundamentals",
-    sessionId: "SES-003",
-    sessionName: "Session 3 - React Fundamentals",
-    date: "2026-08-17",
+          timeOut: "04:30 PM",
 
-    trainerId: "TR-002",
-    trainerName: "John Cruz",
+          status: "Present",
 
-    submittedAt: null,
-    submittedBy: null,
+          method: "QR",
 
-    status: "Draft",
-    remarks: "Trainer has not submitted attendance yet.",
+          remarks:
+            "Complete attendance",
+        },
 
-    records: [
-      {
-        id: "ATT-011",
-        participantId: "PT-006",
-        participantName: "Sofia Ramos",
-        timeIn: "08:21 AM",
-        timeOut: "04:30 PM",
-        status: "Late",
-        method: "QR",
-        remarks: "Arrived late",
-      },
-      {
-        id: "ATT-012",
-        participantId: "PT-007",
-        participantName: "Daniel Flores",
-        timeIn: "07:55 AM",
-        timeOut: "04:30 PM",
-        status: "Present",
-        method: "QR",
-        remarks: "",
-      },
-    ],
-  },
+        {
+          id: "ATT-002",
 
-  {
-    id: "AS-004",
-    trainingId: "TRN-002",
-    trainingName: "Web Development Fundamentals",
-    sessionId: "SES-004",
-    sessionName: "Session 4 - Next.js Fundamentals",
-    date: "2026-08-18",
+          participantId:
+            "PT-002",
 
-    trainerId: "TR-002",
-    trainerName: "John Cruz",
+          participantName:
+            "Maria Garcia",
 
-    submittedAt: null,
-    submittedBy: null,
+          timeIn: "08:17 AM",
 
-    status: "Draft",
-    remarks: "Attendance is still being prepared.",
+          timeOut: "04:30 PM",
 
-    records: [
-      {
-        id: "ATT-013",
-        participantId: "PT-006",
-        participantName: "Sofia Ramos",
-        timeIn: "07:50 AM",
-        timeOut: "--",
-        status: "Present",
-        method: "QR",
-        remarks: "",
-      },
-      {
-        id: "ATT-014",
-        participantId: "PT-007",
-        participantName: "Daniel Flores",
-        timeIn: "--",
-        timeOut: "--",
-        status: "Absent",
-        method: "Manual",
-        remarks: "No attendance recorded",
-      },
-    ],
-  },
-];
+          status: "Late",
 
-/* =========================================================
-   STATUS STYLES
-========================================================= */
+          method: "QR",
 
-const submissionStatusStyles: Record<
-  SubmissionStatus,
-  string
-> = {
-  Draft:
-    "border-gray-200 bg-gray-50 text-gray-600",
+          remarks:
+            "Arrived 17 minutes late",
+        },
 
-  Submitted:
-    "border-blue-200 bg-blue-50 text-blue-700",
+        {
+          id: "ATT-003",
 
-  Verified:
-    "border-emerald-200 bg-emerald-50 text-emerald-700",
+          participantId:
+            "PT-003",
 
-  Returned:
-    "border-red-200 bg-red-50 text-red-700",
-};
+          participantName:
+            "Pedro Reyes",
 
-const attendanceStatusStyles: Record<
-  AttendanceStatus,
-  string
-> = {
-  Present:
-    "border-emerald-200 bg-emerald-50 text-emerald-700",
+          timeIn: "--",
 
-  Late:
-    "border-amber-200 bg-amber-50 text-amber-700",
+          timeOut: "--",
 
-  Absent:
-    "border-red-200 bg-red-50 text-red-700",
+          status: "Absent",
 
-  Excused:
-    "border-blue-200 bg-blue-50 text-blue-700",
-};
+          method: "Manual",
 
-/* =========================================================
-   PAGE
-========================================================= */
+          remarks:
+            "No attendance recorded",
+        },
+
+        {
+          id: "ATT-004",
+
+          participantId:
+            "PT-004",
+
+          participantName:
+            "Ana Mendoza",
+
+          timeIn: "07:48 AM",
+
+          timeOut: "04:25 PM",
+
+          status: "Present",
+
+          method: "QR",
+
+          remarks:
+            "Complete attendance",
+        },
+
+        {
+          id: "ATT-005",
+
+          participantId:
+            "PT-005",
+
+          participantName:
+            "Mark Villanueva",
+
+          timeIn: "07:55 AM",
+
+          timeOut: "04:20 PM",
+
+          status: "Present",
+
+          method: "QR",
+
+          remarks:
+            "Complete attendance",
+        },
+      ],
+    },
+
+    {
+      id: "AS-002",
+
+      trainingId: "TRN-001",
+
+      trainingName:
+        "Computer Systems Servicing NC II",
+
+      sessionId: "SES-002",
+
+      sessionName:
+        "Session 2 - Operating Systems",
+
+      date: "2026-08-17",
+
+      trainerId: "TR-001",
+
+      trainerName:
+        "Maria Santos",
+
+      submittedAt:
+        "2026-08-17T16:52:00",
+
+      submittedBy:
+        "Maria Santos",
+
+      status: "Verified",
+
+      remarks:
+        "Attendance verified by Admin.",
+
+      records: [
+        {
+          id: "ATT-006",
+
+          participantId:
+            "PT-001",
+
+          participantName:
+            "Juan Dela Cruz",
+
+          timeIn: "07:50 AM",
+
+          timeOut: "04:30 PM",
+
+          status: "Present",
+
+          method: "QR",
+
+          remarks: "",
+        },
+
+        {
+          id: "ATT-007",
+
+          participantId:
+            "PT-002",
+
+          participantName:
+            "Maria Garcia",
+
+          timeIn: "08:12 AM",
+
+          timeOut: "04:30 PM",
+
+          status: "Late",
+
+          method: "QR",
+
+          remarks:
+            "Late arrival",
+        },
+
+        {
+          id: "ATT-008",
+
+          participantId:
+            "PT-003",
+
+          participantName:
+            "Pedro Reyes",
+
+          timeIn: "--",
+
+          timeOut: "--",
+
+          status: "Absent",
+
+          method: "Manual",
+
+          remarks: "",
+        },
+
+        {
+          id: "ATT-009",
+
+          participantId:
+            "PT-004",
+
+          participantName:
+            "Ana Mendoza",
+
+          timeIn: "07:49 AM",
+
+          timeOut: "04:30 PM",
+
+          status: "Present",
+
+          method: "QR",
+
+          remarks: "",
+        },
+
+        {
+          id: "ATT-010",
+
+          participantId:
+            "PT-005",
+
+          participantName:
+            "Mark Villanueva",
+
+          timeIn: "07:53 AM",
+
+          timeOut: "04:30 PM",
+
+          status: "Present",
+
+          method: "QR",
+
+          remarks: "",
+        },
+      ],
+    },
+
+    {
+      id: "AS-003",
+
+      trainingId: "TRN-002",
+
+      trainingName:
+        "Web Development Fundamentals",
+
+      sessionId: "SES-003",
+
+      sessionName:
+        "Session 3 - React Fundamentals",
+
+      date: "2026-08-17",
+
+      trainerId: "TR-002",
+
+      trainerName:
+        "John Cruz",
+
+      submittedAt: null,
+
+      submittedBy: null,
+
+      status: "Draft",
+
+      remarks:
+        "Trainer has not submitted attendance yet.",
+
+      records: [
+        {
+          id: "ATT-011",
+
+          participantId:
+            "PT-006",
+
+          participantName:
+            "Sofia Ramos",
+
+          timeIn: "08:21 AM",
+
+          timeOut: "04:30 PM",
+
+          status: "Late",
+
+          method: "QR",
+
+          remarks:
+            "Arrived late",
+        },
+
+        {
+          id: "ATT-012",
+
+          participantId:
+            "PT-007",
+
+          participantName:
+            "Daniel Flores",
+
+          timeIn: "07:55 AM",
+
+          timeOut: "04:30 PM",
+
+          status: "Present",
+
+          method: "QR",
+
+          remarks: "",
+        },
+      ],
+    },
+
+    {
+      id: "AS-004",
+
+      trainingId: "TRN-002",
+
+      trainingName:
+        "Web Development Fundamentals",
+
+      sessionId: "SES-004",
+
+      sessionName:
+        "Session 4 - Next.js Fundamentals",
+
+      date: "2026-08-18",
+
+      trainerId: "TR-002",
+
+      trainerName:
+        "John Cruz",
+
+      submittedAt: null,
+
+      submittedBy: null,
+
+      status: "Draft",
+
+      remarks:
+        "Attendance is still being prepared.",
+
+      records: [
+        {
+          id: "ATT-013",
+
+          participantId:
+            "PT-006",
+
+          participantName:
+            "Sofia Ramos",
+
+          timeIn: "07:50 AM",
+
+          timeOut: "--",
+
+          status: "Present",
+
+          method: "QR",
+
+          remarks: "",
+        },
+
+        {
+          id: "ATT-014",
+
+          participantId:
+            "PT-007",
+
+          participantName:
+            "Daniel Flores",
+
+          timeIn: "--",
+
+          timeOut: "--",
+
+          status: "Absent",
+
+          method: "Manual",
+
+          remarks:
+            "No attendance recorded",
+        },
+      ],
+    },
+  ];
+
+
+// ============================================================
+// PAGE
+// ============================================================
 
 export default function AttendanceManagementPage() {
-  const [search, setSearch] = useState("");
 
-  const [fromDate, setFromDate] = useState("");
+  const [
+    submissions,
+    setSubmissions,
+  ] = useState<
+    AttendanceSubmission[]
+  >(mockSubmissions);
 
-  const [toDate, setToDate] = useState("");
+
+  // ==========================================================
+  // FILTER STATE
+  // ==========================================================
+
+  const [search, setSearch] =
+    useState("");
+
+  const [fromDate, setFromDate] =
+    useState("");
+
+  const [toDate, setToDate] =
+    useState("");
 
   const [trainingFilter, setTrainingFilter] =
     useState("All");
@@ -333,1385 +483,1470 @@ export default function AttendanceManagementPage() {
     useState("All");
 
   const [statusFilter, setStatusFilter] =
-    useState<"All" | SubmissionStatus>("All");
+    useState<
+      "All" | SubmissionStatus
+    >("All");
 
-  const [selectedSubmission, setSelectedSubmission] =
-    useState<AttendanceSubmission | null>(null);
 
-  const [showDetails, setShowDetails] =
-    useState(false);
+  // ==========================================================
+  // MODAL STATE
+  // ==========================================================
 
-  const [showReturnModal, setShowReturnModal] =
-    useState(false);
+  const [
+    selectedSubmission,
+    setSelectedSubmission,
+  ] =
+    useState<AttendanceSubmission | null>(
+      null,
+    );
 
-  const [returnRemarks, setReturnRemarks] =
-    useState("");
+  const [
+    showDetails,
+    setShowDetails,
+  ] = useState(false);
 
-  /* =========================================================
-     FILTER OPTIONS
-  ========================================================= */
+  const [
+    showReturnModal,
+    setShowReturnModal,
+  ] = useState(false);
 
-  const trainings = useMemo(() => {
-    return [
-      "All",
-      ...Array.from(
-        new Set(
-          mockSubmissions.map(
-            (item) => item.trainingName
-          )
-        )
-      ),
-    ];
-  }, []);
+  const [
+    returnRemarks,
+    setReturnRemarks,
+  ] = useState("");
 
-  const trainers = useMemo(() => {
-    return [
-      "All",
-      ...Array.from(
-        new Set(
-          mockSubmissions.map(
-            (item) => item.trainerName
-          )
-        )
-      ),
-    ];
-  }, []);
 
-  /* =========================================================
-     SUMMARY
-  ========================================================= */
+  // ==========================================================
+  // FILTER OPTIONS
+  // ==========================================================
+
+  const trainings =
+    useMemo(
+      () => [
+        "All",
+        ...Array.from(
+          new Set(
+            submissions.map(
+              (item) =>
+                item.trainingName,
+            ),
+          ),
+        ),
+      ],
+      [submissions],
+    );
+
+
+  const trainers =
+    useMemo(
+      () => [
+        "All",
+        ...Array.from(
+          new Set(
+            submissions.map(
+              (item) =>
+                item.trainerName,
+            ),
+          ),
+        ),
+      ],
+      [submissions],
+    );
+
+
+  // ==========================================================
+  // STATISTICS
+  // ==========================================================
 
   const totalSubmissions =
-    mockSubmissions.length;
+    submissions.length;
 
   const submittedCount =
-    mockSubmissions.filter(
-      (item) => item.status === "Submitted"
+    submissions.filter(
+      (item) =>
+        item.status ===
+        "Submitted",
     ).length;
 
   const verifiedCount =
-    mockSubmissions.filter(
-      (item) => item.status === "Verified"
+    submissions.filter(
+      (item) =>
+        item.status ===
+        "Verified",
     ).length;
 
   const draftCount =
-    mockSubmissions.filter(
-      (item) => item.status === "Draft"
+    submissions.filter(
+      (item) =>
+        item.status ===
+        "Draft",
     ).length;
 
   const returnedCount =
-    mockSubmissions.filter(
-      (item) => item.status === "Returned"
+    submissions.filter(
+      (item) =>
+        item.status ===
+        "Returned",
     ).length;
 
-  /* =========================================================
-     FILTER SUBMISSIONS
-  ========================================================= */
 
-  const filteredSubmissions = useMemo(() => {
-    return mockSubmissions
-      .filter((submission) => {
-        const searchValue =
-          search.toLowerCase();
+  // ==========================================================
+  // FILTER DATA
+  // ==========================================================
 
-        const matchesSearch =
-          submission.trainingName
-            .toLowerCase()
-            .includes(searchValue) ||
-          submission.trainerName
-            .toLowerCase()
-            .includes(searchValue) ||
-          submission.sessionName
-            .toLowerCase()
-            .includes(searchValue) ||
-          submission.id
-            .toLowerCase()
-            .includes(searchValue);
+  const filteredSubmissions =
+    useMemo(() => {
 
-        const matchesTraining =
-          trainingFilter === "All" ||
-          submission.trainingName ===
-            trainingFilter;
+      const query =
+        search
+          .trim()
+          .toLowerCase();
 
-        const matchesTrainer =
-          trainerFilter === "All" ||
-          submission.trainerName ===
-            trainerFilter;
+      return submissions
+        .filter(
+          (submission) => {
 
-        const matchesStatus =
-          statusFilter === "All" ||
-          submission.status === statusFilter;
+            const matchesSearch =
+              !query ||
+              submission.trainingName
+                .toLowerCase()
+                .includes(query) ||
+              submission.trainerName
+                .toLowerCase()
+                .includes(query) ||
+              submission.sessionName
+                .toLowerCase()
+                .includes(query) ||
+              submission.id
+                .toLowerCase()
+                .includes(query);
 
-        const matchesFromDate =
-          !fromDate ||
-          submission.date >= fromDate;
+            const matchesTraining =
+              trainingFilter ===
+                "All" ||
+              submission.trainingName ===
+                trainingFilter;
 
-        const matchesToDate =
-          !toDate ||
-          submission.date <= toDate;
+            const matchesTrainer =
+              trainerFilter ===
+                "All" ||
+              submission.trainerName ===
+                trainerFilter;
 
-        return (
-          matchesSearch &&
-          matchesTraining &&
-          matchesTrainer &&
-          matchesStatus &&
-          matchesFromDate &&
-          matchesToDate
+            const matchesStatus =
+              statusFilter ===
+                "All" ||
+              submission.status ===
+                statusFilter;
+
+            const matchesFrom =
+              !fromDate ||
+              submission.date >=
+                fromDate;
+
+            const matchesTo =
+              !toDate ||
+              submission.date <=
+                toDate;
+
+            return (
+              matchesSearch &&
+              matchesTraining &&
+              matchesTrainer &&
+              matchesStatus &&
+              matchesFrom &&
+              matchesTo
+            );
+          },
+        )
+        .sort(
+          (a, b) =>
+            b.date.localeCompare(
+              a.date,
+            ),
         );
-      })
-      .sort((a, b) =>
-        b.date.localeCompare(a.date)
-      );
-  }, [
-    search,
-    fromDate,
-    toDate,
-    trainingFilter,
-    trainerFilter,
-    statusFilter,
-  ]);
 
-  /* =========================================================
-     OPEN DETAILS
-  ========================================================= */
+    }, [
+      submissions,
+      search,
+      fromDate,
+      toDate,
+      trainingFilter,
+      trainerFilter,
+      statusFilter,
+    ]);
 
-  function openDetails(
-    submission: AttendanceSubmission
+
+  // ==========================================================
+  // VIEW
+  // ==========================================================
+
+  function handleView(
+    submission: AttendanceSubmission,
   ) {
-    setSelectedSubmission(submission);
+    setSelectedSubmission(
+      submission,
+    );
+
     setShowDetails(true);
   }
 
-  /* =========================================================
-     VERIFY
-  ========================================================= */
 
-  function verifySubmission() {
-    if (!selectedSubmission) return;
+  // ==========================================================
+  // VERIFY
+  // ==========================================================
 
-    alert(
-      `Attendance ${selectedSubmission.id} has been verified by Admin.`
+  function handleVerify(
+    submission: AttendanceSubmission,
+  ) {
+
+    setSubmissions(
+      (current) =>
+        current.map(
+          (item) =>
+            item.id ===
+            submission.id
+              ? {
+                  ...item,
+                  status:
+                    "Verified",
+                  remarks:
+                    "Attendance verified by Admin.",
+                }
+              : item,
+        ),
     );
 
-    setShowDetails(false);
+    setSelectedSubmission(
+      (current) =>
+        current &&
+        current.id ===
+          submission.id
+          ? {
+              ...current,
+              status:
+                "Verified",
+              remarks:
+                "Attendance verified by Admin.",
+            }
+          : current,
+    );
+
+    alert(
+      `Attendance ${submission.id} has been verified by Admin.`,
+    );
   }
 
-  /* =========================================================
-     RETURN
-  ========================================================= */
 
-  function openReturnModal() {
+  // ==========================================================
+  // RETURN
+  // ==========================================================
+
+  function handleReturn(
+    submission: AttendanceSubmission,
+  ) {
+
+    setSelectedSubmission(
+      submission,
+    );
+
     setReturnRemarks("");
+
     setShowReturnModal(true);
   }
 
-  function returnSubmission() {
-    if (!returnRemarks.trim()) {
-      alert("Please enter a reason.");
+
+  function confirmReturn() {
+
+    if (
+      !selectedSubmission
+    ) {
       return;
     }
 
-    alert(
-      `Attendance ${selectedSubmission?.id} returned to trainer.\n\nReason: ${returnRemarks}`
+    if (
+      !returnRemarks.trim()
+    ) {
+      alert(
+        "Please enter a reason for returning the attendance.",
+      );
+
+      return;
+    }
+
+    const updatedRemarks =
+      returnRemarks.trim();
+
+    setSubmissions(
+      (current) =>
+        current.map(
+          (item) =>
+            item.id ===
+            selectedSubmission.id
+              ? {
+                  ...item,
+                  status:
+                    "Returned",
+                  remarks:
+                    updatedRemarks,
+                }
+              : item,
+        ),
+    );
+
+    setSelectedSubmission(
+      (current) =>
+        current &&
+        current.id ===
+          selectedSubmission.id
+          ? {
+              ...current,
+              status:
+                "Returned",
+              remarks:
+                updatedRemarks,
+            }
+          : current,
     );
 
     setShowReturnModal(false);
-    setShowDetails(false);
+
+    alert(
+      `Attendance ${selectedSubmission.id} has been returned to ${selectedSubmission.trainerName}.`,
+    );
   }
 
-  /* =========================================================
-     RESET FILTERS
-  ========================================================= */
+
+  // ==========================================================
+  // EXPORT
+  // ==========================================================
+
+  function handleExport() {
+
+    const rows =
+      filteredSubmissions
+        .map(
+          (submission) =>
+            [
+              submission.id,
+              submission.date,
+              submission.trainingName,
+              submission.sessionName,
+              submission.trainerName,
+              submission.records.length,
+              submission.status,
+            ]
+              .map(
+                (value) =>
+                  `"${String(
+                    value,
+                  ).replace(
+                    /"/g,
+                    '""',
+                  )}"`,
+              )
+              .join(","),
+        )
+        .join("\n");
+
+    const csv = [
+      "Submission ID,Date,Training,Session,Trainer,Participants,Status",
+      rows,
+    ].join("\n");
+
+    const blob =
+      new Blob(
+        [csv],
+        {
+          type: "text/csv;charset=utf-8;",
+        },
+      );
+
+    const url =
+      URL.createObjectURL(
+        blob,
+      );
+
+    const link =
+      document.createElement(
+        "a",
+      );
+
+    link.href = url;
+
+    link.download =
+      "attendance-submissions.csv";
+
+    link.click();
+
+    URL.revokeObjectURL(
+      url,
+    );
+  }
+
+
+  // ==========================================================
+  // RESET
+  // ==========================================================
 
   function resetFilters() {
+
     setSearch("");
+
     setFromDate("");
+
     setToDate("");
-    setTrainingFilter("All");
-    setTrainerFilter("All");
-    setStatusFilter("All");
+
+    setTrainingFilter(
+      "All",
+    );
+
+    setTrainerFilter(
+      "All",
+    );
+
+    setStatusFilter(
+      "All",
+    );
   }
 
-  /* =========================================================
-     RENDER
-  ========================================================= */
+
+  // ==========================================================
+  // RENDER
+  // ==========================================================
 
   return (
-    <div >
+    <div className="space-y-6">
 
-      <div className="mx-auto  space-y-3 p-3">
+      {/* ====================================================
+          HEADER
+      ==================================================== */}
 
-        {/* =================================================
-            HEADER
-        ================================================= */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
 
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+
+          <div className="mb-2 flex items-center gap-2 text-xs text-gray-400">
+            <span>
+              Administration
+            </span>
+
+            <span>/</span>
+
+            <span className="font-medium text-gray-600">
+              Attendance
+            </span>
+          </div>
+
+          <h1 className="text-2xl font-bold tracking-tight text-[#17191c] sm:text-3xl">
+            Attendance Management
+          </h1>
+
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-500">
+            Monitor attendance submissions
+            from trainers, review participant
+            attendance, and verify submitted
+            attendance records.
+          </p>
+
+        </div>
+
+
+        <Button
+          variant="primary"
+          onClick={
+            handleExport
+          }
+        >
+          Export Attendance
+        </Button>
+
+      </div>
+
+
+      {/* ====================================================
+          STATS
+      ==================================================== */}
+
+      <StatGrid>
+
+        <StatCard
+          title="Total Submissions"
+          value={
+            totalSubmissions
+          }
+          description="Attendance sheets"
+        />
+
+        <StatCard
+          title="Submitted"
+          value={
+            submittedCount
+          }
+          description="Awaiting verification"
+        />
+
+        <StatCard
+          title="Verified"
+          value={
+            verifiedCount
+          }
+          description="Verified by Admin"
+        />
+
+        <StatCard
+          title="Draft"
+          value={
+            draftCount
+          }
+          description="Not yet submitted"
+        />
+
+        <StatCard
+          title="Returned"
+          value={
+            returnedCount
+          }
+          description="Needs correction"
+        />
+
+      </StatGrid>
+
+
+      {/* ====================================================
+          DATA TABLE
+      ==================================================== */}
+
+      <DataTable
+        title="Attendance Submissions"
+        description="Review and manage attendance submissions from trainers."
+        columns={
+          columns
+        }
+        data={
+          filteredSubmissions
+        }
+        searchable
+        searchPlaceholder="Training, trainer, session..."
+        showPagination
+        emptyTitle="No attendance submissions found"
+        emptyDescription="Try changing your filters or date range."
+        meta={{
+          onView:
+            handleView,
+
+          onVerify:
+            handleVerify,
+
+          onReturn:
+            handleReturn,
+        }}
+        toolbar={
+
+          <div className="flex flex-wrap items-center gap-2">
+
+            {/* =================================================
+                FROM DATE
+            ================================================= */}
+
+            <input
+              type="date"
+              value={
+                fromDate
+              }
+              onChange={(
+                event,
+              ) =>
+                setFromDate(
+                  event.target
+                    .value,
+                )
+              }
+              className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none focus:bg-white"
+            />
+
+
+            {/* =================================================
+                TO DATE
+            ================================================= */}
+
+            <input
+              type="date"
+              value={
+                toDate
+              }
+              onChange={(
+                event,
+              ) =>
+                setToDate(
+                  event.target
+                    .value,
+                )
+              }
+              className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none focus:bg-white"
+            />
+
+
+            {/* =================================================
+                TRAINING
+            ================================================= */}
+
+            <select
+              value={
+                trainingFilter
+              }
+              onChange={(
+                event,
+              ) =>
+                setTrainingFilter(
+                  event.target
+                    .value,
+                )
+              }
+              className="h-10 max-w-[220px] rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none focus:bg-white"
+            >
+
+              {trainings.map(
+                (
+                  training,
+                ) => (
+                  <option
+                    key={
+                      training
+                    }
+                    value={
+                      training
+                    }
+                  >
+                    {training ===
+                    "All"
+                      ? "All Trainings"
+                      : training}
+                  </option>
+                ),
+              )}
+
+            </select>
+
+
+            {/* =================================================
+                TRAINER
+            ================================================= */}
+
+            <select
+              value={
+                trainerFilter
+              }
+              onChange={(
+                event,
+              ) =>
+                setTrainerFilter(
+                  event.target
+                    .value,
+                )
+              }
+              className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none focus:bg-white"
+            >
+
+              {trainers.map(
+                (
+                  trainer,
+                ) => (
+                  <option
+                    key={
+                      trainer
+                    }
+                    value={
+                      trainer
+                    }
+                  >
+                    {trainer ===
+                    "All"
+                      ? "All Trainers"
+                      : trainer}
+                  </option>
+                ),
+              )}
+
+            </select>
+
+
+            {/* =================================================
+                STATUS
+            ================================================= */}
+
+            <select
+              value={
+                statusFilter
+              }
+              onChange={(
+                event,
+              ) =>
+                setStatusFilter(
+                  event.target
+                    .value as
+                    | "All"
+                    | SubmissionStatus,
+                )
+              }
+              className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none focus:bg-white"
+            >
+
+              <option value="All">
+                All Status
+              </option>
+
+              <option value="Draft">
+                Draft
+              </option>
+
+              <option value="Submitted">
+                Submitted
+              </option>
+
+              <option value="Verified">
+                Verified
+              </option>
+
+              <option value="Returned">
+                Returned
+              </option>
+
+            </select>
+
+
+            {/* =================================================
+                CLEAR
+            ================================================= */}
+
+            <button
+              type="button"
+              onClick={
+                resetFilters
+              }
+              className="h-10 rounded-xl border border-[#e7e9ec] bg-white px-3 text-xs font-semibold text-gray-600 transition hover:bg-gray-50"
+            >
+              Clear
+            </button>
+
+          </div>
+        }
+      />
+
+
+      {/* ====================================================
+          DETAILS MODAL
+      ==================================================== */}
+
+      {showDetails &&
+        selectedSubmission && (
+
+          <AttendanceDetailsModal
+            submission={
+              selectedSubmission
+            }
+            onClose={() =>
+              setShowDetails(
+                false,
+              )
+            }
+            onVerify={() =>
+              handleVerify(
+                selectedSubmission,
+              )
+            }
+            onReturn={() =>
+              handleReturn(
+                selectedSubmission,
+              )
+            }
+          />
+
+        )}
+
+
+      {/* ====================================================
+          RETURN MODAL
+      ==================================================== */}
+
+      {showReturnModal &&
+        selectedSubmission && (
+
+          <ReturnAttendanceModal
+            submission={
+              selectedSubmission
+            }
+            remarks={
+              returnRemarks
+            }
+            onRemarksChange={
+              setReturnRemarks
+            }
+            onClose={() =>
+              setShowReturnModal(
+                false,
+              )
+            }
+            onConfirm={
+              confirmReturn
+            }
+          />
+
+        )}
+
+    </div>
+  );
+}
+
+
+// ============================================================
+// DETAILS MODAL
+// ============================================================
+
+function AttendanceDetailsModal({
+  submission,
+  onClose,
+  onVerify,
+  onReturn,
+}: {
+  submission: AttendanceSubmission;
+
+  onClose: () => void;
+
+  onVerify: () => void;
+
+  onReturn: () => void;
+}) {
+
+  const present =
+    submission.records.filter(
+      (record) =>
+        record.status ===
+        "Present",
+    ).length;
+
+  const late =
+    submission.records.filter(
+      (record) =>
+        record.status ===
+        "Late",
+    ).length;
+
+  const absent =
+    submission.records.filter(
+      (record) =>
+        record.status ===
+        "Absent",
+    ).length;
+
+  const excused =
+    submission.records.filter(
+      (record) =>
+        record.status ===
+        "Excused",
+    ).length;
+
+
+  return (
+    <ModalOverlay
+      onClose={
+        onClose
+      }
+    >
+
+      <div className="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+
+        {/* HEADER */}
+
+        <div className="flex shrink-0 items-start justify-between border-b border-gray-200 px-6 py-5">
 
           <div>
 
-            <p className="text-sm font-medium text-gray-500">
-              Administration
-            </p>
+            <div className="flex flex-wrap items-center gap-3">
 
-            <h1 className="mt-1 text-3xl font-bold tracking-tight">
-              Attendance Management
-            </h1>
+              <h2 className="text-xl font-bold">
+                Attendance Submission
+              </h2>
 
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-500">
-              Monitor attendance submissions from trainers,
-              review participant attendance, and verify
-              submitted attendance records.
+              <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold">
+                {
+                  submission.status
+                }
+              </span>
+
+            </div>
+
+            <p className="mt-1 font-mono text-xs text-gray-400">
+              {submission.id}
             </p>
 
           </div>
 
           <button
-            onClick={() =>
-              alert(
-                "Mock export: Attendance report generated."
-              )
+            type="button"
+            onClick={
+              onClose
             }
-            className="rounded-xl bg-[#191c1e] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#303336]"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 text-xl text-gray-500 hover:bg-gray-200"
           >
-            Export Attendance
+            ×
           </button>
 
         </div>
 
-        {/* =================================================
-            SUMMARY
-        ================================================= */}
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {/* CONTENT */}
 
-          <SummaryCard
-            title="Total Submissions"
-            value={totalSubmissions}
-            description="Attendance sheets"
-            icon="▣"
-          />
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
 
-          <SummaryCard
-            title="Submitted"
-            value={submittedCount}
-            description="Awaiting verification"
-            icon="↗"
-          />
+          <div className="space-y-6">
 
-          <SummaryCard
-            title="Verified"
-            value={verifiedCount}
-            description="Verified by Admin"
-            icon="✓"
-          />
+            {/* INFO */}
 
-          <SummaryCard
-            title="Draft"
-            value={draftCount}
-            description="Not yet submitted"
-            icon="◷"
-          />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
 
-          <SummaryCard
-            title="Returned"
-            value={returnedCount}
-            description="Needs correction"
-            icon="!"
-          />
+              <InfoCard
+                title="Training"
+                value={
+                  submission.trainingName
+                }
+              />
+
+              <InfoCard
+                title="Session"
+                value={
+                  submission.sessionName
+                }
+              />
+
+              <InfoCard
+                title="Date"
+                value={formatDate(
+                  submission.date,
+                )}
+              />
+
+              <InfoCard
+                title="Trainer"
+                value={
+                  submission.trainerName
+                }
+              />
+
+              <InfoCard
+                title="Submitted At"
+                value={
+                  submission.submittedAt
+                    ? formatDateTime(
+                        submission.submittedAt,
+                      )
+                    : "Not submitted"
+                }
+              />
+
+              <InfoCard
+                title="Submitted By"
+                value={
+                  submission.submittedBy ??
+                  "—"
+                }
+              />
+
+              <InfoCard
+                title="Participants"
+                value={String(
+                  submission.records
+                    .length,
+                )}
+              />
+
+              <InfoCard
+                title="Remarks"
+                value={
+                  submission.remarks ||
+                  "No remarks"
+                }
+              />
+
+            </div>
+
+
+            {/* ATTENDANCE STATS */}
+
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+
+              <AttendanceStat
+                title="Present"
+                value={
+                  present
+                }
+                className="border-emerald-200 bg-emerald-50 text-emerald-700"
+              />
+
+              <AttendanceStat
+                title="Late"
+                value={
+                  late
+                }
+                className="border-amber-200 bg-amber-50 text-amber-700"
+              />
+
+              <AttendanceStat
+                title="Absent"
+                value={
+                  absent
+                }
+                className="border-red-200 bg-red-50 text-red-700"
+              />
+
+              <AttendanceStat
+                title="Excused"
+                value={
+                  excused
+                }
+                className="border-blue-200 bg-blue-50 text-blue-700"
+              />
+
+            </div>
+
+
+            {/* RECORDS */}
+
+            <div className="overflow-hidden rounded-2xl border border-gray-200">
+
+              <div className="border-b border-gray-200 px-5 py-4">
+
+                <h3 className="text-sm font-bold">
+                  Participant Attendance
+                </h3>
+
+                <p className="mt-1 text-xs text-gray-500">
+                  Complete attendance
+                  breakdown for this
+                  submission.
+                </p>
+
+              </div>
+
+
+              <div className="overflow-x-auto">
+
+                <table className="min-w-[900px] w-full">
+
+                  <thead className="bg-gray-50">
+
+                    <tr className="border-b border-gray-200">
+
+                      <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                        Participant
+                      </th>
+
+                      <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                        Time In
+                      </th>
+
+                      <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                        Time Out
+                      </th>
+
+                      <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                        Method
+                      </th>
+
+                      <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                        Status
+                      </th>
+
+                      <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                        Remarks
+                      </th>
+
+                    </tr>
+
+                  </thead>
+
+
+                  <tbody>
+
+                    {sortParticipants(
+                      submission.records,
+                    ).map(
+                      (
+                        record,
+                      ) => (
+
+                        <tr
+                          key={
+                            record.id
+                          }
+                          className="border-b border-gray-100 hover:bg-gray-50"
+                        >
+
+                          <td className="px-5 py-4">
+
+                            <div className="flex items-center gap-3">
+
+                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-[10px] font-bold">
+                                {getInitials(
+                                  record.participantName,
+                                )}
+                              </div>
+
+                              <div>
+
+                                <p className="text-xs font-semibold">
+                                  {
+                                    record.participantName
+                                  }
+                                </p>
+
+                                <p className="mt-0.5 text-[10px] text-gray-400">
+                                  {
+                                    record.participantId
+                                  }
+                                </p>
+
+                              </div>
+
+                            </div>
+
+                          </td>
+
+
+                          <td className="px-5 py-4 text-xs font-medium">
+                            {
+                              record.timeIn
+                            }
+                          </td>
+
+
+                          <td className="px-5 py-4 text-xs font-medium">
+                            {
+                              record.timeOut
+                            }
+                          </td>
+
+
+                          <td className="px-5 py-4">
+
+                            <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[10px] font-semibold text-gray-600">
+                              {
+                                record.method
+                              }
+                            </span>
+
+                          </td>
+
+
+                          <td className="px-5 py-4">
+
+                            <AttendanceBadge
+                              status={
+                                record.status
+                              }
+                            />
+
+                          </td>
+
+
+                          <td className="px-5 py-4 text-xs text-gray-500">
+                            {
+                              record.remarks ||
+                              "—"
+                            }
+                          </td>
+
+                        </tr>
+
+                      ),
+                    )}
+
+                  </tbody>
+
+                </table>
+
+              </div>
+
+            </div>
+
+          </div>
 
         </div>
 
-        {/* =================================================
-            FILTER CARD
-        ================================================= */}
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        {/* FOOTER */}
 
-          <div className="mb-5">
+        <div className="flex shrink-0 flex-col gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
 
-            <h2 className="text-lg font-semibold">
-              Attendance Submissions
-            </h2>
+          <button
+            type="button"
+            onClick={
+              onClose
+            }
+            className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+          >
+            Close
+          </button>
 
-            <p className="mt-1 text-sm text-gray-500">
-              Filter attendance submissions by date,
-              training, trainer, or submission status.
-            </p>
 
-          </div>
+          {submission.status ===
+            "Submitted" && (
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-
-            {/* Search */}
-
-            <div className="xl:col-span-2">
-
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Search
-              </label>
-
-              <input
-                type="text"
-                value={search}
-                onChange={(event) =>
-                  setSearch(event.target.value)
-                }
-                placeholder="Training, trainer, session..."
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition focus:border-gray-400 focus:bg-white"
-              />
-
-            </div>
-
-            {/* From */}
-
-            <div>
-
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">
-                From
-              </label>
-
-              <input
-                type="date"
-                value={fromDate}
-                onChange={(event) =>
-                  setFromDate(event.target.value)
-                }
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none"
-              />
-
-            </div>
-
-            {/* To */}
-
-            <div>
-
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">
-                To
-              </label>
-
-              <input
-                type="date"
-                value={toDate}
-                onChange={(event) =>
-                  setToDate(event.target.value)
-                }
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none"
-              />
-
-            </div>
-
-            {/* Training */}
-
-            <div>
-
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Training
-              </label>
-
-              <select
-                value={trainingFilter}
-                onChange={(event) =>
-                  setTrainingFilter(
-                    event.target.value
-                  )
-                }
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none"
-              >
-                {trainings.map((training) => (
-                  <option
-                    key={training}
-                    value={training}
-                  >
-                    {training === "All"
-                      ? "All Trainings"
-                      : training}
-                  </option>
-                ))}
-              </select>
-
-            </div>
-
-            {/* Trainer */}
-
-            <div>
-
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Trainer
-              </label>
-
-              <select
-                value={trainerFilter}
-                onChange={(event) =>
-                  setTrainerFilter(
-                    event.target.value
-                  )
-                }
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none"
-              >
-                {trainers.map((trainer) => (
-                  <option
-                    key={trainer}
-                    value={trainer}
-                  >
-                    {trainer === "All"
-                      ? "All Trainers"
-                      : trainer}
-                  </option>
-                ))}
-              </select>
-
-            </div>
-
-          </div>
-
-          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-
-            <div className="flex items-center gap-3">
-
-              <select
-                value={statusFilter}
-                onChange={(event) =>
-                  setStatusFilter(
-                    event.target.value as
-                      | "All"
-                      | SubmissionStatus
-                  )
-                }
-                className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none"
-              >
-
-                <option value="All">
-                  All Submission Status
-                </option>
-
-                <option value="Draft">
-                  Draft
-                </option>
-
-                <option value="Submitted">
-                  Submitted
-                </option>
-
-                <option value="Verified">
-                  Verified
-                </option>
-
-                <option value="Returned">
-                  Returned
-                </option>
-
-              </select>
+            <div className="flex gap-2">
 
               <button
-                onClick={resetFilters}
-                className="rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-600 transition hover:bg-gray-50"
+                type="button"
+                onClick={
+                  onReturn
+                }
+                className="rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-xs font-semibold text-red-600 hover:bg-red-100"
               >
-                Clear Filters
+                Return to Trainer
+              </button>
+
+              <button
+                type="button"
+                onClick={
+                  onVerify
+                }
+                className="rounded-xl bg-emerald-600 px-5 py-3 text-xs font-semibold text-white hover:bg-emerald-700"
+              >
+                Verify Attendance
               </button>
 
             </div>
 
-            <p className="text-sm text-gray-500">
-              Showing{" "}
-              <span className="font-semibold text-gray-800">
-                {filteredSubmissions.length}
-              </span>{" "}
-              submission
-              {filteredSubmissions.length !== 1
-                ? "s"
-                : ""}
-            </p>
+          )}
 
-          </div>
 
-        </div>
+          {submission.status ===
+            "Verified" && (
 
-        {/* =================================================
-            SUBMISSION TABLE
-        ================================================= */}
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-xs font-semibold text-emerald-700">
+              ✓ Attendance Verified
+            </div>
 
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+          )}
 
-          <div className="overflow-x-auto">
 
-            <table className="w-full min-w-[1100px] text-left">
+          {submission.status ===
+            "Draft" && (
 
-              <thead className="bg-gray-50">
+            <div className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-xs font-semibold text-gray-500">
+              Waiting for trainer submission
+            </div>
 
-                <tr className="border-b border-gray-200 text-xs uppercase tracking-wide text-gray-500">
-
-                  <th className="px-6 py-4 font-semibold">
-                    Date
-                  </th>
-
-                  <th className="px-6 py-4 font-semibold">
-                    Training
-                  </th>
-
-                  <th className="px-6 py-4 font-semibold">
-                    Trainer
-                  </th>
-
-                  <th className="px-6 py-4 font-semibold">
-                    Participants
-                  </th>
-
-                  <th className="px-6 py-4 font-semibold">
-                    Attendance
-                  </th>
-
-                  <th className="px-6 py-4 font-semibold">
-                    Submitted At
-                  </th>
-
-                  <th className="px-6 py-4 font-semibold">
-                    Status
-                  </th>
-
-                  <th className="px-6 py-4 text-right font-semibold">
-                    Action
-                  </th>
-
-                </tr>
-
-              </thead>
-
-              <tbody className="divide-y divide-gray-100">
-
-                {filteredSubmissions.map(
-                  (submission) => {
-
-                    const present =
-                      submission.records.filter(
-                        (item) =>
-                          item.status ===
-                          "Present"
-                      ).length;
-
-                    const late =
-                      submission.records.filter(
-                        (item) =>
-                          item.status ===
-                          "Late"
-                      ).length;
-
-                    const absent =
-                      submission.records.filter(
-                        (item) =>
-                          item.status ===
-                          "Absent"
-                      ).length;
-
-                    const excused =
-                      submission.records.filter(
-                        (item) =>
-                          item.status ===
-                          "Excused"
-                      ).length;
-
-                    return (
-                      <tr
-                        key={submission.id}
-                        className="transition hover:bg-gray-50"
-                      >
-
-                        {/* Date */}
-
-                        <td className="px-6 py-5">
-
-                          <p className="font-semibold">
-                            {formatDate(
-                              submission.date
-                            )}
-                          </p>
-
-                          <p className="mt-1 text-xs text-gray-400">
-                            {submission.id}
-                          </p>
-
-                        </td>
-
-                        {/* Training */}
-
-                        <td className="px-6 py-5">
-
-                          <p className="max-w-[260px] text-sm font-semibold">
-                            {submission.trainingName}
-                          </p>
-
-                          <p className="mt-1 text-xs text-gray-500">
-                            {submission.sessionName}
-                          </p>
-
-                        </td>
-
-                        {/* Trainer */}
-
-                        <td className="px-6 py-5">
-
-                          <div className="flex items-center gap-3">
-
-                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-50 text-xs font-bold text-purple-700">
-                              {getInitials(
-                                submission.trainerName
-                              )}
-                            </div>
-
-                            <div>
-
-                              <p className="text-sm font-semibold">
-                                {submission.trainerName}
-                              </p>
-
-                              <p className="text-xs text-gray-400">
-                                {submission.trainerId}
-                              </p>
-
-                            </div>
-
-                          </div>
-
-                        </td>
-
-                        {/* Participants */}
-
-                        <td className="px-6 py-5">
-
-                          <p className="text-sm font-semibold">
-                            {submission.records.length}
-                          </p>
-
-                          <p className="text-xs text-gray-500">
-                            enrolled participants
-                          </p>
-
-                        </td>
-
-                        {/* Attendance Summary */}
-
-                        <td className="px-6 py-5">
-
-                          <div className="flex flex-wrap gap-1.5">
-
-                            <AttendanceMini
-                              label="P"
-                              value={present}
-                              type="Present"
-                            />
-
-                            <AttendanceMini
-                              label="L"
-                              value={late}
-                              type="Late"
-                            />
-
-                            <AttendanceMini
-                              label="A"
-                              value={absent}
-                              type="Absent"
-                            />
-
-                            {excused > 0 && (
-                              <AttendanceMini
-                                label="E"
-                                value={excused}
-                                type="Excused"
-                              />
-                            )}
-
-                          </div>
-
-                        </td>
-
-                        {/* Submitted */}
-
-                        <td className="px-6 py-5">
-
-                          {submission.submittedAt ? (
-                            <>
-                              <p className="text-sm font-medium">
-                                {formatDateTime(
-                                  submission.submittedAt
-                                )}
-                              </p>
-
-                              <p className="mt-1 text-xs text-gray-400">
-                                by{" "}
-                                {
-                                  submission.submittedBy
-                                }
-                              </p>
-                            </>
-                          ) : (
-                            <span className="text-sm text-gray-400">
-                              Not submitted
-                            </span>
-                          )}
-
-                        </td>
-
-                        {/* Status */}
-
-                        <td className="px-6 py-5">
-
-                          <span
-                            className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${submissionStatusStyles[submission.status]}`}
-                          >
-                            {submission.status}
-                          </span>
-
-                        </td>
-
-                        {/* Action */}
-
-                        <td className="px-6 py-5">
-
-                          <div className="flex justify-end">
-
-                            <button
-                              onClick={() =>
-                                openDetails(
-                                  submission
-                                )
-                              }
-                              className="rounded-lg bg-[#191c1e] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#303336]"
-                            >
-                              View
-                            </button>
-
-                          </div>
-
-                        </td>
-
-                      </tr>
-                    );
-                  }
-                )}
-
-              </tbody>
-
-            </table>
-
-            {filteredSubmissions.length === 0 && (
-              <EmptyState />
-            )}
-
-          </div>
-
-          <div className="border-t border-gray-200 px-6 py-4">
-
-            <p className="text-sm text-gray-500">
-              Attendance submissions are submitted
-              by trainers and reviewed by Admin.
-            </p>
-
-          </div>
+          )}
 
         </div>
 
       </div>
 
-      {/* =================================================
-          DETAILS MODAL
-      ================================================= */}
-
-      {selectedSubmission &&
-        showDetails && (
-          <ModalOverlay
-            onClose={() =>
-              setShowDetails(false)
-            }
-          >
-
-            <div className="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-
-              {/* Header */}
-
-              <div className="shrink-0 border-b border-gray-200 px-6 py-5">
-
-                <div className="flex items-start justify-between gap-4">
-
-                  <div>
-
-                    <div className="flex items-center gap-3">
-
-                      <h2 className="text-xl font-bold">
-                        Attendance Submission
-                      </h2>
-
-                      <span
-                        className={`rounded-full border px-3 py-1 text-xs font-semibold ${submissionStatusStyles[selectedSubmission.status]}`}
-                      >
-                        {
-                          selectedSubmission.status
-                        }
-                      </span>
-
-                    </div>
-
-                    <p className="mt-1 text-sm text-gray-500">
-                      {
-                        selectedSubmission.id
-                      }
-                    </p>
-
-                  </div>
-
-                  <button
-                    onClick={() =>
-                      setShowDetails(false)
-                    }
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xl text-gray-500 transition hover:bg-gray-200"
-                  >
-                    ×
-                  </button>
-
-                </div>
-
-              </div>
-
-              {/* Content */}
-
-              <div className="overflow-y-auto p-6">
-
-                {/* Submission Information */}
-
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-
-                  <InfoItem
-                    label="Training"
-                    value={
-                      selectedSubmission.trainingName
-                    }
-                  />
-
-                  <InfoItem
-                    label="Session"
-                    value={
-                      selectedSubmission.sessionName
-                    }
-                  />
-
-                  <InfoItem
-                    label="Attendance Date"
-                    value={formatDate(
-                      selectedSubmission.date
-                    )}
-                  />
-
-                  <InfoItem
-                    label="Trainer"
-                    value={
-                      selectedSubmission.trainerName
-                    }
-                  />
-
-                  <InfoItem
-                    label="Submitted At"
-                    value={
-                      selectedSubmission.submittedAt
-                        ? formatDateTime(
-                            selectedSubmission.submittedAt
-                          )
-                        : "Not submitted"
-                    }
-                  />
-
-                  <InfoItem
-                    label="Submitted By"
-                    value={
-                      selectedSubmission.submittedBy ??
-                      "—"
-                    }
-                  />
-
-                  <InfoItem
-                    label="Participants"
-                    value={`${selectedSubmission.records.length}`}
-                  />
-
-                  <InfoItem
-                    label="Remarks"
-                    value={
-                      selectedSubmission.remarks ||
-                      "No remarks"
-                    }
-                  />
-
-                </div>
-
-                {/* Summary */}
-
-                <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-
-                  <AttendanceSummary
-                    title="Present"
-                    value={
-                      selectedSubmission.records.filter(
-                        (item) =>
-                          item.status ===
-                          "Present"
-                      ).length
-                    }
-                    type="Present"
-                  />
-
-                  <AttendanceSummary
-                    title="Late"
-                    value={
-                      selectedSubmission.records.filter(
-                        (item) =>
-                          item.status ===
-                          "Late"
-                      ).length
-                    }
-                    type="Late"
-                  />
-
-                  <AttendanceSummary
-                    title="Absent"
-                    value={
-                      selectedSubmission.records.filter(
-                        (item) =>
-                          item.status ===
-                          "Absent"
-                      ).length
-                    }
-                    type="Absent"
-                  />
-
-                  <AttendanceSummary
-                    title="Excused"
-                    value={
-                      selectedSubmission.records.filter(
-                        (item) =>
-                          item.status ===
-                          "Excused"
-                      ).length
-                    }
-                    type="Excused"
-                  />
-
-                </div>
-
-                {/* Students */}
-
-                <div className="mt-6 overflow-hidden rounded-2xl border border-gray-200">
-
-                  <div className="border-b border-gray-200 px-5 py-4">
-
-                    <h3 className="font-semibold">
-                      Participant Attendance
-                    </h3>
-
-                    <p className="mt-1 text-xs text-gray-500">
-                      Complete attendance breakdown
-                      for this submission.
-                    </p>
-
-                  </div>
-
-                  <div className="overflow-x-auto">
-
-                    <table className="w-full min-w-[850px] text-left">
-
-                      <thead className="bg-gray-50">
-
-                        <tr className="border-b border-gray-200 text-xs uppercase tracking-wide text-gray-500">
-
-                          <th className="px-5 py-3 font-semibold">
-                            #
-                          </th>
-
-                          <th className="px-5 py-3 font-semibold">
-                            Participant
-                          </th>
-
-                          <th className="px-5 py-3 font-semibold">
-                            Time In
-                          </th>
-
-                          <th className="px-5 py-3 font-semibold">
-                            Time Out
-                          </th>
-
-                          <th className="px-5 py-3 font-semibold">
-                            Method
-                          </th>
-
-                          <th className="px-5 py-3 font-semibold">
-                            Status
-                          </th>
-
-                          <th className="px-5 py-3 font-semibold">
-                            Remarks
-                          </th>
-
-                        </tr>
-
-                      </thead>
-
-                      <tbody className="divide-y divide-gray-100">
-
-                        {sortParticipants(
-                          selectedSubmission.records
-                        ).map(
-                          (
-                            record,
-                            index
-                          ) => (
-
-                            <tr
-                              key={record.id}
-                              className="hover:bg-gray-50"
-                            >
-
-                              <td className="px-5 py-4 text-sm text-gray-400">
-                                {index + 1}
-                              </td>
-
-                              <td className="px-5 py-4">
-
-                                <div className="flex items-center gap-3">
-
-                                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-xs font-bold">
-                                    {getInitials(
-                                      record.participantName
-                                    )}
-                                  </div>
-
-                                  <div>
-
-                                    <p className="text-sm font-semibold">
-                                      {
-                                        record.participantName
-                                      }
-                                    </p>
-
-                                    <p className="text-xs text-gray-400">
-                                      {
-                                        record.participantId
-                                      }
-                                    </p>
-
-                                  </div>
-
-                                </div>
-
-                              </td>
-
-                              <td className="px-5 py-4 text-sm font-medium">
-                                {
-                                  record.timeIn
-                                }
-                              </td>
-
-                              <td className="px-5 py-4 text-sm font-medium">
-                                {
-                                  record.timeOut
-                                }
-                              </td>
-
-                              <td className="px-5 py-4">
-
-                                <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-600">
-                                  {
-                                    record.method
-                                  }
-                                </span>
-
-                              </td>
-
-                              <td className="px-5 py-4">
-
-                                <span
-                                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${attendanceStatusStyles[record.status]}`}
-                                >
-                                  {
-                                    record.status
-                                  }
-                                </span>
-
-                              </td>
-
-                              <td className="px-5 py-4 text-sm text-gray-500">
-                                {
-                                  record.remarks ||
-                                  "—"
-                                }
-                              </td>
-
-                            </tr>
-
-                          )
-                        )}
-
-                      </tbody>
-
-                    </table>
-
-                  </div>
-
-                </div>
-
-              </div>
-
-              {/* Footer */}
-
-              <div className="shrink-0 border-t border-gray-200 bg-gray-50 px-6 py-4">
-
-                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-
-                  <button
-                    onClick={() =>
-                      setShowDetails(false)
-                    }
-                    className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-100"
-                  >
-                    Close
-                  </button>
-
-                  <div className="flex flex-col gap-3 sm:flex-row">
-
-                    {selectedSubmission.status ===
-                      "Submitted" && (
-                      <>
-                        <button
-                          onClick={
-                            openReturnModal
-                          }
-                          className="rounded-xl border border-red-200 bg-white px-5 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-50"
-                        >
-                          Return to Trainer
-                        </button>
-
-                        <button
-                          onClick={
-                            verifySubmission
-                          }
-                          className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
-                        >
-                          Verify Attendance
-                        </button>
-                      </>
-                    )}
-
-                    {selectedSubmission.status ===
-                      "Verified" && (
-                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-700">
-                        ✓ Attendance Verified
-                      </div>
-                    )}
-
-                    {selectedSubmission.status ===
-                      "Draft" && (
-                      <div className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-500">
-                        Waiting for trainer submission
-                      </div>
-                    )}
-
-                  </div>
-
-                </div>
-
-              </div>
-
-            </div>
-
-          </ModalOverlay>
-        )}
-
-      {/* =================================================
-          RETURN MODAL
-      ================================================= */}
-
-      {showReturnModal &&
-        selectedSubmission && (
-          <ModalOverlay
-            onClose={() =>
-              setShowReturnModal(false)
-            }
-          >
-
-            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-
-              <div className="flex items-start justify-between">
-
-                <div>
-
-                  <h2 className="text-xl font-bold">
-                    Return Attendance
-                  </h2>
-
-                  <p className="mt-1 text-sm text-gray-500">
-                    Return this submission to the
-                    trainer for correction.
-                  </p>
-
-                </div>
-
-                <button
-                  onClick={() =>
-                    setShowReturnModal(false)
-                  }
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-xl text-gray-500 hover:bg-gray-200"
-                >
-                  ×
-                </button>
-
-              </div>
-
-              <div className="mt-5 rounded-xl bg-gray-50 p-4">
-
-                <p className="text-sm font-semibold">
-                  {
-                    selectedSubmission.trainingName
-                  }
-                </p>
-
-                <p className="mt-1 text-xs text-gray-500">
-                  {
-                    selectedSubmission.sessionName
-                  }
-                </p>
-
-                <p className="mt-1 text-xs text-gray-500">
-                  Trainer:{" "}
-                  {
-                    selectedSubmission.trainerName
-                  }
-                </p>
-
-              </div>
-
-              <div className="mt-5">
-
-                <label className="mb-2 block text-sm font-semibold">
-                  Reason for Return
-                </label>
-
-                <textarea
-                  value={returnRemarks}
-                  onChange={(event) =>
-                    setReturnRemarks(
-                      event.target.value
-                    )
-                  }
-                  rows={4}
-                  placeholder="Example: Please correct the attendance status of Pedro Reyes."
-                  className="w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-gray-400"
-                />
-
-              </div>
-
-              <div className="mt-6 flex gap-3">
-
-                <button
-                  onClick={() =>
-                    setShowReturnModal(false)
-                  }
-                  className="flex-1 rounded-xl border border-gray-200 py-3 text-sm font-semibold hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  onClick={returnSubmission}
-                  className="flex-1 rounded-xl bg-red-600 py-3 text-sm font-semibold text-white hover:bg-red-700"
-                >
-                  Return to Trainer
-                </button>
-
-              </div>
-
-            </div>
-
-          </ModalOverlay>
-        )}
-
-    </div>
+    </ModalOverlay>
   );
 }
 
-/* =========================================================
-   COMPONENTS
-========================================================= */
 
-function SummaryCard({
-  title,
-  value,
-  description,
-  icon,
+// ============================================================
+// RETURN MODAL
+// ============================================================
+
+function ReturnAttendanceModal({
+  submission,
+  remarks,
+  onRemarksChange,
+  onClose,
+  onConfirm,
 }: {
-  title: string;
-  value: string | number;
-  description: string;
-  icon: string;
+  submission: AttendanceSubmission;
+
+  remarks: string;
+
+  onRemarksChange: (
+    value: string,
+  ) => void;
+
+  onClose: () => void;
+
+  onConfirm: () => void;
 }) {
+
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+    <ModalOverlay
+      onClose={
+        onClose
+      }
+    >
 
-      <div className="flex items-start justify-between">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
 
-        <div>
+        <div className="flex items-start justify-between">
 
-          <p className="text-sm font-medium text-gray-500">
-            {title}
-          </p>
+          <div>
 
-          <p className="mt-2 text-3xl font-bold tracking-tight">
-            {value}
+            <h2 className="text-xl font-bold">
+              Return Attendance
+            </h2>
+
+            <p className="mt-1 text-sm leading-5 text-gray-500">
+              Return this attendance
+              submission to the trainer
+              for correction.
+            </p>
+
+          </div>
+
+          <button
+            type="button"
+            onClick={
+              onClose
+            }
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 text-xl text-gray-500 hover:bg-gray-200"
+          >
+            ×
+          </button>
+
+        </div>
+
+
+        <div className="mt-5 rounded-xl bg-gray-50 p-4">
+
+          <p className="text-sm font-semibold">
+            {
+              submission.trainingName
+            }
           </p>
 
           <p className="mt-1 text-xs text-gray-500">
-            {description}
+            {
+              submission.sessionName
+            }
+          </p>
+
+          <p className="mt-1 text-xs text-gray-500">
+            Trainer:{" "}
+            {
+              submission.trainerName
+            }
           </p>
 
         </div>
 
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-sm font-bold">
-          {icon}
+
+        <div className="mt-5">
+
+          <label className="mb-2 block text-xs font-bold text-gray-600">
+            Reason for Return
+          </label>
+
+          <textarea
+            value={
+              remarks
+            }
+            onChange={(
+              event,
+            ) =>
+              onRemarksChange(
+                event.target
+                  .value,
+              )
+            }
+            rows={4}
+            placeholder="Example: Please correct the attendance status of Pedro Reyes."
+            className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs outline-none focus:bg-white focus:ring-1 focus:ring-gray-300"
+          />
+
+        </div>
+
+
+        <div className="mt-6 flex gap-2">
+
+          <button
+            type="button"
+            onClick={
+              onClose
+            }
+            className="flex-1 rounded-xl border border-gray-200 px-5 py-3 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            onClick={
+              onConfirm
+            }
+            className="flex-1 rounded-xl bg-red-600 px-5 py-3 text-xs font-semibold text-white hover:bg-red-700"
+          >
+            Return to Trainer
+          </button>
+
         </div>
 
       </div>
 
-    </div>
+    </ModalOverlay>
   );
 }
 
-function AttendanceMini({
-  label,
-  value,
-  type,
+
+// ============================================================
+// ATTENDANCE BADGE
+// ============================================================
+
+function AttendanceBadge({
+  status,
 }: {
-  label: string;
-  value: number;
-  type: AttendanceStatus;
+  status: AttendanceStatus;
 }) {
+
+  const styles: Record<
+    AttendanceStatus,
+    string
+  > = {
+    Present:
+      "border-emerald-200 bg-emerald-50 text-emerald-700",
+
+    Late:
+      "border-amber-200 bg-amber-50 text-amber-700",
+
+    Absent:
+      "border-red-200 bg-red-50 text-red-700",
+
+    Excused:
+      "border-blue-200 bg-blue-50 text-blue-700",
+  };
+
   return (
     <span
-      className={`rounded-lg border px-2 py-1 text-xs font-semibold ${attendanceStatusStyles[type]}`}
-      title={type}
+      className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${styles[status]}`}
     >
-      {label}: {value}
+      {status}
     </span>
   );
 }
 
-function AttendanceSummary({
+
+// ============================================================
+// ATTENDANCE STAT
+// ============================================================
+
+function AttendanceStat({
   title,
   value,
-  type,
+  className,
 }: {
   title: string;
   value: number;
-  type: AttendanceStatus;
+  className: string;
 }) {
+
   return (
     <div
-      className={`rounded-xl border p-4 ${attendanceStatusStyles[type]}`}
+      className={`rounded-xl border p-4 ${className}`}
     >
-      <p className="text-xs font-semibold opacity-80">
+
+      <p className="text-[10px] font-semibold uppercase tracking-wider opacity-70">
         {title}
       </p>
 
@@ -1723,27 +1958,38 @@ function AttendanceSummary({
   );
 }
 
-function InfoItem({
-  label,
+
+// ============================================================
+// INFO CARD
+// ============================================================
+
+function InfoCard({
+  title,
   value,
 }: {
-  label: string;
+  title: string;
   value: string;
 }) {
-  return (
-    <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
 
-      <p className="text-xs font-medium text-gray-500">
-        {label}
+  return (
+    <div className="rounded-xl bg-gray-50 p-4">
+
+      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+        {title}
       </p>
 
-      <p className="mt-1 text-sm font-semibold leading-5">
+      <p className="mt-1.5 text-xs font-semibold leading-5 text-gray-800">
         {value}
       </p>
 
     </div>
   );
 }
+
+
+// ============================================================
+// MODAL OVERLAY
+// ============================================================
 
 function ModalOverlay({
   children,
@@ -1752,16 +1998,21 @@ function ModalOverlay({
   children: React.ReactNode;
   onClose: () => void;
 }) {
+
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
-      onMouseDown={(event) => {
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-3 backdrop-blur-sm sm:p-5"
+      onMouseDown={(
+        event,
+      ) => {
+
         if (
           event.target ===
           event.currentTarget
         ) {
           onClose();
         }
+
       }}
     >
       {children}
@@ -1769,51 +2020,52 @@ function ModalOverlay({
   );
 }
 
-function EmptyState() {
-  return (
-    <div className="px-6 py-20 text-center">
 
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-xl">
-        ⌕
-      </div>
+// ============================================================
+// HELPERS
+// ============================================================
 
-      <h3 className="mt-4 font-semibold">
-        No attendance submissions found
-      </h3>
+function getInitials(
+  name: string,
+) {
 
-      <p className="mt-1 text-sm text-gray-500">
-        Try changing your filters or date range.
-      </p>
-
-    </div>
-  );
-}
-
-/* =========================================================
-   HELPERS
-========================================================= */
-
-function getInitials(name: string) {
   return name
-    .split(" ")
-    .map((part) => part[0])
+    .trim()
+    .split(/\s+/)
+    .map(
+      (part) =>
+        part.charAt(0),
+    )
     .slice(0, 2)
     .join("")
     .toUpperCase();
 }
 
-function formatDate(date: string) {
+
+function formatDate(
+  date: string,
+) {
+
   return new Date(
-    `${date}T00:00:00`
-  ).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+    `${date}T00:00:00`,
+  ).toLocaleDateString(
+    "en-US",
+    {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    },
+  );
 }
 
-function formatDateTime(date: string) {
-  return new Date(date).toLocaleString(
+
+function formatDateTime(
+  date: string,
+) {
+
+  return new Date(
+    date,
+  ).toLocaleString(
     "en-US",
     {
       month: "short",
@@ -1821,24 +2073,42 @@ function formatDateTime(date: string) {
       year: "numeric",
       hour: "numeric",
       minute: "2-digit",
-    }
+    },
   );
 }
+
 
 function sortParticipants(
-  records: AttendanceRecord[]
+  records: AttendanceRecord[],
 ) {
-  return [...records].sort((a, b) =>
-    getLastName(a.participantName).localeCompare(
-      getLastName(b.participantName)
-    )
+
+  return [
+    ...records,
+  ].sort(
+    (a, b) =>
+      getLastName(
+        a.participantName,
+      ).localeCompare(
+        getLastName(
+          b.participantName,
+        ),
+      ),
   );
 }
 
-function getLastName(name: string) {
-  const parts = name.trim().split(/\s+/);
 
-  return parts.length
-    ? parts[parts.length - 1].toLowerCase()
-    : "";
+function getLastName(
+  name: string,
+) {
+
+  const parts =
+    name
+      .trim()
+      .split(/\s+/);
+
+  return (
+    parts[
+      parts.length - 1
+    ] ?? ""
+  ).toLowerCase();
 }

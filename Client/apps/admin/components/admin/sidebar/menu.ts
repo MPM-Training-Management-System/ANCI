@@ -47,14 +47,14 @@ export const sidebarMenu: SidebarSectionType[] = [
         icon: BriefcaseBusiness,
       },
        {
-        title: "Assessmenet",
+        title: "Assessment",
         href: "/assessment",
         icon: BriefcaseBusiness,
       },
       
       {
-        title: "Exam Result",
-        href: "/exam",
+        title: "Certificate",
+        href: "/certificate",
         icon: ClipboardCheck,
       },
       {
@@ -63,8 +63,8 @@ export const sidebarMenu: SidebarSectionType[] = [
         icon: BookOpen,
       },
       {
-        title: "Schedules",
-        href: "/schedule",
+        title: "Enrollment",
+        href: "/enrollment",
         icon: CalendarDays,
       },
     ],

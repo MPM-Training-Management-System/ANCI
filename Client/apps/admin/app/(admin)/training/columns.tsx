@@ -1,287 +1,293 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import {
-  Badge,
-  RowActions,
-} from "@repo/ui/index";
 
-import {
-  Eye,
-  Pencil,
-  Trash2,
-  UserRoundPlus,
-} from "lucide-react";
+import { Badge } from "@repo/ui/index";
 
-import type { MockTraining } from "./mockData";
+export type ProgramStatus =
+  | "Active"
+  | "Draft"
+  | "Archived";
 
-interface TrainingColumnsProps {
-  onView: (training: MockTraining) => void;
-  onAssignTrainer: (training: MockTraining) => void;
-  onEdit: (training: MockTraining) => void;
-  onDelete: (training: MockTraining) => void;
-}
+export type Requirement = {
+  id: string;
+  name: string;
+  description: string;
+  required: boolean;
+};
 
-export const createColumns = ({
-  onView,
-  onAssignTrainer,
-  onEdit,
-  onDelete,
-}: TrainingColumnsProps): ColumnDef<MockTraining>[] => [
-  {
-    accessorKey: "title",
-    header: "Program Name",
+export type TrainingProgram = {
+  id: string;
+  code: string;
+  title: string;
+  category: string;
+  description: string;
+  duration: string;
+  hours: number;
+  capacity: number;
+  enrolled: number;
+  schedule: string;
+  location: string;
+  trainer: string;
+  status: ProgramStatus;
+  requirements: Requirement[];
+  createdAt: string;
+};
 
-    cell: ({ row }) => (
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#002B5C]/10 text-[#002B5C]">
-          <span className="material-symbols-outlined text-[20px]">
-            school
-          </span>
-        </div>
+export type TrainingProgramTableMeta = {
+  onView?: (
+    program: TrainingProgram,
+  ) => void;
 
-        <div className="min-w-0">
-          <p className="font-semibold text-[#002B5C]">
-            {row.original.title}
-          </p>
+  onManage?: (
+    program: TrainingProgram,
+  ) => void;
 
-          <p className="text-xs text-gray-400">
-            ID: {row.original.id}
-          </p>
-        </div>
-      </div>
-    ),
-  },
+  onDelete?: (
+    program: TrainingProgram,
+  ) => void;
+};
 
-  {
-    accessorKey: "category",
-    header: "Category",
+export const columns: ColumnDef<TrainingProgram>[] =
+  [
+    // =====================================================
+    // TRAINING PROGRAM
+    // =====================================================
 
-    cell: ({ row }) => {
-      const category = row.original.category;
+    {
+      accessorKey: "title",
 
-      const styles = {
-        Mediation:
-          "bg-[#48A9C5]/10 text-[#00677D]",
-        Governance:
-          "bg-[#002B5C]/10 text-[#002B5C]",
-        Sports:
-          "bg-[#D4AF37]/15 text-[#735C00]",
-      };
+      header: "Training Program",
 
-      return (
-        <span
-          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${styles[category]}`}
-        >
-          {category}
-        </span>
-      );
-    },
-  },
+      cell: ({ row }) => {
+        const program = row.original;
 
-  {
-    id: "trainer",
-    header: "Trainer",
-
-    cell: ({ row }) => {
-      const training = row.original;
-
-      if (!training.trainerName) {
         return (
-          <button
-            type="button"
-            onClick={() =>
-              onAssignTrainer(training)
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#191c1e] text-[10px] font-bold text-white">
+              {program.code
+                .slice(0, 3)
+                .toUpperCase()}
+            </div>
+
+            <div className="min-w-0">
+              <p className="max-w-[240px] truncate text-xs font-semibold text-gray-800">
+                {program.title}
+              </p>
+
+              <p className="mt-0.5 font-mono text-[10px] text-gray-400">
+                {program.code}
+              </p>
+            </div>
+          </div>
+        );
+      },
+    },
+
+    // =====================================================
+    // CATEGORY
+    // =====================================================
+
+    {
+      accessorKey: "category",
+
+      header: "Category",
+
+      cell: ({ row }) => (
+        <span className="rounded-lg bg-gray-100 px-2.5 py-1.5 text-[10px] font-semibold text-gray-600">
+          {row.original.category}
+        </span>
+      ),
+    },
+
+    // =====================================================
+    // SCHEDULE
+    // =====================================================
+
+    {
+      accessorKey: "schedule",
+
+      header: "Schedule",
+
+      cell: ({ row }) => {
+        const program = row.original;
+
+        return (
+          <div className="min-w-[180px]">
+            <p className="text-xs font-medium">
+              {program.duration}
+            </p>
+
+            <p className="mt-0.5 text-[10px] leading-4 text-gray-400">
+              {program.schedule}
+            </p>
+          </div>
+        );
+      },
+    },
+
+    // =====================================================
+    // CAPACITY
+    // =====================================================
+
+    {
+      accessorKey: "enrolled",
+
+      header: "Capacity",
+
+      cell: ({ row }) => {
+        const program = row.original;
+
+        const percentage =
+          program.capacity === 0
+            ? 0
+            : Math.round(
+                (program.enrolled /
+                  program.capacity) *
+                  100,
+              );
+
+        return (
+          <div className="w-[120px]">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold">
+                {program.enrolled}/
+                {program.capacity}
+              </span>
+
+              <span className="text-[10px] text-gray-400">
+                {percentage}%
+              </span>
+            </div>
+
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100">
+              <div
+                className={`h-full rounded-full ${
+                  percentage >= 100
+                    ? "bg-red-500"
+                    : percentage >= 80
+                      ? "bg-amber-500"
+                      : "bg-[#191c1e]"
+                }`}
+                style={{
+                  width: `${Math.min(
+                    percentage,
+                    100,
+                  )}%`,
+                }}
+              />
+            </div>
+          </div>
+        );
+      },
+    },
+
+    // =====================================================
+    // TRAINER
+    // =====================================================
+
+    {
+      accessorKey: "trainer",
+
+      header: "Trainer",
+
+      cell: ({ row }) => (
+        <span className="text-xs font-semibold">
+          {row.original.trainer}
+        </span>
+      ),
+    },
+
+    // =====================================================
+    // STATUS
+    // =====================================================
+
+    {
+      accessorKey: "status",
+
+      header: "Status",
+
+      cell: ({ row }) => {
+        const status =
+          row.original.status;
+
+        return (
+          <Badge
+            variant={
+              status === "Active"
+                ? "active"
+                : status === "Draft"
+                  ? "warning"
+                  : "inactive"
             }
-            className="flex items-center gap-2 text-sm font-medium text-[#00677D] transition hover:text-[#002B5C] hover:underline"
           >
-            <UserRoundPlus className="h-4 w-4" />
-            Assign Trainer
-          </button>
+            {status}
+          </Badge>
         );
-      }
-
-      return (
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#002B5C] text-white">
-            <span className="text-xs font-semibold">
-              {training.trainerName
-                .split(" ")
-                .map((name) => name[0])
-                .slice(0, 2)
-                .join("")}
-            </span>
-          </div>
-
-          <div>
-            <p className="text-sm font-semibold text-gray-800">
-              {training.trainerName}
-            </p>
-
-            <p className="text-xs text-gray-400">
-              Assigned Trainer
-            </p>
-          </div>
-        </div>
-      );
+      },
     },
-  },
 
-  {
-    accessorKey: "enrolled",
-    header: "Enrollment",
+    // =====================================================
+    // ACTIONS
+    // =====================================================
 
-    cell: ({ row }) => {
-      const {
-        enrolled,
-        capacity,
-      } = row.original;
+    {
+      id: "actions",
 
-      const percentage =
-        capacity > 0
-          ? Math.round(
-              (enrolled / capacity) * 100
-            )
-          : 0;
+      header: "Actions",
 
-      return (
-        <div className="flex items-center gap-3">
-          <span className="whitespace-nowrap text-sm text-gray-700">
-            {enrolled}/{capacity}
-          </span>
+      enableSorting: false,
 
-          <div className="h-1.5 w-20 overflow-hidden rounded-full bg-gray-200">
-            <div
-              className="h-full rounded-full bg-[#48A9C5]"
-              style={{
-                width: `${Math.min(
-                  percentage,
-                  100
-                )}%`,
-              }}
-            />
+      enableGlobalFilter: false,
+
+      cell: ({ row, table }) => {
+        const program =
+          row.original;
+
+        const meta =
+          table.options.meta as
+            | TrainingProgramTableMeta
+            | undefined;
+
+        return (
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                meta?.onView?.(
+                  program,
+                )
+              }
+              className="rounded-lg border border-[#e7e9ec] px-3 py-2 text-[10px] font-semibold text-gray-600 transition hover:bg-gray-50"
+            >
+              View
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                meta?.onManage?.(
+                  program,
+                )
+              }
+              className="rounded-lg bg-[#191c1e] px-3 py-2 text-[10px] font-semibold text-white transition hover:opacity-90"
+            >
+              Manage
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                meta?.onDelete?.(
+                  program,
+                )
+              }
+              className="rounded-lg bg-red-50 px-3 py-2 text-[10px] font-semibold text-red-600 transition hover:bg-red-100"
+            >
+              Delete
+            </button>
           </div>
-        </div>
-      );
-    },
-  },
-
-  {
-    id: "period",
-    header: "Training Period",
-
-    cell: ({ row }) => {
-      const start = new Date(
-        row.original.startDate
-      );
-
-      const end = new Date(
-        row.original.endDate
-      );
-
-      const formatDate = (
-        date: Date
-      ) =>
-        date.toLocaleDateString(
-          "en-US",
-          {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          }
         );
-
-      return (
-        <div>
-          <p className="text-sm font-medium text-gray-700">
-            {formatDate(start)}
-          </p>
-
-          <p className="text-xs text-gray-400">
-            to {formatDate(end)}
-          </p>
-        </div>
-      );
+      },
     },
-  },
-
-  {
-    accessorKey: "status",
-    header: "Status",
-
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2">
-        <span
-          className={`h-2 w-2 rounded-full ${
-            row.original.status
-              ? "bg-green-500"
-              : "bg-gray-400"
-          }`}
-        />
-
-        <Badge
-          variant={
-            row.original.status
-              ? "active"
-              : "inactive"
-          }
-        >
-          {row.original.status
-            ? "Active"
-            : "Inactive"}
-        </Badge>
-      </div>
-    ),
-  },
-
-  {
-    id: "actions",
-    header: "Actions",
-
-    cell: ({ row }) => {
-      const training = row.original;
-
-      return (
-        <RowActions
-          actions={[
-            {
-              label: "View Details",
-              icon: (
-                <Eye className="h-4 w-4" />
-              ),
-              onClick: () =>
-                onView(training),
-            },
-            {
-              label: training.trainerId
-                ? "Change Trainer"
-                : "Assign Trainer",
-              icon: (
-                <UserRoundPlus className="h-4 w-4" />
-              ),
-              onClick: () =>
-                onAssignTrainer(training),
-            },
-            {
-              label: "Edit Program",
-              icon: (
-                <Pencil className="h-4 w-4" />
-              ),
-              onClick: () =>
-                onEdit(training),
-            },
-            {
-              label: "Delete Program",
-              icon: (
-                <Trash2 className="h-4 w-4" />
-              ),
-              danger: true,
-              onClick: () =>
-                onDelete(training),
-            },
-          ]}
-        />
-      );
-    },
-  },
-];
+  ];
