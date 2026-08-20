@@ -68,7 +68,10 @@ builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
-
+builder.Services.AddScoped<
+    IOtpService,
+    OtpService
+>();
 builder.Services.AddScoped<PasswordService>();
 
 builder.Services.AddScoped<JwtService>();
