@@ -1,25 +1,33 @@
+using Microsoft.EntityFrameworkCore;
 using server.Data;
 using server.DTOs.Auth;
 using server.Enums;
 using server.Models.Auth;
 using server.Security;
 using server.Services.Interfaces;
-using Microsoft.EntityFrameworkCore;
 
 namespace server.Services;
 
 public class AuthService : IAuthService
 {
     private readonly ApplicationDbContext _db;
-    private readonly PasswordService _passwordService;
+
+    private readonly PasswordService
+        _passwordService;
+
+    private readonly JwtService
+        _jwtService;
 
     public AuthService(
         ApplicationDbContext db,
-        PasswordService passwordService)
+        PasswordService passwordService,
+        JwtService jwtService)
     {
         _db = db;
         _passwordService = passwordService;
+        _jwtService = jwtService;
     }
+
 
     public async Task<UserRegistrationResponse>
         RegisterParticipantAsync(
@@ -29,8 +37,11 @@ public class AuthService : IAuthService
             .Trim()
             .ToLowerInvariant();
 
-        var existingUser = await _db.Users
-            .FirstOrDefaultAsync(x => x.Email == email);
+        var existingUser =
+            await _db.Users
+                .FirstOrDefaultAsync(
+                    x => x.Email == email
+                );
 
         if (existingUser is not null)
         {
@@ -48,9 +59,11 @@ public class AuthService : IAuthService
         {
             Id = Guid.NewGuid(),
 
-            UserCode = await GenerateUserCodeAsync(),
+            UserCode =
+                await GenerateUserCodeAsync(),
 
-            FullName = request.FullName.Trim(),
+            FullName =
+                request.FullName.Trim(),
 
             Email = email,
 
@@ -60,17 +73,23 @@ public class AuthService : IAuthService
                     ? null
                     : request.MobileNumber.Trim(),
 
-            PasswordHash = passwordHash,
+            PasswordHash =
+                passwordHash,
 
-            Role = UserRole.Participant,
+            Role =
+                UserRole.Participant,
 
-            Status = UserStatus.Pending,
+            Status =
+                UserStatus.Pending,
 
-            IsEmailVerified = false,
+            IsEmailVerified =
+                false,
 
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt =
+                DateTime.UtcNow,
 
-            UpdatedAt = DateTime.UtcNow
+            UpdatedAt =
+                DateTime.UtcNow
         };
 
         _db.Users.Add(user);
@@ -81,27 +100,121 @@ public class AuthService : IAuthService
         {
             Id = user.Id,
 
-            UserCode = user.UserCode,
+            UserCode =
+                user.UserCode,
 
-            FullName = user.FullName,
+            FullName =
+                user.FullName,
 
-            Email = user.Email,
+            Email =
+                user.Email,
 
-            Role = user.Role.ToString(),
+            Role =
+                user.Role.ToString(),
 
-            Status = user.Status.ToString(),
+            Status =
+                user.Status.ToString(),
 
             Message =
                 "Registration successful. Your account is pending verification."
         };
     }
 
-    private async Task<string> GenerateUserCodeAsync()
+
+    public async Task<LoginResponse>
+        LoginAsync(
+            LoginRequest request)
     {
-        var prefix = "PAR";
+        var email =
+            request.Email
+                .Trim()
+                .ToLowerInvariant();
 
-        var count = await _db.Users.CountAsync();
+        var user =
+            await _db.Users
+                .FirstOrDefaultAsync(
+                    x => x.Email == email
+                );
 
-        return $"{prefix}-{count + 1:D6}";
+        if (user is null)
+        {
+            throw new UnauthorizedAccessException(
+                "Invalid email or password."
+            );
+        }
+
+        var passwordValid =
+            _passwordService.VerifyPassword(
+                request.Password,
+                user.PasswordHash
+            );
+
+        if (!passwordValid)
+        {
+            throw new UnauthorizedAccessException(
+                "Invalid email or password."
+            );
+        }
+
+   
+        if (
+            user.Status ==
+                UserStatus.Inactive
+            ||
+            user.Status ==
+                UserStatus.Suspended
+            ||
+            user.Status ==
+                UserStatus.Rejected
+        )
+        {
+            throw new UnauthorizedAccessException(
+                "This account is not allowed to login."
+            );
+        }
+
+        var jwt =
+            _jwtService.GenerateToken(user);
+
+        return new LoginResponse
+        {
+            Token =
+                jwt.Token,
+
+            ExpiresAt =
+                jwt.ExpiresAt,
+
+            User =
+                new UserLoginDto
+                {
+                    Id =
+                        user.Id,
+
+                    UserCode =
+                        user.UserCode,
+
+                    FullName =
+                        user.FullName,
+
+                    Email =
+                        user.Email,
+
+                    Role =
+                        user.Role.ToString(),
+
+                    Status =
+                        user.Status.ToString()
+                }
+        };
+    }
+
+
+    private async Task<string>
+        GenerateUserCodeAsync()
+    {
+        var count =
+            await _db.Users.CountAsync();
+
+        return $"PAR-{count + 1:D6}";
     }
 }

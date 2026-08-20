@@ -7,4 +7,9 @@ public interface IAuthService
     Task<UserRegistrationResponse> RegisterParticipantAsync(
         RegisterRequest request
     );
+    Task<LoginResponse>
+        LoginAsync(
+            LoginRequest request
+        );
+
 }

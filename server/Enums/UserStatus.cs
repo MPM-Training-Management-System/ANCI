@@ -1,11 +1,10 @@
-namespace server.Enums
-{
-    public enum UserStatus
-    {
-        Pending,
-        Active,
-        Inactive,
-        Suspended
-    }
-}
+namespace server.Enums;
 
+public enum UserStatus
+{
+    Pending,
+    Active,
+    Inactive,
+    Suspended,
+    Rejected
+}
