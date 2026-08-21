@@ -1,2 +1,3 @@
 export * from "./use-toast"
 export * from "./participant";
+export * from "./useRegister";

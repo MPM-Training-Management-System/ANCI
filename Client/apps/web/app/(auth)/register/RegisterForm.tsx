@@ -3,10 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
-import { useRouter } from "next/navigation";
-
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { authApi } from "@/lib/api";
+import { useRegister } from "@repo/hooks";
 
 import {
   Button,
@@ -16,97 +16,74 @@ import {
   CardHeader,
   CardTitle,
   Checkbox,
-  Form,
-  FormDescription,
   FormLabel,
   Input,
 } from "@repo/ui/index";
 
 import {
-  registerTrainerSchema,
-  type RegisterTrainerSchema,
+  registerSchema,
+  type RegisterFormValues,
 } from "@/hooks/schema";
 
-import { auth, authApi } from "@/lib/api";
-
 export default function RegisterForm() {
-  const router = useRouter();
+  const [showPassword, setShowPassword] =
+    useState(false);
 
-  const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] =
     useState(false);
-  const [agreeTerms, setAgreeTerms] = useState(false);
+
+  const [agreeTerms, setAgreeTerms] =
+    useState(false);
+
+  const {
+    register: registerAccount,
+    isLoading,
+    error: registerError,
+    success,
+  } = useRegister(authApi);
 
   const {
     register,
     handleSubmit,
-    formState: {
-      errors,
-      isSubmitting,
-    },
-  } = useForm<RegisterTrainerSchema>({
-    resolver: zodResolver(registerTrainerSchema),
-
+    formState: { errors },
+    reset,
+  } = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerSchema),
     defaultValues: {
+      firstName: "",
+      middleName: "",
+      lastName: "",
       email: "",
-      username: "",
+      mobileNumber: "",
       password: "",
       confirmPassword: "",
     },
   });
 
- async function onSubmit(data: RegisterTrainerSchema) {
-  console.log("SUBMIT FIRED", data);
-
-  try {
-    const response = await authApi.register({
-      username: data.username,
-      email: data.email,
-      password: data.password,
-      role: "Trainer",
-    });
-
-    console.log("REGISTER RESPONSE:", response);
-
- 
-
-    await auth.saveToken(response.message);
-
-    if (response.token) {
-      await auth.saveUser(response.user);
+  const onSubmit = async (
+    data: RegisterFormValues
+  ) => {
+    if (!agreeTerms) {
+      return;
     }
-    console.log("TOKEN:", auth.getToken());
-    
 
-    await authApi.sendotp({
-      email: data.email,
-    });
+    const registered =
+      await registerAccount({
+        firstName: data.firstName,
+        middleName: data.middleName,
+        lastName: data.lastName,
+        email: data.email,
+        mobileNumber: data.mobileNumber,
+        password: data.password,
+      });
 
-    console.log("OTP SENT");
-
-
-
-    router.push(
-      `/register/verify-otp?email=${encodeURIComponent(
-        data.email
-      )}`
-    );
-  } catch (error) {
-    console.error(
-      "REGISTRATION ERROR:",
-      error
-    );
-
-    alert(
-      error instanceof Error
-        ? error.message
-        : "Failed to create account."
-    );
-  }
-}
+    if (registered) {
+      reset();
+      setAgreeTerms(false);
+    }
+  };
 
   return (
-    
     <Card>
       <CardHeader className="border-b bg-slate-50/60 pb-8">
         <div className="mb-2">
@@ -122,9 +99,9 @@ export default function RegisterForm() {
             </CardTitle>
 
             <CardDescription className="mt-2 max-w-lg leading-6">
-              Register your trainer account to securely access
-              the ACE NextGen Trainer Portal and begin managing
-              training sessions.
+              Register your trainer account to securely
+              access the ACE NextGen Trainer Portal and
+              begin your application.
             </CardDescription>
           </div>
         </div>
@@ -132,126 +109,253 @@ export default function RegisterForm() {
 
       <CardContent className="pt-8">
         <form
-  onSubmit={handleSubmit(
-    onSubmit,
-    (errors) => {
-      console.log("FORM VALIDATION ERRORS:", errors);
-    }
-  )}
-  className="space-y-6"
->
+          onSubmit={handleSubmit(onSubmit)}
+          className="space-y-6"
+        >
+          {/* Registration Error */}
+          {registerError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+              <p className="text-sm font-medium text-red-700">
+                {registerError}
+              </p>
+            </div>
+          )}
 
-          {/* Email + Username */}
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <div>
-              <FormLabel>Email Address</FormLabel>
-              <Input
-                type="email"
-                placeholder="juan@email.com"
-                {...register("email")}
-              />
+          {/* Registration Success */}
+          {success && (
+            <div className="rounded-xl border border-green-200 bg-green-50 p-4">
+              <p className="text-sm font-medium text-green-700">
+                Registration successful. Please verify
+                your email using the OTP sent to you.
+              </p>
+            </div>
+          )}
 
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-500">
-                  {errors.email.message}
-                </p>
-              )}
+          {/* Name */}
+          <div>
+            <div className="mb-4">
+              <h3 className="text-base font-semibold text-slate-900">
+                Personal Information
+              </h3>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Enter your complete name as it appears on
+                your official documents.
+              </p>
             </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium">
-                Username
-              </label>
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+              {/* First Name */}
+              <div>
+                <FormLabel>First Name</FormLabel>
 
-              <Input
-                placeholder="juandelacruz"
-                {...register("username")}
-              />
+                <Input
+                  placeholder="Juan"
+                  {...register("firstName")}
+                />
 
-              {errors.username && (
-                <p className="mt-1 text-sm text-red-500">
-                  {errors.username.message}
-                </p>
-              )}
+                {errors.firstName && (
+                  <p className="mt-1 text-sm text-red-500">
+                    {errors.firstName.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Middle Name */}
+              <div>
+                <FormLabel>
+                  Middle Name
+                </FormLabel>
+
+                <Input
+                  placeholder="Dela"
+                  {...register("middleName")}
+                />
+
+                {errors.middleName && (
+                  <p className="mt-1 text-sm text-red-500">
+                    {errors.middleName.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Last Name */}
+              <div>
+                <FormLabel>Last Name</FormLabel>
+
+                <Input
+                  placeholder="Cruz"
+                  {...register("lastName")}
+                />
+
+                {errors.lastName && (
+                  <p className="mt-1 text-sm text-red-500">
+                    {errors.lastName.message}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Password + Confirm Password */}
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <div>
-              <label className="mb-2 block text-sm font-medium">
-                Password
-              </label>
+          {/* Account Information */}
+          <div>
+            <div className="mb-4">
+              <h3 className="text-base font-semibold text-slate-900">
+                Account Information
+              </h3>
 
-              <div className="relative">
-                <Input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter password"
-                  className="pr-12"
-                  {...register("password")}
-                />
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setShowPassword((prev) => !prev)
-                  }
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-slate-700"
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5" />
-                  ) : (
-                    <Eye className="h-5 w-5" />
-                  )}
-                </button>
-              </div>
-
-              {errors.password && (
-                <p className="mt-1 text-sm text-red-500">
-                  {errors.password.message}
-                </p>
-              )}
+              <p className="mt-1 text-sm text-slate-500">
+                These credentials will be used to access
+                your trainer account.
+              </p>
             </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium">
-                Confirm Password
-              </label>
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              {/* Email */}
+              <div>
+                <FormLabel>
+                  Email Address
+                </FormLabel>
 
-              <div className="relative">
                 <Input
-                  type={
-                    showConfirmPassword
-                      ? "text"
-                      : "password"
-                  }
-                  placeholder="Confirm password"
-                  className="pr-12"
-                  {...register("confirmPassword")}
+                  type="email"
+                  placeholder="juan@email.com"
+                  {...register("email")}
                 />
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    setShowConfirmPassword(
-                      (prev) => !prev
-                    )
-                  }
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-slate-700"
-                >
-                  {showConfirmPassword ? (
-                    <EyeOff className="h-5 w-5" />
-                  ) : (
-                    <Eye className="h-5 w-5" />
-                  )}
-                </button>
+                {errors.email && (
+                  <p className="mt-1 text-sm text-red-500">
+                    {errors.email.message}
+                  </p>
+                )}
               </div>
 
-              {errors.confirmPassword && (
-                <p className="mt-1 text-sm text-red-500">
-                  {errors.confirmPassword.message}
-                </p>
-              )}
+              {/* Mobile Number */}
+              <div>
+                <FormLabel>
+                  Mobile Number
+                </FormLabel>
+
+                <Input
+                  type="tel"
+                  placeholder="09123456789"
+                  {...register("mobileNumber")}
+                />
+
+                {errors.mobileNumber && (
+                  <p className="mt-1 text-sm text-red-500">
+                    {errors.mobileNumber.message}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Password */}
+          <div>
+            <div className="mb-4">
+              <h3 className="text-base font-semibold text-slate-900">
+                Password
+              </h3>
+            </div>
+
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              {/* Password */}
+              <div>
+                <FormLabel>
+                  Password
+                </FormLabel>
+
+                <div className="relative">
+                  <Input
+                    type={
+                      showPassword
+                        ? "text"
+                        : "password"
+                    }
+                    placeholder="Enter password"
+                    className="pr-12"
+                    {...register("password")}
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowPassword(
+                        (prev) => !prev
+                      )
+                    }
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-slate-700"
+                    aria-label={
+                      showPassword
+                        ? "Hide password"
+                        : "Show password"
+                    }
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5" />
+                    ) : (
+                      <Eye className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
+
+                {errors.password && (
+                  <p className="mt-1 text-sm text-red-500">
+                    {errors.password.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Confirm Password */}
+              <div>
+                <FormLabel>
+                  Confirm Password
+                </FormLabel>
+
+                <div className="relative">
+                  <Input
+                    type={
+                      showConfirmPassword
+                        ? "text"
+                        : "password"
+                    }
+                    placeholder="Confirm password"
+                    className="pr-12"
+                    {...register("confirmPassword")}
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowConfirmPassword(
+                        (prev) => !prev
+                      )
+                    }
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-slate-700"
+                    aria-label={
+                      showConfirmPassword
+                        ? "Hide confirm password"
+                        : "Show confirm password"
+                    }
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-5 w-5" />
+                    ) : (
+                      <Eye className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
+
+                {errors.confirmPassword && (
+                  <p className="mt-1 text-sm text-red-500">
+                    {
+                      errors.confirmPassword
+                        .message
+                    }
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 
@@ -261,7 +365,9 @@ export default function RegisterForm() {
               <Checkbox
                 checked={agreeTerms}
                 onChange={(e) =>
-                  setAgreeTerms(e.target.checked)
+                  setAgreeTerms(
+                    e.target.checked
+                  )
                 }
               />
 
@@ -285,6 +391,12 @@ export default function RegisterForm() {
                   </Link>{" "}
                   of ACE NextGen.
                 </label>
+
+                {!agreeTerms && (
+                  <p className="mt-2 text-sm text-slate-500">
+                    You must agree to continue.
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -292,11 +404,14 @@ export default function RegisterForm() {
           {/* Submit */}
           <div className="border-t border-slate-200 pt-6">
             <Button
-  type="submit"
-  className="w-full"
-  disabled={isSubmitting}
->
-              {isSubmitting
+              type="submit"
+              className="w-full"
+              disabled={
+                isLoading ||
+                !agreeTerms
+              }
+            >
+              {isLoading
                 ? "Creating Account..."
                 : "Create Account"}
             </Button>
@@ -315,8 +430,9 @@ export default function RegisterForm() {
             </p>
 
             <p className="text-center text-[11px] uppercase tracking-widest text-slate-400">
-              By creating an account, you agree to the
-              platform&apos;s Terms of Service and Privacy Policy.
+              By creating an account, you agree to
+              the platform&apos;s Terms of Service and
+              Privacy Policy.
             </p>
           </div>
         </form>

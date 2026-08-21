@@ -16,7 +16,7 @@ import ProfessionalForm from "./professional/ProfessionalForm";
 import ProfileImageForm from "./profile-image/ProfileImageForm";
 import ValidIdForm from "./valid-id/ValidIdForm";
 
-import { trainerApi } from "@/lib/api";
+
 
 // =====================================================
 // STEPS
@@ -35,16 +35,11 @@ const steps = [
 
 export default function TrainerRegistration() {
 
-  // ===================================================
-  // CURRENT STEP
-  // ===================================================
+
 
   const [currentStep, setCurrentStep] =
     useState(1);
 
-  // ===================================================
-  // SUBMIT LOADING
-  // ===================================================
 
   const [loading, setLoading] =
     useState(false);
@@ -224,15 +219,9 @@ export default function TrainerRegistration() {
         "================================"
       );
 
-      const response =
-        await trainerApi.completeProfile(
-          form
-        );
+    
 
-      console.log(
-        "TRAINER REGISTRATION RESPONSE:",
-        response
-      );
+      
 
       alert(
         "Trainer application submitted successfully."
