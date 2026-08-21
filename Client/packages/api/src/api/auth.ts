@@ -1,4 +1,4 @@
-import { RegisterRequest, RegisterResponse } from "@repo/types";
+import { OtpResponse, RegisterRequest, RegisterResponse, SendOtpRequest, VerifyOtpRequest } from "@repo/types";
 import { ApiClient } from "./client";
 
 
@@ -17,5 +17,30 @@ export class AuthApi {
       body: request
     }
   );
+  }
+
+
+  async sendOtp(
+    request: SendOtpRequest
+  ): Promise<OtpResponse>{
+    return this.api.request<OtpResponse>(
+      "/api/otp/send",
+      {
+        method: "POST",
+        body: request
+      }
+    )
+  }
+
+  async verifyOtp(
+    request: VerifyOtpRequest
+  ): Promise<OtpResponse>{
+    return this.api.request<OtpResponse>(
+      "/api/otp/verify",
+      {
+        method: "POST",
+        body: request
+      }
+    )
   }
 }

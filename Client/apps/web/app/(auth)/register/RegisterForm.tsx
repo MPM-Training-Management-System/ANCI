@@ -6,7 +6,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { authApi } from "@/lib/api";
-import { useRegister } from "@repo/hooks";
+import { useRegister, useSendOTp} from "@repo/hooks";
 
 import {
   Button,
@@ -24,8 +24,11 @@ import {
   registerSchema,
   type RegisterFormValues,
 } from "@/hooks/schema";
+import { useRouter } from "next/navigation";
 
 export default function RegisterForm() {
+
+  const router = useRouter();
   const [showPassword, setShowPassword] =
     useState(false);
 
@@ -41,6 +44,12 @@ export default function RegisterForm() {
     error: registerError,
     success,
   } = useRegister(authApi);
+  
+const {
+  sendOtp,
+  isLoading: isSendingOtp,
+  error: otpError,
+} = useSendOTp(authApi);
 
   const {
     register,
@@ -77,10 +86,22 @@ export default function RegisterForm() {
         password: data.password,
       });
 
-    if (registered) {
-      reset();
-      setAgreeTerms(false);
+    if (!registered) {
+     return;
     }
+
+    const otpSent = await sendOtp({
+      email: data.email,
+    });
+    if (!otpSent){
+      return;
+    }
+
+     router.push(
+    `/register/verify-otp?email=${encodeURIComponent(
+      data.email.trim().toLowerCase()
+    )}`
+  );
   };
 
   return (

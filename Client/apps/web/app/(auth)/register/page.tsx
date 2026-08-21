@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import RegisterPageContent from "./RegisterPageContent";
+import RegisterForm from "./RegisterForm";
 
 export default function RegisterPage() {
   return (
@@ -13,7 +13,7 @@ export default function RegisterPage() {
         </div>
       }
     >
-      <RegisterPageContent />
+      <RegisterForm />
     </Suspense>
   );
 }
