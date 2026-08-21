@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using server.DTOs.Auth;
 using server.Services.Interfaces;
-
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 namespace server.Controllers;
 
 [ApiController]
@@ -84,4 +85,57 @@ public class AuthController : ControllerBase
             });
         }
     }
+        [Authorize]
+        [HttpGet("me")]
+        public IActionResult Me()
+        {
+            return Ok(new
+            {
+                message = "Authenticated",
+
+                userId =
+                    User.FindFirst(
+                        ClaimTypes.NameIdentifier
+                    )?.Value,
+
+                email =
+                    User.FindFirst(
+                        ClaimTypes.Email
+                    )?.Value,
+
+                role =
+                    User.FindFirst(
+                        ClaimTypes.Role
+                    )?.Value
+            });
+}[Authorize(Roles = "Admin")]
+[HttpGet("test/admin")]
+public IActionResult AdminTest()
+{
+    return Ok(new
+    {
+        message =
+            "Admin authorization successful."
+    });
+}
+[Authorize(Roles = "Trainer")]
+[HttpGet("test/trainer")]
+public IActionResult TrainerTest()
+{
+    return Ok(new
+    {
+        message =
+            "Trainer authorization successful."
+    });
+}
+[Authorize(Roles = "Participant")]
+[HttpGet("test/participant")]
+public IActionResult ParticipantTest()
+{
+    return Ok(new
+    {
+        message =
+            "Participant authorization successful."
+    });
+}
 }

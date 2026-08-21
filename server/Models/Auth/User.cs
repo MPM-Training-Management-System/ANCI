@@ -1,4 +1,5 @@
 using server.Enums;
+using server.Models.Otp;
 
 namespace server.Models.Auth;
 
@@ -25,4 +26,6 @@ public class User
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
+    public ICollection<OtpVerification> OtpVerifications { get; set; }
+    = new List<OtpVerification>();
 }
