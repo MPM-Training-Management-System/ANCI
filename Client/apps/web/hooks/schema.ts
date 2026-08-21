@@ -1,35 +1,53 @@
 import { z } from "zod";
 
-export const registerTrainerSchema = z
+export const registerSchema = z
   .object({
-    
+    firstName: z
+      .string()
+      .min(2, "First name is required."),
+
+    middleName: z
+      .string()
+      .optional(),
+
+    lastName: z
+      .string()
+      .min(2, "Last name is required."),
 
     email: z
       .string()
-      .trim()
-      .email("Invalid email address."),
+      .email("Enter a valid email address."),
 
-    username: z
+    mobileNumber: z
       .string()
-      .trim()
-      .min(4, "Username must be at least 4 characters.")
-      .max(20),
+      .min(
+        10,
+        "Enter a valid mobile number."
+      ),
 
     password: z
       .string()
-      .min(8, "Password must be at least 8 characters."),
+      .min(
+        8,
+        "Password must be at least 8 characters."
+      ),
 
     confirmPassword: z
-      .string(),
+      .string()
+      .min(
+        8,
+        "Please confirm your password."
+      ),
   })
   .refine(
-    (data) => data.password === data.confirmPassword,
+    (data) =>
+      data.password ===
+      data.confirmPassword,
     {
-      path: ["confirmPassword"],
       message: "Passwords do not match.",
+      path: ["confirmPassword"],
     }
   );
 
-export type RegisterTrainerSchema = z.infer<
-  typeof registerTrainerSchema
->;
+export type RegisterFormValues =
+  z.infer<typeof registerSchema>;

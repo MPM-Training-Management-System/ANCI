@@ -22,9 +22,7 @@ export default function RegisterPageContent() {
     );
   }
 
-  // ==========================================
-  // ACCOUNT SETUP
-  // ==========================================
+
 
   return (
     <div className="flex justify-center">
