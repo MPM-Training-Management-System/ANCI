@@ -2,9 +2,6 @@
 
 import { useMemo, useState } from "react";
 
-/* =========================================================
-   TYPES
-========================================================= */
 
 type AttendanceStatus =
   | "Present"

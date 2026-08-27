@@ -7,6 +7,8 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using System.Text;
 using Microsoft.OpenApi.Models;
+using server.Settings;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(options =>
@@ -21,6 +23,19 @@ builder.Services.AddCors(options =>
             .AllowAnyMethod();
     });
 });
+builder.Services.AddScoped<
+    IParticipantProfileService,
+    ParticipantProfileService
+>();
+builder.Services.AddScoped<
+    ITrainerApplicationService,
+    TrainerApplicationService
+>();
+builder.Services.Configure<CloudinarySettings>(
+    builder.Configuration.GetSection("Cloudinary")
+);
+
+builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
 builder.Services.AddScoped<PasswordService>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -33,46 +48,70 @@ builder.Services
         JwtBearerDefaults.AuthenticationScheme
     )
     .AddJwtBearer(options =>
-    {
-        var key =
-            builder.Configuration["Jwt:Key"];
+{
+    var secret =
+        builder.Configuration["Jwt:Secret"];
 
-        if (string.IsNullOrWhiteSpace(key))
+    var issuer =
+        builder.Configuration["Jwt:Issuer"];
+
+    var audience =
+        builder.Configuration["Jwt:Audience"];
+
+    options.TokenValidationParameters =
+        new TokenValidationParameters
         {
-            throw new InvalidOperationException(
-                "JWT key is not configured."
-            );
-        }
+            ValidateIssuerSigningKey = true,
 
-        options.TokenValidationParameters =
-            new TokenValidationParameters
+            IssuerSigningKey =
+                new SymmetricSecurityKey(
+                    Encoding.UTF8.GetBytes(secret!)
+                ),
+
+            ValidateIssuer = true,
+            ValidIssuer = issuer,
+
+            ValidateAudience = true,
+            ValidAudience = audience,
+
+            ValidateLifetime = true,
+
+            ClockSkew =
+                TimeSpan.FromMinutes(1),
+
+            RoleClaimType =
+                ClaimTypes.Role,
+
+            NameClaimType =
+                ClaimTypes.Name
+        };
+
+    options.Events =
+        new JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
             {
-                ValidateIssuer = true,
-                ValidateAudience = true,
-                ValidateLifetime = true,
-                ValidateIssuerSigningKey = true,
+                Console.WriteLine();
+                Console.WriteLine(
+                    "========== JWT ERROR =========="
+                );
 
-                ValidIssuer =
-                    builder.Configuration["Jwt:Issuer"],
+                Console.WriteLine(
+                    context.Exception.GetType().FullName
+                );
 
-                ValidAudience =
-                    builder.Configuration["Jwt:Audience"],
+                Console.WriteLine(
+                    context.Exception.Message
+                );
 
-                IssuerSigningKey =
-                    new SymmetricSecurityKey(
-                        Encoding.UTF8.GetBytes(key)
-                    ),
+                Console.WriteLine(
+                    "================================"
+                );
 
-                ClockSkew =
-                    TimeSpan.FromMinutes(1),
-
-                RoleClaimType =
-                    System.Security.Claims.ClaimTypes.Role,
-
-                NameClaimType =
-                    System.Security.Claims.ClaimTypes.Name
-            };
-    });
+                return Task.CompletedTask;
+            }
+        };
+});
 
 builder.Services.AddAuthorization();
 

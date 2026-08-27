@@ -1,26 +1,26 @@
 {
   "name": "@repo/hooks",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Shared React hooks for the monorepo",
+  "main": "./src/index.ts",
   "exports": {
-    "./color": "./src",
     ".": "./src/index.ts"
   },
   "keywords": [],
-
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "sonner": "^2.0.7",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "@repo/api": "workspace:*",
+    "@repo/types": "workspace:*",
+    "sonner": "^2.0.7"
   },
-   "devDependencies": {
-      "@repo/types": "workspace:*",
-   "@repo/api": "workspace:*",
-    "@types/react": "^19.x",
-    "@types/react-dom": "^19.x",
-    "typescript": "^5.x"
-   }
+  "peerDependencies": {
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.17",
+    "@types/react-dom": "~19.1.0",
+    "typescript": "~5.9.2"
+  }
 }

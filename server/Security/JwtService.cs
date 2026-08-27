@@ -1,7 +1,9 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+
 using Microsoft.IdentityModel.Tokens;
+
 using server.Models.Auth;
 
 namespace server.Security;
@@ -16,18 +18,13 @@ public class JwtService
         _configuration = configuration;
     }
 
-    public (string Token, DateTime ExpiresAt)
-        GenerateToken(User user)
+    public (
+        string Token,
+        DateTime ExpiresAt
+    ) GenerateToken(User user)
     {
-        var key =
-            _configuration["Jwt:Key"];
-
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            throw new InvalidOperationException(
-                "JWT key is not configured."
-            );
-        }
+        var secret =
+            _configuration["Jwt:Secret"];
 
         var issuer =
             _configuration["Jwt:Issuer"];
@@ -35,69 +32,74 @@ public class JwtService
         var audience =
             _configuration["Jwt:Audience"];
 
-        var expirationMinutes =
-            int.TryParse(
-                _configuration[
-                    "Jwt:ExpirationMinutes"
-                ],
-                out var minutes)
-                ? minutes
-                : 60;
-
-        var expiresAt =
-            DateTime.UtcNow.AddMinutes(
-                expirationMinutes
-            );
-
-        var claims = new List<Claim>
+        if (string.IsNullOrWhiteSpace(secret))
         {
-            // Required User ID claim
-            new Claim(
-                JwtRegisteredClaimNames.Sub,
-                user.Id.ToString()
-            ),
+            throw new InvalidOperationException(
+                "JWT Secret is missing."
+            );
+        }
 
-            // ASP.NET Core user ID
-            new Claim(
-                ClaimTypes.NameIdentifier,
-                user.Id.ToString()
-            ),
+        if (string.IsNullOrWhiteSpace(issuer))
+        {
+            throw new InvalidOperationException(
+                "JWT Issuer is missing."
+            );
+        }
 
-            // Role claim
-            new Claim(
-                ClaimTypes.Role,
-                user.Role.ToString()
-            ),
+        if (string.IsNullOrWhiteSpace(audience))
+        {
+            throw new InvalidOperationException(
+                "JWT Audience is missing."
+            );
+        }
 
-            // Email
-            new Claim(
-                ClaimTypes.Email,
-                user.Email
-            ),
-
-            // Name
-            new Claim(
-                ClaimTypes.Name,
-                user.FullName
-            ),
-
-            // Internal user code
-            new Claim(
-                "userCode",
-                user.UserCode
-            )
-        };
-
-        var securityKey =
+        var key =
             new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(key)
+                Encoding.UTF8.GetBytes(secret)
             );
 
         var credentials =
             new SigningCredentials(
-                securityKey,
+                key,
                 SecurityAlgorithms.HmacSha256
             );
+
+        var expiresAt =
+            DateTime.UtcNow.AddHours(1);
+
+        var claims =
+            new List<Claim>
+            {
+                new Claim(
+                    JwtRegisteredClaimNames.Sub,
+                    user.Id.ToString()
+                ),
+
+                new Claim(
+                    ClaimTypes.NameIdentifier,
+                    user.Id.ToString()
+                ),
+
+                new Claim(
+                    ClaimTypes.Role,
+                    user.Role.ToString()
+                ),
+
+                new Claim(
+                    ClaimTypes.Email,
+                    user.Email
+                ),
+
+                new Claim(
+                    ClaimTypes.Name,
+                    user.FullName
+                ),
+
+                new Claim(
+                    "userCode",
+                    user.UserCode
+                )
+            };
 
         var token =
             new JwtSecurityToken(
@@ -108,12 +110,10 @@ public class JwtService
                 signingCredentials: credentials
             );
 
-        var tokenString =
-            new JwtSecurityTokenHandler()
-                .WriteToken(token);
-
         return (
-            tokenString,
+            new JwtSecurityTokenHandler()
+                .WriteToken(token),
+
             expiresAt
         );
     }

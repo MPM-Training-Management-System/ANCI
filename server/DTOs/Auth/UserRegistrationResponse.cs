@@ -15,4 +15,8 @@ public class UserRegistrationResponse
     public string Status { get; set; } = string.Empty;
 
     public string Message { get; set; } = string.Empty;
+
+    public Guid? TrainerApplicationId { get; set; }
+
+    public string? ProfileImageUrl { get; set; }
 }

@@ -24,11 +24,10 @@ export default function RootLayout() {
 
         <Stack.Screen name="(auth)" />
 
-        <Stack.Screen name="(participant-tabs)" />
+        <Stack.Screen
+        name="(auth)/otp-verification/index"
+      />
 
-        <Stack.Screen name="(trainer-tabs)" />
-
-        <Stack.Screen name="(admin-tabs)" />
 
         <Stack.Screen
           name="modal"

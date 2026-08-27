@@ -1,5 +1,7 @@
 using server.Enums;
 using server.Models.Otp;
+using server.Models.Participant;
+using server.Models.Trainer;
 
 namespace server.Models.Auth;
 
@@ -28,4 +30,9 @@ public class User
     public DateTime UpdatedAt { get; set; }
     public ICollection<OtpVerification> OtpVerifications { get; set; }
     = new List<OtpVerification>();
+
+    public ParticipantProfile? ParticipantProfile { get; set; }
+
+public TrainerProfile? TrainerProfile { get; set; }
+    public TrainerApplication? TrainerApplication { get; set; }
 }

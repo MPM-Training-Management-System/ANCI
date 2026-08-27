@@ -1,7 +1,6 @@
 "use client";
 
-import Image from "next/image";
-import { useEffect, useState } from "react";
+// import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 import {
@@ -11,9 +10,9 @@ import {
   User,
 } from "lucide-react";
 
-import type { LoginUser } from "@repo/api";
-import { authApi,auth } from "@/lib/api";
 
+import { useMe } from "@repo/hooks";
+import { authApi } from "@/lib/api";
 
 import {
   Button,
@@ -26,36 +25,14 @@ import {
 
 export default function NavbarProfile() {
   const router = useRouter();
-  const [user, setUser] = useState<LoginUser | null>(null);
 
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const data = await authApi.me();
-        console.log(data);
-        setUser(data);
-      } catch (error) {
-        console.error(error);
-      }
-    };
-
-    loadUser();
-  }, []);
-
-  if (!user) return null;
-
-  const initials =
-    user.fullName
-      ?.split(" ")
-      .map((word) => word[0])
-      .join("")
-      .substring(0, 2)
-      .toUpperCase() ?? "U";
-
-  const handleLogout = () => {
-    auth.logout();
-    router.push("/");
-  };
+   const {
+    user,
+    isLoading,
+    error,
+    fetchMe,
+  } = useMe(authApi);
+  
 
   return (
     <DropdownMenu>
@@ -66,30 +43,30 @@ export default function NavbarProfile() {
         >
           <div className="flex items-center gap-3">
             <div className="relative">
-              {user.profileImage ? (
+              {/* {user. ? (
                 <Image
-                  src={user.profileImage}
-                  alt={user.fullName || "Profile"}
+                  // src={user?.profileImage}
+                  alt={user?.fullName || "Profile"}
                   width={40}
                   height={40}
                   className="h-10 w-10 rounded-full object-cover"
                 />
-              ) : (
+              ) : ( */}
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#002B5C] font-semibold text-white">
-                  {initials}
+                  {user?.fullName}
                 </div>
-              )}
+              )
 
               <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
             </div>
 
             <div className="hidden text-left lg:block">
               <h4 className="text-sm font-semibold text-gray-900">
-                {user.username}
+                {user?.fullName}
               </h4>
 
               <p className="text-xs text-gray-500">
-                {user.role}
+                {user?.status}
               </p>
             </div>
 
@@ -104,15 +81,15 @@ export default function NavbarProfile() {
       <DropdownMenuContent align="end">
         <div className="px-3 py-2">
           <p className="text-sm font-semibold">
-            {user.fullName}
+            {user?.fullName}
           </p>
 
           <p className="text-xs text-gray-500">
-            {user.email}
+            {user?.email}
           </p>
 
           <p className="text-xs text-gray-500">
-            {user.role}
+            {user?.status}
           </p>
         </div>
 
@@ -131,7 +108,7 @@ export default function NavbarProfile() {
         <DropdownMenuSeparator />
 
         <DropdownMenuItem
-          onClick={handleLogout}
+          
           className="text-red-600"
         >
           <LogOut className="mr-2 h-4 w-4" />

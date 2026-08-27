@@ -1,15 +1,14 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>24b1b936-3a65-44be-a75d-a223225bc2b0</UserSecretsId>
   </PropertyGroup>
 
 <ItemGroup>
-  <Content Include="tessdata\**\*"
-           CopyToOutputDirectory="PreserveNewest"
-           CopyToPublishDirectory="PreserveNewest" />
+  <Content Include="tessdata\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 </ItemGroup>
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />

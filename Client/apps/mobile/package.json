@@ -12,11 +12,13 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
+    "@react-native-community/datetimepicker": "^9.1.0",
     "@react-native/debugger-frontend": "^0.87.0",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
     "@repo/api": "workspace:*",
+    "@repo/hooks": "workspace:*",
     "@repo/types": "workspace:*",
     "@repo/ui-mobile": "workspace:*",
     "expo": "~54.0.36",
