@@ -9,6 +9,8 @@ import {
 } from "react-native";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { router } from "expo-router";
+import { auth } from "@/api/auth";
 
 interface MenuItemProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -25,6 +27,9 @@ function MenuItem({
   danger = false,
   onPress,
 }: MenuItemProps) {
+
+  
+
   return (
     <Pressable
       onPress={onPress}
@@ -75,6 +80,39 @@ function MenuItem({
 }
 
 export default function ProfileMenu() {
+  const handleLogout = () => {
+    Alert.alert(
+      "Logout",
+      "Are you sure you want to logout?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Logout",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await auth.logout();
+
+              router.replace("/login");
+            } catch (error) {
+              console.error(
+                "LOGOUT ERROR:",
+                error
+              );
+
+              Alert.alert(
+                "Logout Failed",
+                "Something went wrong while logging out."
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
   return (
     <View style={styles.container}>
       <Text style={styles.sectionTitle}>
@@ -129,12 +167,7 @@ export default function ProfileMenu() {
           title="Logout"
           subtitle="Sign out from this device"
           danger
-          onPress={() =>
-            Alert.alert(
-              "Logout",
-              "Logout functionality will be connected to authentication."
-            )
-          }
+          onPress={handleLogout}
         />
       </View>
     </View>

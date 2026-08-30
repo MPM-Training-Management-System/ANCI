@@ -6,7 +6,7 @@ import {
   Text,
   View,
 } from "react-native";
-
+import { useParticipantProfile} from "@repo/hooks"
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 import {
@@ -15,8 +15,16 @@ import {
 } from "@/src/data/participant";
 
 import UpcomingTraining from "./UpcomingTraining";
+import { participantApi } from "@/api/api";
 
 export default function ParticipantDashboard() {
+
+    const {
+    profile,
+    isLoading,
+    error,
+    refetch,
+  } = useParticipantProfile(participantApi);
   const participant = mockParticipant;
 
   const training = participant.training;
@@ -55,9 +63,7 @@ export default function ParticipantDashboard() {
       }
       showsVerticalScrollIndicator={false}
     >
-      {/* ================================================= */}
-      {/* WELCOME */}
-      {/* ================================================= */}
+     
 
       <View style={styles.welcomeSection}>
         <View style={styles.welcomeText}>
@@ -73,7 +79,7 @@ export default function ParticipantDashboard() {
             style={styles.name}
             numberOfLines={1}
           >
-            {participant.fullName}
+            {profile?.firstName}
           </Text>
 
           <Text style={styles.subtitle}>
@@ -82,7 +88,7 @@ export default function ParticipantDashboard() {
         </View>
 
         <View style={styles.avatar}>
-          {participant.profileImageUrl ? (
+          {profile?.profileImage ? (
             <View style={styles.imagePlaceholder}>
               <Text style={styles.avatarText}>
                 {participant.fullName
@@ -92,7 +98,7 @@ export default function ParticipantDashboard() {
             </View>
           ) : (
             <Text style={styles.avatarText}>
-              {participant.fullName
+              {profile?.firstName
                 .charAt(0)
                 .toUpperCase()}
             </Text>
@@ -100,11 +106,9 @@ export default function ParticipantDashboard() {
         </View>
       </View>
 
-      {/* ================================================= */}
-      {/* ACCOUNT STATUS */}
-      {/* ================================================= */}
+  
 
-      {participant.status ===
+      {profile?.status ===
         "Pending" && (
         <View style={styles.pendingCard}>
           <View style={styles.pendingIcon}>
@@ -128,9 +132,6 @@ export default function ParticipantDashboard() {
         </View>
       )}
 
-      {/* ================================================= */}
-      {/* TRAINING */}
-      {/* ================================================= */}
 
       <SectionTitle
         title="Your Training"

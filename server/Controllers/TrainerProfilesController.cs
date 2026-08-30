@@ -11,128 +11,169 @@ namespace server.Controllers;
 [ApiController]
 [Route("api/trainer-profiles")]
 [Authorize]
-public class TrainerProfilesController : ControllerBase
+public class TrainerProfilesController
+    : ControllerBase
 {
-    private readonly ITrainerApplicationService _service;
+    private readonly ITrainerProfileService _service;
+
 
     public TrainerProfilesController(
-        ITrainerApplicationService service)
+        ITrainerProfileService service)
     {
         _service = service;
     }
 
 
     // =========================================================
-    // GET MY TRAINER PROFILE
+    // GET MY PROFILE
     // GET /api/trainer-profiles/me
     // =========================================================
 
     [HttpGet("me")]
     [Authorize(Roles = "Trainer")]
-    public async Task<IActionResult> GetMyProfile()
+    public async Task<IActionResult>
+        GetMyProfile()
     {
-        var userId = GetCurrentUserId();
+        var userId =
+            GetCurrentUserId();
+
 
         if (userId is null)
         {
-            return Unauthorized(new
-            {
-                message = "Invalid authenticated user."
-            });
+            return Unauthorized(
+                new
+                {
+                    message =
+                        "Invalid authenticated user."
+                }
+            );
         }
+
 
         var result =
             await _service.GetMyProfileAsync(
                 userId.Value
             );
 
+
         if (result is null)
         {
-            return NotFound(new
-            {
-                message = "Trainer profile not found."
-            });
+            return NotFound(
+                new
+                {
+                    message =
+                        "Trainer profile not found."
+                }
+            );
         }
+
 
         return Ok(result);
     }
 
 
     // =========================================================
-    // UPDATE MY TRAINER PROFILE
+    // UPDATE MY PROFILE
     // PUT /api/trainer-profiles/me
     // =========================================================
 
     [HttpPut("me")]
     [Authorize(Roles = "Trainer")]
-    public async Task<IActionResult> UpdateMyProfile(
-        [FromBody] UpdateTrainerProfileRequest request)
+    public async Task<IActionResult>
+        UpdateMyProfile(
+            [FromBody]
+            UpdateTrainerProfileRequest request)
     {
         if (!ModelState.IsValid)
         {
-            return ValidationProblem(ModelState);
+            return ValidationProblem(
+                ModelState
+            );
         }
 
-        var userId = GetCurrentUserId();
+
+        var userId =
+            GetCurrentUserId();
+
 
         if (userId is null)
         {
-            return Unauthorized(new
-            {
-                message = "Invalid authenticated user."
-            });
+            return Unauthorized(
+                new
+                {
+                    message =
+                        "Invalid authenticated user."
+                }
+            );
         }
+
 
         try
         {
             var result =
-                await _service.UpdateMyProfileAsync(
-                    userId.Value,
-                    request
-                );
+                await _service
+                    .UpdateMyProfileAsync(
+                        userId.Value,
+                        request
+                    );
+
 
             if (result is null)
             {
-                return NotFound(new
-                {
-                    message = "Trainer profile not found."
-                });
+                return NotFound(
+                    new
+                    {
+                        message =
+                            "Trainer profile not found."
+                    }
+                );
             }
+
 
             return Ok(result);
         }
-        catch (InvalidOperationException ex)
+        catch (
+            InvalidOperationException ex)
         {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
+            return BadRequest(
+                new
+                {
+                    message =
+                        ex.Message
+                }
+            );
         }
     }
 
 
     // =========================================================
-    // GET TRAINER PROFILE BY ID
+    // GET TRAINER BY ID
     // GET /api/trainer-profiles/{id}
     // =========================================================
 
     [HttpGet("{id:guid}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> GetById(
-        Guid id)
+    public async Task<IActionResult>
+        GetById(
+            Guid id)
     {
         var result =
-            await _service.GetByIdProfileAsync(
+            await _service.GetByIdAsync(
                 id
             );
 
+
         if (result is null)
         {
-            return NotFound(new
-            {
-                message = "Trainer profile not found."
-            });
+            return NotFound(
+                new
+                {
+                    message =
+                        "Trainer profile not found."
+                }
+            );
         }
+
 
         return Ok(result);
     }
@@ -145,10 +186,13 @@ public class TrainerProfilesController : ControllerBase
 
     [HttpGet("active")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> GetActiveTrainers()
+    public async Task<IActionResult>
+        GetActiveTrainers()
     {
         var result =
-            await _service.GetActiveTrainersAsync();
+            await _service
+                .GetActiveTrainersAsync();
+
 
         return Ok(result);
     }
@@ -165,12 +209,16 @@ public class TrainerProfilesController : ControllerBase
                 ClaimTypes.NameIdentifier
             );
 
+
         if (
-            string.IsNullOrWhiteSpace(userId)
+            string.IsNullOrWhiteSpace(
+                userId
+            )
         )
         {
             return null;
         }
+
 
         if (
             !Guid.TryParse(
@@ -181,6 +229,7 @@ public class TrainerProfilesController : ControllerBase
         {
             return null;
         }
+
 
         return parsedUserId;
     }

@@ -1,54 +1,53 @@
-import { useCallback, useState } from "react";
-import { AuthApi } from "@repo/api";
-import type { MeUser } from "@repo/types";
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
 
-export function useMe(authApi: AuthApi) {
-  const [user, setUser] =
-    useState<MeUser | null>(null);
+import type { ParticipantProfile } from "@repo/types";
+import type { ParticipantApi } from "@repo/api";
+
+export function useParticipantProfile(
+  participantApi: ParticipantApi
+) {
+  const [profile, setProfile] =
+    useState<ParticipantProfile | null>(null);
 
   const [isLoading, setIsLoading] =
-    useState(false);
+    useState(true);
 
   const [error, setError] =
-    useState<string | null>(null);
+    useState<unknown>(null);
 
-  const fetchMe = useCallback(async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const response =
-        await authApi.me();
+      const data =
+        await participantApi.getAll();
 
-      setUser(response.user);
-
-      return response.user;
-    } catch (error) {
-      setUser(null);
-
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Unable to retrieve authenticated user."
+      setProfile(data);
+    } catch (err) {
+      console.error(
+        "GET PARTICIPANT PROFILE ERROR:",
+        err
       );
 
-      return null;
+      setError(err);
     } finally {
       setIsLoading(false);
     }
-  }, [authApi]);
+  }, [participantApi]);
 
-  const reset = () => {
-    setUser(null);
-    setIsLoading(false);
-    setError(null);
-  };
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
 
   return {
-    user,
+    profile,
     isLoading,
     error,
-    fetchMe,
-    reset,
+    refetch: fetchProfile,
   };
 }

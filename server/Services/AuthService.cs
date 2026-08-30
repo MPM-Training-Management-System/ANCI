@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 using server.Data;
 using server.DTOs.Auth;
+using server.DTOs.Trainer;
 using server.Enums;
 using server.Models.Auth;
 using server.Models.Participant;
@@ -14,9 +15,13 @@ namespace server.Services;
 public class AuthService : IAuthService
 {
     private readonly ApplicationDbContext _db;
+
     private readonly PasswordService _passwordService;
+
     private readonly JwtService _jwtService;
+
     private readonly ICloudinaryService _cloudinaryService;
+
 
     public AuthService(
         ApplicationDbContext db,
@@ -25,10 +30,17 @@ public class AuthService : IAuthService
         ICloudinaryService cloudinaryService)
     {
         _db = db;
-        _passwordService = passwordService;
-        _jwtService = jwtService;
-        _cloudinaryService = cloudinaryService;
+
+        _passwordService =
+            passwordService;
+
+        _jwtService =
+            jwtService;
+
+        _cloudinaryService =
+            cloudinaryService;
     }
+
 
     // =========================================================
     // PARTICIPANT REGISTRATION
@@ -44,9 +56,10 @@ public class AuthService : IAuthService
         // NORMALIZE EMAIL
         // -----------------------------------------------------
 
-        var email = request.Email
-            .Trim()
-            .ToLowerInvariant();
+        var email =
+            request.Email
+                .Trim()
+                .ToLowerInvariant();
 
 
         // -----------------------------------------------------
@@ -56,8 +69,10 @@ public class AuthService : IAuthService
         var existingUser =
             await _db.Users
                 .FirstOrDefaultAsync(
-                    x => x.Email == email
+                    x =>
+                        x.Email == email
                 );
+
 
         if (existingUser is not null)
         {
@@ -73,26 +88,27 @@ public class AuthService : IAuthService
 
         string? profileImageUrl = null;
 
-        if (request.ProfileImage is not null)
+
+        if (
+            request.ProfileImage is not null
+        )
         {
             ValidateProfileImage(
                 request.ProfileImage
             );
 
 
-            // -------------------------------------------------
-            // UPLOAD TO CLOUDINARY
-            // -------------------------------------------------
-
             await using var stream =
                 request.ProfileImage.OpenReadStream();
 
+
             profileImageUrl =
-                await _cloudinaryService.UploadImageAsync(
-                    stream,
-                    request.ProfileImage.FileName,
-                    "ace-nextgen/participants"
-                );
+                await _cloudinaryService
+                    .UploadImageAsync(
+                        stream,
+                        request.ProfileImage.FileName,
+                        "ace-nextgen/participants"
+                    );
         }
 
 
@@ -120,46 +136,47 @@ public class AuthService : IAuthService
         // CREATE USER
         // -----------------------------------------------------
 
-        var user = new User
-        {
-            Id = Guid.NewGuid(),
+        var user =
+            new User
+            {
+                Id =
+                    Guid.NewGuid(),
 
-            UserCode =
-                userCode,
+                UserCode =
+                    userCode,
 
-            FullName =
-                fullName,
+                FullName =
+                    fullName,
 
-            Email =
-                email,
+                Email =
+                    email,
 
-            MobileNumber =
-                CleanString(
-                    request.MobileNumber
-                ),
+                MobileNumber =
+                    CleanString(
+                        request.MobileNumber
+                    ),
 
-            PasswordHash =
-                _passwordService.HashPassword(
-                    request.Password
-                ),
+                PasswordHash =
+                    _passwordService
+                        .HashPassword(
+                            request.Password
+                        ),
 
-            Role =
-                UserRole.Participant,
+                Role =
+                    UserRole.Participant,
 
-            // Account stays pending
-            // until OTP verification.
-            Status =
-                UserStatus.Pending,
+                Status =
+                    UserStatus.Pending,
 
-            IsEmailVerified =
-                false,
+                IsEmailVerified =
+                    false,
 
-            CreatedAt =
-                DateTime.UtcNow,
+                CreatedAt =
+                    DateTime.UtcNow,
 
-            UpdatedAt =
-                DateTime.UtcNow
-        };
+                UpdatedAt =
+                    DateTime.UtcNow
+            };
 
 
         // -----------------------------------------------------
@@ -211,7 +228,9 @@ public class AuthService : IAuthService
         // ADD TO DATABASE
         // -----------------------------------------------------
 
-        _db.Users.Add(user);
+        _db.Users.Add(
+            user
+        );
 
         _db.ParticipantProfiles.Add(
             participantProfile
@@ -226,7 +245,7 @@ public class AuthService : IAuthService
 
 
         // -----------------------------------------------------
-        // RETURN RESPONSE
+        // RESPONSE
         // -----------------------------------------------------
 
         return new UserRegistrationResponse
@@ -251,12 +270,12 @@ public class AuthService : IAuthService
 
             Message =
                 "Participant registration successful. Please verify your email using the OTP.",
-                
-                TrainerApplicationId =
-        null,
 
-    ProfileImageUrl =
-        profileImageUrl
+            TrainerApplicationId =
+                null,
+
+            ProfileImageUrl =
+                profileImageUrl
         };
     }
 
@@ -271,9 +290,9 @@ public class AuthService : IAuthService
         RegisterTrainerAsync(
             RegisterTrainerRequest request)
     {
-        // -----------------------------------------------------
+        // =====================================================
         // NORMALIZE EMAIL
-        // -----------------------------------------------------
+        // =====================================================
 
         var email =
             request.Email
@@ -281,15 +300,31 @@ public class AuthService : IAuthService
                 .ToLowerInvariant();
 
 
-        // -----------------------------------------------------
+        // =====================================================
+        // VALIDATE EMAIL
+        // =====================================================
+
+        if (
+            string.IsNullOrWhiteSpace(email)
+        )
+        {
+            throw new InvalidOperationException(
+                "Email is required."
+            );
+        }
+
+
+        // =====================================================
         // CHECK EXISTING EMAIL
-        // -----------------------------------------------------
+        // =====================================================
 
         var existingUser =
             await _db.Users
                 .FirstOrDefaultAsync(
-                    x => x.Email == email
+                    x =>
+                        x.Email == email
                 );
+
 
         if (existingUser is not null)
         {
@@ -299,9 +334,57 @@ public class AuthService : IAuthService
         }
 
 
-        // -----------------------------------------------------
+        // =====================================================
+        // VALIDATE FIRST NAME
+        // =====================================================
+
+        if (
+            string.IsNullOrWhiteSpace(
+                request.FirstName
+            )
+        )
+        {
+            throw new InvalidOperationException(
+                "First name is required."
+            );
+        }
+
+
+        // =====================================================
+        // VALIDATE LAST NAME
+        // =====================================================
+
+        if (
+            string.IsNullOrWhiteSpace(
+                request.LastName
+            )
+        )
+        {
+            throw new InvalidOperationException(
+                "Last name is required."
+            );
+        }
+
+
+        // =====================================================
+        // VALIDATE PASSWORD
+        // =====================================================
+
+        if (
+            string.IsNullOrWhiteSpace(
+                request.Password
+            )
+        )
+        {
+            throw new InvalidOperationException(
+                "Password is required."
+            );
+        }
+
+
+        // =====================================================
         // VALIDATE SPECIALIZATION
-        // -----------------------------------------------------
+        // =====================================================
 
         if (
             string.IsNullOrWhiteSpace(
@@ -315,13 +398,68 @@ public class AuthService : IAuthService
         }
 
 
-        // -----------------------------------------------------
-        // VALIDATE PROFILE IMAGE
-        // -----------------------------------------------------
+        // =====================================================
+        // VALIDATE ADDRESS
+        // =====================================================
+
+        if (
+            string.IsNullOrWhiteSpace(
+                request.Address
+            )
+        )
+        {
+            throw new InvalidOperationException(
+                "Address is required."
+            );
+        }
+
+
+        // =====================================================
+        // VALIDATE GENDER
+        // =====================================================
+
+        if (
+            string.IsNullOrWhiteSpace(
+                request.Gender
+            )
+        )
+        {
+            throw new InvalidOperationException(
+                "Gender is required."
+            );
+        }
+
+
+        // =====================================================
+        // VALIDATE YEARS OF EXPERIENCE
+        // =====================================================
+
+        if (
+            request.YearsOfExperience.HasValue
+            &&
+            (
+                request.YearsOfExperience.Value < 0
+                ||
+                request.YearsOfExperience.Value > 100
+            )
+        )
+        {
+            throw new InvalidOperationException(
+                "Years of experience must be between 0 and 100."
+            );
+        }
+
+
+        // =====================================================
+        // PROFILE IMAGE
+        // =====================================================
 
         string? profileImageUrl = null;
 
-        if (request.ProfileImage is not null)
+
+        if (
+            request.ProfileImage is not null
+        )
         {
             ValidateProfileImage(
                 request.ProfileImage
@@ -329,29 +467,43 @@ public class AuthService : IAuthService
 
 
             await using var stream =
-                request.ProfileImage.OpenReadStream();
+                request.ProfileImage
+                    .OpenReadStream();
 
 
             profileImageUrl =
-                await _cloudinaryService.UploadImageAsync(
-                    stream,
-                    request.ProfileImage.FileName,
-                    "ace-nextgen/trainers"
-                );
+                await _cloudinaryService
+                    .UploadImageAsync(
+                        stream,
+                        request.ProfileImage.FileName,
+                        "ace-nextgen/trainers"
+                    );
         }
 
 
-        // -----------------------------------------------------
+        // =====================================================
         // GENERATE TRAINER USER CODE
-        // -----------------------------------------------------
+        // =====================================================
 
         var userCode =
             await GenerateTrainerUserCodeAsync();
 
 
-        // -----------------------------------------------------
+        // =====================================================
+        // BUILD FULL NAME
+        // =====================================================
+
+        var fullName =
+            BuildFullName(
+                request.FirstName,
+                request.MiddleName,
+                request.LastName
+            );
+
+
+        // =====================================================
         // CREATE USER
-        // -----------------------------------------------------
+        // =====================================================
 
         var user =
             new User
@@ -363,7 +515,7 @@ public class AuthService : IAuthService
                     userCode,
 
                 FullName =
-                    request.FullName.Trim(),
+                    fullName,
 
                 Email =
                     email,
@@ -374,13 +526,17 @@ public class AuthService : IAuthService
                     ),
 
                 PasswordHash =
-                    _passwordService.HashPassword(
-                        request.Password
-                    ),
+                    _passwordService
+                        .HashPassword(
+                            request.Password
+                        ),
 
                 Role =
                     UserRole.Trainer,
 
+                // Trainer still needs
+                // email verification and
+                // admin approval.
                 Status =
                     UserStatus.Pending,
 
@@ -395,9 +551,9 @@ public class AuthService : IAuthService
             };
 
 
-        // -----------------------------------------------------
+        // =====================================================
         // CREATE TRAINER APPLICATION
-        // -----------------------------------------------------
+        // =====================================================
 
         var trainerApplication =
             new TrainerApplication
@@ -450,23 +606,138 @@ public class AuthService : IAuthService
             };
 
 
-        // -----------------------------------------------------
-        // SAVE USER + TRAINER APPLICATION
-        // -----------------------------------------------------
+        // =====================================================
+        // CREATE TRAINER PROFILE
+        // =====================================================
+        //
+        // IMPORTANT:
+        // This is what was missing from your current code.
+        //
+        // The trainer profile is created immediately during
+        // registration, but it remains inactive until admin
+        // approval.
+        // =====================================================
 
-        _db.Users.Add(user);
+        var trainerProfile =
+            new TrainerProfile
+            {
+                Id =
+                    Guid.NewGuid(),
+
+                UserId =
+                    user.Id,
+
+
+                // -------------------------------------------------
+                // PERSONAL INFORMATION
+                // -------------------------------------------------
+
+                FirstName =
+                    request.FirstName.Trim(),
+
+                MiddleName =
+                    CleanString(
+                        request.MiddleName
+                    ),
+
+                LastName =
+                    request.LastName.Trim(),
+
+                BirthDate =
+                    request.BirthDate,
+
+                Address =
+                    CleanString(
+                        request.Address
+                    ),
+
+                Gender =
+                    CleanString(
+                        request.Gender
+                    ),
+
+
+                // -------------------------------------------------
+                // TRAINER INFORMATION
+                // -------------------------------------------------
+
+                IsActive =
+                    false,
+
+                Specialization =
+                    request.Specialization.Trim(),
+
+                Bio =
+                    CleanString(
+                        request.Bio
+                    ),
+
+                YearsOfExperience =
+                    request.YearsOfExperience,
+
+
+                // -------------------------------------------------
+                // PROFILE IMAGE
+                // -------------------------------------------------
+
+                ProfileImageUrl =
+                    profileImageUrl,
+
+
+                // -------------------------------------------------
+                // ACTIVATION
+                // -------------------------------------------------
+
+                ActivatedAt =
+                    null,
+
+
+                // -------------------------------------------------
+                // RELATIONSHIP
+                // -------------------------------------------------
+
+                User =
+                    user
+            };
+
+
+        // =====================================================
+        // ADD USER
+        // =====================================================
+
+        _db.Users.Add(
+            user
+        );
+
+
+        // =====================================================
+        // ADD TRAINER APPLICATION
+        // =====================================================
 
         _db.TrainerApplications.Add(
             trainerApplication
         );
 
 
+        // =====================================================
+        // ADD TRAINER PROFILE
+        // =====================================================
+
+        _db.TrainerProfiles.Add(
+            trainerProfile
+        );
+
+
+        // =====================================================
+        // SAVE DATABASE
+        // =====================================================
+
         await _db.SaveChangesAsync();
 
 
-        // -----------------------------------------------------
-        // RESPONSE
-        // -----------------------------------------------------
+        // =====================================================
+        // RETURN RESPONSE
+        // =====================================================
 
         return new UserRegistrationResponse
         {
@@ -489,116 +760,90 @@ public class AuthService : IAuthService
                 user.Status.ToString(),
 
             Message =
-                "Trainer registration submitted successfully. Please verify your email.",
-                ProfileImageUrl =
-        profileImageUrl
+                "Trainer registration submitted successfully. Please verify your email using the OTP.",
+
+            TrainerApplicationId =
+                trainerApplication.Id,
+
+            ProfileImageUrl =
+                profileImageUrl
         };
     }
 
 
-    // =========================================================
-    // LOGIN
-    // POST /api/auth/login
-    // =========================================================
+  // =========================================================
+// LOGIN
+// POST /api/auth/login
+// =========================================================
 
-    public async Task<LoginResponse>
-        LoginAsync(
-            LoginRequest request)
-    {
-        // -----------------------------------------------------
-        // NORMALIZE EMAIL
-        // -----------------------------------------------------
+public async Task<LoginResponse>
+    LoginAsync(
+        LoginRequest request)
+{
+   
 
-        var email =
-            request.Email
-                .Trim()
-                .ToLowerInvariant();
+    var email =
+        request.Email
+            .Trim()
+            .ToLowerInvariant();
 
 
-        // -----------------------------------------------------
-        // FIND USER
-        // -----------------------------------------------------
+   
 
-        var user =
-            await _db.Users
-                .FirstOrDefaultAsync(
-                    x => x.Email == email
-                );
-
-
-        if (user is null)
-        {
-            throw new UnauthorizedAccessException(
-                "Invalid email or password."
+    var user =
+        await _db.Users
+            .FirstOrDefaultAsync(
+                x =>
+                    x.Email == email
             );
-        }
 
 
-        // -----------------------------------------------------
-        // VERIFY PASSWORD
-        // -----------------------------------------------------
 
-        var passwordValid =
-            _passwordService.VerifyPassword(
+    if (user is null)
+    {
+        throw new UnauthorizedAccessException(
+            "Invalid email or password."
+        );
+    }
+
+
+   
+    var passwordValid =
+        _passwordService
+            .VerifyPassword(
                 request.Password,
                 user.PasswordHash
             );
 
 
-        if (!passwordValid)
-        {
-            throw new UnauthorizedAccessException(
-                "Invalid email or password."
-            );
-        }
+    if (!passwordValid)
+    {
+        throw new UnauthorizedAccessException(
+            "Invalid email or password."
+        );
+    }
 
 
-        // -----------------------------------------------------
-        // EMAIL VERIFICATION CHECK
-        // -----------------------------------------------------
-
-        if (!user.IsEmailVerified)
-        {
-            throw new UnauthorizedAccessException(
-                "Please verify your email address before logging in."
-            );
-        }
-
-
-        // -----------------------------------------------------
-        // ACCOUNT STATUS CHECK
-        // -----------------------------------------------------
-
-        if (
-            user.Status ==
-                UserStatus.Inactive
-            ||
-            user.Status ==
-                UserStatus.Suspended
-            ||
-            user.Status ==
-                UserStatus.Rejected
-        )
-        {
-            throw new UnauthorizedAccessException(
-                "This account is not allowed to login."
-            );
-        }
-
-
-        // -----------------------------------------------------
-        // GENERATE JWT
-        // -----------------------------------------------------
+    if (!user.IsEmailVerified)
+    {
+        throw new UnauthorizedAccessException(
+            "Please verify your email address before logging in."
+        );
+    }
+   
+        var trainerProfile =
+            await _db.TrainerProfiles
+                .FirstOrDefaultAsync(
+                    x =>
+                        x.UserId ==
+                        user.Id
+                );
+       
 
         var jwt =
             _jwtService.GenerateToken(
                 user
             );
-
-
-        // -----------------------------------------------------
-        // RETURN LOGIN RESPONSE
-        // -----------------------------------------------------
 
         return new LoginResponse
         {
@@ -627,15 +872,13 @@ public class AuthService : IAuthService
                         user.Role.ToString(),
 
                     Status =
-                        user.Status.ToString()
+                        user.Status.ToString(),
+
                 }
         };
     }
 
 
-    // =========================================================
-    // GENERATE PARTICIPANT CODE
-    // =========================================================
 
     private async Task<string>
         GenerateParticipantUserCodeAsync()
@@ -648,10 +891,12 @@ public class AuthService : IAuthService
                             .StartsWith("PAR-")
                 )
                 .OrderByDescending(
-                    x => x.UserCode
+                    x =>
+                        x.UserCode
                 )
                 .Select(
-                    x => x.UserCode
+                    x =>
+                        x.UserCode
                 )
                 .FirstOrDefaultAsync();
 
@@ -704,10 +949,12 @@ public class AuthService : IAuthService
                             .StartsWith("TRN-")
                 )
                 .OrderByDescending(
-                    x => x.UserCode
+                    x =>
+                        x.UserCode
                 )
                 .Select(
-                    x => x.UserCode
+                    x =>
+                        x.UserCode
                 )
                 .FirstOrDefaultAsync();
 
@@ -766,8 +1013,10 @@ public class AuthService : IAuthService
                     !string.IsNullOrWhiteSpace(x)
             )
             .Select(
-                x => x!.Trim()
+                x =>
+                    x!.Trim()
             );
+
 
         return string.Join(
             " ",
@@ -792,12 +1041,13 @@ public class AuthService : IAuthService
             return null;
         }
 
+
         return value.Trim();
     }
 
 
     // =========================================================
-    // PROFILE IMAGE VALIDATION
+    // VALIDATE PROFILE IMAGE
     // =========================================================
 
     private static void ValidateProfileImage(
@@ -807,7 +1057,9 @@ public class AuthService : IAuthService
             5 * 1024 * 1024;
 
 
-        if (file.Length <= 0)
+        if (
+            file.Length <= 0
+        )
         {
             throw new InvalidOperationException(
                 "Profile image is empty."
@@ -815,7 +1067,9 @@ public class AuthService : IAuthService
         }
 
 
-        if (file.Length > maxFileSize)
+        if (
+            file.Length > maxFileSize
+        )
         {
             throw new InvalidOperationException(
                 "Profile image must not exceed 5 MB."
@@ -834,7 +1088,8 @@ public class AuthService : IAuthService
 
         if (
             !allowedContentTypes.Contains(
-                file.ContentType.ToLowerInvariant()
+                file.ContentType
+                    .ToLowerInvariant()
             )
         )
         {

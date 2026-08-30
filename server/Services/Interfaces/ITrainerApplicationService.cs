@@ -11,52 +11,25 @@ public interface ITrainerApplicationService
     // =========================================================
 
     Task<TrainerApplicationDto?>
-        GetByIdAsync(
-            Guid id
-        );
-
-    Task<TrainerApplicationDto?>
         GetMyApplicationAsync(
             Guid userId
         );
 
-
-    // =========================================================
-    // ADMIN APPLICATION REVIEW
-    // =========================================================
-
-    Task ReviewAsync(
-        Guid applicationId,
-        Guid adminId,
-        ReviewTrainerApplicationRequest request
-    );
-
-
-    // =========================================================
-    // ADMIN DOCUMENT REVIEW
-    // =========================================================
-
-    Task ReviewDocumentAsync(
-        Guid applicationId,
-        Guid documentId,
-        Guid adminId,
-        ReviewTrainerApplicationDocumentRequest request
-    );
-
-
-    // =========================================================
-    // UPDATE APPLICATION PROFILE IMAGE
-    // =========================================================
-
     Task<TrainerApplicationDto?>
-        UpdateProfileImageAsync(
-            Guid userId,
-            IFormFile profileImage
+        GetByIdAsync(
+            Guid id
         );
 
+    // =========================================================
+    // ADMIN - GET ALL APPLICATIONS
+    // =========================================================
+
+    Task<List<TrainerApplicationDto>>
+        GetAllAsync();
+
 
     // =========================================================
-    // UPDATE APPLICATION
+    // UPDATE MY APPLICATION
     // =========================================================
 
     Task<TrainerApplicationDto?>
@@ -67,7 +40,18 @@ public interface ITrainerApplicationService
 
 
     // =========================================================
-    // APPLICATION DOCUMENTS
+    // PROFILE IMAGE
+    // =========================================================
+
+    Task<TrainerApplicationDto?>
+        UpdateProfileImageAsync(
+            Guid userId,
+            IFormFile profileImage
+        );
+
+
+    // =========================================================
+    // DOCUMENTS
     // =========================================================
 
     Task<TrainerApplicationDocumentDto>
@@ -77,13 +61,11 @@ public interface ITrainerApplicationService
             UploadTrainerApplicationDocumentRequest request
         );
 
-
     Task<List<TrainerApplicationDocumentDto>>
         GetMyDocumentsAsync(
             Guid userId,
             Guid applicationId
         );
-
 
     Task DeleteDocumentAsync(
         Guid userId,
@@ -93,28 +75,19 @@ public interface ITrainerApplicationService
 
 
     // =========================================================
-    // TRAINER PROFILE
+    // ADMIN REVIEW
     // =========================================================
 
-    Task<TrainerProfileDto?>
-        GetMyProfileAsync(
-            Guid userId
-        );
+    Task ReviewAsync(
+        Guid applicationId,
+        Guid adminId,
+        ReviewTrainerApplicationRequest request
+    );
 
-
-    Task<TrainerProfileDto?>
-        UpdateMyProfileAsync(
-            Guid userId,
-            UpdateTrainerProfileRequest request
-        );
-
-
-    Task<TrainerProfileDto?>
-        GetByIdProfileAsync(
-            Guid id
-        );
-
-
-    Task<List<TrainerProfileDto>>
-        GetActiveTrainersAsync();
+    Task ReviewDocumentAsync(
+        Guid applicationId,
+        Guid documentId,
+        Guid adminId,
+        ReviewTrainerApplicationDocumentRequest request
+    );
 }

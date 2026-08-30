@@ -1,10 +1,15 @@
 "use client";
 
-import { SidebarProps } from "./sidebar/types";
-
 import SidebarHeader from "./sidebar/SidebarHeader";
 import SidebarMenu from "./sidebar/SidebarMenu";
 import SidebarFooter from "./sidebar/SidebarFooter";
+
+interface SidebarProps {
+  collapsed: boolean;
+  setCollapsed: (
+    value: boolean
+  ) => void;
+}
 
 export default function Sidebar({
   collapsed,
@@ -14,42 +19,49 @@ export default function Sidebar({
     <aside
       className={`
         fixed
-        left-4
-        top-4
-        bottom-4
-        z-50
+        left-0
+        top-0
+        z-40
         flex
+        h-screen
         flex-col
-        overflow-hidden
-        rounded-3xl
-        bg-[#002B5C]
-        text-white
-        shadow-2xl
+        border-r
+        border-white/10
+        bg-primary
         transition-all
         duration-300
-        ${collapsed ? "w-24" : "w-72"}
+        ${
+          collapsed
+            ? "w-32"
+            : "w-80"
+        }
       `}
     >
-      {/* Header */}
+
+   
+
       <SidebarHeader
-        collapsed={collapsed}
+        collapsed={
+          collapsed
+        }
       />
 
-      {/* Divider */}
-      <div className="mx-4 border-b border-white/10" />
+   
 
-      {/* Menu */}
       <SidebarMenu
-        collapsed={collapsed}
+        collapsed={
+          collapsed
+        }
       />
 
-      {/* Divider */}
-      <div className="mx-4 border-t border-white/10" />
+     
 
-      {/* Footer */}
       <SidebarFooter
-        collapsed={collapsed}
+        collapsed={
+          collapsed
+        }
       />
+
     </aside>
   );
 }

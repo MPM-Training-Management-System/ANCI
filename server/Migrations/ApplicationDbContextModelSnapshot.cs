@@ -267,6 +267,64 @@ namespace server.Migrations
                     b.ToTable("TrainerApplicationDocuments");
                 });
 
+            modelBuilder.Entity("server.Models.Trainer.TrainerProfile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ActivatedAt")
+                        .IsRequired()
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Address")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Bio")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateOnly?>("BirthDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("FirstName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Gender")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("LastName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("MiddleName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProfileImageUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("Specialization")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("YearsOfExperience")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("TrainerProfiles");
+                });
+
             modelBuilder.Entity("server.Models.Otp.OtpVerification", b =>
                 {
                     b.HasOne("server.Models.Auth.User", "User")
@@ -311,6 +369,17 @@ namespace server.Migrations
                     b.Navigation("TrainerApplication");
                 });
 
+            modelBuilder.Entity("server.Models.Trainer.TrainerProfile", b =>
+                {
+                    b.HasOne("server.Models.Auth.User", "User")
+                        .WithOne("TrainerProfile")
+                        .HasForeignKey("server.Models.Trainer.TrainerProfile", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("server.Models.Auth.User", b =>
                 {
                     b.Navigation("OtpVerifications");
@@ -318,6 +387,8 @@ namespace server.Migrations
                     b.Navigation("ParticipantProfile");
 
                     b.Navigation("TrainerApplication");
+
+                    b.Navigation("TrainerProfile");
                 });
 
             modelBuilder.Entity("server.Models.Trainer.TrainerApplication", b =>

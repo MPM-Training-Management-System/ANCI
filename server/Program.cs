@@ -17,7 +17,7 @@ builder.Services.AddCors(options =>
     {
         policy
             .WithOrigins(
-                "http://localhost:3000"
+                "http://localhost:3000","http://localhost:3001"
             )
             .AllowAnyHeader()
             .AllowAnyMethod();
@@ -26,6 +26,11 @@ builder.Services.AddCors(options =>
 builder.Services.AddScoped<
     IParticipantProfileService,
     ParticipantProfileService
+>();
+
+builder.Services.AddScoped<
+    ITrainerProfileService,
+    TrainerProfileService
 >();
 builder.Services.AddScoped<
     ITrainerApplicationService,

@@ -6,40 +6,37 @@ import {
   View,
 } from "react-native";
 
+import { ParticipantProfile } from "@repo/types";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 interface Props {
-  fullName: string;
-  userCode: string;
-  role: string;
-  status: string;
+  profile: ParticipantProfile
 }
 
 export default function ProfileHeader({
-  fullName,
-  userCode,
-  role,
-  status,
+  profile,
 }: Props) {
-  const initials = fullName
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((name) => name.charAt(0))
-    .join("")
-    .toUpperCase();
+
+  const {
+    firstName,
+    userCode,
+    role,
+    status
+  } = profile;
+  
 
   return (
     <View style={styles.container}>
-      <View style={styles.avatar}>
+      {/* <View style={styles.avatar}>
         <Text style={styles.initials}>
-          {initials}
+          {firstName}
         </Text>
-      </View>
+      </View> */}
 
       <View style={styles.info}>
         <Text style={styles.name}>
-          {fullName}
+          {firstName}
         </Text>
 
         <View style={styles.codeRow}>

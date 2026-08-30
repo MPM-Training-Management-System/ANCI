@@ -1,53 +1,76 @@
 import { z } from "zod";
 
-export const registerSchema = z
-  .object({
-    firstName: z
-      .string()
-      .min(2, "First name is required."),
+export const registerTrainerSchema =
+  z.object({
 
-    middleName: z
-      .string()
-      .optional(),
+    firstName:
+      z.string()
+        .min(2, "First name is required."),
 
-    lastName: z
-      .string()
-      .min(2, "Last name is required."),
+    middleName:
+      z.string(),
 
-    email: z
-      .string()
-      .email("Enter a valid email address."),
+    lastName:
+      z.string()
+        .min(2, "Last name is required."),
 
-    mobileNumber: z
-      .string()
-      .min(
-        10,
-        "Enter a valid mobile number."
-      ),
+    email:
+      z.string()
+        .email("Enter a valid email address."),
 
-    password: z
-      .string()
-      .min(
-        8,
-        "Password must be at least 8 characters."
-      ),
+    mobileNumber:
+      z.string()
+        .min(10, "Enter a valid mobile number."),
 
-    confirmPassword: z
-      .string()
-      .min(
-        8,
-        "Please confirm your password."
-      ),
+    password:
+      z.string()
+        .min(
+          8,
+          "Password must be at least 8 characters."
+        ),
+
+    confirmPassword:
+      z.string()
+        .min(
+          8,
+          "Please confirm your password."
+        ),
+
+    specialization:
+      z.string()
+        .min(
+          2,
+          "Specialization is required."
+        ),
+
+    yearsOfExperience:
+      z.number()
+        .int()
+        .min(0)
+        .optional(),
+
+    certificationName:
+      z.string(),
+
+    certificationNumber:
+      z.string(),
+
   })
   .refine(
     (data) =>
       data.password ===
       data.confirmPassword,
     {
-      message: "Passwords do not match.",
-      path: ["confirmPassword"],
+      message:
+        "Passwords do not match.",
+      path: [
+        "confirmPassword",
+      ],
     }
   );
 
-export type RegisterFormValues =
-  z.infer<typeof registerSchema>;
+
+export type RegisterTrainerFormValues =
+  z.infer<
+    typeof registerTrainerSchema
+  >;

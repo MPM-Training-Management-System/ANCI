@@ -5,14 +5,11 @@ import {
   Text,
   View,
 } from "react-native";
-
+import { ParticipantProfile } from "@repo/types";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 interface Props {
-  fullName: string;
-  email: string;
-  mobileNumber: string;
-  memberSince: string;
+profile: ParticipantProfile
 }
 
 interface InfoRowProps {
@@ -50,11 +47,14 @@ function InfoRow({
 }
 
 export default function ProfileInfoCard({
-  fullName,
-  email,
-  mobileNumber,
-  memberSince,
+  profile,
 }: Props) {
+
+  const {
+    firstName,
+    email,
+    mobileNumber
+  } = profile;
   return (
     <View style={styles.card}>
       <Text style={styles.sectionTitle}>
@@ -64,7 +64,7 @@ export default function ProfileInfoCard({
       <InfoRow
         icon="person-outline"
         label="Full Name"
-        value={fullName}
+        value={firstName}
       />
 
       <InfoRow
@@ -79,11 +79,7 @@ export default function ProfileInfoCard({
         value={mobileNumber}
       />
 
-      <InfoRow
-        icon="calendar-outline"
-        label="Member Since"
-        value={memberSince}
-      />
+     
     </View>
   );
 }

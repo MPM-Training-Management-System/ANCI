@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 using server.DTOs.Auth;
+using server.DTOs.Trainer;
 using server.Services.Interfaces;
 
 namespace server.Controllers;

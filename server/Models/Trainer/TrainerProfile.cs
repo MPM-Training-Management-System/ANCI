@@ -8,6 +8,27 @@ public class TrainerProfile
 
     public Guid UserId { get; set; }
 
+    // =========================================================
+    // PERSONAL INFORMATION
+    // =========================================================
+
+    public string? FirstName { get; set; }
+
+    public string? MiddleName { get; set; }
+
+    public string? LastName { get; set; }
+
+    public DateOnly? BirthDate { get; set; }
+
+    public string? Address { get; set; }
+
+    public string? Gender { get; set; }
+
+
+    // =========================================================
+    // TRAINER INFORMATION
+    // =========================================================
+
     public bool IsActive { get; set; }
 
     public string Specialization { get; set; }
@@ -17,9 +38,24 @@ public class TrainerProfile
 
     public int? YearsOfExperience { get; set; }
 
+
+    // =========================================================
+    // PROFILE IMAGE
+    // =========================================================
+
     public string? ProfileImageUrl { get; set; }
 
-    public DateTime ActivatedAt { get; set; }
+
+    // =========================================================
+    // ACTIVATION
+    // =========================================================
+
+    public DateTime? ActivatedAt { get; set; }
+
+
+    // =========================================================
+    // RELATIONSHIP
+    // =========================================================
 
     public User User { get; set; }
         = default!;

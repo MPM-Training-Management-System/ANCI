@@ -217,7 +217,7 @@ modelBuilder.Entity<TrainerProfile>(
             .IsRequired();
 
         entity.Property(x => x.ActivatedAt)
-            .IsRequired();
+            .IsRequired(false);
 
         entity.HasOne(x => x.User)
             .WithOne(x => x.TrainerProfile)

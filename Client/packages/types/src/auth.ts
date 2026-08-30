@@ -17,10 +17,9 @@ export interface RegisterRequest {
     name: string;
     type: string;
   };
-
+  
   password: string;
 }
-
 
 export interface RegisterResponse {
   success: boolean;

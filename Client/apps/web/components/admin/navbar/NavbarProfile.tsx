@@ -11,8 +11,8 @@ import {
 } from "lucide-react";
 
 
-import { useMe } from "@repo/hooks";
-import { authApi } from "@/lib/api";
+import { useTrainerMe } from "@repo/hooks";
+
 
 import {
   Button,
@@ -22,16 +22,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@repo/ui/index";
+import { trainerApi } from "@/lib/api";
 
 export default function NavbarProfile() {
   const router = useRouter();
 
    const {
-    user,
+    profile,
     isLoading,
     error,
-    fetchMe,
-  } = useMe(authApi);
+    refetch,
+  } = useTrainerMe(trainerApi);
   
 
   return (
@@ -53,7 +54,7 @@ export default function NavbarProfile() {
                 />
               ) : ( */}
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#002B5C] font-semibold text-white">
-                  {user?.fullName}
+                  {profile?.fullName}
                 </div>
               )
 
@@ -62,11 +63,11 @@ export default function NavbarProfile() {
 
             <div className="hidden text-left lg:block">
               <h4 className="text-sm font-semibold text-gray-900">
-                {user?.fullName}
+                {profile?.fullName}
               </h4>
 
               <p className="text-xs text-gray-500">
-                {user?.status}
+                {profile?.isActive}
               </p>
             </div>
 
@@ -81,15 +82,15 @@ export default function NavbarProfile() {
       <DropdownMenuContent align="end">
         <div className="px-3 py-2">
           <p className="text-sm font-semibold">
-            {user?.fullName}
+            {profile?.fullName}
           </p>
 
           <p className="text-xs text-gray-500">
-            {user?.email}
+            {profile?.email}
           </p>
 
           <p className="text-xs text-gray-500">
-            {user?.status}
+            {profile?.isActive}
           </p>
         </div>
 
