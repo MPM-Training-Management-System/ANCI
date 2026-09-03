@@ -1,39 +1,66 @@
-using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Http;
 
-namespace server.DTOs.Auth;
+namespace server.DTOs.Trainer;
 
 public class RegisterTrainerRequest
 {
-    [Required]
-    [StringLength(150, MinimumLength = 2)]
-    public string FullName { get; set; } = string.Empty;
+    // =========================================================
+    // PERSONAL INFORMATION
+    // =========================================================
 
-    [Required]
-    [EmailAddress]
-    [StringLength(255)]
-    public string Email { get; set; } = string.Empty;
+    public string FirstName { get; set; }
+        = string.Empty;
 
-    [Phone]
-    [StringLength(30)]
+    public string? MiddleName { get; set; }
+
+    public string LastName { get; set; }
+        = string.Empty;
+
+    public DateOnly? BirthDate { get; set; }
+
+    // Complete address coming from frontend.
+    // Example:
+    // 123, Rizal Street, Sitio 2,
+    // Barangay San Jose, Rodriguez, Rizal
+    public string Address { get; set; }
+        = string.Empty;
+
+    public string Gender { get; set; }
+        = string.Empty;
+
+
+    // =========================================================
+    // ACCOUNT INFORMATION
+    // =========================================================
+
+    public string Email { get; set; }
+        = string.Empty;
+
     public string? MobileNumber { get; set; }
 
-    [Required]
-    [StringLength(100, MinimumLength = 8)]
-    public string Password { get; set; } = string.Empty;
+    public string Password { get; set; }
+        = string.Empty;
 
-    [Required]
-    [StringLength(150, MinimumLength = 2)]
-    public string Specialization { get; set; } = string.Empty;
 
-    [Range(0, 100)]
+    // =========================================================
+    // TRAINER INFORMATION
+    // =========================================================
+
+    public string Specialization { get; set; }
+        = string.Empty;
+
+    public string? Bio { get; set; }
+
     public int? YearsOfExperience { get; set; }
 
-    [StringLength(150)]
     public string? CertificationName { get; set; }
 
-    [StringLength(150)]
     public string? CertificationNumber { get; set; }
+
+
+    // =========================================================
+    // PROFILE IMAGE
+    // =========================================================
 
     public IFormFile? ProfileImage { get; set; }
 }

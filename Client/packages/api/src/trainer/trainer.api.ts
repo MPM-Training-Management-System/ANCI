@@ -1,342 +1,207 @@
-import { ApiClient } from "../api/client";
-import { TrainerEndpoints } from "./trainer.endpoint";
-
 import type {
-  RegisterTrainerForm,
-  TrainerApplicationDetails,
-  TrainerApplicationResponse,
+  TrainerApplication,
+  TrainerApplicationDocument,
+  TrainerProfile,
+
+  UpdateTrainerApplicationRequest,
+  UpdateTrainerProfileRequest,
 } from "@repo/types";
 
+import {
+  ApiClient,
+} from "../api/client";
+
+
 export class TrainerApi {
+
   constructor(
-    private api: ApiClient
+    private readonly api: ApiClient
   ) {}
 
-  // =====================================================
-  // COMPLETE TRAINER PROFILE
-  // =====================================================
 
-  completeProfile(
-    data: RegisterTrainerForm
-  ) {
-    const formData = new FormData();
+ 
+  async getMyApplication():
+    Promise<TrainerProfile> {
 
-    // ==========================================
-    // PERSONAL
-    // ==========================================
-
-    formData.append(
-      "FirstName",
-      data.firstName
-    );
-
-    formData.append(
-      "MiddleName",
-      data.middleName ?? ""
-    );
-
-    formData.append(
-      "LastName",
-      data.lastName
-    );
-
-    formData.append(
-      "DateOfBirth",
-      data.dateOfBirth
-    );
-
-    formData.append(
-      "Gender",
-      data.gender
-    );
-
-    formData.append(
-      "CivilStatus",
-      data.civilStatus
-    );
-
-    // ==========================================
-    // CONTACT
-    // ==========================================
-
-    formData.append(
-      "MobileNumber",
-      data.mobileNumber
-    );
-
-    formData.append(
-      "HomeAddress",
-      data.homeAddress
-    );
-
-    // ==========================================
-    // PROFESSIONAL
-    // ==========================================
-
-    formData.append(
-      "Expertise",
-      data.expertise
-    );
-
-    formData.append(
-      "YearsOfExperience",
-      String(data.yearsOfExperience)
-    );
-
-    formData.append(
-      "Organization",
-      data.organization
-    );
-
-    formData.append(
-      "Biography",
-      data.biography
-    );
-
-    // ==========================================
-    // PROFILE IMAGE
-    // ==========================================
-
-    if (
-      data.profileImage instanceof File
-    ) {
-      formData.append(
-        "ProfileImage",
-        data.profileImage,
-        data.profileImage.name
-      );
-    }
-
-    // ==========================================
-    // VALID ID
-    // ==========================================
-
-    if (
-      data.validId instanceof File
-    ) {
-      formData.append(
-        "ValidId",
-        data.validId,
-        data.validId.name
-      );
-    }
-
-    // ==========================================
-    // REQUEST
-    // ==========================================
-
-    return this.api.request<{
-      message: string;
-      trainer: unknown;
-    }>(
-      TrainerEndpoints.create,
-      {
-        method: "POST",
-        body: formData,
-      }
-    );
-  }
-
-  // =====================================================
-  // GET ALL TRAINERS
-  // =====================================================
-
-  getAll() {
-    return this.api.request<
-      TrainerApplicationResponse[]
-    >(
-      TrainerEndpoints.list,
+    return this.api.request<TrainerProfile>(
+      "/api/trainer-profiles/me",
       {
         method: "GET",
       }
     );
   }
 
-  
 
-  // =====================================================
-  // GET TRAINER BY ID
-  // =====================================================
 
-getById(
-  id: string
-) {
-  return this.api.request<TrainerApplicationDetails>(
-    TrainerEndpoints.byId(id)
-  );
-}
 
-  // =====================================================
-  // UPDATE
-  // =====================================================
+  async updateMyApplication(
+    request: UpdateTrainerApplicationRequest
+  ): Promise<TrainerApplication> {
 
-  update(
-    id: string,
-    data: RegisterTrainerForm
-  ) {
-    const formData = new FormData();
-
-    // ==========================================
-    // PERSONAL
-    // ==========================================
-
-    formData.append(
-      "FirstName",
-      data.firstName
-    );
-
-    formData.append(
-      "MiddleName",
-      data.middleName ?? ""
-    );
-
-    formData.append(
-      "LastName",
-      data.lastName
-    );
-
-    formData.append(
-      "DateOfBirth",
-      data.dateOfBirth
-    );
-
-    formData.append(
-      "Gender",
-      data.gender
-    );
-
-    formData.append(
-      "CivilStatus",
-      data.civilStatus
-    );
-
-    // ==========================================
-    // CONTACT
-    // ==========================================
-
-    formData.append(
-      "MobileNumber",
-      data.mobileNumber
-    );
-
-    formData.append(
-      "HomeAddress",
-      data.homeAddress
-    );
-
-    // ==========================================
-    // PROFESSIONAL
-    // ==========================================
-
-    formData.append(
-      "Expertise",
-      data.expertise
-    );
-
-    formData.append(
-      "YearsOfExperience",
-      String(data.yearsOfExperience)
-    );
-
-    formData.append(
-      "Organization",
-      data.organization
-    );
-
-    formData.append(
-      "Biography",
-      data.biography
-    );
-
-    // ==========================================
-    // PROFILE IMAGE
-    // ==========================================
-
-    if (
-      data.profileImage instanceof File
-    ) {
-      formData.append(
-        "ProfileImage",
-        data.profileImage,
-        data.profileImage.name
-      );
-    }
-
-    // ==========================================
-    // VALID ID
-    // ==========================================
-
-    if (
-      data.validId instanceof File
-    ) {
-      formData.append(
-        "ValidId",
-        data.validId,
-        data.validId.name
-      );
-    }
-
-    // ==========================================
-    // REQUEST
-    // ==========================================
-
-    return this.api.request(
-      TrainerEndpoints.update(id),
+    return this.api.request<TrainerApplication>(
+      "/api/trainer-applications/me",
       {
         method: "PUT",
+
+        body: request,
+      }
+    );
+  }
+
+
+ 
+  async updateProfileImage(
+    file: File
+  ): Promise<TrainerApplication> {
+
+    const formData =
+      new FormData();
+
+
+    formData.append(
+      "ProfileImage",
+      file
+    );
+
+
+    return this.api.request<TrainerApplication>(
+      "/api/trainer-applications/me/image",
+      {
+        method: "PUT",
+
         body: formData,
       }
     );
   }
 
-  // =====================================================
-  // DELETE
-  // =====================================================
 
-  delete(id: string) {
-    return this.api.request(
-      TrainerEndpoints.delete(id),
+  // =========================================================
+  // GET APPLICATION BY ID
+  // GET /api/trainer-applications/{id}
+  // =========================================================
+
+  async getApplicationById(
+    id: string
+  ): Promise<TrainerApplication> {
+
+    return this.api.request<TrainerApplication>(
+      `/api/trainer-applications/${id}`,
       {
-        method: "DELETE",
+        method: "GET",
       }
     );
   }
 
-  // =====================================================
-  // ACTIVATE / DEACTIVATE
-  // =====================================================
 
-  changeStatus(
-    id: string,
-    isActive: boolean
-  ) {
-    return this.api.request(
-      TrainerEndpoints.status(
-        id,
-        isActive
-      ),
+  // =========================================================
+  // UPLOAD DOCUMENT
+  // POST /api/trainer-applications/{id}/documents
+  // =========================================================
+
+  async uploadDocument(
+    applicationId: string,
+
+    documentType: string,
+
+    file: File
+
+  ): Promise<TrainerApplicationDocument> {
+
+    const formData =
+      new FormData();
+
+
+    formData.append(
+      "DocumentType",
+      documentType
+    );
+
+    formData.append(
+      "File",
+      file
+    );
+
+
+    return this.api.request<TrainerApplicationDocument>(
+      `/api/trainer-applications/${applicationId}/documents`,
       {
-        method: "PATCH",
+        method: "POST",
+
+        body: formData,
       }
     );
   }
 
-  // =====================================================
-  // APPROVE / REJECT
-  // =====================================================
 
-  verify(
-    id: string,
-    isVerified: boolean
-  ) {
-    return this.api.request(
-      TrainerEndpoints.verify(
-        id,
-        isVerified
-      ),
+  // =========================================================
+  // GET MY PROFILE
+  // GET /api/trainer-profiles/me
+  // =========================================================
+
+  async getMyProfile():
+    Promise<TrainerProfile> {
+
+    return this.api.request<TrainerProfile>(
+      "/api/trainer-profiles/me",
       {
-        method: "PATCH",
+        method: "GET",
       }
     );
   }
+
+
+  // =========================================================
+  // UPDATE MY PROFILE
+  // PUT /api/trainer-profiles/me
+  // =========================================================
+
+  async updateMyProfile(
+    request: UpdateTrainerProfileRequest
+  ): Promise<TrainerProfile> {
+
+    return this.api.request<TrainerProfile>(
+      "/api/trainer-profiles/me",
+      {
+        method: "PUT",
+
+        body: request,
+      }
+    );
+  }
+
+
+  // =========================================================
+  // ADMIN GET TRAINER
+  // GET /api/trainer-profiles/{id}
+  // =========================================================
+
+  async getProfileById(
+    id: string
+  ): Promise<TrainerProfile> {
+
+    return this.api.request<TrainerProfile>(
+      `/api/trainer-profiles/${id}`,
+      {
+        method: "GET",
+      }
+    );
+  }
+
+
+  // =========================================================
+  // ADMIN ACTIVE TRAINERS
+  // GET /api/trainer-profiles/active
+  // =========================================================
+
+  async getActiveTrainers():
+    Promise<TrainerProfile[]> {
+
+    return this.api.request<TrainerProfile[]>(
+      "/api/trainer-profiles/active",
+      {
+        method: "GET",
+      }
+    );
+  }
+
 }

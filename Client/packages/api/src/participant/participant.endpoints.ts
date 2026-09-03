@@ -1,5 +1,6 @@
 export const ParticipantEndpoints = {
-  list: "/api/User",
+  
+  getMe: "/api/participant-profiles/me",
 
   listParticpant: "/api/User?role=Participant",
 

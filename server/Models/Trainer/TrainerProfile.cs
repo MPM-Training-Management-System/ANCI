@@ -1,5 +1,4 @@
 using server.Models.Auth;
-
 namespace server.Models.Trainer;
 
 public class TrainerProfile
@@ -7,6 +6,27 @@ public class TrainerProfile
     public Guid Id { get; set; }
 
     public Guid UserId { get; set; }
+
+    // =========================================================
+    // PERSONAL INFORMATION
+    // =========================================================
+
+    public string? FirstName { get; set; }
+
+    public string? MiddleName { get; set; }
+
+    public string? LastName { get; set; }
+
+    public DateOnly? BirthDate { get; set; }
+
+    public string? Address { get; set; }
+
+    public string? Gender { get; set; }
+
+
+    // =========================================================
+    // TRAINER INFORMATION
+    // =========================================================
 
     public bool IsActive { get; set; }
 
@@ -17,10 +37,27 @@ public class TrainerProfile
 
     public int? YearsOfExperience { get; set; }
 
+
+    // =========================================================
+    // PROFILE IMAGE
+    // =========================================================
+
     public string? ProfileImageUrl { get; set; }
 
-    public DateTime ActivatedAt { get; set; }
+
+    // =========================================================
+    // ACTIVATION
+    // =========================================================
+
+    public DateTime? ActivatedAt { get; set; }
+
+
+    // =========================================================
+    // RELATIONSHIP
+    // =========================================================
 
     public User User { get; set; }
         = default!;
+
+          public ICollection<TrainerAssignment> Assignments { get; set; } = [];
 }

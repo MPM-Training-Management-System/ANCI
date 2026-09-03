@@ -12,10 +12,7 @@ export default function LearningHeader() {
   return (
     <View style={styles.container}>
       <View style={styles.textContainer}>
-        <Text style={styles.eyebrow}>
-          PARTICIPANT PORTAL
-        </Text>
-
+        
         <Text style={styles.title}>
           Learning
         </Text>

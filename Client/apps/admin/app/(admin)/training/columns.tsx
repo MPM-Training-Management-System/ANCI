@@ -186,17 +186,7 @@ export const columns: ColumnDef<TrainingProgram>[] =
     // TRAINER
     // =====================================================
 
-    {
-      accessorKey: "trainer",
-
-      header: "Trainer",
-
-      cell: ({ row }) => (
-        <span className="text-xs font-semibold">
-          {row.original.trainer}
-        </span>
-      ),
-    },
+    
 
     // =====================================================
     // STATUS

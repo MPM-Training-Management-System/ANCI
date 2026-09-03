@@ -1,5 +1,5 @@
 import Image from "next/image";
-import Logo from "@/assets/image/ANCILOGO.png";
+
 
 export default function AuthLayout({
   children,
@@ -18,7 +18,7 @@ export default function AuthLayout({
         <div className="hidden lg:flex flex-col justify-center text-white space-y-8 pr-12">
           <div className="flex items-center gap-5"> 
             <Image
-              src={Logo}
+              src="/assets/image/ANCILOGO.png"
               alt="Logo"
               width={50}
               height={50}

@@ -1,14 +1,26 @@
-import { createApi } from "@repo/api";
 
-const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+import {
+  ApiClient,
+  AuthApi,
+  TrainerApi,
+  TrainerApplicationApi,
+  
+} from "@repo/api";
+import { auth } from "./auth";
 
-if (!baseUrl) {
-  throw new Error(
-    "NEXT_PUBLIC_API_URL is not configured."
-  );
-}
+const apiClient = new ApiClient({
+  baseUrl:
+    process.env.NEXT_PUBLIC_API_URL ?? "",
+      getToken: async () => {
+      return auth.getToken();
+    },
+});
 
-export const {
-  apiClient,
-  authApi,
-} = createApi(baseUrl);
+
+export const trainerApi =
+  new TrainerApi(apiClient);
+export const authApi =
+  new AuthApi(apiClient);
+
+export const trainerApplicationApi =
+  new TrainerApplicationApi(apiClient);

@@ -11,7 +11,8 @@ public class TrainerApplication
 
     public TrainerApplicationStatus Status { get; set; }
 
-    public string Specialization { get; set; } = string.Empty;
+    public string Specialization { get; set; }
+        = string.Empty;
 
     public int? YearsOfExperience { get; set; }
 
@@ -31,7 +32,8 @@ public class TrainerApplication
 
     public DateTime? SubmittedAt { get; set; }
 
-    public User User { get; set; } = default!;
+    public User User { get; set; }
+        = default!;
 
     public ICollection<TrainerApplicationDocument> Documents { get; set; }
         = new List<TrainerApplicationDocument>();

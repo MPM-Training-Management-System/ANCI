@@ -24,6 +24,7 @@ import {
 } from "@repo/hooks";
 
 import { authApi } from "@/api/api";
+import { auth } from "@/api/auth";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -68,12 +69,13 @@ export default function LoginForm() {
 
     const response =
       await login(values);
-
+    
 
     if (!response) {
       return;
     }
-
+await auth.saveToken(response.token);
+await auth.saveUser(response.user);
 
     router.replace("/(tabs)");
   };
@@ -612,7 +614,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 20,
-    paddingTop: 28,
+    paddingTop: 20,
     paddingBottom: 30,
   },
 

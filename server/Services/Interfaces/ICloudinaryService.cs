@@ -9,4 +9,14 @@ public interface ICloudinaryService
 
     Task DeleteImageAsync(
         string imageUrl);
+
+        Task<(string Url, string PublicId)> UploadDocumentAsync(
+    Stream fileStream,
+    string fileName,
+    string folder
+);
+
+Task DeleteDocumentAsync(
+    string publicId
+);
 }

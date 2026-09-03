@@ -4,33 +4,25 @@ import {
   useState,
   type FormEvent,
 } from "react";
-
 import type {
   TrainerNotificationSettings,
   TrainerPreferenceSettings,
-  TrainerProfile,
+  
   TrainerSystemSettings,
 } from "./type";
-
-/* =========================================================
-   PAGE
-========================================================= */
+import { TrainerProfile } from "@repo/types";
+import { useTrainerMe } from "@repo/hooks";
+import { trainerApi } from "@/lib/api";
 
 export default function TrainerSettingsPage() {
-  /* =======================================================
-     PROFILE
-  ======================================================= */
+ const {
+  profile,
+  isLoading,
+  error,
+  refetch
+ } = useTrainerMe(trainerApi)
 
-  const [profile, setProfile] =
-    useState<TrainerProfile>({
-      firstName: "Maria",
-      lastName: "Santos",
-      email: "maria.santos@anci.edu.ph",
-      mobileNumber: "0917 456 7890",
-      specialization:
-        "Computer Systems Servicing NC II",
-      trainerId: "TRN-001",
-    });
+
 
   /* =======================================================
      NOTIFICATIONS
@@ -79,9 +71,7 @@ export default function TrainerSettingsPage() {
       language: "English",
     });
 
-  /* =======================================================
-     MODALS
-  ======================================================= */
+
 
   const [
     profileModal,
@@ -98,12 +88,50 @@ export default function TrainerSettingsPage() {
     setLogoutModal,
   ] = useState(false);
 
-  /* =======================================================
-     SAVED
-  ======================================================= */
+
 
   const [saved, setSaved] =
     useState(false);
+
+    if (isLoading) {
+  return (
+    <main className="flex min-h-[400px] items-center justify-center">
+      <p className="text-sm text-gray-500">
+        Loading trainer profile...
+      </p>
+    </main>
+  );
+}
+
+console.log(profile);
+
+if (error) {
+  return (
+    <main className="flex min-h-[400px] flex-col items-center justify-center gap-3">
+      <p className="text-sm font-semibold text-red-600">
+        Failed to load trainer profile.
+      </p>
+
+      <button
+        type="button"
+        onClick={refetch}
+        className="rounded-xl bg-gray-900 px-4 py-2 text-xs font-bold text-white"
+      >
+        Try Again
+      </button>
+    </main>
+  );
+}
+
+if (!profile) {
+  return (
+    <main className="flex min-h-[400px] items-center justify-center">
+      <p className="text-sm text-gray-500">
+        Trainer profile not found.
+      </p>
+    </main>
+  );
+}
 
   function showSaved() {
     setSaved(true);
@@ -156,7 +184,7 @@ export default function TrainerSettingsPage() {
   function handleProfileSave(
     updated: TrainerProfile,
   ) {
-    setProfile(updated);
+    
     setProfileModal(false);
     showSaved();
   }
@@ -173,7 +201,8 @@ export default function TrainerSettingsPage() {
     setPasswordModal(false);
     showSaved();
   }
-
+  
+  
   return (
     <main className="mx-auto w-full max-w-7xl space-y-6 pb-12">
 
@@ -216,10 +245,7 @@ export default function TrainerSettingsPage() {
 
             <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-3">
 
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gray-950 text-sm font-bold text-white">
-                {profile.firstName.charAt(0)}
-                {profile.lastName.charAt(0)}
-              </div>
+              
 
               <div>
 
@@ -229,7 +255,7 @@ export default function TrainerSettingsPage() {
                 </p>
 
                 <p className="mt-0.5 text-[10px] text-gray-500">
-                  {profile.trainerId}
+                  {profile.userCode}
                 </p>
 
               </div>
@@ -241,10 +267,6 @@ export default function TrainerSettingsPage() {
         </div>
 
       </section>
-
-      {/* =================================================
-          SAVED MESSAGE
-      ================================================= */}
 
       {saved && (
         <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
@@ -270,7 +292,7 @@ export default function TrainerSettingsPage() {
 
       {/* =================================================
           PROFILE + SECURITY
-      ================================================= */}
+      ======================================= ========== */}
 
       <section className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
 
@@ -284,15 +306,26 @@ export default function TrainerSettingsPage() {
 
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
 
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gray-950 text-xl font-bold text-white">
-              {profile.firstName.charAt(0)}
-              {profile.lastName.charAt(0)}
-            </div>
+            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-gray-100">
+  {profile.profileImageUrl ? (
+    <img
+      src={profile.profileImageUrl}
+      alt={profile.fullName ?? "Trainer Profile"}
+      className="h-full w-full object-cover"
+    />
+  ) : (
+    <div className="flex h-full w-full items-center justify-center text-xl font-bold text-gray-500">
+      {(profile.fullName ?? "?")
+        .charAt(0)
+        .toUpperCase()}
+    </div>
+  )}
+</div>
 
             <div className="min-w-0 flex-1">
 
               <h3 className="text-lg font-bold text-gray-900">
-                {profile.firstName}{" "}
+                {profile.fullName}{" "}
                 {profile.lastName}
               </h3>
 
@@ -330,7 +363,7 @@ export default function TrainerSettingsPage() {
 
             <InfoBox
               label="Trainer ID"
-              value={profile.trainerId}
+              value={profile.userCode}
             />
 
             <InfoBox
@@ -638,7 +671,7 @@ export default function TrainerSettingsPage() {
 
           <InfoBox
             label="Trainer ID"
-            value={profile.trainerId}
+            value={profile.userCode}
           />
 
           <InfoBox
@@ -778,7 +811,7 @@ export default function TrainerSettingsPage() {
 
             <InfoRow
               label="Trainer ID"
-              value={profile.trainerId}
+              value={profile.userCode}
             />
 
             <InfoRow
@@ -1253,7 +1286,7 @@ function ProfileModal({
           <FormInput
             label="Mobile Number"
             value={
-              form.mobileNumber
+              form.userCode
             }
             onChange={(value) =>
               update(
@@ -1294,7 +1327,7 @@ function ProfileModal({
           </p>
 
           <p className="mt-1 text-xs font-bold text-gray-900">
-            {form.trainerId}
+            {form.userCode}
           </p>
 
           <p className="mt-1 text-[10px] text-gray-500">

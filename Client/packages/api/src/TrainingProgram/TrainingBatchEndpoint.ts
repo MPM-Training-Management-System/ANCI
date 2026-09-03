@@ -1,0 +1,17 @@
+export const TrainingBatchEndpoints = {
+  getAll: "/api/training-batches",
+
+  byId: (id: string) =>
+    `/api/training-batches/${id}`,
+
+  create: "/api/training-batches",
+
+  update: (id: string) =>
+    `/api/training-batches/${id}`,
+
+  status: (id: string) =>
+    `/api/training-batches/${id}/status`,
+
+  delete: (id: string) =>
+    `/api/training-batches/${id}`,
+};

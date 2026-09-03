@@ -1,12 +1,10 @@
-using System.ComponentModel.DataAnnotations;
+using server.Enums;
 
 namespace server.DTOs.Trainer;
 
 public class ReviewTrainerApplicationDocumentRequest
 {
-    [Required]
-    public string Decision { get; set; } = string.Empty;
+    public DocumentStatus Status { get; set; }
 
-    [StringLength(1000)]
-    public string? Remarks { get; set; }
+    public string? ReviewRemarks { get; set; }
 }

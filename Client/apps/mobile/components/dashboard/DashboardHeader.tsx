@@ -28,7 +28,7 @@ export default function DashboardHeader({
         </Text>
 
         <Text style={styles.name}>
-          {participant.firstName} 👋
+          {participant.firstName} 
         </Text>
       </View>
 
@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
     paddingTop: 22,
-
+    
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",

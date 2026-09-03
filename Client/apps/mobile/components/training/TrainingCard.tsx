@@ -10,253 +10,653 @@ import {
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 import type {
-  ParticipantTraining,
-} from "@/src/data/participantTraining";
+  TrainingBatch,
+} from "@repo/types";
+
 
 interface Props {
-  training: ParticipantTraining;
+  training: TrainingBatch;
+
   onPress: () => void;
 }
+
 
 export default function TrainingCard({
   training,
   onPress,
 }: Props) {
-  const remainingSlots =
-    training.slots -
-    training.enrolled;
+
+  // =========================================================
+  // CAPACITY
+  // =========================================================
+
+  const remainingSlots = Math.max(
+    training.capacity -
+      training.enrolledCount,
+    0
+  );
 
   const isFull =
-    remainingSlots <= 0;
+    remainingSlots === 0;
+
+
+  // =========================================================
+  // PARTICIPANT LABEL
+  // =========================================================
+
+  const participantLabel =
+    training.enrolledCount === 1
+      ? "participant"
+      : "participants";
+
+
+  // =========================================================
+  // SLOT LABEL
+  // =========================================================
+
+  const slotLabel =
+    remainingSlots === 1
+      ? "slot left"
+      : "slots left";
+
+
+  // =========================================================
+  // FORMAT DATE
+  // =========================================================
+
+  const formatDate = (
+    date: string
+  ) => {
+
+    const parsedDate =
+      new Date(date);
+
+
+    if (
+      Number.isNaN(
+        parsedDate.getTime()
+      )
+    ) {
+
+      return date;
+
+    }
+
+
+    return parsedDate.toLocaleDateString(
+      "en-US",
+      {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }
+    );
+
+  };
+
+
+  const startDate =
+    formatDate(
+      training.startDate
+    );
+
+
+  const endDate =
+    formatDate(
+      training.endDate
+    );
+
+
+  const dateRange =
+    startDate === endDate
+      ? startDate
+      : `${startDate} - ${endDate}`;
+
+
+  // =========================================================
+  // STATUS
+  // =========================================================
+
+  const statusLabel =
+    training.status === "Published"
+      ? "Published"
+      : training.status === "Ongoing"
+      ? "Ongoing"
+      : training.status === "Completed"
+      ? "Completed"
+      : training.status === "Cancelled"
+      ? "Cancelled"
+      : "Draft";
+
+
+  const statusStyle =
+    training.status === "Ongoing"
+      ? styles.ongoingBadge
+      : training.status === "Completed"
+      ? styles.completedBadge
+      : training.status === "Cancelled"
+      ? styles.cancelledBadge
+      : training.status === "Published"
+      ? styles.publishedBadge
+      : styles.draftBadge;
+
+
+  // =========================================================
+  // RENDER
+  // =========================================================
 
   return (
+
     <Pressable
-      onPress={onPress}
+      onPress={
+        onPress
+      }
+
       style={({ pressed }) => [
         styles.card,
-        pressed && styles.pressed,
+
+        pressed &&
+          styles.pressed,
       ]}
     >
-      <View style={styles.topRow}>
-        <View style={styles.iconBox}>
+
+      {/* =================================================
+          TOP
+      ================================================= */}
+
+      <View
+        style={
+          styles.topRow
+        }
+      >
+
+        <View
+          style={
+            styles.iconBox
+          }
+        >
+
           <Ionicons
             name="school-outline"
             size={21}
             color="#2563EB"
           />
+
         </View>
+
 
         <View
           style={[
-            styles.modeBadge,
-            training.mode === "Online" &&
-              styles.onlineBadge,
-            training.mode === "Face-to-Face" &&
-              styles.faceToFaceBadge,
+            styles.statusBadge,
+            statusStyle,
           ]}
         >
-          <Text style={styles.modeText}>
-            {training.mode}
+
+          <Text
+            style={
+              styles.statusText
+            }
+          >
+            {statusLabel}
           </Text>
+
         </View>
+
       </View>
 
-      <Text style={styles.title}>
-        {training.title}
-      </Text>
+
+      {/* =================================================
+          BATCH CODE
+      ================================================= */}
 
       <Text
-        style={styles.description}
-        numberOfLines={2}
+        style={
+          styles.batchCode
+        }
       >
-        {training.description}
+        {training.batchCode}
       </Text>
 
-      <View style={styles.infoRow}>
-        <Ionicons
-          name="person-outline"
-          size={14}
-          color="#64748B"
-        />
 
-        <Text style={styles.infoText}>
-          {training.trainer}
-        </Text>
-      </View>
+      {/* =================================================
+          PROGRAM NAME
+      ================================================= */}
 
-      <View style={styles.infoRow}>
+      <Text
+        style={
+          styles.title
+        }
+
+        numberOfLines={2}
+      >
+        {training.programName}
+      </Text>
+
+
+      {/* =================================================
+          LOCATION
+      ================================================= */}
+
+      {training.location && (
+
+        <View
+          style={
+            styles.infoRow
+          }
+        >
+
+          <Ionicons
+            name="location-outline"
+            size={15}
+            color="#64748B"
+          />
+
+
+          <Text
+            style={
+              styles.infoText
+            }
+
+            numberOfLines={1}
+          >
+            {training.location}
+          </Text>
+
+        </View>
+
+      )}
+
+
+      {/* =================================================
+          DATE
+      ================================================= */}
+
+      <View
+        style={
+          styles.infoRow
+        }
+      >
+
         <Ionicons
           name="calendar-outline"
-          size={14}
+          size={15}
           color="#64748B"
         />
 
-        <Text style={styles.infoText}>
-          {training.schedule}
+
+        <Text
+          style={
+            styles.infoText
+          }
+
+          numberOfLines={1}
+        >
+          {dateRange}
         </Text>
+
       </View>
 
-      <View style={styles.infoRow}>
+
+      {/* =================================================
+          PARTICIPANTS
+      ================================================= */}
+
+      <View
+        style={
+          styles.infoRow
+        }
+      >
+
         <Ionicons
-          name="time-outline"
-          size={14}
+          name="people-outline"
+          size={15}
           color="#64748B"
         />
 
-        <Text style={styles.infoText}>
-          {training.time}
+
+        <Text
+          style={
+            styles.infoText
+          }
+        >
+          {training.enrolledCount} /{" "}
+          {training.capacity}{" "}
+          {participantLabel}
         </Text>
+
       </View>
 
-      <View style={styles.footer}>
+
+      {/* =================================================
+          FOOTER
+      ================================================= */}
+
+      <View
+        style={
+          styles.footer
+        }
+      >
+
+        {/* =================================================
+            AVAILABLE SLOTS
+        ================================================= */}
+
         <View>
-          <Text style={styles.slotsLabel}>
+
+          <Text
+            style={
+              styles.slotsLabel
+            }
+          >
             AVAILABLE SLOTS
           </Text>
+
 
           <Text
             style={[
               styles.slots,
-              isFull && styles.fullSlots,
+
+              isFull &&
+                styles.fullSlots,
             ]}
           >
+
             {isFull
               ? "FULL"
-              : `${remainingSlots} slots left`}
+              : `${remainingSlots} ${slotLabel}`}
+
           </Text>
+
         </View>
 
-        <View style={styles.viewButton}>
-          <Text style={styles.viewButtonText}>
+
+        {/* =================================================
+            VIEW DETAILS
+        ================================================= */}
+
+        <View
+          style={
+            styles.viewButton
+          }
+        >
+
+          <Text
+            style={
+              styles.viewButtonText
+            }
+          >
             View Details
           </Text>
 
+
           <Ionicons
             name="arrow-forward"
-            size={14}
+            size={15}
             color="#2563EB"
           />
+
         </View>
+
       </View>
+
     </Pressable>
+
   );
+
 }
 
-const styles = StyleSheet.create({
-  card: {
-    marginHorizontal: 20,
-    marginBottom: 14,
-    padding: 16,
-    borderRadius: 20,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
 
-  pressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.99 }],
-  },
+// =========================================================
+// STYLES
+// =========================================================
 
-  topRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
+const styles =
+  StyleSheet.create({
 
-  iconBox: {
-    width: 43,
-    height: 43,
-    borderRadius: 14,
-    backgroundColor: "#EFF6FF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    // =======================================================
+    // CARD
+    // =======================================================
 
-  modeBadge: {
-    paddingHorizontal: 9,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: "#F1F5F9",
-  },
+    card: {
+      marginHorizontal: 20,
+      marginBottom: 14,
 
-  onlineBadge: {
-    backgroundColor: "#EFF6FF",
-  },
+      padding: 16,
 
-  faceToFaceBadge: {
-    backgroundColor: "#F0FDF4",
-  },
+      borderRadius: 20,
 
-  modeText: {
-    fontSize: 7,
-    fontWeight: "800",
-    color: "#475569",
-  },
+      backgroundColor: "#FFFFFF",
 
-  title: {
-    marginTop: 13,
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#0F172A",
-  },
+      borderWidth: 1,
+      borderColor: "#E2E8F0",
 
-  description: {
-    marginTop: 5,
-    fontSize: 9,
-    lineHeight: 14,
-    color: "#64748B",
-  },
+      shadowColor: "#0F172A",
 
-  infoRow: {
-    marginTop: 9,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-  },
+      shadowOffset: {
+        width: 0,
+        height: 3,
+      },
 
-  infoText: {
-    fontSize: 8,
-    color: "#64748B",
-  },
+      shadowOpacity: 0.05,
 
-  footer: {
-    marginTop: 16,
-    paddingTop: 13,
-    borderTopWidth: 1,
-    borderTopColor: "#F1F5F9",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
+      shadowRadius: 8,
 
-  slotsLabel: {
-    fontSize: 5.5,
-    fontWeight: "900",
-    letterSpacing: 0.8,
-    color: "#94A3B8",
-  },
+      elevation: 2,
+    },
 
-  slots: {
-    marginTop: 3,
-    fontSize: 8,
-    fontWeight: "800",
-    color: "#16A34A",
-  },
 
-  fullSlots: {
-    color: "#DC2626",
-  },
+    pressed: {
+      opacity: 0.88,
 
-  viewButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
+      transform: [
+        {
+          scale: 0.99,
+        },
+      ],
+    },
 
-  viewButtonText: {
-    fontSize: 8,
-    fontWeight: "800",
-    color: "#2563EB",
-  },
-});
+
+    // =======================================================
+    // TOP ROW
+    // =======================================================
+
+    topRow: {
+      flexDirection: "row",
+
+      justifyContent:
+        "space-between",
+
+      alignItems: "center",
+    },
+
+
+    iconBox: {
+      width: 40,
+      height: 40,
+
+      borderRadius: 13,
+
+      backgroundColor: "#EFF6FF",
+
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+
+    // =======================================================
+    // STATUS
+    // =======================================================
+
+    statusBadge: {
+      paddingHorizontal: 9,
+      paddingVertical: 6,
+
+      borderRadius: 999,
+    },
+
+
+    publishedBadge: {
+      backgroundColor: "#F1F5F9",
+    },
+
+
+    ongoingBadge: {
+      backgroundColor: "#ECFDF5",
+    },
+
+
+    completedBadge: {
+      backgroundColor: "#EFF6FF",
+    },
+
+
+    cancelledBadge: {
+      backgroundColor: "#FEF2F2",
+    },
+
+
+    draftBadge: {
+      backgroundColor: "#F8FAFC",
+    },
+
+
+    statusText: {
+      fontSize: 8,
+      fontWeight: "800",
+      color: "#475569",
+    },
+
+
+    // =======================================================
+    // BATCH CODE
+    // =======================================================
+
+    batchCode: {
+      marginTop: 12,
+
+      fontSize: 9,
+
+      fontWeight: "900",
+
+      letterSpacing: 1.4,
+
+      color: "#2563EB",
+    },
+
+
+    // =======================================================
+    // TITLE
+    // =======================================================
+
+    title: {
+      marginTop: 3,
+
+      fontSize: 17,
+
+      lineHeight: 22,
+
+      fontWeight: "900",
+
+      color: "#0F172A",
+    },
+
+
+    // =======================================================
+    // INFO
+    // =======================================================
+
+    infoRow: {
+      marginTop: 9,
+
+      flexDirection: "row",
+
+      alignItems: "center",
+
+      gap: 7,
+    },
+
+
+    infoText: {
+      flex: 1,
+
+      fontSize: 8.5,
+
+      lineHeight: 13,
+
+      color: "#64748B",
+
+      fontWeight: "600",
+    },
+
+
+    // =======================================================
+    // FOOTER
+    // =======================================================
+
+    footer: {
+      marginTop: 15,
+
+      paddingTop: 12,
+
+      borderTopWidth: 1,
+
+      borderTopColor: "#F1F5F9",
+
+      flexDirection: "row",
+
+      alignItems: "center",
+
+      justifyContent:
+        "space-between",
+    },
+
+
+    slotsLabel: {
+      fontSize: 5.5,
+
+      fontWeight: "900",
+
+      letterSpacing: 0.9,
+
+      color: "#94A3B8",
+    },
+
+
+    slots: {
+      marginTop: 3,
+
+      fontSize: 8.5,
+
+      fontWeight: "900",
+
+      color: "#16A34A",
+    },
+
+
+    fullSlots: {
+      color: "#DC2626",
+    },
+
+
+    // =======================================================
+    // VIEW BUTTON
+    // =======================================================
+
+    viewButton: {
+      flexDirection: "row",
+
+      alignItems: "center",
+
+      gap: 5,
+    },
+
+
+    viewButtonText: {
+      fontSize: 8.5,
+
+      fontWeight: "900",
+
+      color: "#2563EB",
+    },
+
+  });

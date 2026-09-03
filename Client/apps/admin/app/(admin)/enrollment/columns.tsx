@@ -9,8 +9,7 @@ import {
 
 import type {
   Enrollment,
-  EnrollmentStatus,
-} from "./type";
+} from "@repo/types";
 
 export const columns: ColumnDef<Enrollment>[] = [
   {
@@ -22,64 +21,115 @@ export const columns: ColumnDef<Enrollment>[] = [
       const item = row.original;
 
       return (
-        <UserCell
-          name={item.participantName}
-          email={item.participantId}
-        />
+
+           <UserCell
+        name={item.participant.fullName}
+        email={item.participant.email}
+        image={item.participant.profileImageUrl ?? undefined}
+      />
       );
     },
   },
 
   {
-    accessorKey: "training",
+    accessorKey: "programName",
 
     header: "Training",
 
     cell: ({ row }) => (
       <div className="min-w-[220px]">
         <p className="font-semibold text-gray-900">
-          {row.original.training}
+          {row.original.programName}
         </p>
 
         <p className="mt-1 text-xs text-gray-500">
-          {row.original.schedule}
+          Batch: {row.original.batchCode}
         </p>
       </div>
     ),
   },
 
   {
-    accessorKey: "batch",
+    accessorKey: "batchCode",
 
     header: "Batch",
 
     cell: ({ row }) => (
       <span className="rounded-lg bg-gray-100 px-2.5 py-1.5 font-mono text-[10px] font-semibold text-gray-600">
-        {row.original.batch}
+        {row.original.batchCode}
       </span>
     ),
   },
 
   {
-    accessorKey: "appliedDate",
+    accessorKey: "enrolledAt",
 
     header: "Applied",
+
+    cell: ({ row }) => {
+      const date = new Date(
+        row.original.enrolledAt
+      );
+
+      return (
+        <span className="text-sm text-gray-600">
+          {date.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })}
+        </span>
+      );
+    },
   },
 
   {
-    accessorKey: "requirements",
+    accessorKey: "status",
+
+    header: "Status",
+
+    cell: ({ row }) => {
+      const status =
+        row.original.status;
+
+      const variant =
+        status === "Approved"
+          ? "success"
+          : status === "Rejected"
+            ? "error"
+            : "pending";
+
+      return (
+        <Badge variant={variant}>
+          {status}
+        </Badge>
+      );
+    },
+  },
+
+  {
+    id: "requirements",
 
     header: "Requirements",
 
     cell: ({ row }) => {
-      const item = row.original;
+      const documents =
+        row.original.documents;
+
+      const total =
+        documents.length;
+
+      const approved =
+        documents.filter(
+          document =>
+            document.status ===
+            "Approved"
+        ).length;
 
       const percentage =
-        item.totalRequirements > 0
+        total > 0
           ? Math.round(
-              (item.requirements /
-                item.totalRequirements) *
-                100,
+              (approved / total) * 100
             )
           : 0;
 
@@ -87,8 +137,7 @@ export const columns: ColumnDef<Enrollment>[] = [
         <div className="w-[130px]">
           <div className="flex justify-between">
             <span className="text-xs font-semibold">
-              {item.requirements}/
-              {item.totalRequirements}
+              {approved}/{total}
             </span>
 
             <span className="text-[10px] text-gray-400">
@@ -110,58 +159,30 @@ export const columns: ColumnDef<Enrollment>[] = [
   },
 
   {
-    accessorKey: "status",
-
-    header: "Status",
-
-    cell: ({ row }) => {
-      const status =
-        row.original.status;
-
-      const variant =
-        status === "Approved"
-          ? "success"
-          : status === "Rejected"
-            ? "error"
-            : status === "Waitlisted"
-              ? "participant"
-              : "pending";
-
-      return (
-        <Badge variant={variant}>
-          {status}
-        </Badge>
-      );
-    },
-  },
-
-  {
     id: "actions",
 
     header: "Actions",
 
     cell: ({ row, table }) => {
-      const item = row.original;
+      const item =
+        row.original;
 
-      const meta = table.options.meta as
-        | {
-            onView?: (
-              enrollment: Enrollment,
-            ) => void;
+      const meta =
+        table.options.meta as
+          | {
+              onView?: (
+                enrollment: Enrollment
+              ) => void;
 
-            onApprove?: (
-              enrollment: Enrollment,
-            ) => void;
+              onApprove?: (
+                enrollment: Enrollment
+              ) => void;
 
-            onReject?: (
-              enrollment: Enrollment,
-            ) => void;
-
-            onWaitlist?: (
-              enrollment: Enrollment,
-            ) => void;
-          }
-        | undefined;
+              onReject?: (
+                enrollment: Enrollment
+              ) => void;
+            }
+          | undefined;
 
       return (
         <div className="flex items-center gap-2">
@@ -175,21 +196,8 @@ export const columns: ColumnDef<Enrollment>[] = [
             View
           </button>
 
-          {item.status === "Pending" && (
-            <>
-              <button
-                type="button"
-                onClick={() =>
-                  meta?.onApprove?.(item)
-                }
-                className="rounded-lg bg-[#191c1e] px-3 py-2 text-xs font-semibold text-white hover:opacity-90"
-              >
-                Review
-              </button>
-            </>
-          )}
-
-          {item.status === "Waitlisted" && (
+          {item.status ===
+            "Pending" && (
             <button
               type="button"
               onClick={() =>
@@ -197,7 +205,7 @@ export const columns: ColumnDef<Enrollment>[] = [
               }
               className="rounded-lg bg-[#191c1e] px-3 py-2 text-xs font-semibold text-white hover:opacity-90"
             >
-              Manage
+              Review
             </button>
           )}
         </div>

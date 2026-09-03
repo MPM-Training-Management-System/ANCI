@@ -14,8 +14,7 @@ namespace server.Controllers;
 public class TrainerApplicationsController
     : ControllerBase
 {
-    private readonly ITrainerApplicationService
-        _service;
+    private readonly ITrainerApplicationService _service;
 
 
     public TrainerApplicationsController(
@@ -30,9 +29,9 @@ public class TrainerApplicationsController
     // GET /api/trainer-applications/me
     // =========================================================
 
-    [Authorize(Roles = "Trainer")]
     [HttpGet("me")]
-    public async Task<ActionResult<TrainerApplicationDto>>
+    [Authorize(Roles = "Trainer")]
+    public async Task<IActionResult>
         GetMyApplication()
     {
         var userId =
@@ -45,7 +44,7 @@ public class TrainerApplicationsController
                 new
                 {
                     message =
-                        "User identity was not found."
+                        "Invalid authenticated user."
                 }
             );
         }
@@ -75,25 +74,50 @@ public class TrainerApplicationsController
 
 
     // =========================================================
-    // UPDATE MY APPLICATION
-    // PUT /api/trainer-applications/me
+    // GET APPLICATION BY ID
+    // GET /api/trainer-applications/{id}
     // =========================================================
 
-    [Authorize(Roles = "Trainer")]
-    [HttpPut("me")]
-    public async Task<ActionResult<TrainerApplicationDto>>
-        UpdateMyApplication(
-            [FromBody]
-            UpdateTrainerApplicationRequest request)
+    [HttpGet("{id:guid}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult>
+        GetById(
+            Guid id)
     {
-        if (!ModelState.IsValid)
+        var result =
+            await _service.GetByIdAsync(
+                id
+            );
+
+
+        if (result is null)
         {
-            return ValidationProblem(
-                ModelState
+            return NotFound(
+                new
+                {
+                    message =
+                        "Trainer application not found."
+                }
             );
         }
 
 
+        return Ok(result);
+    }
+
+
+    // =========================================================
+    // UPDATE MY APPLICATION
+    // PUT /api/trainer-applications/me
+    // =========================================================
+
+    [HttpPut("me")]
+    [Authorize(Roles = "Trainer")]
+    public async Task<IActionResult>
+        UpdateMyApplication(
+            [FromBody]
+            UpdateTrainerApplicationRequest request)
+    {
         var userId =
             GetCurrentUserId();
 
@@ -104,7 +128,7 @@ public class TrainerApplicationsController
                 new
                 {
                     message =
-                        "User identity was not found."
+                        "Invalid authenticated user."
                 }
             );
         }
@@ -132,16 +156,7 @@ public class TrainerApplicationsController
             }
 
 
-            return Ok(
-                new
-                {
-                    message =
-                        "Trainer application updated successfully.",
-
-                    application =
-                        result
-                }
-            );
+            return Ok(result);
         }
         catch (
             InvalidOperationException ex)
@@ -159,25 +174,16 @@ public class TrainerApplicationsController
 
     // =========================================================
     // UPDATE PROFILE IMAGE
-    // PUT /api/trainer-applications/me/image
+    // PUT /api/trainer-applications/me/profile-image
     // =========================================================
 
+    [HttpPut("me/profile-image")]
     [Authorize(Roles = "Trainer")]
-    [HttpPut("me/image")]
     [Consumes("multipart/form-data")]
-    public async Task<ActionResult<TrainerApplicationDto>>
+    public async Task<IActionResult>
         UpdateProfileImage(
-            [FromForm]
-            UpdateTrainerApplicationImageRequest request)
+            IFormFile profileImage)
     {
-        if (!ModelState.IsValid)
-        {
-            return ValidationProblem(
-                ModelState
-            );
-        }
-
-
         var userId =
             GetCurrentUserId();
 
@@ -188,7 +194,7 @@ public class TrainerApplicationsController
                 new
                 {
                     message =
-                        "User identity was not found."
+                        "Invalid authenticated user."
                 }
             );
         }
@@ -200,7 +206,7 @@ public class TrainerApplicationsController
                 await _service
                     .UpdateProfileImageAsync(
                         userId.Value,
-                        request.ProfileImage
+                        profileImage
                     );
 
 
@@ -216,14 +222,73 @@ public class TrainerApplicationsController
             }
 
 
-            return Ok(
+            return Ok(result);
+        }
+        catch (
+            InvalidOperationException ex)
+        {
+            return BadRequest(
                 new
                 {
                     message =
-                        "Trainer profile image updated successfully.",
+                        ex.Message
+                }
+            );
+        }
+    }
 
-                    application =
-                        result
+
+    // =========================================================
+    // UPLOAD DOCUMENT
+    // POST /api/trainer-applications/{id}/documents
+    // =========================================================
+
+    [HttpPost("{id:guid}/documents")]
+    [Authorize(Roles = "Trainer")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult>
+        UploadDocument(
+            Guid id,
+            [FromForm]
+            UploadTrainerApplicationDocumentRequest request)
+    {
+        var userId =
+            GetCurrentUserId();
+
+
+        if (userId is null)
+        {
+            return Unauthorized(
+                new
+                {
+                    message =
+                        "Invalid authenticated user."
+                }
+            );
+        }
+
+
+        try
+        {
+            var result =
+                await _service
+                    .UploadDocumentAsync(
+                        userId.Value,
+                        id,
+                        request
+                    );
+
+
+            return Ok(result);
+        }
+        catch (
+            KeyNotFoundException ex)
+        {
+            return NotFound(
+                new
+                {
+                    message =
+                        ex.Message
                 }
             );
         }
@@ -242,33 +307,277 @@ public class TrainerApplicationsController
 
 
     // =========================================================
-    // GET BY ID
+    // GET MY DOCUMENTS
+    // GET /api/trainer-applications/{id}/documents
     // =========================================================
 
-    [Authorize(Roles = "Admin,Trainer")]
-    [HttpGet("{id:guid}")]
-    public async Task<ActionResult<TrainerApplicationDto>>
-        GetById(
+    [HttpGet("{id:guid}/documents")]
+    [Authorize(Roles = "Trainer")]
+    public async Task<IActionResult>
+        GetMyDocuments(
             Guid id)
     {
-        var result =
-            await _service
-                .GetByIdAsync(id);
+        var userId =
+            GetCurrentUserId();
 
 
-        if (result is null)
+        if (userId is null)
         {
-            return NotFound(
+            return Unauthorized(
                 new
                 {
                     message =
-                        "Trainer application not found."
+                        "Invalid authenticated user."
                 }
             );
         }
 
 
-        return Ok(result);
+        try
+        {
+            var result =
+                await _service
+                    .GetMyDocumentsAsync(
+                        userId.Value,
+                        id
+                    );
+
+
+            return Ok(result);
+        }
+        catch (
+            KeyNotFoundException ex)
+        {
+            return NotFound(
+                new
+                {
+                    message =
+                        ex.Message
+                }
+            );
+        }
+    }
+
+
+    // =========================================================
+    // DELETE DOCUMENT
+    // DELETE /api/trainer-applications/{id}/documents/{documentId}
+    // =========================================================
+
+    [HttpDelete("{id:guid}/documents/{documentId:guid}")]
+    [Authorize(Roles = "Trainer")]
+    public async Task<IActionResult>
+        DeleteDocument(
+            Guid id,
+            Guid documentId)
+    {
+        var userId =
+            GetCurrentUserId();
+
+
+        if (userId is null)
+        {
+            return Unauthorized(
+                new
+                {
+                    message =
+                        "Invalid authenticated user."
+                }
+            );
+        }
+
+
+        try
+        {
+            await _service
+                .DeleteDocumentAsync(
+                    userId.Value,
+                    id,
+                    documentId
+                );
+
+
+            return Ok(
+                new
+                {
+                    success = true,
+                    message =
+                        "Document deleted successfully."
+                }
+            );
+        }
+        catch (
+            KeyNotFoundException ex)
+        {
+            return NotFound(
+                new
+                {
+                    message =
+                        ex.Message
+                }
+            );
+        }
+        catch (
+            InvalidOperationException ex)
+        {
+            return BadRequest(
+                new
+                {
+                    message =
+                        ex.Message
+                }
+            );
+        }
+    }
+
+
+    // =========================================================
+    // ADMIN REVIEW APPLICATION
+    // PUT /api/trainer-applications/{id}/review
+    // =========================================================
+
+    [HttpPut("{id:guid}/review")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult>
+        Review(
+            Guid id,
+            [FromBody]
+            ReviewTrainerApplicationRequest request)
+    {
+        var adminId =
+            GetCurrentUserId();
+
+
+        if (adminId is null)
+        {
+            return Unauthorized(
+                new
+                {
+                    message =
+                        "Invalid authenticated user."
+                }
+            );
+        }
+
+
+        try
+        {
+            await _service
+                .ReviewAsync(
+                    id,
+                    adminId.Value,
+                    request
+                );
+
+
+            return Ok(
+                new
+                {
+                    success = true,
+                    message =
+                        "Trainer application reviewed successfully."
+                }
+            );
+        }
+        catch (
+            KeyNotFoundException ex)
+        {
+            return NotFound(
+                new
+                {
+                    message =
+                        ex.Message
+                }
+            );
+        }
+        catch (
+            InvalidOperationException ex)
+        {
+            return BadRequest(
+                new
+                {
+                    message =
+                        ex.Message
+                }
+            );
+        }
+    }
+
+
+    // =========================================================
+    // ADMIN REVIEW DOCUMENT
+    // PUT /api/trainer-applications/{id}/documents/{documentId}/review
+    // =========================================================
+
+    [HttpPut(
+        "{id:guid}/documents/{documentId:guid}/review"
+    )]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult>
+        ReviewDocument(
+            Guid id,
+            Guid documentId,
+            [FromBody]
+            ReviewTrainerApplicationDocumentRequest request)
+    {
+        var adminId =
+            GetCurrentUserId();
+
+
+        if (adminId is null)
+        {
+            return Unauthorized(
+                new
+                {
+                    message =
+                        "Invalid authenticated user."
+                }
+            );
+        }
+
+
+        try
+        {
+            await _service
+                .ReviewDocumentAsync(
+                    id,
+                    documentId,
+                    adminId.Value,
+                    request
+                );
+
+
+            return Ok(
+                new
+                {
+                    success = true,
+                    message =
+                        "Document reviewed successfully."
+                }
+            );
+        }
+        catch (
+            KeyNotFoundException ex)
+        {
+            return NotFound(
+                new
+                {
+                    message =
+                        ex.Message
+                }
+            );
+        }
+        catch (
+            InvalidOperationException ex)
+        {
+            return BadRequest(
+                new
+                {
+                    message =
+                        ex.Message
+                }
+            );
+        }
     }
 
 
@@ -278,15 +587,15 @@ public class TrainerApplicationsController
 
     private Guid? GetCurrentUserId()
     {
-        var userIdClaim =
-            User.FindFirst(
+        var userId =
+            User.FindFirstValue(
                 ClaimTypes.NameIdentifier
-            )?.Value;
+            );
 
 
         if (
             string.IsNullOrWhiteSpace(
-                userIdClaim
+                userId
             )
         )
         {
@@ -296,8 +605,8 @@ public class TrainerApplicationsController
 
         if (
             !Guid.TryParse(
-                userIdClaim,
-                out var userId
+                userId,
+                out var parsedUserId
             )
         )
         {
@@ -305,163 +614,16 @@ public class TrainerApplicationsController
         }
 
 
-        return userId;
-    }
-    // =========================================================
-// UPLOAD DOCUMENT
-// POST /api/trainer-applications/{id}/documents
-// =========================================================
-
-[Authorize(Roles = "Trainer")]
-[HttpPost("{id:guid}/documents")]
-[Consumes("multipart/form-data")]
-public async Task<ActionResult<TrainerApplicationDocumentDto>>
-    UploadDocument(
-        Guid id,
-        [FromForm]
-        UploadTrainerApplicationDocumentRequest request)
-{
-    if (!ModelState.IsValid)
-    {
-        return ValidationProblem(
-            ModelState
-        );
+        return parsedUserId;
     }
 
-
-    var userId =
-        GetCurrentUserId();
-
-
-    if (userId is null)
-    {
-        return Unauthorized(
-            new
-            {
-                message =
-                    "User identity was not found."
-            }
-        );
-    }
-
-
-    try
-    {
-        var result =
-            await _service
-                .UploadDocumentAsync(
-                    userId.Value,
-                    id,
-                    request
-                );
-
-
-        return StatusCode(
-            StatusCodes.Status201Created,
-            result
-        );
-    }
-    catch (
-        KeyNotFoundException ex)
-    {
-        return NotFound(
-            new
-            {
-                message = ex.Message
-            }
-        );
-    }
-    catch (
-        InvalidOperationException ex)
-    {
-        return BadRequest(
-            new
-            {
-                message = ex.Message
-            }
-        );
-    }
-}
-// =========================================================
-// ADMIN REVIEW DOCUMENT
-// PUT /api/trainer-applications/{id}/documents/{documentId}/review
-// =========================================================
-
+    [HttpGet]
 [Authorize(Roles = "Admin")]
-[HttpPut(
-    "{id:guid}/documents/{documentId:guid}/review"
-)]
-public async Task<IActionResult>
-    ReviewDocument(
-        Guid id,
-        Guid documentId,
-        [FromBody]
-        ReviewTrainerApplicationDocumentRequest request)
+public async Task<IActionResult> GetAll()
 {
-    if (!ModelState.IsValid)
-    {
-        return ValidationProblem(
-            ModelState
-        );
-    }
+    var result =
+        await _service.GetAllAsync();
 
-
-    var adminId =
-        GetCurrentUserId();
-
-
-    if (adminId is null)
-    {
-        return Unauthorized(
-            new
-            {
-                message =
-                    "Admin identity was not found."
-            }
-        );
-    }
-
-
-    try
-    {
-        await _service
-            .ReviewDocumentAsync(
-                id,
-                documentId,
-                adminId.Value,
-                request
-            );
-
-
-        return Ok(
-            new
-            {
-                message =
-                    "Trainer application document reviewed successfully."
-            }
-        );
-    }
-    catch (
-        KeyNotFoundException ex)
-    {
-        return NotFound(
-            new
-            {
-                message =
-                    ex.Message
-            }
-        );
-    }
-    catch (
-        InvalidOperationException ex)
-    {
-        return BadRequest(
-            new
-            {
-                message =
-                    ex.Message
-            }
-        );
-    }
+    return Ok(result);
 }
 }

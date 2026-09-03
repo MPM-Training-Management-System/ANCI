@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
   },
 
   content: {
-    paddingTop: 20,
+    paddingTop: 30,
     paddingBottom: 90,
   },
 });

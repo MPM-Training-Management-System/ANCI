@@ -67,22 +67,29 @@ public class CloudinaryService : ICloudinaryService
                 .ToLowerInvariant();
 
 
-        var allowedExtensions =
-            new[]
-            {
-                ".jpg",
-                ".jpeg",
-                ".png",
-                ".webp"
-            };
+        var allowedExtensions = new[]
+{
+    ".pdf",
+    ".doc",
+    ".docx",
+    ".xls",
+    ".xlsx",
+    ".ppt",
+    ".pptx",
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp"
+};
 
-
-        if (!allowedExtensions.Contains(extension))
-        {
-            throw new InvalidOperationException(
-                "Only JPG, JPEG, PNG, and WEBP images are allowed."
-            );
-        }
+if (!allowedExtensions.Contains(
+        extension,
+        StringComparer.OrdinalIgnoreCase))
+{
+    throw new InvalidOperationException(
+        "Only PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, JPG, JPEG, PNG, and WEBP files are allowed."
+    );
+}
 
 
         var uploadParams =
@@ -286,4 +293,186 @@ public class CloudinaryService : ICloudinaryService
 
         return publicPath;
     }
+    // =========================================================
+// UPLOAD DOCUMENT
+// =========================================================
+
+// =========================================================
+// UPLOAD DOCUMENT
+// =========================================================
+
+public async Task<(string Url, string PublicId)> UploadDocumentAsync(
+    Stream fileStream,
+    string fileName,
+    string folder)
+{
+    if (fileStream == null)
+    {
+        throw new ArgumentNullException(nameof(fileStream));
+    }
+
+    if (fileStream.Length == 0)
+    {
+        throw new InvalidOperationException(
+            "The uploaded file is empty."
+        );
+    }
+
+    var extension =
+        Path.GetExtension(fileName)
+            .ToLowerInvariant();
+
+    var imageExtensions = new[]
+    {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp"
+    };
+
+    var documentExtensions = new[]
+    {
+        ".pdf",
+        ".doc",
+        ".docx",
+        ".xls",
+        ".xlsx",
+        ".ppt",
+        ".pptx"
+    };
+
+    if (!imageExtensions.Contains(extension) &&
+        !documentExtensions.Contains(extension))
+    {
+        throw new InvalidOperationException(
+            "Only PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, JPG, JPEG, PNG, and WEBP files are allowed."
+        );
+    }
+
+    // =====================================================
+    // IMAGE
+    // =====================================================
+
+    if (imageExtensions.Contains(extension))
+    {
+        var uploadParams = new ImageUploadParams
+        {
+            File = new FileDescription(
+                fileName,
+                fileStream
+            ),
+
+            Folder = folder,
+
+            UseFilename = false,
+            UniqueFilename = true,
+            Overwrite = false
+        };
+
+        var result =
+            await _cloudinary.UploadAsync(uploadParams);
+
+        if (result.Error != null)
+        {
+            throw new InvalidOperationException(
+                $"Cloudinary image upload failed: {result.Error.Message}"
+            );
+        }
+
+        var secureUrl =
+            result.SecureUrl?.ToString();
+
+        if (string.IsNullOrWhiteSpace(secureUrl))
+        {
+            throw new InvalidOperationException(
+                "Cloudinary did not return an image URL."
+            );
+        }
+
+        return (
+            secureUrl,
+            result.PublicId
+        );
+    }
+
+    // =====================================================
+    // DOCUMENT
+    // =====================================================
+
+    var documentUploadParams = new RawUploadParams
+    {
+        File = new FileDescription(
+            fileName,
+            fileStream
+        ),
+
+        Folder = folder,
+
+        UseFilename = false,
+        UniqueFilename = true,
+        Overwrite = false
+    };
+
+    var documentResult =
+        await _cloudinary.UploadAsync(
+            documentUploadParams
+        );
+
+    if (documentResult.Error != null)
+    {
+        throw new InvalidOperationException(
+            $"Cloudinary document upload failed: {documentResult.Error.Message}"
+        );
+    }
+
+    var documentUrl =
+        documentResult.SecureUrl?.ToString();
+
+    if (string.IsNullOrWhiteSpace(documentUrl))
+    {
+        throw new InvalidOperationException(
+            "Cloudinary did not return a document URL."
+        );
+    }
+
+    return (
+        documentUrl,
+        documentResult.PublicId
+    );
+}
+
+// =========================================================
+// DELETE DOCUMENT
+// =========================================================
+
+public async Task DeleteDocumentAsync(
+    string publicId)
+{
+    if (string.IsNullOrWhiteSpace(publicId))
+    {
+        return;
+    }
+
+    var deleteParams =
+        new DeletionParams(
+            publicId
+        )
+        {
+            ResourceType =
+                ResourceType.Raw
+        };
+
+    var result =
+        await _cloudinary
+            .DestroyAsync(
+                deleteParams
+            );
+
+    if (result.Error != null)
+    {
+        throw new InvalidOperationException(
+            $"Cloudinary document deletion failed: {result.Error.Message}"
+        );
+    }
+}
 }

@@ -1,174 +1,64 @@
-export interface RegisterTrainerForm {
+
+
+export interface RegisterTrainerRequest {
+  fullName: string;
   firstName: string;
-  middleName?: string;
+  middleName: string;
   lastName: string;
-
-  dateOfBirth: string;
+  birthDate: string;
+  address: string;
   gender: string;
-  civilStatus: string;
+  email: string;
+  mobileNumber?: string;
+  password: string;
 
-  mobileNumber: string;
-  homeAddress: string;
+  specialization: string;
 
-  expertise: string;
-  yearsOfExperience: number;
-  organization: string;
-  biography: string;
+  yearsOfExperience?: number;
 
-  profileImage?: File;
-  validId?: File;
-  validIdType?: string;
+  certificationName?: string;
+
+  certificationNumber?: string;
+
+ profileImage?: File;
 }
 
-export interface TrainerResponseDTO {
-
-
+export interface TrainerProfile {
   id: string;
 
-
-
   userId: string;
-  userIdNumber?: string;
 
-  username: string;
-  email: string;
-  role: string;
-
-  isActive: boolean;
-  isEmailVerified: boolean;
-
- 
+  userCode: string;
 
   firstName: string;
-  middleName?: string | null;
-  lastName: string;
-  fullName?: string | null;
 
-  dateOfBirth: string;
+  middleName: string;
+
+  lastName: string;
+
+  birthDate: string;
+
+  address: string;
+
   gender: string;
-  civilStatus: string;
 
-  mobileNumber: string;
-  homeAddress: string;
-
-  expertise: string;
-  yearsOfExperience: number;
-  organization: string;
-  biography: string;
-
-  
-
-  profileImage?: string | null;
-  validId?: string | null;
-
-
-  isProfileCompleted: boolean;
-
-  applicationStatus?: number;
-  policyStatus?: number;
-
-  policyRemarks?: string | null;
-
-  submittedAt?: string | null;
-
-
-  createdAt: string;
-}
-
-
-export interface TrainerApplicationResponse {
-  id: string;
-  userId: string;
-
-  username: string;
-  email: string;
-
-  firstName: string;
-  middleName: string | null;
-  lastName: string;
   fullName: string;
 
-  dateOfBirth: string;
-  gender: string;
-  civilStatus: string;
-
-  mobileNumber: string;
-  homeAddress: string;
-
-  expertise: string;
-  yearsOfExperience: number;
-  organization: string;
-  biography: string;
-
-  profileImage: string | null;
-  validId: string | null;
-
-  isProfileCompleted: boolean;
-  isActive: boolean;
-  isEmailVerified: boolean;
-
-  applicationStatus: number;
-  policyStatus: number;
-  policyRemarks: string | null;
-
-  submittedAt: string;
-  createdAt: string;
-}
-
-export interface TrainerApplicationDetails {
-  id: string;
-  userId: string;
-  userIdNumber: string;
-
-  username: string;
   email: string;
 
-  firstName: string;
-  middleName: string | null;
-  lastName: string;
-  fullName: string;
+  mobileNumber: string | null;
 
-  dateOfBirth: string;
-  gender: string;
-  civilStatus: string;
+  specialization: string;
 
-  mobileNumber: string;
-  homeAddress: string;
+  bio: string | null;
 
-  expertise: string;
-  yearsOfExperience: number;
-  organization: string;
-  biography: string;
+  yearsOfExperience: number | null;
 
-  profileImage: string | null;
-  validId: string | null;
+  profileImageUrl: string | null;
 
-  role: string;
-
-  isProfileCompleted: boolean;
   isActive: boolean;
-  isEmailVerified: boolean;
 
-  status:
-    | "Pending"
-    | "Approved"
-    | "Rejected";
-
-  policyStatus:
-    | "Pending"
-    | "Passed"
-    | "Failed";
-
-  policyRemarks: string | null;
-
-  submittedAt: string;
-  createdAt: string;
-
-  reviewedBy: string | null;
-  reviewedAt: string | null;
-  rejectionReason: string | null;
-
-  emergencyContactName: string | null;
-  emergencyRelationship: string | null;
-  emergencyContactNumber: string | null;
+  activatedAt: string | null;
 }
+
+

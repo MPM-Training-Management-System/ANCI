@@ -1,463 +1,1226 @@
 "use client";
 
-import { useState } from "react";
+import {
+  useState,
+} from "react";
+
+import {
+  useRouter,
+} from "next/navigation";
+
 import Link from "next/link";
-import { Eye, EyeOff } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { authApi } from "@/lib/api";
-import { useRegister, useSendOTp} from "@repo/hooks";
 
 import {
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Checkbox,
-  FormLabel,
-  Input,
-} from "@repo/ui/index";
+  Eye,
+  EyeOff,
+  Upload,
+  UserRound,
+} from "lucide-react";
 
 import {
-  registerSchema,
-  type RegisterFormValues,
-} from "@/hooks/schema";
-import { useRouter } from "next/navigation";
+  useForm,
+} from "react-hook-form";
 
-export default function RegisterForm() {
+import {
+  useRegisterTrainer,
+  RegisterTrainerFormValues,
+} from "@/hooks/useRegisterTrainer";
 
-  const router = useRouter();
-  const [showPassword, setShowPassword] =
-    useState(false);
+import {
+  authApi,
+} from "@/lib/api";
 
-  const [showConfirmPassword, setShowConfirmPassword] =
-    useState(false);
 
-  const [agreeTerms, setAgreeTerms] =
-    useState(false);
+export default function TrainerRegisterForm() {
+
+  const router =
+    useRouter();
+
+
+  // =========================================================
+  // REGISTER HOOK
+  // =========================================================
 
   const {
-    register: registerAccount,
+    registerTrainer,
     isLoading,
-    error: registerError,
-    success,
-  } = useRegister(authApi);
-  
-const {
-  sendOtp,
-  isLoading: isSendingOtp,
-  error: otpError,
-} = useSendOTp(authApi);
+    error,
+  } =
+    useRegisterTrainer(
+      authApi
+    );
+
+
+  // =========================================================
+  // FORM
+  // =========================================================
 
   const {
     register,
     handleSubmit,
-    formState: { errors },
-    reset,
-  } = useForm<RegisterFormValues>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: {
-      firstName: "",
-      middleName: "",
-      lastName: "",
-      email: "",
-      mobileNumber: "",
-      password: "",
-      confirmPassword: "",
+
+    formState: {
+      errors,
     },
-  });
 
-  const onSubmit = async (
-    data: RegisterFormValues
-  ) => {
-    if (!agreeTerms) {
-      return;
-    }
+  } =
+    useForm<RegisterTrainerFormValues>({
+      defaultValues: {
 
-    const registered =
-      await registerAccount({
-        firstName: data.firstName,
-        middleName: data.middleName,
-        lastName: data.lastName,
-        email: data.email,
-        mobileNumber: data.mobileNumber,
-        password: data.password,
-      });
+        firstName: "",
 
-    if (!registered) {
-     return;
-    }
+        middleName: "",
 
-    const otpSent = await sendOtp({
-      email: data.email,
+        lastName: "",
+
+        email: "",
+
+        mobileNumber: "",
+
+        password: "",
+
+        confirmPassword: "",
+
+        specialization: "",
+
+        yearsOfExperience:
+          undefined,
+
+        certificationName: "",
+
+        certificationNumber: "",
+
+        profileImage:
+          undefined,
+      },
     });
-    if (!otpSent){
+
+
+  // =========================================================
+  // IMAGE
+  // =========================================================
+
+  const [
+    profileImage,
+    setProfileImage,
+  ] = useState<File | undefined>();
+
+
+  const [
+    preview,
+    setPreview,
+  ] = useState<string | null>(
+    null
+  );
+
+
+  // =========================================================
+  // PASSWORD VISIBILITY
+  // =========================================================
+
+  const [
+    showPassword,
+    setShowPassword,
+  ] = useState(false);
+
+
+  const [
+    showConfirmPassword,
+    setShowConfirmPassword,
+  ] = useState(false);
+
+
+  // =========================================================
+  // TERMS
+  // =========================================================
+
+  const [
+    agreeTerms,
+    setAgreeTerms,
+  ] = useState(false);
+
+
+  // =========================================================
+  // IMAGE
+  // =========================================================
+
+  const handleImageChange = (
+    event:
+      React.ChangeEvent<HTMLInputElement>
+  ) => {
+
+    const file =
+      event.target.files?.[0];
+
+
+    if (!file) {
       return;
     }
 
-     router.push(
-    `/register/verify-otp?email=${encodeURIComponent(
-      data.email.trim().toLowerCase()
-    )}`
-  );
+
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+    ];
+
+
+    if (
+      !allowedTypes.includes(
+        file.type
+      )
+    ) {
+
+      alert(
+        "Please select a JPG, PNG, or WEBP image."
+      );
+
+      return;
+    }
+
+
+    if (
+      file.size >
+      5 * 1024 * 1024
+    ) {
+
+      alert(
+        "Image must not exceed 5MB."
+      );
+
+      return;
+    }
+
+
+    setProfileImage(
+      file
+    );
+
+
+    setPreview(
+      URL.createObjectURL(
+        file
+      )
+    );
+
   };
 
+
+  // =========================================================
+  // SUBMIT
+  // =========================================================
+
+  const onSubmit = async (
+    data: RegisterTrainerFormValues
+  ) => {
+
+    if (!agreeTerms) {
+
+      alert(
+        "Please agree to the Terms and Conditions."
+      );
+
+      return;
+    }
+
+
+    // -------------------------------------------------------
+    // REGISTER
+    // -------------------------------------------------------
+
+    const registration =
+      await registerTrainer({
+
+        ...data,
+
+        profileImage,
+
+      });
+
+
+    if (!registration) {
+
+      return;
+    }
+
+
+    // -------------------------------------------------------
+    // SEND OTP
+    // -------------------------------------------------------
+
+    try {
+
+      const otpResponse =
+        await authApi.sendOtp({
+
+          email:
+            data.email
+              .trim()
+              .toLowerCase(),
+
+        });
+
+
+      if (
+        !otpResponse.success
+      ) {
+
+        alert(
+          otpResponse.message ||
+          "Unable to send OTP."
+        );
+
+        return;
+      }
+
+
+      // -----------------------------------------------------
+      // GO TO OTP
+      // -----------------------------------------------------
+
+      router.push(
+        `/verify-otp?email=${encodeURIComponent(
+          data.email
+            .trim()
+            .toLowerCase()
+        )}`
+      );
+
+    }
+    catch (error) {
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Unable to send OTP."
+      );
+
+    }
+
+  };
+
+
+  // =========================================================
+  // UI
+  // =========================================================
+
   return (
-    <Card>
-      <CardHeader className="border-b bg-slate-50/60 pb-8">
-        <div className="mb-2">
-          <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase tracking-widest text-teal-700">
-            Secure Access Point
-          </span>
-        </div>
 
-        <div className="flex items-center gap-5">
-          <div>
-            <CardTitle className="text-3xl font-bold">
-              Create Trainer Account
-            </CardTitle>
+    <div
+      className="
+        rounded-3xl
+        border
+        border-slate-200
+        bg-white
+        p-6
+        shadow-xl
+        sm:p-8
+      "
+    >
 
-            <CardDescription className="mt-2 max-w-lg leading-6">
-              Register your trainer account to securely
-              access the ACE NextGen Trainer Portal and
-              begin your application.
-            </CardDescription>
-          </div>
-        </div>
-      </CardHeader>
+      {/* =====================================================
+          HEADER
+      ===================================================== */}
 
-      <CardContent className="pt-8">
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          className="space-y-6"
+      <div
+        className="
+          mb-8
+        "
+      >
+
+        <span
+          className="
+            inline-flex
+            rounded-full
+            bg-teal-50
+            px-3
+            py-1
+            text-xs
+            font-bold
+            uppercase
+            tracking-wider
+            text-teal-700
+          "
         >
-          {/* Registration Error */}
-          {registerError && (
-            <div className="rounded-xl border border-red-200 bg-red-50 p-4">
-              <p className="text-sm font-medium text-red-700">
-                {registerError}
-              </p>
-            </div>
-          )}
+          Trainer Registration
+        </span>
 
-          {/* Registration Success */}
-          {success && (
-            <div className="rounded-xl border border-green-200 bg-green-50 p-4">
-              <p className="text-sm font-medium text-green-700">
-                Registration successful. Please verify
-                your email using the OTP sent to you.
-              </p>
-            </div>
-          )}
 
-          {/* Name */}
-          <div>
-            <div className="mb-4">
-              <h3 className="text-base font-semibold text-slate-900">
-                Personal Information
-              </h3>
+        <h1
+          className="
+            mt-4
+            text-3xl
+            font-bold
+            text-slate-900
+          "
+        >
+          Create your trainer account
+        </h1>
 
-              <p className="mt-1 text-sm text-slate-500">
-                Enter your complete name as it appears on
-                your official documents.
-              </p>
-            </div>
 
-            <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-              {/* First Name */}
-              <div>
-                <FormLabel>First Name</FormLabel>
+        <p
+          className="
+            mt-2
+            text-sm
+            leading-6
+            text-slate-500
+          "
+        >
+          Submit your information for trainer
+          application and verification.
+        </p>
 
-                <Input
-                  placeholder="Juan"
-                  {...register("firstName")}
+      </div>
+
+
+      {/* =====================================================
+          ERROR
+      ===================================================== */}
+
+      {error && (
+
+        <div
+          className="
+            mb-6
+            rounded-xl
+            border
+            border-red-200
+            bg-red-50
+            px-4
+            py-3
+            text-sm
+            text-red-700
+          "
+        >
+
+          {error}
+
+        </div>
+
+      )}
+
+
+      <form
+        onSubmit={
+          handleSubmit(
+            onSubmit
+          )
+        }
+        className="
+          space-y-8
+        "
+      >
+
+        {/* ===================================================
+            PROFILE IMAGE
+        =================================================== */}
+
+        <section>
+
+          <h2
+            className="
+              text-lg
+              font-bold
+              text-slate-900
+            "
+          >
+            Profile Photo
+          </h2>
+
+
+          <div
+            className="
+              mt-4
+              flex
+              flex-col
+              items-center
+              gap-5
+              rounded-2xl
+              border
+              border-dashed
+              border-slate-300
+              bg-slate-50
+              p-6
+              sm:flex-row
+            "
+          >
+
+            <div
+              className="
+                flex
+                h-28
+                w-28
+                shrink-0
+                items-center
+                justify-center
+                overflow-hidden
+                rounded-full
+                bg-white
+                ring-1
+                ring-slate-200
+              "
+            >
+
+              {preview ? (
+
+                <img
+                  src={preview}
+                  alt="Profile preview"
+                  className="
+                    h-full
+                    w-full
+                    object-cover
+                  "
                 />
 
-                {errors.firstName && (
-                  <p className="mt-1 text-sm text-red-500">
-                    {errors.firstName.message}
-                  </p>
-                )}
-              </div>
+              ) : (
 
-              {/* Middle Name */}
-              <div>
-                <FormLabel>
-                  Middle Name
-                </FormLabel>
-
-                <Input
-                  placeholder="Dela"
-                  {...register("middleName")}
+                <UserRound
+                  className="
+                    h-10
+                    w-10
+                    text-slate-300
+                  "
                 />
 
-                {errors.middleName && (
-                  <p className="mt-1 text-sm text-red-500">
-                    {errors.middleName.message}
-                  </p>
-                )}
-              </div>
+              )}
 
-              {/* Last Name */}
-              <div>
-                <FormLabel>Last Name</FormLabel>
+            </div>
 
-                <Input
-                  placeholder="Cruz"
-                  {...register("lastName")}
+
+            <div>
+
+              <label
+                htmlFor="profileImage"
+                className="
+                  inline-flex
+                  cursor-pointer
+                  items-center
+                  gap-2
+                  rounded-xl
+                  border
+                  border-slate-300
+                  bg-white
+                  px-4
+                  py-2.5
+                  text-sm
+                  font-semibold
+                  text-slate-700
+                  hover:bg-slate-50
+                "
+              >
+
+                <Upload
+                  className="
+                    h-4
+                    w-4
+                  "
                 />
 
-                {errors.lastName && (
-                  <p className="mt-1 text-sm text-red-500">
-                    {errors.lastName.message}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
+                Choose Photo
 
-          {/* Account Information */}
-          <div>
-            <div className="mb-4">
-              <h3 className="text-base font-semibold text-slate-900">
-                Account Information
-              </h3>
+              </label>
 
-              <p className="mt-1 text-sm text-slate-500">
-                These credentials will be used to access
-                your trainer account.
-              </p>
-            </div>
 
-            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-              {/* Email */}
-              <div>
-                <FormLabel>
-                  Email Address
-                </FormLabel>
-
-                <Input
-                  type="email"
-                  placeholder="juan@email.com"
-                  {...register("email")}
-                />
-
-                {errors.email && (
-                  <p className="mt-1 text-sm text-red-500">
-                    {errors.email.message}
-                  </p>
-                )}
-              </div>
-
-              {/* Mobile Number */}
-              <div>
-                <FormLabel>
-                  Mobile Number
-                </FormLabel>
-
-                <Input
-                  type="tel"
-                  placeholder="09123456789"
-                  {...register("mobileNumber")}
-                />
-
-                {errors.mobileNumber && (
-                  <p className="mt-1 text-sm text-red-500">
-                    {errors.mobileNumber.message}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Password */}
-          <div>
-            <div className="mb-4">
-              <h3 className="text-base font-semibold text-slate-900">
-                Password
-              </h3>
-            </div>
-
-            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-              {/* Password */}
-              <div>
-                <FormLabel>
-                  Password
-                </FormLabel>
-
-                <div className="relative">
-                  <Input
-                    type={
-                      showPassword
-                        ? "text"
-                        : "password"
-                    }
-                    placeholder="Enter password"
-                    className="pr-12"
-                    {...register("password")}
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setShowPassword(
-                        (prev) => !prev
-                      )
-                    }
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-slate-700"
-                    aria-label={
-                      showPassword
-                        ? "Hide password"
-                        : "Show password"
-                    }
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-5 w-5" />
-                    ) : (
-                      <Eye className="h-5 w-5" />
-                    )}
-                  </button>
-                </div>
-
-                {errors.password && (
-                  <p className="mt-1 text-sm text-red-500">
-                    {errors.password.message}
-                  </p>
-                )}
-              </div>
-
-              {/* Confirm Password */}
-              <div>
-                <FormLabel>
-                  Confirm Password
-                </FormLabel>
-
-                <div className="relative">
-                  <Input
-                    type={
-                      showConfirmPassword
-                        ? "text"
-                        : "password"
-                    }
-                    placeholder="Confirm password"
-                    className="pr-12"
-                    {...register("confirmPassword")}
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setShowConfirmPassword(
-                        (prev) => !prev
-                      )
-                    }
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-slate-700"
-                    aria-label={
-                      showConfirmPassword
-                        ? "Hide confirm password"
-                        : "Show confirm password"
-                    }
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="h-5 w-5" />
-                    ) : (
-                      <Eye className="h-5 w-5" />
-                    )}
-                  </button>
-                </div>
-
-                {errors.confirmPassword && (
-                  <p className="mt-1 text-sm text-red-500">
-                    {
-                      errors.confirmPassword
-                        .message
-                    }
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Terms */}
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <div className="flex items-start gap-3">
-              <Checkbox
-                checked={agreeTerms}
-                onChange={(e) =>
-                  setAgreeTerms(
-                    e.target.checked
-                  )
+              <input
+                id="profileImage"
+                type="file"
+                accept="
+                  image/jpeg,
+                  image/png,
+                  image/webp
+                "
+                className="hidden"
+                onChange={
+                  handleImageChange
                 }
               />
 
-              <div>
-                <label className="text-sm leading-6 text-slate-600">
-                  I have read and agree to the{" "}
-                  <Link
-                    href="/terms-and-conditions"
-                    target="_blank"
-                    className="font-semibold text-primary hover:underline"
-                  >
-                    Terms & Conditions
-                  </Link>{" "}
-                  and{" "}
-                  <Link
-                    href="/privacy-policy"
-                    target="_blank"
-                    className="font-semibold text-primary hover:underline"
-                  >
-                    Privacy Policy
-                  </Link>{" "}
-                  of ACE NextGen.
-                </label>
 
-                {!agreeTerms && (
-                  <p className="mt-2 text-sm text-slate-500">
-                    You must agree to continue.
-                  </p>
-                )}
-              </div>
+              <p
+                className="
+                  mt-2
+                  text-xs
+                  text-slate-500
+                "
+              >
+                JPG, PNG or WEBP · Maximum 5MB
+              </p>
+
+
+              {profileImage && (
+
+                <p
+                  className="
+                    mt-2
+                    text-xs
+                    font-medium
+                    text-teal-700
+                  "
+                >
+                  {profileImage.name}
+                </p>
+
+              )}
+
             </div>
+
           </div>
 
-          {/* Submit */}
-          <div className="border-t border-slate-200 pt-6">
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={
-                isLoading ||
-                !agreeTerms
+        </section>
+
+
+        {/* ===================================================
+            NAME
+        =================================================== */}
+
+        <section>
+
+          <h2
+            className="
+              text-lg
+              font-bold
+            "
+          >
+            Personal Information
+          </h2>
+
+
+          <div
+            className="
+              mt-4
+              grid
+              gap-4
+              md:grid-cols-3
+            "
+          >
+
+            <Field
+              label="First Name"
+              error={
+                errors.firstName?.message
               }
             >
-              {isLoading
-                ? "Creating Account..."
-                : "Create Account"}
-            </Button>
+
+              <input
+                {...register(
+                  "firstName",
+                  {
+                    required:
+                      "First name is required.",
+                  }
+                )}
+                placeholder="Juan"
+                className="
+                  input
+                "
+              />
+
+            </Field>
+
+
+            <Field
+              label="Middle Name"
+              error={
+                errors.middleName?.message
+              }
+            >
+
+              <input
+                {...register(
+                  "middleName"
+                )}
+                placeholder="Dela"
+                className="
+                  input
+                "
+              />
+
+            </Field>
+
+
+            <Field
+              label="Last Name"
+              error={
+                errors.lastName?.message
+              }
+            >
+
+              <input
+                {...register(
+                  "lastName",
+                  {
+                    required:
+                      "Last name is required.",
+                  }
+                )}
+                placeholder="Cruz"
+                className="
+                  input
+                "
+              />
+
+            </Field>
+
           </div>
 
-          {/* Login */}
-          <div className="space-y-4">
-            <p className="text-center text-sm text-slate-500">
-              Already have a trainer account?{" "}
-              <Link
-                href="/login"
-                className="font-semibold text-primary transition hover:underline"
+        </section>
+
+
+        {/* ===================================================
+            CONTACT
+        =================================================== */}
+
+        <section>
+
+          <h2
+            className="
+              text-lg
+              font-bold
+            "
+          >
+            Account Information
+          </h2>
+
+
+          <div
+            className="
+              mt-4
+              grid
+              gap-4
+              md:grid-cols-2
+            "
+          >
+
+            <Field
+              label="Email"
+              error={
+                errors.email?.message
+              }
+            >
+
+              <input
+                type="email"
+                {...register(
+                  "email",
+                  {
+                    required:
+                      "Email is required.",
+                  }
+                )}
+                placeholder="juan@email.com"
+                className="
+                  input
+                "
+              />
+
+            </Field>
+
+
+            <Field
+              label="Mobile Number"
+              error={
+                errors.mobileNumber?.message
+              }
+            >
+
+              <input
+                type="tel"
+                {...register(
+                  "mobileNumber"
+                )}
+                placeholder="09123456789"
+                className="
+                  input
+                "
+              />
+
+            </Field>
+
+          </div>
+
+        </section>
+
+
+        {/* ===================================================
+            PROFESSIONAL
+        =================================================== */}
+
+        <section>
+
+          <h2
+            className="
+              text-lg
+              font-bold
+            "
+          >
+            Professional Information
+          </h2>
+
+
+          <div
+            className="
+              mt-4
+              grid
+              gap-4
+              md:grid-cols-2
+            "
+          >
+
+            <Field
+              label="Specialization"
+              error={
+                errors.specialization?.message
+              }
+            >
+
+              <input
+                {...register(
+                  "specialization",
+                  {
+                    required:
+                      "Specialization is required.",
+                  }
+                )}
+                placeholder="Web Development"
+                className="
+                  input
+                "
+              />
+
+            </Field>
+
+
+            <Field
+              label="Years of Experience"
+              error={
+                errors.yearsOfExperience?.message
+              }
+            >
+
+              <input
+                type="number"
+                min="0"
+                {...register(
+                  "yearsOfExperience",
+                  {
+                    setValueAs:
+                      value =>
+                        value === ""
+                          ? undefined
+                          : Number(value),
+                  }
+                )}
+                placeholder="5"
+                className="
+                  input
+                "
+              />
+
+            </Field>
+
+
+            <Field
+              label="Certification Name"
+              error={
+                errors.certificationName?.message
+              }
+            >
+
+              <input
+                {...register(
+                  "certificationName"
+                )}
+                placeholder="TESDA NC II"
+                className="
+                  input
+                "
+              />
+
+            </Field>
+
+
+            <Field
+              label="Certification Number"
+              error={
+                errors.certificationNumber?.message
+              }
+            >
+
+              <input
+                {...register(
+                  "certificationNumber"
+                )}
+                placeholder="Certification number"
+                className="
+                  input
+                "
+              />
+
+            </Field>
+
+          </div>
+
+        </section>
+
+
+        {/* ===================================================
+            PASSWORD
+        =================================================== */}
+
+        <section>
+
+          <h2
+            className="
+              text-lg
+              font-bold
+            "
+          >
+            Password
+          </h2>
+
+
+          <div
+            className="
+              mt-4
+              grid
+              gap-4
+              md:grid-cols-2
+            "
+          >
+
+            <Field
+              label="Password"
+              error={
+                errors.password?.message
+              }
+            >
+
+              <div
+                className="
+                  relative
+                "
               >
-                Sign In
-              </Link>
-            </p>
 
-            <p className="text-center text-[11px] uppercase tracking-widest text-slate-400">
-              By creating an account, you agree to
-              the platform&apos;s Terms of Service and
-              Privacy Policy.
-            </p>
+                <input
+                  type={
+                    showPassword
+                      ? "text"
+                      : "password"
+                  }
+                  {...register(
+                    "password",
+                    {
+                      required:
+                        "Password is required.",
+
+                      minLength: {
+                        value: 8,
+
+                        message:
+                          "Password must be at least 8 characters.",
+                      },
+                    }
+                  )}
+                  placeholder="Password"
+                  className="
+                    input
+                    pr-12
+                  "
+                />
+
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowPassword(
+                      value => !value
+                    )
+                  }
+                  className="
+                    absolute
+                    right-3
+                    top-1/2
+                    -translate-y-1/2
+                    text-slate-400
+                  "
+                >
+
+                  {showPassword ? (
+
+                    <EyeOff
+                      className="
+                        h-5
+                        w-5
+                      "
+                    />
+
+                  ) : (
+
+                    <Eye
+                      className="
+                        h-5
+                        w-5
+                      "
+                    />
+
+                  )}
+
+                </button>
+
+              </div>
+
+            </Field>
+
+
+            <Field
+              label="Confirm Password"
+              error={
+                errors.confirmPassword?.message
+              }
+            >
+
+              <div
+                className="
+                  relative
+                "
+              >
+
+                <input
+                  type={
+                    showConfirmPassword
+                      ? "text"
+                      : "password"
+                  }
+                  {...register(
+                    "confirmPassword",
+                    {
+                      required:
+                        "Please confirm your password.",
+                    }
+                  )}
+                  placeholder="Confirm password"
+                  className="
+                    input
+                    pr-12
+                  "
+                />
+
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowConfirmPassword(
+                      value => !value
+                    )
+                  }
+                  className="
+                    absolute
+                    right-3
+                    top-1/2
+                    -translate-y-1/2
+                    text-slate-400
+                  "
+                >
+
+                  {showConfirmPassword ? (
+
+                    <EyeOff
+                      className="
+                        h-5
+                        w-5
+                      "
+                    />
+
+                  ) : (
+
+                    <Eye
+                      className="
+                        h-5
+                        w-5
+                      "
+                    />
+
+                  )}
+
+                </button>
+
+              </div>
+
+            </Field>
+
           </div>
-        </form>
-      </CardContent>
-    </Card>
+
+        </section>
+
+
+        {/* ===================================================
+            TERMS
+        =================================================== */}
+
+        <label
+          className="
+            flex
+            cursor-pointer
+            items-start
+            gap-3
+            rounded-xl
+            bg-slate-50
+            p-4
+          "
+        >
+
+          <input
+            type="checkbox"
+            checked={
+              agreeTerms
+            }
+            onChange={
+              event =>
+                setAgreeTerms(
+                  event.target.checked
+                )
+            }
+            className="
+              mt-1
+              h-4
+              w-4
+            "
+          />
+
+
+          <span
+            className="
+              text-sm
+              leading-6
+              text-slate-600
+            "
+          >
+            I agree to the Terms and Conditions
+            and Privacy Policy.
+          </span>
+
+        </label>
+
+
+        {/* ===================================================
+            SUBMIT
+        =================================================== */}
+
+        <button
+          type="submit"
+          disabled={
+            isLoading ||
+            !agreeTerms
+          }
+          className="
+            w-full
+            rounded-xl
+            bg-teal-600
+            px-5
+            py-3.5
+            text-sm
+            font-bold
+            text-white
+            transition
+            hover:bg-teal-700
+            disabled:cursor-not-allowed
+            disabled:opacity-50
+          "
+        >
+
+          {isLoading
+            ? "Creating Account..."
+            : "Create Trainer Account"}
+
+        </button>
+
+
+        {/* ===================================================
+            LOGIN
+        =================================================== */}
+
+        <p
+          className="
+            text-center
+            text-sm
+            text-slate-500
+          "
+        >
+
+          Already have an account?{" "}
+
+          <Link
+            href="/login"
+            className="
+              font-semibold
+              text-teal-700
+              hover:underline
+            "
+          >
+            Sign in
+          </Link>
+
+        </p>
+
+      </form>
+
+    </div>
+  );
+}
+
+
+// ===========================================================
+// FIELD
+// ===========================================================
+
+interface FieldProps {
+  label: string;
+  error?: string;
+  children: React.ReactNode;
+}
+
+
+function Field({
+  label,
+  error,
+  children,
+}: FieldProps) {
+
+  return (
+
+    <div>
+
+      <label
+        className="
+          mb-2
+          block
+          text-sm
+          font-semibold
+          text-slate-700
+        "
+      >
+        {label}
+      </label>
+
+
+      {children}
+
+
+      {error && (
+
+        <p
+          className="
+            mt-1.5
+            text-xs
+            text-red-500
+          "
+        >
+          {error}
+        </p>
+
+      )}
+
+    </div>
   );
 }

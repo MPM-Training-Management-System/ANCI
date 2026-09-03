@@ -1,11 +1,14 @@
 import React, {
+  useEffect,
   useMemo,
   useState,
 } from "react";
 
 import {
+  ActivityIndicator,
   Alert,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,23 +17,34 @@ import {
 
 import Ionicons from "@expo/vector-icons/Ionicons";
 
+import {
+  useEnrollments,
+  useTrainingBatches,
+} from "@repo/hooks";
+
+import type {
+  TrainingBatch,
+} from "@repo/types";
+
+import {
+  enrollmentApi,
+  trainingBatchApi,
+} from "@/api/api";
+
 import TrainingCard from "./TrainingCard";
 import TrainingDetails from "./TrainingDetails";
+
 import EnrollmentForm, {
   type EnrollmentFormData,
 } from "./EnrollmentForm";
+
 import EnrollmentReview from "./EnrollmentReview";
 import EnrollmentStatusCard from "./EnrollmentStatusCard";
 
-import {
-  mockParticipantTrainings,
-  type ParticipantTraining,
-} from "@/src/data/participantTraining";
 
-import {
-  mockParticipantEnrollments,
-  type ParticipantEnrollment,
-} from "@/src/data/participantEnrollment";
+// ==========================================================
+// SCREEN
+// ==========================================================
 
 type Screen =
   | "available"
@@ -43,14 +57,30 @@ type Flow =
   | "form"
   | "review";
 
-export default function TrainingScreen() {
-  const [screen, setScreen] =
-    useState<Screen>(
-      "available"
-    );
 
-  const [flow, setFlow] =
-    useState<Flow>("none");
+// ==========================================================
+// COMPONENT
+// ==========================================================
+
+export default function TrainingScreen() {
+
+  // ========================================================
+  // SCREEN STATE
+  // ========================================================
+
+  const [
+    screen,
+    setScreen,
+  ] = useState<Screen>(
+    "available"
+  );
+
+  const [
+    flow,
+    setFlow,
+  ] = useState<Flow>(
+    "none"
+  );
 
   const [
     selectedTrainingId,
@@ -59,260 +89,681 @@ export default function TrainingScreen() {
     null
   );
 
-  const [
-    enrollments,
-    setEnrollments,
-  ] = useState<
-    ParticipantEnrollment[]
-  >(
-    mockParticipantEnrollments
-  );
+
+  // ========================================================
+  // ENROLLMENT FORM DATA
+  // ========================================================
 
   const [
     formData,
     setFormData,
   ] = useState<EnrollmentFormData>({
-    participantName:
-      "Ralph Joed Nagal Gerente",
-
-    email:
-      "ralphjoedg@gmail.com",
-
-    mobileNumber:
-      "09123456789",
-
-    mode: "Hybrid",
+    participantName: "",
+    email: "",
+    mobileNumber: "",
+    documents: [],
   });
+
+
+  // ========================================================
+  // TRAINING BATCHES
+  // REAL API
+  //
+  // GET /api/training-batches
+  // ========================================================
+
+  const {
+    batches,
+    isLoading,
+    error,
+    refresh,
+  } = useTrainingBatches(
+    trainingBatchApi
+  );
+
+
+  // ========================================================
+  // ENROLLMENTS
+  // REAL API
+  //
+  // GET /api/enrollments/me
+  // POST /api/enrollments
+  // ========================================================
+
+  const {
+    enrollments,
+    isLoading: enrollmentsLoading,
+    error: enrollmentsError,
+
+    createEnrollment,
+
+    isSubmitting,
+
+    refreshMyEnrollments,
+  } = useEnrollments(
+    enrollmentApi
+  );
+const hasActiveEnrollment =
+  useMemo(() => {
+
+    return enrollments.some(
+      (enrollment) => {
+
+        const status =
+          String(
+            enrollment.status
+          ).toLowerCase();
+
+        return (
+          status === "pending" ||
+          status === "documentsrequired" ||
+          status === "underreview" ||
+          status === "needscorrection" ||
+          status === "approved"
+        );
+
+      }
+    );
+
+  }, [enrollments]);
+useEffect(() => {
+
+  refreshMyEnrollments()
+    .catch((error) => {
+
+      console.error(
+        "FAILED TO LOAD MY ENROLLMENTS:",
+        error
+      );
+
+    });
+
+}, [
+  refreshMyEnrollments,
+]);
+  // ========================================================
+  // AVAILABLE TRAINING BATCHES
+  // ========================================================
+
+  const availableBatches =
+    useMemo(() => {
+
+      return batches.filter(
+        (batch) => {
+
+          const status =
+            String(
+              batch.status
+            ).toLowerCase();
+
+          return (
+            status === "published" &&
+            batch.enrolledCount <
+              batch.capacity
+          );
+        }
+      );
+
+    }, [batches]);
+
+
+  // ========================================================
+  // SELECTED TRAINING
+  // ========================================================
 
   const selectedTraining =
     useMemo(() => {
+
       if (
-        selectedTrainingId ===
-        null
+        !selectedTrainingId
       ) {
         return null;
       }
 
       return (
-        mockParticipantTrainings.find(
-          (training) =>
-            training.id ===
+        batches.find(
+          (batch) =>
+            batch.id ===
             selectedTrainingId
         ) ?? null
       );
+
     }, [
+      batches,
       selectedTrainingId,
     ]);
 
-  const activeEnrollments =
-    enrollments.filter(
-      (enrollment) =>
-        enrollment.status ===
-        "Approved"
-    );
 
-  /*
-   * ==========================================================
-   * OPEN TRAINING
-   * ==========================================================
-   */
+  // ========================================================
+  // APPROVED / ACTIVE ENROLLMENTS
+  // ========================================================
+
+  const activeEnrollments =
+    useMemo(() => {
+
+      return enrollments.filter(
+        (enrollment) =>
+          String(
+            enrollment.status
+          ).toLowerCase() ===
+          "approved"
+      );
+
+    }, [enrollments]);
+
+
+  // ========================================================
+  // OPEN TRAINING DETAILS
+  // ========================================================
 
   const openTraining = (
-    training: ParticipantTraining
+    training: TrainingBatch
   ) => {
+
     setSelectedTrainingId(
       training.id
     );
 
-    setFlow("details");
+    setFlow(
+      "details"
+    );
   };
 
-  /*
-   * ==========================================================
-   * BACK TO MAIN
-   * ==========================================================
-   */
+
+  // ========================================================
+  // BACK TO MAIN
+  // ========================================================
 
   const backToMain = () => {
+
     setSelectedTrainingId(
       null
     );
 
-    setFlow("none");
+    setFlow(
+      "none"
+    );
   };
 
-  /*
-   * ==========================================================
-   * START ENROLLMENT
-   * ==========================================================
-   */
 
-  const startEnrollment = () => {
-    if (!selectedTraining) {
-      return;
-    }
+ const startEnrollment = () => {
 
-    const existing =
-      enrollments.find(
-        (enrollment) =>
-          enrollment.trainingId ===
-          selectedTraining.id
-      );
+  if (!selectedTraining) {
+    return;
+  }
 
-    if (existing) {
+
+  // ======================================================
+  // CHECK ACTIVE ENROLLMENT
+  // ======================================================
+
+  const activeEnrollment =
+    enrollments.find(
+      (enrollment) => {
+
+        const status =
+          String(
+            enrollment.status
+          ).toLowerCase();
+
+        return (
+          status === "pending" ||
+          status === "documentsrequired" ||
+          status === "underreview" ||
+          status === "needscorrection" ||
+          status === "approved"
+        );
+
+      }
+    );
+
+
+  if (activeEnrollment) {
+
+    const status =
+      String(
+        activeEnrollment.status
+      ).toLowerCase();
+
+
+    if (
+      status === "approved"
+    ) {
+
       Alert.alert(
         "Already Enrolled",
-        `You already have a ${existing.status.toLowerCase()} enrollment for this training.`
+        `You already have an approved enrollment in ${activeEnrollment.programName} (${activeEnrollment.batchCode}). You can enroll in another training after completing your current training.`
       );
 
       return;
     }
 
-    setFlow("form");
-  };
 
-  /*
-   * ==========================================================
-   * FORM → REVIEW
-   * ==========================================================
-   */
+    if (
+      status === "needscorrection"
+    ) {
+
+      Alert.alert(
+        "Correction Required",
+        `Your enrollment in ${activeEnrollment.programName} (${activeEnrollment.batchCode}) requires correction. Please complete your current enrollment first.`
+      );
+
+      return;
+    }
+
+
+    if (
+      status === "underreview"
+    ) {
+
+      Alert.alert(
+        "Enrollment Under Review",
+        `Your enrollment in ${activeEnrollment.programName} (${activeEnrollment.batchCode}) is currently being reviewed.`
+      );
+
+      return;
+    }
+
+
+    if (
+      status === "documentsrequired"
+    ) {
+
+      Alert.alert(
+        "Documents Required",
+        `Please complete the required documents for your current enrollment in ${activeEnrollment.programName}.`
+      );
+
+      return;
+    }
+
+
+    Alert.alert(
+      "Enrollment Already Submitted",
+      `You already have an active enrollment in ${activeEnrollment.programName} (${activeEnrollment.batchCode}). Please wait for the administrator to review your application.`
+    );
+
+    return;
+  }
+
+
+  // ======================================================
+  // CHECK CAPACITY
+  // ======================================================
+
+  if (
+    selectedTraining.enrolledCount >=
+    selectedTraining.capacity
+  ) {
+
+    Alert.alert(
+      "Training Full",
+      "This training batch is already full."
+    );
+
+    return;
+  }
+
+
+
+
+  setFlow(
+    "form"
+  );
+};
+
 
   const handleFormContinue = (
     data: EnrollmentFormData
   ) => {
-    setFormData(data);
 
-    setFlow("review");
+    setFormData(
+      data
+    );
+
+    setFlow(
+      "review"
+    );
   };
 
-  /*
-   * ==========================================================
-   * REVIEW → SUBMIT
-   * ==========================================================
-   */
 
-  const submitEnrollment = () => {
+  const handleSubmitEnrollment =
+  async () => {
+
     if (!selectedTraining) {
+      Alert.alert(
+        "No Training Selected",
+        "Please select a training batch first."
+      );
+
       return;
     }
 
-    const newEnrollment:
-      ParticipantEnrollment = {
-      id: `ENR-${String(
-        enrollments.length + 1
-      ).padStart(3, "0")}`,
+    if (isSubmitting) {
+      return;
+    }
 
-      trainingId:
-        selectedTraining.id,
 
-      trainingCode:
-        selectedTraining.code,
+    // =====================================================
+    // CHECK DUPLICATE ENROLLMENT
+    // =====================================================
 
-      trainingTitle:
-        selectedTraining.title,
+    const existingEnrollment =
+      enrollments.find(
+        enrollment =>
+          enrollment.trainingBatchId ===
+          selectedTraining.id
+      );
 
-      participantName:
-        formData.participantName,
 
-      email:
-        formData.email,
+    if (existingEnrollment) {
 
-      mobileNumber:
-        formData.mobileNumber,
+      const status =
+        String(
+          existingEnrollment.status
+        ).toLowerCase();
 
-      trainer:
-        selectedTraining.trainer,
 
-      mode:
-        formData.mode,
+      if (
+        status === "pending"
+      ) {
+        Alert.alert(
+          "Already Submitted",
+          "You have already submitted an enrollment application for this training batch."
+        );
 
-      schedule:
-        selectedTraining.schedule,
+        return;
+      }
 
-      time:
-        selectedTraining.time,
 
-      location:
-        selectedTraining.location,
+      if (
+        status === "approved"
+      ) {
+        Alert.alert(
+          "Already Enrolled",
+          "You are already enrolled in this training batch."
+        );
 
-      duration:
-        selectedTraining.duration,
+        return;
+      }
 
-      submittedAt:
-        new Date().toLocaleDateString(
-          "en-US",
+
+      if (
+        status === "completed"
+      ) {
+        Alert.alert(
+          "Training Completed",
+          "You have already completed this training batch."
+        );
+
+        return;
+      }
+
+
+      if (
+        status === "rejected"
+      ) {
+        Alert.alert(
+          "Enrollment Rejected",
+          "You already have an enrollment application for this training batch."
+        );
+
+        return;
+      }
+
+
+      Alert.alert(
+        "Already Submitted",
+        "You already have an enrollment for this training batch."
+      );
+
+      return;
+    }
+
+
+    // =====================================================
+    // CHECK CAPACITY
+    // =====================================================
+
+    if (
+      selectedTraining.enrolledCount >=
+      selectedTraining.capacity
+    ) {
+
+      Alert.alert(
+        "Training Full",
+        "This training batch is already full."
+      );
+
+      return;
+    }
+
+
+    // =====================================================
+    // CHECK REQUIRED DOCUMENTS
+    //
+    // EnrollmentForm already validates these,
+    // but we check again before the actual API call.
+    // =====================================================
+
+    if (
+      !formData.documents ||
+      formData.documents.length === 0
+    ) {
+
+      Alert.alert(
+        "Required Documents",
+        "Please upload the required documents before submitting."
+      );
+
+      return;
+    }
+
+
+    try {
+
+      // ===================================================
+      // STEP 1
+      // CREATE ENROLLMENT
+      // ===================================================
+
+      const enrollment =
+        await createEnrollment({
+          trainingBatchId:
+            selectedTraining.id,
+        });
+
+
+      console.log(
+        "ENROLLMENT CREATED:",
+        enrollment.id
+      );
+
+
+      // ===================================================
+      // STEP 2
+      // UPLOAD DOCUMENTS
+      //
+      // POST
+      // /api/enrollments/{enrollmentId}/documents
+      //
+      // FormData:
+      // RequirementId
+      // File
+      // ===================================================
+
+      for (
+        const document
+        of formData.documents
+      ) {
+
+        const uploadData =
+          new FormData();
+
+
+        // -------------------------------------------------
+        // RequirementId
+        // -------------------------------------------------
+
+        uploadData.append(
+          "RequirementId",
+          document.requirementId
+        );
+
+
+        // -------------------------------------------------
+        // File
+        // -------------------------------------------------
+
+        uploadData.append(
+          "File",
           {
-            month: "long",
-            day: "numeric",
-            year: "numeric",
-          }
-        ),
+            uri:
+              document.file.uri,
 
-      status:
-        "Pending",
+            name:
+              document.file.name,
 
-      startDate:
-        selectedTraining.startDate,
+            type:
+              document.file.type ??
+              "application/octet-stream",
+          } as any
+        );
 
-      endDate:
-        selectedTraining.endDate,
-    };
 
-    setEnrollments(
-      (previous) => [
-        ...previous,
-        newEnrollment,
-      ]
-    );
+        console.log(
+          "UPLOADING DOCUMENT:",
+          document.requirementName
+        );
 
-    setSelectedTrainingId(
-      null
-    );
 
-    setFlow("none");
+        await enrollmentApi.uploadDocument(
+          enrollment.id,
+          uploadData
+        );
 
-    setScreen("enrollment");
 
-    Alert.alert(
-      "Enrollment Submitted",
-      "Your enrollment application has been submitted successfully and is now pending administrator review."
-    );
+        console.log(
+          "DOCUMENT UPLOADED:",
+          document.requirementName
+        );
+      }
+
+
+      // ===================================================
+      // STEP 3
+      // REFRESH ENROLLMENTS
+      // ===================================================
+
+      await refreshMyEnrollments();
+
+
+      // ===================================================
+      // STEP 4
+      // REFRESH TRAINING BATCHES
+      // ===================================================
+
+      await refresh();
+
+
+      // ===================================================
+      // SUCCESS
+      // ===================================================
+
+      Alert.alert(
+        "Enrollment Submitted",
+        "Your enrollment application and required documents have been submitted successfully. It is now pending administrator review.",
+        [
+          {
+            text: "OK",
+
+            onPress: () => {
+
+              setSelectedTrainingId(
+                null
+              );
+
+              setFlow(
+                "none"
+              );
+
+              setScreen(
+                "enrollment"
+              );
+
+              setFormData({
+                participantName: "",
+                email: "",
+                mobileNumber: "",
+                documents: [],
+              });
+
+            },
+          },
+        ]
+      );
+
+    } catch (error) {
+
+      console.error(
+        "SUBMIT ENROLLMENT ERROR:",
+        error
+      );
+
+
+      Alert.alert(
+        "Enrollment Failed",
+        error instanceof Error
+          ? error.message
+          : "Something went wrong while submitting your enrollment."
+      );
+    }
   };
 
-  /*
-   * ==========================================================
-   * OPEN APPROVED TRAINING
-   * ==========================================================
-   */
+
+  // ========================================================
+  // OPEN APPROVED TRAINING
+  // ========================================================
 
   const openApprovedTraining = (
-    enrollment: ParticipantEnrollment
+    enrollment: any
   ) => {
+
     Alert.alert(
       "Training Ready",
-      `Opening ${enrollment.trainingTitle}.`
+      `Opening ${
+        enrollment.trainingTitle ??
+        "your training"
+      }.`
     );
   };
 
-  /*
-   * ==========================================================
-   * ENROLLMENT FORM
-   * ==========================================================
-   */
+
+  // ========================================================
+  // ENROLLMENT FORM
+  // ========================================================
 
   if (
     flow === "form" &&
     selectedTraining
   ) {
+
     return (
       <EnrollmentForm
         training={
           selectedTraining
         }
-        initialData={formData}
-        onBack={() =>
-          setFlow("details")
+
+        initialData={
+          formData
         }
+
+        onBack={() =>
+          setFlow(
+            "details"
+          )
+        }
+
         onContinue={
           handleFormContinue
         }
@@ -320,60 +771,75 @@ export default function TrainingScreen() {
     );
   }
 
-  /*
-   * ==========================================================
-   * ENROLLMENT REVIEW
-   * ==========================================================
-   */
+
+  // ========================================================
+  // ENROLLMENT REVIEW
+  // ========================================================
 
   if (
     flow === "review" &&
     selectedTraining
   ) {
+
     return (
       <EnrollmentReview
         training={
           selectedTraining
         }
-        formData={formData}
-        onBack={() =>
-          setFlow("form")
+
+        formData={
+          formData
         }
+
+        onBack={() =>
+          setFlow(
+            "form"
+          )
+        }
+
         onSubmit={
-          submitEnrollment
+          handleSubmitEnrollment
+        }
+
+        isSubmitting={
+          isSubmitting
         }
       />
     );
   }
 
-  /*
-   * ==========================================================
-   * TRAINING DETAILS
-   * ==========================================================
-   */
+
+  // ========================================================
+  // TRAINING DETAILS
+  // ========================================================
 
   if (
     flow === "details" &&
     selectedTraining
   ) {
+
     const alreadyEnrolled =
       enrollments.some(
         (enrollment) =>
-          enrollment.trainingId ===
+          enrollment.trainingBatchId ===
           selectedTraining.id
       );
+
 
     return (
       <TrainingDetails
         training={
           selectedTraining
         }
+
         alreadyEnrolled={
           alreadyEnrolled
         }
+
         onBack={
           backToMain
         }
+
         onEnroll={
           startEnrollment
         }
@@ -381,232 +847,521 @@ export default function TrainingScreen() {
     );
   }
 
-  /*
-   * ==========================================================
-   * MAIN TRAINING SCREEN
-   * ==========================================================
-   */
+
+  // ========================================================
+  // LOADING
+  // ========================================================
+
+  if (
+    screen === "available" &&
+    isLoading
+  ) {
+
+    return (
+      <View
+        style={
+          styles.loadingContainer
+        }
+      >
+
+        <ActivityIndicator
+          size="large"
+          color="#2563EB"
+        />
+
+        <Text
+          style={
+            styles.loadingText
+          }
+        >
+          Loading training programs...
+        </Text>
+
+      </View>
+    );
+  }
+
+
+  // ========================================================
+  // ERROR
+  // ========================================================
+
+  if (
+    screen === "available" &&
+    error
+  ) {
+
+    return (
+      <View
+        style={
+          styles.loadingContainer
+        }
+      >
+
+        <Ionicons
+          name="alert-circle-outline"
+          size={42}
+          color="#DC2626"
+        />
+
+        <Text
+          style={
+            styles.errorTitle
+          }
+        >
+          Unable to load training
+        </Text>
+
+        <Text
+          style={
+            styles.errorText
+          }
+        >
+          Please check your connection
+          and try again.
+        </Text>
+
+
+        <Pressable
+          onPress={
+            refresh
+          }
+
+          style={
+            styles.retryButton
+          }
+        >
+
+          <Text
+            style={
+              styles.retryText
+            }
+          >
+            Try Again
+          </Text>
+
+        </Pressable>
+
+      </View>
+    );
+  }
+
+
+  // ========================================================
+  // MAIN SCREEN
+  // ========================================================
 
   return (
     <ScrollView
-      style={styles.container}
+
+      style={
+        styles.container
+      }
+
       contentContainerStyle={
         styles.content
       }
+
       showsVerticalScrollIndicator={
         false
       }
+
+      refreshControl={
+        <RefreshControl
+
+          refreshing={
+            isLoading ||
+            enrollmentsLoading
+          }
+
+          onRefresh={
+            async () => {
+
+              await Promise.all([
+                refresh(),
+                refreshMyEnrollments(),
+              ]);
+
+            }
+          }
+
+          tintColor="#2563EB"
+
+          colors={[
+            "#2563EB",
+          ]}
+        />
+      }
     >
-      {/* HEADER */}
 
-      <View style={styles.header}>
+      {/* ==========================================
+          HEADER
+      ========================================== */}
+
+      <View
+        style={
+          styles.header
+        }
+      >
+
         <View>
-          <Text style={styles.eyebrow}>
-            PARTICIPANT PORTAL
-          </Text>
 
-          <Text style={styles.headerTitle}>
+         
+          <Text
+            style={
+              styles.headerTitle
+            }
+          >
             Training
           </Text>
 
           <Text
-            style={styles.headerSubtitle}
+            style={
+              styles.headerSubtitle
+            }
           >
             Find and manage your training
             programs.
           </Text>
+
         </View>
 
-        <View style={styles.headerIcon}>
+
+        <View
+          style={
+            styles.headerIcon
+          }
+        >
+
           <Ionicons
             name="school-outline"
             size={20}
             color="#2563EB"
           />
+
         </View>
+
       </View>
 
-      {/* TABS */}
 
-      <View style={styles.segment}>
+      {/* ==========================================
+          TABS
+      ========================================== */}
+
+      <View
+        style={
+          styles.segment
+        }
+      >
+
         <SegmentButton
           active={
-            screen === "available"
+            screen ===
+            "available"
           }
+
           icon="search-outline"
+
           label="Available"
+
           onPress={() =>
-            setScreen("available")
+            setScreen(
+              "available"
+            )
           }
         />
 
+
         <SegmentButton
           active={
-            screen === "enrollment"
+            screen ===
+            "enrollment"
           }
+
           icon="document-text-outline"
-          label="My Enrollment"
+
+          label="My Enrollmet"
+
           onPress={() =>
-            setScreen("enrollment")
+            setScreen(
+              "enrollment"
+            )
           }
         />
 
+
         <SegmentButton
           active={
-            screen === "active"
+            screen ===
+            "active"
           }
+
           icon="school-outline"
+
           label="Active"
+
           onPress={() =>
-            setScreen("active")
+            setScreen(
+              "active"
+            )
           }
         />
+
       </View>
 
-      {/* ======================================================
-          AVAILABLE TRAININGS
-      ====================================================== */}
 
-      {screen === "available" && (
+      {/* ==========================================
+          AVAILABLE
+      ========================================== */}
+
+      {screen ===
+        "available" && (
         <>
-          <View style={styles.summary}>
+
+          <View
+            style={
+              styles.summary
+            }
+          >
+
             <View>
-              <Text style={styles.summaryLabel}>
+
+              <Text
+                style={
+                  styles.summaryLabel
+                }
+              >
                 AVAILABLE TRAININGS
               </Text>
 
-              <Text style={styles.summaryValue}>
+              <Text
+                style={
+                  styles.summaryValue
+                }
+              >
                 {
-                  mockParticipantTrainings.length
+                  availableBatches.length
                 }
               </Text>
+
             </View>
 
-            <View style={styles.summaryIcon}>
+
+            <View
+              style={
+                styles.summaryIcon
+              }
+            >
+
               <Ionicons
                 name="library-outline"
                 size={22}
                 color="#2563EB"
               />
+
             </View>
+
           </View>
 
-          {mockParticipantTrainings.map(
-            (training) => (
-              <TrainingCard
-                key={training.id}
-                training={training}
-                onPress={() =>
-                  openTraining(
-                    training
-                  )
-                }
-              />
+
+          {availableBatches.length ===
+          0 ? (
+
+            <EmptyState
+              title="No Training Available"
+              description="There are currently no published training batches available."
+            />
+
+          ) : (
+
+            availableBatches.map(
+              (batch) => (
+
+                <TrainingCard
+
+                  key={
+                    batch.id
+                  }
+
+                  training={
+                    batch
+                  }
+
+                  onPress={() =>
+                    openTraining(
+                      batch
+                    )
+                  }
+
+                />
+
+              )
             )
+
           )}
+
         </>
       )}
 
-      {/* ======================================================
-          MY ENROLLMENT
-      ====================================================== */}
 
-      {screen === "enrollment" && (
+      {/* ==========================================
+          MY ENROLLMENT
+      ========================================== */}
+
+      {screen ===
+        "enrollment" && (
         <>
-          <View style={styles.sectionHeader}>
+
+          <View
+            style={
+              styles.sectionHeader
+            }
+          >
+
             <Text
-              style={styles.sectionTitle}
+              style={
+                styles.sectionTitle
+              }
             >
               My Enrollment
             </Text>
 
             <Text
-              style={styles.sectionSubtitle}
+              style={
+                styles.sectionSubtitle
+              }
             >
               Track your training
               applications.
             </Text>
+
           </View>
 
-          {enrollments.length ===
+
+          {enrollmentsError ? (
+
+            <EmptyState
+              title="Unable to Load Enrollment"
+              description="Please pull down to refresh and try again."
+            />
+
+          ) : enrollments.length ===
           0 ? (
+
             <EmptyState
               title="No Enrollment Yet"
               description="Choose a training program and submit an enrollment application."
             />
+
           ) : (
+
             enrollments.map(
               (enrollment) => (
+
                 <EnrollmentStatusCard
+
                   key={
                     enrollment.id
                   }
+
                   enrollment={
                     enrollment
                   }
+
                   onOpenTraining={
                     openApprovedTraining
                   }
+
                 />
+
               )
             )
+
           )}
+
         </>
       )}
 
-      {/* ======================================================
-          ACTIVE TRAINING
-      ====================================================== */}
 
-      {screen === "active" && (
+      {/* ==========================================
+          ACTIVE
+      ========================================== */}
+
+      {screen ===
+        "active" && (
         <>
-          <View style={styles.sectionHeader}>
+
+          <View
+            style={
+              styles.sectionHeader
+            }
+          >
+
             <Text
-              style={styles.sectionTitle}
+              style={
+                styles.sectionTitle
+              }
             >
               Active Training
             </Text>
 
             <Text
-              style={styles.sectionSubtitle}
+              style={
+                styles.sectionSubtitle
+              }
             >
               Trainings approved by the
               administrator.
             </Text>
+
           </View>
+
 
           {activeEnrollments.length ===
           0 ? (
+
             <EmptyState
               title="No Active Training"
               description="Once your enrollment is approved, your training will appear here."
             />
+
           ) : (
+
             activeEnrollments.map(
               (enrollment) => (
+
                 <EnrollmentStatusCard
+
                   key={
                     enrollment.id
                   }
+
                   enrollment={
                     enrollment
                   }
+
                   onOpenTraining={
                     openApprovedTraining
                   }
+
                 />
+
               )
             )
+
           )}
+
         </>
       )}
+
     </ScrollView>
   );
 }
 
-/* ============================================================
-   SEGMENT
-============================================================ */
+
+// ==========================================================
+// SEGMENT BUTTON
+// ==========================================================
 
 function SegmentButton({
   active,
@@ -615,22 +1370,36 @@ function SegmentButton({
   onPress,
 }: {
   active: boolean;
-  icon: keyof typeof Ionicons.glyphMap;
+
+  icon:
+    keyof typeof Ionicons.glyphMap;
+
   label: string;
+
   onPress: () => void;
 }) {
+
   return (
     <Pressable
-      onPress={onPress}
+      onPress={
+        onPress
+      }
+
       style={[
         styles.segmentButton,
+
         active &&
           styles.segmentButtonActive,
       ]}
     >
+
       <Ionicons
-        name={icon}
+        name={
+          icon
+        }
+
         size={13}
+
         color={
           active
             ? "#2563EB"
@@ -641,19 +1410,22 @@ function SegmentButton({
       <Text
         style={[
           styles.segmentText,
+
           active &&
             styles.segmentTextActive,
         ]}
       >
         {label}
       </Text>
+
     </Pressable>
   );
 }
 
-/* ============================================================
-   EMPTY
-============================================================ */
+
+// ==========================================================
+// EMPTY STATE
+// ==========================================================
 
 function EmptyState({
   title,
@@ -662,196 +1434,272 @@ function EmptyState({
   title: string;
   description: string;
 }) {
+
   return (
-    <View style={styles.empty}>
-      <View style={styles.emptyIcon}>
+    <View
+      style={
+        styles.empty
+      }
+    >
+
+      <View
+        style={
+          styles.emptyIcon
+        }
+      >
+
         <Ionicons
           name="document-outline"
           size={27}
           color="#94A3B8"
         />
+
       </View>
 
-      <Text style={styles.emptyTitle}>
+
+      <Text
+        style={
+          styles.emptyTitle
+        }
+      >
         {title}
       </Text>
 
-      <Text style={styles.emptyText}>
+
+      <Text
+        style={
+          styles.emptyText
+        }
+      >
         {description}
       </Text>
+
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8FAFC",
-  },
 
-  content: {
-    paddingBottom: 90,
-  },
+// ==========================================================
+// STYLES
+// ==========================================================
 
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    marginBottom: 17,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
+const styles =
+  StyleSheet.create({
 
-  eyebrow: {
-    fontSize: 7,
-    fontWeight: "900",
-    letterSpacing: 1.3,
-    color: "#2563EB",
-  },
+    container: {
+      flex: 1,
+      backgroundColor: "#F8FAFC",
+    },
 
-  headerTitle: {
-    marginTop: 4,
-    fontSize: 28,
-    fontWeight: "900",
-    letterSpacing: -0.7,
-    color: "#0F172A",
-  },
+    content: {
+      paddingBottom: 90,
+      marginTop: 30,
+    },
 
-  headerSubtitle: {
-    marginTop: 3,
-    fontSize: 8,
-    color: "#94A3B8",
-  },
+    header: {
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      marginBottom: 17,
 
-  headerIcon: {
-    width: 43,
-    height: 43,
-    borderRadius: 14,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
 
-  segment: {
-    marginHorizontal: 20,
-    marginBottom: 18,
-    padding: 4,
-    borderRadius: 15,
-    backgroundColor: "#E2E8F0",
-    flexDirection: "row",
-  },
+    eyebrow: {
+      fontSize: 7,
+      fontWeight: "900",
+      letterSpacing: 1.3,
+      color: "#2563EB",
+    },
 
-  segmentButton: {
-    flex: 1,
-    minHeight: 38,
-    borderRadius: 11,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-  },
+    headerTitle: {
+      marginTop: 4,
+      fontSize: 28,
+      fontWeight: "900",
+      letterSpacing: -0.7,
+      color: "#0F172A",
+    },
 
-  segmentButtonActive: {
-    backgroundColor: "#FFFFFF",
-  },
+    headerSubtitle: {
+      marginTop: 3,
+      fontSize: 8,
+      color: "#94A3B8",
+    },
 
-  segmentText: {
-    fontSize: 6.5,
-    fontWeight: "700",
-    color: "#64748B",
-  },
+    headerIcon: {
+      width: 43,
+      height: 43,
+      borderRadius: 14,
+      backgroundColor: "#FFFFFF",
+      borderWidth: 1,
+      borderColor: "#E2E8F0",
+      alignItems: "center",
+      justifyContent: "center",
+    },
 
-  segmentTextActive: {
-    color: "#2563EB",
-  },
+    segment: {
+      marginHorizontal: 20,
+      marginBottom: 18,
+      padding: 4,
+      borderRadius: 15,
+      backgroundColor: "#E2E8F0",
+      flexDirection: "row",
+    },
 
-  summary: {
-    marginHorizontal: 20,
-    marginBottom: 17,
-    padding: 15,
-    borderRadius: 18,
-    backgroundColor: "#EFF6FF",
-    borderWidth: 1,
-    borderColor: "#DBEAFE",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
+    segmentButton: {
+      flex: 1,
+      minHeight: 38,
+      borderRadius: 11,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 4,
+    },
 
-  summaryLabel: {
-    fontSize: 6,
-    fontWeight: "900",
-    letterSpacing: 0.7,
-    color: "#60A5FA",
-  },
+    segmentButtonActive: {
+      backgroundColor: "#FFFFFF",
+    },
 
-  summaryValue: {
-    marginTop: 3,
-    fontSize: 21,
-    fontWeight: "900",
-    color: "#1E3A8A",
-  },
+    segmentText: {
+      fontSize: 6.5,
+      fontWeight: "700",
+      color: "#64748B",
+    },
 
-  summaryIcon: {
-    width: 43,
-    height: 43,
-    borderRadius: 14,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    segmentTextActive: {
+      color: "#2563EB",
+    },
 
-  sectionHeader: {
-    paddingHorizontal: 20,
-    marginBottom: 15,
-  },
+    summary: {
+      marginHorizontal: 20,
+      marginBottom: 17,
+      padding: 15,
+      borderRadius: 18,
+      backgroundColor: "#EFF6FF",
+      borderWidth: 1,
+      borderColor: "#DBEAFE",
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
 
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: "900",
-    color: "#0F172A",
-  },
+    summaryLabel: {
+      fontSize: 6,
+      fontWeight: "900",
+      letterSpacing: 0.7,
+      color: "#60A5FA",
+    },
 
-  sectionSubtitle: {
-    marginTop: 4,
-    fontSize: 8,
-    color: "#94A3B8",
-  },
+    summaryValue: {
+      marginTop: 3,
+      fontSize: 21,
+      fontWeight: "900",
+      color: "#1E3A8A",
+    },
 
-  empty: {
-    marginHorizontal: 20,
-    marginTop: 25,
-    padding: 30,
-    borderRadius: 20,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    alignItems: "center",
-  },
+    summaryIcon: {
+      width: 43,
+      height: 43,
+      borderRadius: 14,
+      backgroundColor: "#FFFFFF",
+      alignItems: "center",
+      justifyContent: "center",
+    },
 
-  emptyIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: 19,
-    backgroundColor: "#F1F5F9",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    sectionHeader: {
+      paddingHorizontal: 20,
+      marginBottom: 15,
+    },
 
-  emptyTitle: {
-    marginTop: 12,
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#334155",
-  },
+    sectionTitle: {
+      fontSize: 14,
+      fontWeight: "900",
+      color: "#0F172A",
+    },
 
-  emptyText: {
-    marginTop: 5,
-    textAlign: "center",
-    fontSize: 8,
-    lineHeight: 13,
-    color: "#94A3B8",
-  },
-});
+    sectionSubtitle: {
+      marginTop: 4,
+      fontSize: 8,
+      color: "#94A3B8",
+    },
+
+    empty: {
+      marginHorizontal: 20,
+      marginTop: 25,
+      padding: 30,
+      borderRadius: 20,
+      backgroundColor: "#FFFFFF",
+      borderWidth: 1,
+      borderColor: "#E2E8F0",
+      alignItems: "center",
+    },
+
+    emptyIcon: {
+      width: 58,
+      height: 58,
+      borderRadius: 19,
+      backgroundColor: "#F1F5F9",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    emptyTitle: {
+      marginTop: 12,
+      fontSize: 14,
+      fontWeight: "800",
+      color: "#334155",
+    },
+
+    emptyText: {
+      marginTop: 5,
+      textAlign: "center",
+      fontSize: 8,
+      lineHeight: 13,
+      color: "#94A3B8",
+    },
+
+    loadingContainer: {
+      flex: 1,
+      backgroundColor: "#F8FAFC",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 40,
+    },
+
+    loadingText: {
+      marginTop: 12,
+      fontSize: 11,
+      fontWeight: "700",
+      color: "#64748B",
+    },
+
+    errorTitle: {
+      marginTop: 12,
+      fontSize: 15,
+      fontWeight: "900",
+      color: "#0F172A",
+    },
+
+    errorText: {
+      marginTop: 5,
+      fontSize: 9,
+      color: "#94A3B8",
+      textAlign: "center",
+    },
+
+    retryButton: {
+      marginTop: 18,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderRadius: 10,
+      backgroundColor: "#2563EB",
+    },
+
+    retryText: {
+      fontSize: 9,
+      fontWeight: "800",
+      color: "#FFFFFF",
+    },
+
+  });

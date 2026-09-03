@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import {
+  useState,
+} from "react";
 
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
 import Sidebar from "@/components/admin/Sidebar";
@@ -11,36 +13,65 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [
+    collapsed,
+    setCollapsed,
+  ] = useState(false);
 
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-surface">
-        {/* Sidebar */}
+
+        {/* =====================================================
+            SIDEBAR
+        ===================================================== */}
+
         <Sidebar
-          collapsed={collapsed}
-          setCollapsed={setCollapsed}
+          collapsed={
+            collapsed
+          }
+          setCollapsed={
+            setCollapsed
+          }
         />
 
-        {/* Main Content */}
+        {/* =====================================================
+            MAIN
+        ===================================================== */}
+
         <div
-          className={`transition-all duration-300 ${
-            collapsed ? "ml-32" : "ml-80"
-          }`}
+          className={`
+            transition-all
+            duration-300
+            ${
+              collapsed
+                ? "ml-32"
+                : "ml-80"
+            }
+          `}
         >
           <div className="flex min-h-screen flex-col p-4">
-            {/* Navbar */}
+
+            {/* NAVBAR */}
+
             <Navbar
-              collapsed={collapsed}
-              setCollapsed={setCollapsed}
+              collapsed={
+                collapsed
+              }
+              setCollapsed={
+                setCollapsed
+              }
             />
 
-            {/* Page Content */}
+            {/* CONTENT */}
+
             <main className="mt-25 flex-1">
               {children}
             </main>
+
           </div>
         </div>
+
       </div>
     </ProtectedRoute>
   );

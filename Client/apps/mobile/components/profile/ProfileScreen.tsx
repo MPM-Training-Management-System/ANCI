@@ -1,13 +1,17 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
 
 import {
+  ActivityIndicator,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
+  RefreshControl
 } from "react-native";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useMe } from "@repo/hooks";
 
 import ProfileHeader from "./ProfileHeader";
 import ProfileInfoCard from "./ProfileInfoCard";
@@ -19,26 +23,146 @@ import {
   mockParticipantProfile,
   mockCertificates,
 } from "@/src/data/profile";
+import { participantApi } from "@/api/api";
 
 export default function ProfileScreen() {
-  const profile =
-    mockParticipantProfile;
+
+  const [refreshing, setRefreshing] = useState(false);
+  const {
+    profile,
+    isLoading,
+    error,
+    refetch,
+  } = useMe(participantApi);
+
+
+  const onRefresh = useCallback(async () => {
+  try {
+    setRefreshing(true);
+    await refetch();
+  } finally {
+    setRefreshing(false);
+  }
+}, [refetch]);
+  // ==========================================
+  // LOADING
+  // ==========================================
+
+  if (isLoading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator
+          size="large"
+          color="#2563EB"
+        />
+
+        <Text style={styles.loadingText}>
+          Loading profile...
+        </Text>
+      </View>
+    );
+  }
+
+  // ==========================================
+  // ERROR
+  // ==========================================
+
+  if (error) {
+    return (
+      <View style={styles.centerContainer}>
+        <View style={styles.errorIconContainer}>
+          <Ionicons
+            name="alert-circle-outline"
+            size={30}
+            color="#DC2626"
+          />
+        </View>
+
+        <Text style={styles.errorTitle}>
+          Failed to load profile
+        </Text>
+
+        <Text style={styles.errorMessage}>
+          Something went wrong while loading
+          your profile.
+        </Text>
+
+        <Pressable
+          onPress={refetch}
+          style={styles.retryButton}
+        >
+          <Text style={styles.retryButtonText}>
+            Try Again
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  // ==========================================
+  // NO PROFILE
+  // ==========================================
+
+  if (!profile) {
+    return (
+      <View style={styles.centerContainer}>
+        <View style={styles.errorIconContainer}>
+          <Ionicons
+            name="person-outline"
+            size={30}
+            color="#64748B"
+          />
+        </View>
+
+        <Text style={styles.errorTitle}>
+          Profile not found
+        </Text>
+
+        <Text style={styles.errorMessage}>
+          We couldn't find your participant profile.
+        </Text>
+
+        <Pressable
+          onPress={refetch}
+          style={styles.retryButton}
+        >
+          <Text style={styles.retryButtonText}>
+            Try Again
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  // ==========================================
+  // MAIN PROFILE SCREEN
+  //
+  // At this point:
+  // profile is guaranteed to be ParticipantProfile
+  // ==========================================
 
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={
-        styles.content
-      }
+      contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
+        refreshControl={
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+      tintColor="#2563EB"
+      colors={["#2563EB"]}
+    />
+  }
+
     >
-      {/* Header */}
+      {/* ======================================
+          PAGE HEADER
+      ====================================== */}
 
       <View style={styles.pageHeader}>
         <View>
-          <Text style={styles.eyebrow}>
-            PARTICIPANT PORTAL
-          </Text>
+          
 
           <Text style={styles.title}>
             Profile
@@ -58,66 +182,68 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* Profile */}
+      {/* ======================================
+          PROFILE HEADER
+      ====================================== */}
 
       <ProfileHeader
-        fullName={profile.fullName}
-        userCode={profile.userCode}
-        role={profile.role}
-        status={profile.status}
+        profile={profile}
       />
 
-      {/* Personal Information */}
+     
 
-      <View style={styles.section}>
+       <View style={styles.section}>
         <ProfileInfoCard
-          fullName={profile.fullName}
-          email={profile.email}
-          mobileNumber={
-            profile.mobileNumber
-          }
-          memberSince={
-            profile.memberSince
-          }
+         profile={profile}
         />
       </View>
 
-      {/* Current Training */}
+      {/* ======================================
+          CURRENT TRAINING
+
+          Temporary: still using mock data
+          because currentTraining is not included
+          in /api/participant-profiles/me
+      ====================================== */}
 
       <View style={styles.section}>
         <CurrentTrainingCard
           title={
-            profile.currentTraining.title
+            mockParticipantProfile.currentTraining.title
           }
           trainer={
-            profile.currentTraining.trainer
+            mockParticipantProfile.currentTraining.trainer
           }
           progress={
-            profile.currentTraining.progress
+            mockParticipantProfile.currentTraining.progress
           }
           status={
-            profile.currentTraining.status
+            mockParticipantProfile.currentTraining.status
           }
         />
       </View>
 
-      {/* Certificates */}
+      {/* ======================================
+          CERTIFICATES
+      ====================================== */}
 
       <View style={styles.section}>
         <CertificateSection
-          certificates={
-            mockCertificates
-          }
+          certificates={mockCertificates}
         />
       </View>
 
-      {/* Account */}
+      {/* ======================================
+          ACCOUNT MENU
+      ====================================== */}
 
       <View style={styles.section}>
         <ProfileMenu />
       </View>
 
-      {/* Footer */}
+      {/* ======================================
+          FOOTER
+      ====================================== */}
 
       <View style={styles.footer}>
         <View style={styles.footerIcon}>
@@ -138,15 +264,83 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  // ==========================================
+  // SCREEN
+  // ==========================================
+
   container: {
     flex: 1,
     backgroundColor: "#F8FAFC",
   },
 
   content: {
-    paddingTop: 20,
-    paddingBottom: 45,
+    paddingTop: 30,
+    paddingBottom: 90,
   },
+
+  // ==========================================
+  // CENTER / LOADING / ERROR
+  // ==========================================
+
+  centerContainer: {
+    flex: 1,
+    backgroundColor: "#F8FAFC",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 30,
+  },
+
+  loadingText: {
+    marginTop: 12,
+    fontSize: 13,
+    color: "#64748B",
+    fontWeight: "600",
+  },
+
+  errorIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 15,
+  },
+
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#0F172A",
+    textAlign: "center",
+  },
+
+  errorMessage: {
+    marginTop: 6,
+    fontSize: 12,
+    lineHeight: 18,
+    color: "#64748B",
+    textAlign: "center",
+  },
+
+  retryButton: {
+    marginTop: 18,
+    paddingHorizontal: 22,
+    paddingVertical: 11,
+    borderRadius: 11,
+    backgroundColor: "#2563EB",
+  },
+
+  retryButtonText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#FFFFFF",
+  },
+
+  // ==========================================
+  // PAGE HEADER
+  // ==========================================
 
   pageHeader: {
     marginHorizontal: 20,
@@ -188,9 +382,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
+  // ==========================================
+  // SECTIONS
+  // ==========================================
+
   section: {
     marginTop: 20,
   },
+
+  // ==========================================
+  // FOOTER
+  // ==========================================
 
   footer: {
     marginTop: 25,

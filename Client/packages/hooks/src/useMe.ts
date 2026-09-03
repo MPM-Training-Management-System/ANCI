@@ -1,54 +1,46 @@
-import { useCallback, useState } from "react";
-import { AuthApi } from "@repo/api";
-import type { MeUser } from "@repo/types";
+import { useCallback, useEffect, useState } from "react";
+import type { ParticipantProfile } from "@repo/types";
+import type { ParticipantApi } from "@repo/api";
 
-export function useMe(authApi: AuthApi) {
-  const [user, setUser] =
-    useState<MeUser | null>(null);
+export function useMe(participantApi: ParticipantApi) {
+  const [profile, setProfile] = useState<ParticipantProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<unknown>(null);
 
-  const [isLoading, setIsLoading] =
-    useState(false);
-
-  const [error, setError] =
-    useState<string | null>(null);
-
-  const fetchMe = useCallback(async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const response =
-        await authApi.me();
+      console.log("================================");
+      console.log("GET PARTICIPANT PROFILE");
+      console.log("================================");
 
-      setUser(response.user);
+      const data = await participantApi.getMe();
 
-      return response.user;
-    } catch (error) {
-      setUser(null);
+      console.log("PROFILE DATA:", data);
 
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Unable to retrieve authenticated user."
-      );
+      setProfile(data);
+    } catch (err) {
+      console.error("================================");
+      console.error("GET PARTICIPANT PROFILE ERROR");
+      console.error("================================");
+      console.error(err);
 
-      return null;
+      setError(err);
     } finally {
       setIsLoading(false);
     }
-  }, [authApi]);
+  }, [participantApi]);
 
-  const reset = () => {
-    setUser(null);
-    setIsLoading(false);
-    setError(null);
-  };
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
 
   return {
-    user,
+    profile,
     isLoading,
     error,
-    fetchMe,
-    reset,
+    refetch: fetchProfile,
   };
 }

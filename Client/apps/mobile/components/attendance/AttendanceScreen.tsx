@@ -329,9 +329,7 @@ export default function AttendanceScreen() {
 
       <View style={styles.header}>
         <View>
-          <Text style={styles.eyebrow}>
-            PARTICIPANT PORTAL
-          </Text>
+         
 
           <Text style={styles.title}>
             Attendance
@@ -659,7 +657,7 @@ const styles = StyleSheet.create({
   },
 
   content: {
-    paddingTop: 20,
+    paddingTop: 30,
     paddingBottom: 40,
   },
 

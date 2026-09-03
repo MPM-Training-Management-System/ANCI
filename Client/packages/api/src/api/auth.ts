@@ -5,8 +5,12 @@ import {
   OtpResponse,
   RegisterRequest,
   RegisterResponse,
+  RegisterTrainerRequest,
   SendOtpRequest,
+  TrainerApplication,
   VerifyOtpRequest,
+  TrainerApplicationDocument,
+  UpdateTrainerApplicationRequest,
 } from "@repo/types";
 
 import {
@@ -21,9 +25,6 @@ export class AuthApi {
   ) {}
 
 
-  // =========================================================
-  // REGISTER PARTICIPANT
-  // =========================================================
 
   async register(
     request: RegisterRequest
@@ -33,58 +34,175 @@ export class AuthApi {
       new FormData();
 
 
-    // =======================================================
-    // TEXT FIELDS
-    // =======================================================
-
     formData.append(
-      "fullName",
+      "FullName",
       request.fullName ?? ""
     );
 
     formData.append(
-      "firstName",
+      "FirstName",
       request.firstName
     );
 
     formData.append(
-      "middleName",
+      "MiddleName",
       request.middleName
     );
 
     formData.append(
-      "lastName",
+      "LastName",
       request.lastName
     );
 
     formData.append(
-      "email",
+      "Email",
       request.email
     );
 
     formData.append(
-      "mobileNumber",
+      "MobileNumber",
       request.mobileNumber
     );
 
     formData.append(
-      "birthDate",
+      "BirthDate",
       request.birthDate
     );
 
     formData.append(
-      "address",
+      "Address",
       request.address
     );
 
     formData.append(
-      "gender",
+      "Gender",
       request.gender
     );
 
     formData.append(
-      "password",
+      "Password",
       request.password
+    );
+
+
+    if (
+      request.profileImage
+    ) {
+
+      formData.append(
+        "ProfileImage",
+        request.profileImage as any
+      );
+    }
+
+
+    return this.api.request<RegisterResponse>(
+      "/api/auth/register",
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
+  }
+
+
+  // =========================================================
+  // REGISTER TRAINER
+  // POST /api/auth/register/trainer
+  // =========================================================
+
+  async registerTrainer(
+    request: RegisterTrainerRequest
+  ): Promise<RegisterResponse> {
+
+    const formData =
+      new FormData();
+
+
+    // =======================================================
+    // PERSONAL INFORMATION
+    // =======================================================
+
+    formData.append(
+      "FullName",
+      request.fullName ?? ""
+    );
+
+    formData.append(
+      "FirstName",
+      request.firstName
+    );
+
+    formData.append(
+      "MiddleName",
+      request.middleName
+    );
+
+    formData.append(
+      "LastName",
+      request.lastName
+    );
+
+    formData.append(
+      "BirthDate",
+      request.birthDate
+    );
+
+    formData.append(
+      "Address",
+      request.address
+    );
+
+    formData.append(
+      "Gender",
+      request.gender
+    );
+
+
+    // =======================================================
+    // ACCOUNT
+    // =======================================================
+
+    formData.append(
+      "Email",
+      request.email
+    );
+
+    formData.append(
+      "MobileNumber",
+      request.mobileNumber ?? ""
+    );
+
+    formData.append(
+      "Password",
+      request.password
+    );
+
+
+    // =======================================================
+    // TRAINER INFORMATION
+    // =======================================================
+
+    formData.append(
+      "Specialization",
+      request.specialization
+    );
+
+    formData.append(
+      "YearsOfExperience",
+      String(
+        request.yearsOfExperience ?? 0
+      )
+    );
+
+    formData.append(
+      "CertificationName",
+      request.certificationName ?? ""
+    );
+
+    formData.append(
+      "CertificationNumber",
+      request.certificationNumber ?? ""
     );
 
 
@@ -97,19 +215,54 @@ export class AuthApi {
     ) {
 
       formData.append(
-        "profileImage",
-        {
-          uri:
-            request.profileImage.uri,
-
-          name:
-            request.profileImage.name,
-
-          type:
-            request.profileImage.type,
-        } as any
+        "ProfileImage",
+        request.profileImage
       );
     }
+
+
+    // =======================================================
+    // DEBUG
+    // =======================================================
+
+    console.log(
+      "=============================="
+    );
+
+    console.log(
+      "REGISTER TRAINER"
+    );
+
+    for (
+      const [key, value]
+      of formData.entries()
+    ) {
+
+      if (
+        value instanceof File
+      ) {
+
+        console.log(
+          key,
+          {
+            name: value.name,
+            type: value.type,
+            size: value.size,
+          }
+        );
+
+      } else {
+
+        console.log(
+          key,
+          value
+        );
+      }
+    }
+
+    console.log(
+      "=============================="
+    );
 
 
     // =======================================================
@@ -117,10 +270,9 @@ export class AuthApi {
     // =======================================================
 
     return this.api.request<RegisterResponse>(
-      "/api/auth/register",
+      "/api/auth/register/trainer",
       {
         method: "POST",
-
         body: formData,
       }
     );
@@ -129,6 +281,7 @@ export class AuthApi {
 
   // =========================================================
   // ME
+  // GET /api/auth/me
   // =========================================================
 
   async me(): Promise<MeResponse> {
@@ -144,6 +297,7 @@ export class AuthApi {
 
   // =========================================================
   // LOGIN
+  // POST /api/auth/login
   // =========================================================
 
   async login(
@@ -154,16 +308,11 @@ export class AuthApi {
       "/api/auth/login",
       {
         method: "POST",
-
         body: request,
       }
     );
   }
 
-
-  // =========================================================
-  // SEND OTP
-  // =========================================================
 
   async sendOtp(
     request: SendOtpRequest
@@ -173,16 +322,12 @@ export class AuthApi {
       "/api/otp/send",
       {
         method: "POST",
-
         body: request,
       }
     );
   }
 
 
-  // =========================================================
-  // VERIFY OTP
-  // =========================================================
 
   async verifyOtp(
     request: VerifyOtpRequest
@@ -192,8 +337,179 @@ export class AuthApi {
       "/api/otp/verify",
       {
         method: "POST",
-
         body: request,
+      }
+    );
+  }
+
+
+
+  async getMyTrainerApplication(): Promise<TrainerApplication> {
+
+    return this.api.request<TrainerApplication>(
+      "/api/trainer-applications/me",
+      {
+        method: "GET",
+      }
+    );
+  }
+
+
+
+  async updateMyTrainerApplication(
+    request: UpdateTrainerApplicationRequest
+  ): Promise<TrainerApplication> {
+
+    return this.api.request<TrainerApplication>(
+      "/api/trainer-applications/me",
+      {
+        method: "PUT",
+        body: request,
+      }
+    );
+  }
+
+
+  // =========================================================
+  // UPDATE TRAINER PROFILE IMAGE
+  //
+  // PUT
+  // /api/trainer-applications/me/profile-image
+  // =========================================================
+
+  async updateTrainerProfileImage(
+    profileImage: File
+  ): Promise<TrainerApplication> {
+
+    const formData =
+      new FormData();
+
+
+    formData.append(
+      "profileImage",
+      profileImage
+    );
+
+
+    return this.api.request<TrainerApplication>(
+      "/api/trainer-applications/me/profile-image",
+      {
+        method: "PUT",
+        body: formData,
+      }
+    );
+  }
+
+
+  // =========================================================
+  // GET MY TRAINER DOCUMENTS
+  //
+  // GET
+  // /api/trainer-applications/{id}/documents
+  // =========================================================
+
+  async getMyTrainerDocuments(
+    applicationId: string
+  ): Promise<TrainerApplicationDocument[]> {
+
+    return this.api.request<
+      TrainerApplicationDocument[]
+    >(
+      `/api/trainer-applications/${applicationId}/documents`,
+      {
+        method: "GET",
+      }
+    );
+  }
+
+
+  // =========================================================
+  // UPLOAD TRAINER DOCUMENT
+  //
+  // POST
+  // /api/trainer-applications/{id}/documents
+  // =========================================================
+
+  async uploadTrainerDocument(
+    applicationId: string,
+    formData: FormData
+  ): Promise<TrainerApplicationDocument> {
+
+    return this.api.request<TrainerApplicationDocument>(
+      `/api/trainer-applications/${applicationId}/documents`,
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
+  }
+
+
+  // =========================================================
+  // DELETE TRAINER DOCUMENT
+  //
+  // DELETE
+  // /api/trainer-applications/{id}/documents/{documentId}
+  // =========================================================
+
+  async deleteTrainerDocument(
+    applicationId: string,
+    documentId: string
+  ): Promise<void> {
+
+    return this.api.request<void>(
+      `/api/trainer-applications/${applicationId}/documents/${documentId}`,
+      {
+        method: "DELETE",
+      }
+    );
+  }
+
+
+  // =========================================================
+  // =========================================================
+  // ADMIN TRAINER APPLICATION
+  // =========================================================
+  // =========================================================
+
+
+  // =========================================================
+  // GET ALL TRAINER APPLICATIONS
+  //
+  // GET
+  // /api/trainer-applications
+  //
+  // ADMIN ONLY
+  // =========================================================
+
+  async getAll(): Promise<TrainerApplication[]> {
+
+    return this.api.request<TrainerApplication[]>(
+      "/api/trainer-applications",
+      {
+        method: "GET",
+      }
+    );
+  }
+
+
+  // =========================================================
+  // GET TRAINER APPLICATION BY ID
+  //
+  // GET
+  // /api/trainer-applications/{id}
+  //
+  // ADMIN ONLY
+  // =========================================================
+
+  async getTrainerApplicationById(
+    id: string
+  ): Promise<TrainerApplication> {
+
+    return this.api.request<TrainerApplication>(
+      `/api/trainer-applications/${id}`,
+      {
+        method: "GET",
       }
     );
   }
