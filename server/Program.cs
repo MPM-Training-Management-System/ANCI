@@ -9,6 +9,12 @@ using System.Text;
 using Microsoft.OpenApi.Models;
 using server.Settings;
 using System.Security.Claims;
+using server.Interfaces.Training;
+using server.Services.Training;
+using server.Services.Enrollment;
+using server.Interfaces.Enrollment;
+using server.Services.Attendance;
+using server.Interfaces.Attendance;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(options =>
@@ -27,6 +33,36 @@ builder.Services.AddScoped<
     IParticipantProfileService,
     ParticipantProfileService
 >();
+builder.Services.AddScoped<
+    IAdminProfileService,
+    AdminProfileService
+>();
+builder.Services.AddScoped<
+    IEnrollmentDocumentService,
+    EnrollmentDocumentService
+>();
+
+builder.Services.AddScoped<
+    IAttendanceService,
+    AttendanceService
+>();
+
+builder.Services.AddScoped<
+    ITrainingProgramService,
+    TrainingProgramService>();
+builder.Services.AddScoped<
+    ITrainingProgramDocumentService,
+    TrainingProgramDocumentService
+>();
+builder.Services.AddScoped<
+    ITrainingBatchService,
+    TrainingBatchService>();
+builder.Services.AddScoped<
+    IEnrollmentService,
+    EnrollmentService>();
+builder.Services.AddScoped<
+    ITrainerAssignmentService,
+    TrainerAssignmentService>();
 
 builder.Services.AddScoped<
     ITrainerProfileService,
@@ -129,6 +165,7 @@ builder.Services.AddScoped<
     OtpService
 >();
 builder.Services.AddScoped<PasswordService>();
+builder.Services.AddDataProtection();
 
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddEndpointsApiExplorer();

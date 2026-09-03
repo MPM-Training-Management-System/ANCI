@@ -22,6 +22,107 @@ namespace server.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("TrainerAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("AssignedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("AssignedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("TrainerProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TrainingBatchId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignedByUserId");
+
+                    b.HasIndex("TrainerProfileId");
+
+                    b.HasIndex("TrainingBatchId");
+
+                    b.ToTable("TrainerAssignments");
+                });
+
+            modelBuilder.Entity("server.Models.Attendance.AttendanceRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AttendanceSessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("EnrollmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Method")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("TimeIn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("TimeOut")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AttendanceSessionId");
+
+                    b.HasIndex("EnrollmentId");
+
+                    b.HasIndex("AttendanceSessionId", "EnrollmentId")
+                        .IsUnique();
+
+                    b.ToTable("AttendanceRecords");
+                });
+
+            modelBuilder.Entity("server.Models.Attendance.AttendanceSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ClosedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("OpenedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OpenedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("TrainingBatchId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("TrainingBatchId");
+
+                    b.ToTable("AttendanceSessions");
+                });
+
             modelBuilder.Entity("server.Models.Auth.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -117,6 +218,90 @@ namespace server.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("OtpVerifications");
+                });
+
+            modelBuilder.Entity("server.Models.Participant.Enrollment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("EnrolledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ParticipantProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ReviewRemarks")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid?>("ReviewedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("TrainingBatchId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TrainingBatchId");
+
+                    b.HasIndex("ParticipantProfileId", "TrainingBatchId")
+                        .IsUnique();
+
+                    b.ToTable("Enrollments");
+                });
+
+            modelBuilder.Entity("server.Models.Participant.EnrollmentDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("EnrollmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("FileUrl")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid>("RequirementId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ReviewRemarks")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EnrollmentId");
+
+                    b.HasIndex("RequirementId");
+
+                    b.ToTable("EnrollmentDocuments");
                 });
 
             modelBuilder.Entity("server.Models.Participant.ParticipantProfile", b =>
@@ -274,7 +459,6 @@ namespace server.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime?>("ActivatedAt")
-                        .IsRequired()
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Address")
@@ -325,6 +509,203 @@ namespace server.Migrations
                     b.ToTable("TrainerProfiles");
                 });
 
+            modelBuilder.Entity("server.Models.Training.TrainingBatch", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BatchCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int>("Capacity")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<TimeOnly?>("EndTime")
+                        .HasColumnType("time without time zone");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<TimeOnly?>("StartTime")
+                        .HasColumnType("time without time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("TrainingProgramId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BatchCode")
+                        .IsUnique();
+
+                    b.HasIndex("TrainingProgramId");
+
+                    b.ToTable("TrainingBatches");
+                });
+
+            modelBuilder.Entity("server.Models.Training.TrainingProgram", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("DurationHours")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ProgramCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProgramCode")
+                        .IsUnique();
+
+                    b.ToTable("TrainingPrograms");
+                });
+
+            modelBuilder.Entity("server.Models.Training.TrainingProgramDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DocumentName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("FileUrl")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("PublicId")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid>("TrainingProgramId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TrainingProgramId");
+
+                    b.ToTable("TrainingProgramDocuments");
+                });
+
+            modelBuilder.Entity("server.Models.Training.TrainingProgramRequirement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsRequired")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("TrainingProgramId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TrainingProgramId");
+
+                    b.ToTable("TrainingProgramRequirements");
+                });
+
+            modelBuilder.Entity("TrainerAssignment", b =>
+                {
+                    b.HasOne("server.Models.Trainer.TrainerProfile", "TrainerProfile")
+                        .WithMany("Assignments")
+                        .HasForeignKey("TrainerProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("server.Models.Training.TrainingBatch", "TrainingBatch")
+                        .WithMany("TrainerAssignments")
+                        .HasForeignKey("TrainingBatchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("TrainerProfile");
+
+                    b.Navigation("TrainingBatch");
+                });
+
+            modelBuilder.Entity("server.Models.Attendance.AttendanceRecord", b =>
+                {
+                    b.HasOne("server.Models.Attendance.AttendanceSession", "AttendanceSession")
+                        .WithMany("Records")
+                        .HasForeignKey("AttendanceSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("server.Models.Participant.Enrollment", "Enrollment")
+                        .WithMany()
+                        .HasForeignKey("EnrollmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AttendanceSession");
+
+                    b.Navigation("Enrollment");
+                });
+
+            modelBuilder.Entity("server.Models.Attendance.AttendanceSession", b =>
+                {
+                    b.HasOne("server.Models.Training.TrainingBatch", "TrainingBatch")
+                        .WithMany("AttendanceSessions")
+                        .HasForeignKey("TrainingBatchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("TrainingBatch");
+                });
+
             modelBuilder.Entity("server.Models.Otp.OtpVerification", b =>
                 {
                     b.HasOne("server.Models.Auth.User", "User")
@@ -334,6 +715,44 @@ namespace server.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("server.Models.Participant.Enrollment", b =>
+                {
+                    b.HasOne("server.Models.Participant.ParticipantProfile", "ParticipantProfile")
+                        .WithMany("Enrollments")
+                        .HasForeignKey("ParticipantProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("server.Models.Training.TrainingBatch", "TrainingBatch")
+                        .WithMany("Enrollments")
+                        .HasForeignKey("TrainingBatchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ParticipantProfile");
+
+                    b.Navigation("TrainingBatch");
+                });
+
+            modelBuilder.Entity("server.Models.Participant.EnrollmentDocument", b =>
+                {
+                    b.HasOne("server.Models.Participant.Enrollment", "Enrollment")
+                        .WithMany("Documents")
+                        .HasForeignKey("EnrollmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("server.Models.Training.TrainingProgramRequirement", "Requirement")
+                        .WithMany()
+                        .HasForeignKey("RequirementId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Enrollment");
+
+                    b.Navigation("Requirement");
                 });
 
             modelBuilder.Entity("server.Models.Participant.ParticipantProfile", b =>
@@ -380,6 +799,44 @@ namespace server.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("server.Models.Training.TrainingBatch", b =>
+                {
+                    b.HasOne("server.Models.Training.TrainingProgram", "TrainingProgram")
+                        .WithMany("Batches")
+                        .HasForeignKey("TrainingProgramId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("TrainingProgram");
+                });
+
+            modelBuilder.Entity("server.Models.Training.TrainingProgramDocument", b =>
+                {
+                    b.HasOne("server.Models.Training.TrainingProgram", "TrainingProgram")
+                        .WithMany("Documents")
+                        .HasForeignKey("TrainingProgramId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TrainingProgram");
+                });
+
+            modelBuilder.Entity("server.Models.Training.TrainingProgramRequirement", b =>
+                {
+                    b.HasOne("server.Models.Training.TrainingProgram", "TrainingProgram")
+                        .WithMany("Requirements")
+                        .HasForeignKey("TrainingProgramId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TrainingProgram");
+                });
+
+            modelBuilder.Entity("server.Models.Attendance.AttendanceSession", b =>
+                {
+                    b.Navigation("Records");
+                });
+
             modelBuilder.Entity("server.Models.Auth.User", b =>
                 {
                     b.Navigation("OtpVerifications");
@@ -391,9 +848,42 @@ namespace server.Migrations
                     b.Navigation("TrainerProfile");
                 });
 
+            modelBuilder.Entity("server.Models.Participant.Enrollment", b =>
+                {
+                    b.Navigation("Documents");
+                });
+
+            modelBuilder.Entity("server.Models.Participant.ParticipantProfile", b =>
+                {
+                    b.Navigation("Enrollments");
+                });
+
             modelBuilder.Entity("server.Models.Trainer.TrainerApplication", b =>
                 {
                     b.Navigation("Documents");
+                });
+
+            modelBuilder.Entity("server.Models.Trainer.TrainerProfile", b =>
+                {
+                    b.Navigation("Assignments");
+                });
+
+            modelBuilder.Entity("server.Models.Training.TrainingBatch", b =>
+                {
+                    b.Navigation("AttendanceSessions");
+
+                    b.Navigation("Enrollments");
+
+                    b.Navigation("TrainerAssignments");
+                });
+
+            modelBuilder.Entity("server.Models.Training.TrainingProgram", b =>
+                {
+                    b.Navigation("Batches");
+
+                    b.Navigation("Documents");
+
+                    b.Navigation("Requirements");
                 });
 #pragma warning restore 612, 618
         }

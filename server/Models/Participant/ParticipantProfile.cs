@@ -15,4 +15,6 @@ public class ParticipantProfile
 
     public User User { get; set; } = default!;
 
+    public ICollection<Enrollment> Enrollments { get; set; } = [];
+
 }

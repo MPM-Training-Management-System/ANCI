@@ -1,7 +1,7 @@
+
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -11,8 +11,9 @@ import {
   User,
 } from "lucide-react";
 
-import type { LoginUser } from "@repo/api";
-import { authApi } from "@/lib/api";
+import { useAdminMe } from "@repo/hooks";
+
+import { adminApi } from "@/lib/api";
 import { auth } from "@/lib/auth";
 
 import {
@@ -25,32 +26,16 @@ import {
 } from "@repo/ui/index";
 
 export default function NavbarProfile() {
+  const {
+    profile,
+    isLoading,
+    error,
+    refetch,
+  } = useAdminMe(adminApi);
+
+  console.log("PROFILE DATA:", profile);
+
   const router = useRouter();
-  const [user, setUser] = useState<LoginUser | null>(null);
-
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const data = await authApi.me();
-        console.log(data);
-        setUser(data);
-      } catch (error) {
-        console.error(error);
-      }
-    };
-
-    loadUser();
-  }, []);
-
-  if (!user) return null;
-
-  const initials =
-    user.fullName
-      ?.split(" ")
-      .map((word) => word[0])
-      .join("")
-      .substring(0, 2)
-      .toUpperCase() ?? "U";
 
   const handleLogout = () => {
     auth.logout();
@@ -66,32 +51,32 @@ export default function NavbarProfile() {
         >
           <div className="flex items-center gap-3">
             <div className="relative">
-              {user.profileImage ? (
                 <Image
-                  src={user.profileImage}
-                  alt={user.fullName || "Profile"}
+                  src="/assets/image/ANCILOGO.png"
+                  alt={profile?.fullName || "Profile"}
                   width={40}
                   height={40}
                   className="h-10 w-10 rounded-full object-cover"
                 />
-              ) : (
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#002B5C] font-semibold text-white">
-                  {initials}
-                </div>
-              )}
-
-              <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
             </div>
+
+            {/* ============================================ */}
+            {/* NAME + ROLE */}
+            {/* ============================================ */}
 
             <div className="hidden text-left lg:block">
               <h4 className="text-sm font-semibold text-gray-900">
-                {user.username}
+                {profile?.fullName}
               </h4>
 
               <p className="text-xs text-gray-500">
-                {user.role}
+                {profile?.role}
               </p>
             </div>
+
+            {/* ============================================ */}
+            {/* DROPDOWN ICON */}
+            {/* ============================================ */}
 
             <ChevronDown
               size={18}
@@ -101,28 +86,35 @@ export default function NavbarProfile() {
         </Button>
       </DropdownMenuTrigger>
 
+      {/* ============================================== */}
+      {/* DROPDOWN CONTENT */}
+      {/* ============================================== */}
+
       <DropdownMenuContent align="end">
+        {/* Profile Information */}
         <div className="px-3 py-2">
           <p className="text-sm font-semibold">
-            {user.fullName}
+            {profile?.fullName}
           </p>
 
           <p className="text-xs text-gray-500">
-            {user.email}
+            {profile?.email}
           </p>
 
           <p className="text-xs text-gray-500">
-            {user.role}
+            {profile?.role}
           </p>
         </div>
 
         <DropdownMenuSeparator />
 
+        {/* Profile */}
         <DropdownMenuItem>
           <User className="mr-2 h-4 w-4" />
           Profile
         </DropdownMenuItem>
 
+        {/* Settings */}
         <DropdownMenuItem>
           <Settings className="mr-2 h-4 w-4" />
           Settings
@@ -130,6 +122,7 @@ export default function NavbarProfile() {
 
         <DropdownMenuSeparator />
 
+        {/* Logout */}
         <DropdownMenuItem
           onClick={handleLogout}
           className="text-red-600"
@@ -141,3 +134,4 @@ export default function NavbarProfile() {
     </DropdownMenu>
   );
 }
+

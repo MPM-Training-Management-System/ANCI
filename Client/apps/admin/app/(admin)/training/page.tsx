@@ -1,7 +1,10 @@
 "use client";
 
 import {
+  useCallback,
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -13,256 +16,562 @@ import {
 } from "@repo/ui/index";
 
 import {
+  useTrainingPrograms,
+  useTrainingProgramDocuments,
+  useTrainingBatches,
+  useTrainerAssignments,
+} from "@repo/hooks";
+
+import {
+  trainingProgramApi,
+  trainingProgramDocumentApi,
+  trainingBatchApi,
+  trainerApi,
+  trainerAssignmentApi,
+} from "@/lib/api";
+
+import type {
+  TrainingProgram as ApiTrainingProgram,
+  TrainingBatch,
+  CreateTrainingProgramRequest,
+  UpdateTrainingProgramRequest,
+  TrainingProgramRequirementRequest,
+  CreateTrainingBatchRequest,
+  UpdateTrainingBatchRequest,
+  UpdateTrainingBatchStatusRequest,
+  TrainerProfile,
+  TrainerAssignment,
+  AssignTrainerRequest,
+} from "@repo/types";
+
+import {
   columns,
   type ProgramStatus,
   type Requirement,
   type TrainingProgram,
 } from "./columns";
 
-
 // ============================================================
-// MOCK REQUIREMENTS
-// ============================================================
-
-const defaultRequirements: Requirement[] =
-  [
-    {
-      id: "REQ-001",
-      name: "Valid Government ID",
-      description:
-        "Any valid government-issued identification card.",
-      required: true,
-    },
-
-    {
-      id: "REQ-002",
-      name: "Birth Certificate",
-      description:
-        "PSA or certified copy of birth certificate.",
-      required: true,
-    },
-
-    {
-      id: "REQ-003",
-      name: "2x2 ID Photo",
-      description:
-        "Recent 2x2 identification photo.",
-      required: true,
-    },
-
-    {
-      id: "REQ-004",
-      name: "Registration Form",
-      description:
-        "Completed and signed training registration form.",
-      required: true,
-    },
-  ];
-
-
-// ============================================================
-// MOCK PROGRAMS
+// DEFAULT REQUIREMENTS
 // ============================================================
 
-const initialPrograms: TrainingProgram[] =
-  [
-    {
-      id: "TRN-001",
-      code: "CSS-NCII",
-      title:
-        "Computer Systems Servicing NC II",
-      category:
-        "Information Technology",
-      description:
-        "A technical training program covering installation, configuration, maintenance, and troubleshooting of computer systems and networks.",
-      duration:
-        "August 20 – October 20, 2026",
-      hours: 268,
-      capacity: 25,
-      enrolled: 18,
-      schedule:
-        "Monday – Friday, 8:00 AM – 5:00 PM",
-      location:
-        "Computer Laboratory 1",
-      trainer:
-        "Maria Santos",
-      status: "Active",
-      requirements:
-        defaultRequirements,
-      createdAt:
-        "August 01, 2026",
-    },
+const defaultRequirements: Requirement[] = [
+  {
+    id: "REQ-001",
+    name: "Valid Government ID",
+    description:
+      "Any valid government-issued identification card.",
+    required: true,
+  },
+  {
+    id: "REQ-002",
+    name: "Birth Certificate",
+    description:
+      "PSA or certified copy of birth certificate.",
+    required: true,
+  },
+  {
+    id: "REQ-003",
+    name: "2x2 ID Photo",
+    description:
+      "Recent 2x2 identification photo.",
+    required: true,
+  },
+  {
+    id: "REQ-004",
+    name: "Registration Form",
+    description:
+      "Completed and signed training registration form.",
+    required: true,
+  },
+];
 
-    {
-      id: "TRN-002",
-      code: "WEB-DEV",
-      title:
-        "Web Development Fundamentals",
-      category:
-        "Information Technology",
-      description:
-        "Introduction to modern web development covering HTML, CSS, JavaScript, responsive design, and basic application development.",
-      duration:
-        "August 25 – October 30, 2026",
-      hours: 240,
-      capacity: 30,
-      enrolled: 21,
-      schedule:
-        "Monday – Friday, 9:00 AM – 4:00 PM",
-      location:
-        "ICT Laboratory",
-      trainer:
-        "John Cruz",
-      status: "Active",
-      requirements: [
-        ...defaultRequirements,
-        {
-          id: "REQ-005",
-          name:
-            "Educational Record",
-          description:
-            "Latest school record or certificate of educational attainment.",
-          required: false,
-        },
-      ],
-      createdAt:
-        "August 03, 2026",
-    },
+// ============================================================
+// BATCH FORM
+// ============================================================
 
-    {
-      id: "TRN-003",
-      code: "EIM-NCII",
-      title:
-        "Electrical Installation and Maintenance NC II",
-      category: "Electrical",
-      description:
-        "Training program focused on electrical installation, maintenance, safety procedures, and troubleshooting.",
-      duration:
-        "September 01 – November 15, 2026",
-      hours: 268,
-      capacity: 20,
-      enrolled: 20,
-      schedule:
-        "Monday – Friday, 8:00 AM – 5:00 PM",
-      location:
-        "Electrical Workshop",
-      trainer:
-        "Robert Flores",
-      status: "Active",
-      requirements: [
-        ...defaultRequirements,
-        {
-          id: "REQ-006",
-          name:
-            "Medical Certificate",
-          description:
-            "Medical certificate confirming fitness for training.",
-          required: true,
-        },
-      ],
-      createdAt:
-        "August 04, 2026",
-    },
+type BatchFormState = {
+  trainingProgramId: string;
+  batchCode: string;
+  location: string;
+  startDate: string;
+  endDate: string;
+  startTime: string;
+  endTime: string;
+  capacity: string;
+};
 
-    {
-      id: "TRN-004",
-      code: "GRAPHICS-01",
-      title:
-        "Graphics Design Fundamentals",
-      category:
-        "Digital Skills",
-      description:
-        "Fundamentals of graphic design, visual communication, layout, typography, and digital design tools.",
-      duration:
-        "October 05 – November 05, 2026",
-      hours: 160,
-      capacity: 25,
-      enrolled: 0,
-      schedule:
-        "Saturday – Sunday, 8:00 AM – 5:00 PM",
-      location:
-        "Multimedia Laboratory",
-      trainer:
-        "Angela Reyes",
-      status: "Draft",
-      requirements:
-        defaultRequirements,
-      createdAt:
-        "August 10, 2026",
-    },
-  ];
+// ============================================================
+// DATE HELPERS
+// ============================================================
 
+function toDateInputValue(
+  value: string | null | undefined,
+): string {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value.slice(0, 10);
+  }
+
+  return date.toISOString().slice(0, 10);
+}
+
+// ============================================================
+// STATUS
+// ============================================================
+
+const batchStatuses = [
+  "Draft",
+  "Published",
+  "Ongoing",
+  "Completed",
+  "Cancelled",
+] as const;
 
 // ============================================================
 // PAGE
 // ============================================================
 
 export default function TrainingProgramsPage() {
+  // ==========================================================
+  // TRAINER ASSIGNMENTS
+  // ==========================================================
 
-  const [programs, setPrograms] =
-    useState<TrainingProgram[]>(
-      initialPrograms,
+  const {
+    assignments,
+    assignTrainer,
+    removeAssignment,
+    isCreating: isCreatingAssignment,
+    isDeleting: isDeletingAssignment,
+    error: assignmentError,
+    loadAssignments,
+    getAssignmentByBatch,
+  } = useTrainerAssignments(
+    trainerAssignmentApi,
+  );
+
+  // ==========================================================
+  // ACTIVE TRAINERS
+  // ==========================================================
+
+  const [
+    activeTrainers,
+    setActiveTrainers,
+  ] = useState<TrainerProfile[]>([]);
+
+  const [
+    isLoadingTrainers,
+    setIsLoadingTrainers,
+  ] = useState(false);
+
+  const [
+    selectedTrainerId,
+    setSelectedTrainerId,
+  ] = useState("");
+
+  const [
+    isAssigningTrainer,
+    setIsAssigningTrainer,
+  ] = useState(false);
+
+  const [
+    assigningBatch,
+    setAssigningBatch,
+  ] = useState<TrainingBatch | null>(
+    null,
+  );
+
+  // ==========================================================
+  // LOAD ACTIVE TRAINERS
+  // ==========================================================
+
+  const loadActiveTrainers =
+    useCallback(
+      async () => {
+        try {
+          setIsLoadingTrainers(true);
+
+          const result =
+            await trainerApi.getActiveTrainers();
+
+          setActiveTrainers(
+            Array.isArray(result)
+              ? result
+              : [],
+          );
+        } catch (error) {
+          console.error(
+            "LOAD ACTIVE TRAINERS ERROR:",
+            error,
+          );
+
+          setActiveTrainers([]);
+        } finally {
+          setIsLoadingTrainers(false);
+        }
+      },
+      [],
     );
 
+  useEffect(() => {
+    loadActiveTrainers();
+  }, [
+    loadActiveTrainers,
+  ]);
 
   // ==========================================================
-  // FILTERS
+  // OPEN ASSIGN TRAINER
   // ==========================================================
 
-  const [search, setSearch] =
-    useState("");
+  const openAssignTrainer =
+    useCallback(
+      (
+        batch: TrainingBatch,
+      ) => {
+        setAssigningBatch(batch);
 
-  const [categoryFilter, setCategoryFilter] =
-    useState("All Categories");
+        const existingAssignment =
+          getAssignmentByBatch(
+            batch.id,
+          );
 
-  const [statusFilter, setStatusFilter] =
-    useState<
-      "All" | ProgramStatus
-    >("All");
+        setSelectedTrainerId(
+          existingAssignment
+            ?.trainerProfileId ??
+            "",
+        );
+      },
+      [
+        getAssignmentByBatch,
+      ],
+    );
 
+  // ==========================================================
+  // SAVE TRAINER ASSIGNMENT
+  // ==========================================================
+
+  const saveTrainerAssignment =
+    useCallback(
+      async () => {
+        if (!assigningBatch) {
+          return;
+        }
+
+        if (!selectedTrainerId) {
+          alert(
+            "Please select a trainer.",
+          );
+          return;
+        }
+
+        const existingAssignment =
+          getAssignmentByBatch(
+            assigningBatch.id,
+          );
+
+        if (
+          existingAssignment &&
+          existingAssignment.trainerProfileId ===
+            selectedTrainerId
+        ) {
+          setAssigningBatch(null);
+          setSelectedTrainerId("");
+          return;
+        }
+
+        setIsAssigningTrainer(true);
+
+        try {
+          if (
+            existingAssignment &&
+            existingAssignment.trainerProfileId !==
+              selectedTrainerId
+          ) {
+            const removed =
+              await removeAssignment(
+                existingAssignment.id,
+              );
+
+            if (!removed) {
+              return;
+            }
+          }
+
+          const payload:
+            AssignTrainerRequest = {
+            trainerProfileId:
+              selectedTrainerId,
+
+            trainingBatchId:
+              assigningBatch.id,
+          };
+
+          const result =
+            await assignTrainer(
+              payload,
+            );
+
+          if (!result) {
+            return;
+          }
+
+          await loadAssignments();
+
+          alert(
+            "Trainer assigned successfully.",
+          );
+
+          setAssigningBatch(null);
+          setSelectedTrainerId("");
+        } catch (error) {
+          console.error(
+            "SAVE TRAINER ASSIGNMENT ERROR:",
+            error,
+          );
+
+          alert(
+            error instanceof Error
+              ? error.message
+              : "Unable to assign trainer.",
+          );
+        } finally {
+          setIsAssigningTrainer(false);
+        }
+      },
+      [
+        assigningBatch,
+        selectedTrainerId,
+        getAssignmentByBatch,
+        removeAssignment,
+        assignTrainer,
+        loadAssignments,
+      ],
+    );
+
+  // ==========================================================
+  // REMOVE TRAINER
+  // ==========================================================
+
+  const handleRemoveTrainer =
+    useCallback(
+      async (
+        batch: TrainingBatch,
+      ) => {
+        const assignment =
+          getAssignmentByBatch(
+            batch.id,
+          );
+
+        if (!assignment) {
+          return;
+        }
+
+        const confirmed =
+          window.confirm(
+            `Remove ${assignment.trainerName} from batch ${batch.batchCode}?`,
+          );
+
+        if (!confirmed) {
+          return;
+        }
+
+        const success =
+          await removeAssignment(
+            assignment.id,
+          );
+
+        if (!success) {
+          return;
+        }
+
+        await loadAssignments();
+
+        alert(
+          "Trainer assignment removed.",
+        );
+      },
+      [
+        getAssignmentByBatch,
+        removeAssignment,
+        loadAssignments,
+      ],
+    );
+
+  // ==========================================================
+  // TRAINING PROGRAMS
+  // ==========================================================
+
+  const {
+    programs: apiPrograms,
+    createProgram,
+    updateProgram,
+    deleteProgram,
+    isLoading: isLoadingPrograms,
+    isCreating: isCreatingProgram,
+    isUpdating: isUpdatingProgram,
+    isDeleting: isDeletingProgram,
+    error: programError,
+  } =
+    useTrainingPrograms(
+      trainingProgramApi,
+    );
+
+  // ==========================================================
+  // TRAINING BATCHES
+  // ==========================================================
+
+  const {
+    batches,
+    createBatch,
+    updateBatch,
+    updateBatchStatus,
+    deleteBatch,
+    isLoading: isLoadingBatches,
+    isCreating: isCreatingBatch,
+    isUpdating: isUpdatingBatch,
+    isDeleting: isDeletingBatch,
+    isUpdatingStatus:
+      isUpdatingBatchStatus,
+    error: batchError,
+  } =
+    useTrainingBatches(
+      trainingBatchApi,
+    );
+
+  const handleDeleteBatch =
+  useCallback(
+    async (
+      batch: TrainingBatch,
+    ) => {
+      const confirmed =
+        window.confirm(
+          `Are you sure you want to delete batch ${batch.batchCode}?`,
+        );
+
+      if (!confirmed) {
+        return;
+      }
+
+      const success =
+        await deleteBatch(
+          batch.id,
+        );
+
+      if (!success) {
+        return;
+      }
+
+      setSelectedBatch(
+        (current) =>
+          current?.id === batch.id
+            ? null
+            : current,
+      );
+
+      setShowBatchForm(
+        false,
+      );
+
+      alert(
+        "Training batch deleted successfully.",
+      );
+    },
+    [
+      deleteBatch,
+    ],
+  );
+  // ==========================================================
+  // LOCAL PROGRAMS
+  // ==========================================================
+
+  const [
+    programs,
+    setPrograms,
+  ] =
+    useState<TrainingProgram[]>([]);
+
+  // ==========================================================
+  // SELECTED PROGRAM
+  // ==========================================================
+
+  const [
+    selected,
+    setSelected,
+  ] =
+    useState<TrainingProgram | null>(
+      null,
+    );
+
+  // ==========================================================
+  // SELECTED BATCH
+  // ==========================================================
+
+  const [
+    selectedBatch,
+    setSelectedBatch,
+  ] =
+    useState<TrainingBatch | null>(
+      null,
+    );
 
   // ==========================================================
   // MODALS
   // ==========================================================
 
-  const [selected, setSelected] =
-    useState<TrainingProgram | null>(
-      null,
-    );
-
-  const [showDetails, setShowDetails] =
+  const [
+    showDetails,
+    setShowDetails,
+  ] =
     useState(false);
 
-  const [showForm, setShowForm] =
+  const [
+    showForm,
+    setShowForm,
+  ] =
     useState(false);
 
-  const [showDelete, setShowDelete] =
+  const [
+    showDelete,
+    setShowDelete,
+  ] =
     useState(false);
 
+  const [
+    showBatchForm,
+    setShowBatchForm,
+  ] =
+    useState(false);
 
   // ==========================================================
-  // FORM
+  // PROGRAM FORM
   // ==========================================================
 
-  const [form, setForm] =
+  const [
+    form,
+    setForm,
+  ] =
     useState({
       code: "",
       title: "",
       category:
         "Information Technology",
       description: "",
-      duration: "",
       hours: "",
-      capacity: "",
-      schedule: "",
-      location: "",
-      trainer: "",
-      status:
-        "Draft" as ProgramStatus,
     });
 
+  // ==========================================================
+  // REQUIREMENTS
+  // ==========================================================
 
-  const [requirements, setRequirements] =
+  const [
+    requirements,
+    setRequirements,
+  ] =
     useState<Requirement[]>(
       defaultRequirements.map(
         (item) => ({
@@ -271,479 +580,1285 @@ export default function TrainingProgramsPage() {
       ),
     );
 
+  // ==========================================================
+  // DOCUMENTS
+  // ==========================================================
+
+  const [
+    selectedFiles,
+    setSelectedFiles,
+  ] =
+    useState<
+      {
+        id: string;
+        file: File;
+        documentType: string;
+      }[]
+    >([]);
+
+  const [
+    documentType,
+    setDocumentType,
+  ] =
+    useState(
+      "TrainingManual",
+    );
+
+  // ==========================================================
+  // BATCH FORM
+  // ==========================================================
+
+  const [
+    batchForm,
+    setBatchForm,
+  ] =
+    useState<BatchFormState>({
+      trainingProgramId: "",
+      batchCode: "",
+      location: "",
+      startDate: "",
+      endDate: "",
+      startTime: "",
+      endTime: "",
+      capacity: "",
+    });
+
+  // ==========================================================
+  // BATCH SUBMIT LOCK
+  // ==========================================================
+
+  const isSavingBatchRef =
+    useRef(false);
+
+  // ==========================================================
+  // DOCUMENT HOOK
+  // ==========================================================
+
+  const {
+    documents,
+    isLoading:
+      isLoadingDocuments,
+    isUploading,
+    isDeleting:
+      isDeletingDocument,
+    error:
+      documentError,
+    loadDocuments,
+    deleteDocument,
+  } =
+    useTrainingProgramDocuments(
+      selected?.id ?? null,
+      trainingProgramDocumentApi,
+    );
+
+  // ==========================================================
+  // SYNC PROGRAMS FROM API
+  // ==========================================================
+
+  useEffect(() => {
+    if (!Array.isArray(apiPrograms)) {
+      setPrograms([]);
+      return;
+    }
+
+    const mappedPrograms:
+      TrainingProgram[] =
+      apiPrograms.map(
+        (
+          program: ApiTrainingProgram,
+        ) => {
+          const programBatches =
+            batches.filter(
+              (batch) =>
+                batch.programName ===
+                program.name,
+            );
+
+          const totalCapacity =
+            programBatches.reduce(
+              (
+                total,
+                batch,
+              ) =>
+                total +
+                batch.capacity,
+              0,
+            );
+
+          const totalEnrolled =
+            programBatches.reduce(
+              (
+                total,
+                batch,
+              ) =>
+                total +
+                batch.enrolledCount,
+              0,
+            );
+
+          const activeBatch =
+            programBatches.find(
+              (batch) =>
+                batch.status !==
+                  "Completed" &&
+                batch.status !==
+                  "Cancelled",
+            );
+
+          return {
+            id:
+              program.id,
+
+            code:
+              program.programCode,
+
+            title:
+              program.name,
+
+            category:
+              "Information Technology",
+
+            description:
+              program.description ??
+              "",
+
+            duration:
+              `${program.durationHours} hours`,
+
+            hours:
+              program.durationHours,
+
+            capacity:
+              totalCapacity,
+
+            enrolled:
+              totalEnrolled,
+
+            schedule:
+              activeBatch
+                ? `${toDateInputValue(
+                    activeBatch.startDate,
+                  )} - ${toDateInputValue(
+                    activeBatch.endDate,
+                  )}`
+                : "Not configured",
+
+            location:
+              activeBatch?.location ??
+              "Not configured",
+
+            trainer:
+              "Not assigned",
+
+            status:
+              program.isActive
+                ? "Active"
+                : "Draft",
+
+            requirements:
+              program.requirements?.map(
+                (
+                  requirement,
+                ) => ({
+                  id:
+                    requirement.id,
+
+                  name:
+                    requirement.name,
+
+                  description:
+                    requirement.description ??
+                    "",
+
+                  required:
+                    requirement.isRequired,
+                }),
+              ) ?? [],
+
+            createdAt:
+              new Date(
+                program.createdAt,
+              ).toLocaleDateString(),
+          };
+        },
+      );
+
+    setPrograms(
+      mappedPrograms,
+    );
+  }, [
+    apiPrograms,
+    batches,
+  ]);
+
+  // ==========================================================
+  // LOAD DOCUMENTS
+  // ==========================================================
+
+  useEffect(() => {
+    if (!selected?.id) {
+      return;
+    }
+
+    loadDocuments();
+  }, [
+    selected?.id,
+    loadDocuments,
+  ]);
 
   // ==========================================================
   // CATEGORIES
   // ==========================================================
 
-  const categories = useMemo(
-    () => [
-      "All Categories",
-      ...Array.from(
-        new Set(
-          programs.map(
-            (program) =>
-              program.category,
+  const categories =
+    useMemo(
+      () => [
+        "All Categories",
+        ...Array.from(
+          new Set(
+            programs.map(
+              (program) =>
+                program.category,
+            ),
           ),
         ),
-      ),
-    ],
-    [programs],
-  );
-
+      ],
+      [programs],
+    );
 
   // ==========================================================
-  // FILTERED DATA
+  // FILTERS
+  // ==========================================================
+
+  const [
+    search,
+    setSearch,
+  ] =
+    useState("");
+
+  const [
+    categoryFilter,
+    setCategoryFilter,
+  ] =
+    useState(
+      "All Categories",
+    );
+
+  const [
+    statusFilter,
+    setStatusFilter,
+  ] =
+    useState<
+      "All" | ProgramStatus
+    >("All");
+
+  // ==========================================================
+  // FILTER PROGRAMS
   // ==========================================================
 
   const filteredPrograms =
-    useMemo(() => {
+    useMemo(
+      () => {
+        const query =
+          search
+            .toLowerCase()
+            .trim();
 
-      const query =
-        search
-          .toLowerCase()
-          .trim();
+        return programs.filter(
+          (program) => {
+            const matchesSearch =
+              !query ||
+              program.title
+                .toLowerCase()
+                .includes(query) ||
+              program.code
+                .toLowerCase()
+                .includes(query) ||
+              program.category
+                .toLowerCase()
+                .includes(query) ||
+              program.trainer
+                .toLowerCase()
+                .includes(query);
 
-      return programs.filter(
-        (program) => {
+            const matchesCategory =
+              categoryFilter ===
+                "All Categories" ||
+              program.category ===
+                categoryFilter;
 
-          const matchesSearch =
-            !query ||
-            program.title
-              .toLowerCase()
-              .includes(query) ||
-            program.code
-              .toLowerCase()
-              .includes(query) ||
-            program.category
-              .toLowerCase()
-              .includes(query) ||
-            program.trainer
-              .toLowerCase()
-              .includes(query);
+            const matchesStatus =
+              statusFilter ===
+                "All" ||
+              program.status ===
+                statusFilter;
 
-          const matchesCategory =
-            categoryFilter ===
-              "All Categories" ||
-            program.category ===
-              categoryFilter;
-
-          const matchesStatus =
-            statusFilter ===
-              "All" ||
-            program.status ===
-              statusFilter;
-
-          return (
-            matchesSearch &&
-            matchesCategory &&
-            matchesStatus
-          );
-        },
-      );
-
-    }, [
-      programs,
-      search,
-      categoryFilter,
-      statusFilter,
-    ]);
-
-
-  // ==========================================================
-  // CREATE
-  // ==========================================================
-
-  function openCreate() {
-
-    setSelected(null);
-
-    setForm({
-      code: "",
-      title: "",
-      category:
-        "Information Technology",
-      description: "",
-      duration: "",
-      hours: "",
-      capacity: "",
-      schedule: "",
-      location: "",
-      trainer: "",
-      status: "Draft",
-    });
-
-    setRequirements(
-      defaultRequirements.map(
-        (item) => ({
-          ...item,
-        }),
-      ),
+            return (
+              matchesSearch &&
+              matchesCategory &&
+              matchesStatus
+            );
+          },
+        );
+      },
+      [
+        programs,
+        search,
+        categoryFilter,
+        statusFilter,
+      ],
     );
 
-    setShowForm(true);
-  }
-
-
   // ==========================================================
-  // VIEW
+  // OPEN CREATE PROGRAM
   // ==========================================================
 
-  function handleView(
-    program: TrainingProgram,
-  ) {
+  const openCreate =
+    useCallback(
+      () => {
+        setSelected(null);
 
-    setSelected(program);
+        setForm({
+          code: "",
+          title: "",
+          category:
+            "Information Technology",
+          description: "",
+          hours: "",
+        });
 
-    setShowDetails(true);
-  }
+        setRequirements(
+          defaultRequirements.map(
+            (item) => ({
+              ...item,
+            }),
+          ),
+        );
 
+        setSelectedFiles([]);
 
-  // ==========================================================
-  // EDIT
-  // ==========================================================
+        setDocumentType(
+          "TrainingManual",
+        );
 
-  function handleManage(
-    program: TrainingProgram,
-  ) {
-
-    setSelected(program);
-
-    setForm({
-      code: program.code,
-      title: program.title,
-      category:
-        program.category,
-      description:
-        program.description,
-      duration:
-        program.duration,
-      hours:
-        String(program.hours),
-      capacity:
-        String(program.capacity),
-      schedule:
-        program.schedule,
-      location:
-        program.location,
-      trainer:
-        program.trainer,
-      status:
-        program.status,
-    });
-
-    setRequirements(
-      program.requirements.map(
-        (item) => ({
-          ...item,
-        }),
-      ),
+        setShowForm(true);
+      },
+      [],
     );
 
-    setShowDetails(false);
-
-    setShowForm(true);
-  }
-
-
   // ==========================================================
-  // DELETE
+  // VIEW PROGRAM
   // ==========================================================
 
-  function handleDelete(
-    program: TrainingProgram,
-  ) {
+  const handleView =
+    useCallback(
+      (
+        program: TrainingProgram,
+      ) => {
+        setSelected(
+          program,
+        );
 
-    setSelected(program);
-
-    setShowDelete(true);
-  }
-
+        setShowDetails(
+          true,
+        );
+      },
+      [],
+    );
 
   // ==========================================================
-  // SAVE
+  // MANAGE PROGRAM
   // ==========================================================
 
-  function saveProgram() {
+  const handleManage =
+    useCallback(
+      (
+        program: TrainingProgram,
+      ) => {
+        setSelected(
+          program,
+        );
 
-    if (
-      !form.code.trim() ||
-      !form.title.trim() ||
-      !form.description.trim() ||
-      !form.duration.trim() ||
-      !form.hours ||
-      !form.capacity ||
-      !form.schedule.trim() ||
-      !form.location.trim() ||
-      !form.trainer.trim()
-    ) {
+        setForm({
+          code:
+            program.code,
 
-      alert(
-        "Please complete all required training information.",
-      );
+          title:
+            program.title,
 
-      return;
-    }
+          category:
+            program.category,
 
+          description:
+            program.description,
 
-    const cleanRequirements =
-      requirements.filter(
-        (item) =>
-          item.name.trim() !== "",
-      );
+          hours:
+            String(
+              program.hours,
+            ),
+        });
 
-
-    // ========================================================
-    // UPDATE
-    // ========================================================
-
-    if (selected) {
-
-      setPrograms(
-        (current) =>
-          current.map(
-            (program) =>
-              program.id ===
-              selected.id
-                ? {
-                    ...program,
-
-                    code:
-                      form.code.trim(),
-
-                    title:
-                      form.title.trim(),
-
-                    category:
-                      form.category,
-
-                    description:
-                      form.description.trim(),
-
-                    duration:
-                      form.duration.trim(),
-
-                    hours:
-                      Number(
-                        form.hours,
-                      ),
-
-                    capacity:
-                      Number(
-                        form.capacity,
-                      ),
-
-                    schedule:
-                      form.schedule.trim(),
-
-                    location:
-                      form.location.trim(),
-
-                    trainer:
-                      form.trainer.trim(),
-
-                    status:
-                      form.status,
-
-                    requirements:
-                      cleanRequirements,
-                  }
-                : program,
+        setRequirements(
+          program.requirements.map(
+            (item) => ({
+              ...item,
+            }),
           ),
-      );
+        );
 
-    }
+        setSelectedFiles([]);
 
-    // ========================================================
-    // CREATE
-    // ========================================================
+        setDocumentType(
+          "TrainingManual",
+        );
 
-    else {
+        setShowDetails(
+          false,
+        );
 
-      const nextId =
-        programs.length + 1;
+        setShowForm(
+          true,
+        );
+      },
+      [],
+    );
 
-      const newProgram:
-        TrainingProgram = {
+  // ==========================================================
+  // DELETE PROGRAM
+  // ==========================================================
 
-        id: `TRN-${String(
-          nextId,
-        ).padStart(3, "0")}`,
+  const handleDelete =
+    useCallback(
+      (
+        program: TrainingProgram,
+      ) => {
+        setSelected(
+          program,
+        );
 
-        code:
-          form.code.trim(),
-
-        title:
-          form.title.trim(),
-
-        category:
-          form.category,
-
-        description:
-          form.description.trim(),
-
-        duration:
-          form.duration.trim(),
-
-        hours:
-          Number(form.hours),
-
-        capacity:
-          Number(form.capacity),
-
-        enrolled: 0,
-
-        schedule:
-          form.schedule.trim(),
-
-        location:
-          form.location.trim(),
-
-        trainer:
-          form.trainer.trim(),
-
-        status:
-          form.status,
-
-        requirements:
-          cleanRequirements,
-
-        createdAt:
-          new Date().toLocaleDateString(
-            "en-US",
-            {
-              month: "long",
-              day: "2-digit",
-              year: "numeric",
-            },
-          ),
-      };
-
-      setPrograms(
-        (current) => [
-          ...current,
-          newProgram,
-        ],
-      );
-    }
-
-
-    setShowForm(false);
-
-    setSelected(null);
-  }
-
+        setShowDelete(
+          true,
+        );
+      },
+      [],
+    );
 
   // ==========================================================
   // ADD REQUIREMENT
   // ==========================================================
 
-  function addRequirement() {
+  const addRequirement =
+    useCallback(
+      () => {
+        setRequirements(
+          (current) => [
+            ...current,
 
-    setRequirements(
-      (current) => [
-        ...current,
+            {
+              id:
+                `REQ-${Date.now()}`,
 
-        {
-          id: `REQ-${Date.now()}`,
-          name: "",
-          description: "",
-          required: true,
-        },
-      ],
+              name: "",
+
+              description: "",
+
+              required: true,
+            },
+          ],
+        );
+      },
+      [],
     );
-  }
-
 
   // ==========================================================
   // UPDATE REQUIREMENT
   // ==========================================================
 
-  function updateRequirement(
-    id: string,
-    field: keyof Requirement,
-    value:
-      | string
-      | boolean,
-  ) {
-
-    setRequirements(
-      (current) =>
-        current.map(
-          (item) =>
-            item.id === id
-              ? {
-                  ...item,
-                  [field]:
-                    value,
-                }
-              : item,
-        ),
+  const updateRequirement =
+    useCallback(
+      (
+        id: string,
+        field: keyof Requirement,
+        value:
+          | string
+          | boolean,
+      ) => {
+        setRequirements(
+          (current) =>
+            current.map(
+              (item) =>
+                item.id === id
+                  ? {
+                      ...item,
+                      [field]:
+                        value,
+                    }
+                  : item,
+            ),
+        );
+      },
+      [],
     );
-  }
-
 
   // ==========================================================
   // REMOVE REQUIREMENT
   // ==========================================================
 
-  function removeRequirement(
-    id: string,
-  ) {
-
-    setRequirements(
-      (current) =>
-        current.filter(
-          (item) =>
-            item.id !== id,
-        ),
+  const removeRequirement =
+    useCallback(
+      (
+        id: string,
+      ) => {
+        setRequirements(
+          (current) =>
+            current.filter(
+              (item) =>
+                item.id !== id,
+            ),
+        );
+      },
+      [],
     );
-  }
-
 
   // ==========================================================
-  // DELETE CONFIRMED
+  // SELECT DOCUMENT
   // ==========================================================
 
-  function confirmDelete() {
+  const handleDocumentSelect =
+    useCallback(
+      (
+        file: File,
+      ) => {
+        const allowedExtensions =
+          [
+            ".pdf",
+            ".doc",
+            ".docx",
+            ".xls",
+            ".xlsx",
+            ".ppt",
+            ".pptx",
+          ];
 
-    if (!selected) {
-      return;
-    }
+        const extension =
+          "." +
+          (
+            file.name
+              .split(".")
+              .pop() ??
+              ""
+          ).toLowerCase();
 
-    setPrograms(
-      (current) =>
-        current.filter(
-          (program) =>
-            program.id !==
+        if (
+          !allowedExtensions.includes(
+            extension,
+          )
+        ) {
+          alert(
+            "Only PDF, DOC, DOCX, XLS, XLSX, PPT, and PPTX files are allowed.",
+          );
+
+          return;
+        }
+
+        setSelectedFiles(
+          (current) => [
+            ...current,
+
+            {
+              id:
+                `${Date.now()}-${file.name}`,
+
+              file,
+
+              documentType,
+            },
+          ],
+        );
+      },
+      [documentType],
+    );
+
+  // ==========================================================
+  // REMOVE SELECTED FILE
+  // ==========================================================
+
+  const removeSelectedFile =
+    useCallback(
+      (
+        id: string,
+      ) => {
+        setSelectedFiles(
+          (current) =>
+            current.filter(
+              (item) =>
+                item.id !== id,
+            ),
+        );
+      },
+      [],
+    );
+
+  // ==========================================================
+  // UPLOAD DOCUMENTS
+  // ==========================================================
+
+  const uploadPendingDocuments =
+    useCallback(
+      async (
+        trainingProgramId: string,
+      ) => {
+        if (
+          selectedFiles.length ===
+          0
+        ) {
+          return true;
+        }
+
+        try {
+          for (
+            const item of
+            selectedFiles
+          ) {
+            await trainingProgramDocumentApi.upload(
+              trainingProgramId,
+              item.file,
+              item.documentType,
+            );
+          }
+
+          setSelectedFiles([]);
+
+          await loadDocuments();
+
+          return true;
+        } catch (error) {
+          console.error(
+            "UPLOAD TRAINING DOCUMENTS ERROR:",
+            error,
+          );
+
+          alert(
+            error instanceof Error
+              ? error.message
+              : "Unable to upload training documents.",
+          );
+
+          return false;
+        }
+      },
+      [
+        selectedFiles,
+        loadDocuments,
+      ],
+    );
+
+  // ==========================================================
+  // SAVE PROGRAM
+  // ==========================================================
+
+  const saveProgram =
+    useCallback(
+      async () => {
+        const programCode =
+          form.code.trim();
+
+        const name =
+          form.title.trim();
+
+        const description =
+          form.description.trim();
+
+        const durationHours =
+          Number(
+            form.hours,
+          );
+
+        if (!programCode) {
+          alert(
+            "Training code is required.",
+          );
+          return;
+        }
+
+        if (!name) {
+          alert(
+            "Training name is required.",
+          );
+          return;
+        }
+
+        if (!description) {
+          alert(
+            "Training description is required.",
+          );
+          return;
+        }
+
+        if (
+          !Number.isFinite(
+            durationHours,
+          ) ||
+          durationHours <= 0
+        ) {
+          alert(
+            "Duration hours must be greater than 0.",
+          );
+          return;
+        }
+
+        const requirementPayload:
+          TrainingProgramRequirementRequest[] =
+          requirements
+            .filter(
+              (
+                requirement,
+              ) =>
+                requirement.name.trim() !==
+                "",
+            )
+            .map(
+              (
+                requirement,
+                index,
+              ) => ({
+                name:
+                  requirement.name.trim(),
+
+                description:
+                  requirement.description.trim() ||
+                  null,
+
+                isRequired:
+                  requirement.required,
+
+                displayOrder:
+                  index + 1,
+              }),
+            );
+
+        if (!selected) {
+          const payload:
+            CreateTrainingProgramRequest =
+            {
+              programCode,
+              name,
+              description,
+              durationHours,
+              requirements:
+                requirementPayload,
+            };
+
+          const result =
+            await createProgram(
+              payload,
+            );
+
+          if (!result) {
+            return;
+          }
+
+          if (
+            selectedFiles.length >
+            0
+          ) {
+            await uploadPendingDocuments(
+              result.id,
+            );
+          }
+
+          alert(
+            "Training program created successfully.",
+          );
+
+          setShowForm(
+            false,
+          );
+
+          setSelected(
+            null,
+          );
+
+          return;
+        }
+
+        const payload:
+          UpdateTrainingProgramRequest =
+          {
+            programCode,
+            name,
+            description:
+              description ||
+              null,
+            durationHours,
+            requirements:
+              requirementPayload,
+          };
+
+        const success =
+          await updateProgram(
             selected.id,
-        ),
+            payload,
+          );
+
+        if (!success) {
+          return;
+        }
+
+        if (
+          selectedFiles.length >
+          0
+        ) {
+          await uploadPendingDocuments(
+            selected.id,
+          );
+        }
+
+        alert(
+          "Training program updated successfully.",
+        );
+
+        setShowForm(
+          false,
+        );
+
+        setSelected(
+          null,
+        );
+      },
+      [
+        form,
+        selected,
+        requirements,
+        selectedFiles,
+        createProgram,
+        updateProgram,
+        uploadPendingDocuments,
+      ],
     );
 
-    setShowDelete(false);
+  // ==========================================================
+  // CONFIRM DELETE PROGRAM
+  // ==========================================================
 
-    setShowForm(false);
+  const confirmDelete =
+    useCallback(
+      async () => {
+        if (!selected) {
+          return;
+        }
 
-    setShowDetails(false);
+        const success =
+          await deleteProgram(
+            selected.id,
+          );
 
-    setSelected(null);
-  }
+        if (!success) {
+          return;
+        }
 
+        setShowDelete(
+          false,
+        );
+
+        setShowForm(
+          false,
+        );
+
+        setShowDetails(
+          false,
+        );
+
+        setSelected(
+          null,
+        );
+      },
+      [
+        selected,
+        deleteProgram,
+      ],
+    );
 
   // ==========================================================
   // CLOSE FORM
   // ==========================================================
 
-  function closeForm() {
+  const closeForm =
+    useCallback(
+      () => {
+        setShowForm(
+          false,
+        );
 
-    setShowForm(false);
+        setSelected(
+          null,
+        );
 
-    setSelected(null);
-  }
-
+        setSelectedFiles([]);
+      },
+      [],
+    );
 
   // ==========================================================
-  // STATS
+  // OPEN CREATE BATCH
+  // ==========================================================
+
+  const openCreateBatch =
+    useCallback(
+      (
+        program?: TrainingProgram,
+      ) => {
+        setSelectedBatch(
+          null,
+        );
+
+        setBatchForm({
+          trainingProgramId:
+            program?.id ?? "",
+
+          batchCode: "",
+
+          location: "",
+
+          startDate: "",
+
+          endDate: "",
+
+          startTime: "",
+
+          endTime: "",
+
+          capacity: "",
+        });
+
+        setShowBatchForm(
+          true,
+        );
+      },
+      [],
+    );
+
+  // ==========================================================
+  // OPEN EDIT BATCH
+  // ==========================================================
+
+  const openEditBatch =
+    useCallback(
+      (
+        batch: TrainingBatch,
+      ) => {
+        const program =
+          programs.find(
+            (item) =>
+              item.title ===
+              batch.programName,
+          );
+
+        if (!program) {
+          alert(
+            `Training program "${batch.programName}" could not be found.`,
+          );
+
+          return;
+        }
+
+        setSelectedBatch(
+          batch,
+        );
+
+        setBatchForm({
+          trainingProgramId:
+            program.id,
+
+          batchCode:
+            batch.batchCode,
+
+          location:
+            batch.location ??
+            "",
+
+          startDate:
+            toDateInputValue(
+              batch.startDate,
+            ),
+
+          endDate:
+            toDateInputValue(
+              batch.endDate,
+            ),
+
+          startTime: "",
+
+          endTime: "",
+
+          capacity:
+            String(
+              batch.capacity,
+            ),
+        });
+
+        setShowBatchForm(
+          true,
+        );
+      },
+      [programs],
+    );
+
+  // ==========================================================
+  // SAVE BATCH
+  // ==========================================================
+
+  const saveBatch =
+    useCallback(
+      async () => {
+        if (
+          isSavingBatchRef.current
+        ) {
+          console.warn(
+            "SAVE BATCH IGNORED: request already in progress.",
+          );
+
+          return;
+        }
+
+        if (
+          !batchForm.trainingProgramId
+        ) {
+          alert(
+            "Please select a training program.",
+          );
+
+          return;
+        }
+
+        if (
+          !batchForm.batchCode.trim()
+        ) {
+          alert(
+            "Batch code is required.",
+          );
+
+          return;
+        }
+
+        if (
+          !batchForm.startDate
+        ) {
+          alert(
+            "Start date is required.",
+          );
+
+          return;
+        }
+
+        if (
+          !batchForm.endDate
+        ) {
+          alert(
+            "End date is required.",
+          );
+
+          return;
+        }
+
+        const capacity =
+          Number(
+            batchForm.capacity,
+          );
+
+        if (
+          !Number.isFinite(
+            capacity,
+          ) ||
+          capacity <= 0
+        ) {
+          alert(
+            "Capacity must be greater than 0.",
+          );
+
+          return;
+        }
+
+        if (
+          batchForm.endDate <
+          batchForm.startDate
+        ) {
+          alert(
+            "End date cannot be earlier than start date.",
+          );
+
+          return;
+        }
+
+        const payload:
+          CreateTrainingBatchRequest =
+          {
+            trainingProgramId:
+              batchForm.trainingProgramId,
+
+            batchCode:
+              batchForm.batchCode.trim(),
+
+            location:
+              batchForm.location.trim() ||
+              null,
+
+            startDate:
+              `${batchForm.startDate}T00:00:00`,
+
+            endDate:
+              `${batchForm.endDate}T00:00:00`,
+
+            startTime:
+              batchForm.startTime
+                ? `${batchForm.startTime}:00`
+                : null,
+
+            endTime:
+              batchForm.endTime
+                ? `${batchForm.endTime}:00`
+                : null,
+
+            capacity,
+          };
+
+        console.log(
+          "========== SAVE TRAINING BATCH ==========",
+        );
+
+        console.log(
+          "MODE:",
+          selectedBatch
+            ? "UPDATE"
+            : "CREATE",
+        );
+
+        console.log(
+          "PAYLOAD:",
+          JSON.stringify(
+            payload,
+            null,
+            2,
+          ),
+        );
+
+        console.log(
+          "==========================================",
+        );
+
+        isSavingBatchRef.current =
+          true;
+
+        try {
+          if (!selectedBatch) {
+            const result =
+              await createBatch(
+                payload,
+              );
+
+            if (!result) {
+              return;
+            }
+
+            alert(
+              "Training batch created successfully.",
+            );
+
+            setShowBatchForm(
+              false,
+            );
+
+            setSelectedBatch(
+              null,
+            );
+
+            return;
+          }
+
+          const updatePayload:
+            UpdateTrainingBatchRequest =
+            payload;
+
+          const success =
+            await updateBatch(
+              selectedBatch.id,
+              updatePayload,
+            );
+
+          if (!success) {
+            return;
+          }
+
+          alert(
+            "Training batch updated successfully.",
+          );
+
+          setShowBatchForm(
+            false,
+          );
+
+          setSelectedBatch(
+            null,
+          );
+        } catch (error) {
+          console.error(
+            "SAVE TRAINING BATCH ERROR:",
+            error,
+          );
+
+          alert(
+            error instanceof Error
+              ? error.message
+              : "Unable to save training batch.",
+          );
+        } finally {
+          isSavingBatchRef.current =
+            false;
+        }
+      },
+      [
+        batchForm,
+        selectedBatch,
+        createBatch,
+        updateBatch,
+      ],
+    );
+
+  // ==========================================================
+  // UPDATE BATCH STATUS
+  // ==========================================================
+
+  const handleBatchStatus =
+    useCallback(
+      async (
+        batch: TrainingBatch,
+        status: string,
+      ) => {
+        const normalizedStatus =
+          status as
+            UpdateTrainingBatchStatusRequest;
+
+        const success =
+          await updateBatchStatus(
+            batch.id,
+            normalizedStatus,
+          );
+
+        if (!success) {
+          return;
+        }
+
+        alert(
+          `Batch status updated to ${status}.`,
+        );
+      },
+      [
+        updateBatchStatus,
+      ],
+    );
+
+  // ==========================================================
+  // PROGRAM STATS
   // ==========================================================
 
   const totalPrograms =
@@ -764,12 +1879,38 @@ export default function TrainingProgramsPage() {
     ).length;
 
   const totalParticipants =
-    programs.reduce(
-      (sum, program) =>
-        sum + program.enrolled,
+    batches.reduce(
+      (
+        total,
+        batch,
+      ) =>
+        total +
+        batch.enrolledCount,
       0,
     );
 
+  // ==========================================================
+  // BATCHES FOR SELECTED PROGRAM
+  // ==========================================================
+
+  const selectedProgramBatches =
+    useMemo(
+      () => {
+        if (!selected) {
+          return [];
+        }
+
+        return batches.filter(
+          (batch) =>
+            batch.programName ===
+            selected.title,
+        );
+      },
+      [
+        batches,
+        selected,
+      ],
+    );
 
   // ==========================================================
   // RENDER
@@ -778,18 +1919,20 @@ export default function TrainingProgramsPage() {
   return (
     <div className="space-y-6">
 
-      {/* ====================================================
-          HEADER
-      ==================================================== */}
+      {/* HEADER */}
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
 
         <div>
 
           <div className="mb-2 flex items-center gap-2 text-xs text-gray-400">
-            <span>Training</span>
+            <span>
+              Training
+            </span>
 
-            <span>/</span>
+            <span>
+              /
+            </span>
 
             <span className="font-medium text-gray-600">
               Programs
@@ -802,64 +1945,72 @@ export default function TrainingProgramsPage() {
 
           <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
             Create and manage training
-            programs, schedules, capacity,
-            trainers, and enrollment
-            requirements.
+            programs, schedules,
+            capacity, batches,
+            trainer assignments,
+            and enrollment requirements.
           </p>
 
         </div>
 
+        <div className="flex gap-2">
 
-        <Button
-          variant="primary"
-          onClick={openCreate}
-        >
-          <span className="text-lg leading-none">
-            +
-          </span>
+          <Button
+            variant="primary"
+            onClick={
+              openCreate
+            }
+          >
+            <span className="text-lg leading-none">
+              +
+            </span>
 
-          Create Training
-        </Button>
+            Create Training
+          </Button>
+
+        </div>
 
       </div>
 
-
-      {/* ====================================================
-          STAT GRID
-      ==================================================== */}
+      {/* STATS */}
 
       <StatGrid>
 
         <StatCard
           title="Total Programs"
-          value={totalPrograms}
+          value={
+            totalPrograms
+          }
           description="All training programs"
         />
 
         <StatCard
           title="Active Programs"
-          value={activePrograms}
+          value={
+            activePrograms
+          }
           description="Currently available"
         />
 
         <StatCard
           title="Draft Programs"
-          value={draftPrograms}
+          value={
+            draftPrograms
+          }
           description="Not yet published"
         />
 
         <StatCard
           title="Total Participants"
-          value={totalParticipants}
-          description="Across all programs"
+          value={
+            totalParticipants
+          }
+          description="Across all batches"
         />
 
       </StatGrid>
 
-
-      {/* ====================================================
-          INFORMATION
-      ==================================================== */}
+      {/* INFO */}
 
       <div className="flex items-start gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
 
@@ -870,38 +2021,73 @@ export default function TrainingProgramsPage() {
         <div>
 
           <p className="text-sm font-semibold text-blue-900">
-            Training requirements
+            Enrollment requirements
           </p>
 
           <p className="mt-1 text-xs leading-5 text-blue-700">
-            Requirements configured here
-            will automatically be shown to
-            participants when they enroll
-            in the selected training program.
+            Requirements configured
+            for a training program are
+            used during participant
+            enrollment.
           </p>
 
         </div>
 
       </div>
 
+      {/* ERRORS */}
 
-      {/* ====================================================
-          DATA TABLE
-      ==================================================== */}
+      {programError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
+          {programError}
+        </div>
+      )}
+
+      {batchError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
+          {batchError}
+        </div>
+      )}
+
+      {assignmentError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
+          {assignmentError}
+        </div>
+      )}
+
+      {documentError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
+          {documentError}
+        </div>
+      )}
+
+      {/* PROGRAM TABLE */}
 
       <DataTable
         title="Training Program List"
-        description="Manage available programs and their enrollment configuration."
+        description="Manage programs and their enrollment configuration."
         columns={columns}
-        data={filteredPrograms}
-        searchable={true}
+        data={
+          filteredPrograms
+        }
+        searchable
         searchPlaceholder="Search training programs..."
-        showPagination={true}
-        emptyTitle="No training programs found"
-        emptyDescription="Try changing your search or filters."
+        showPagination
+        emptyTitle={
+          isLoadingPrograms
+            ? "Loading training programs..."
+            : "No training programs found"
+        }
+        emptyDescription={
+          isLoadingPrograms
+            ? "Please wait while training programs are loaded."
+            : "Create your first training program to get started."
+        }
         addButton={{
-          label: "Create Training",
-          onClick: openCreate,
+          label:
+            "Create Training",
+          onClick:
+            openCreate,
         }}
         meta={{
           onView:
@@ -912,30 +2098,55 @@ export default function TrainingProgramsPage() {
 
           onDelete:
             handleDelete,
+
+          onCreateBatch:
+            openCreateBatch,
+
+          batches,
         }}
         toolbar={
-
           <div className="flex flex-wrap gap-2">
 
-            {/* CATEGORY */}
+            <input
+              value={
+                search
+              }
+              onChange={(
+                event,
+              ) =>
+                setSearch(
+                  event.target.value,
+                )
+              }
+              placeholder="Search..."
+              className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none focus:border-gray-300 focus:bg-white"
+            />
 
             <select
               value={
                 categoryFilter
               }
-              onChange={(event) =>
+              onChange={(
+                event,
+              ) =>
                 setCategoryFilter(
                   event.target.value,
                 )
               }
-              className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none focus:border-gray-300 focus:bg-white"
+              className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none"
             >
 
               {categories.map(
-                (category) => (
+                (
+                  category,
+                ) => (
                   <option
-                    key={category}
-                    value={category}
+                    key={
+                      category
+                    }
+                    value={
+                      category
+                    }
                   >
                     {category}
                   </option>
@@ -944,22 +2155,20 @@ export default function TrainingProgramsPage() {
 
             </select>
 
-
-            {/* STATUS */}
-
             <select
               value={
                 statusFilter
               }
-              onChange={(event) =>
+              onChange={(
+                event,
+              ) =>
                 setStatusFilter(
-                  event.target
-                    .value as
+                  event.target.value as
                     | "All"
                     | ProgramStatus,
                 )
               }
-              className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none focus:border-gray-300 focus:bg-white"
+              className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none"
             >
 
               <option value="All">
@@ -984,134 +2193,424 @@ export default function TrainingProgramsPage() {
         }
       />
 
-
-      {/* ====================================================
-          DETAILS MODAL
-      ==================================================== */}
+      {/* ======================================================
+          SELECTED PROGRAM DETAILS
+      ====================================================== */}
 
       {showDetails &&
         selected && (
+
           <ProgramDetailsModal
             program={
               selected
             }
+
+            batches={
+              selectedProgramBatches
+            }
+
+            assignments={
+              assignments
+            }
+
+            documents={
+              documents
+            }
+
+            isLoadingDocuments={
+              isLoadingDocuments
+            }
+
+            onAssignTrainer={
+              openAssignTrainer
+            }
+
+            onRemoveTrainer={
+              handleRemoveTrainer
+            }
+
             onClose={() => {
               setShowDetails(
                 false,
               );
 
-              setSelected(null);
+              setSelected(
+                null,
+              );
             }}
+
             onManage={() =>
               handleManage(
                 selected,
               )
             }
+
+            onCreateBatch={() =>
+              openCreateBatch(
+                selected,
+              )
+            }
+
+            onEditBatch={
+              openEditBatch
+            }
+
+            onDeleteBatch={
+              handleDeleteBatch
+            }
+
+            isDeletingBatch={
+              isDeletingBatch
+            }
+
+            onUpdateBatchStatus={
+              handleBatchStatus
+            }
+
+            isUpdatingStatus={
+              isUpdatingBatchStatus
+            }
           />
+
         )}
 
-
-      {/* ====================================================
-          CREATE / EDIT MODAL
-      ==================================================== */}
+      {/* ======================================================
+          PROGRAM FORM
+      ====================================================== */}
 
       {showForm && (
+
         <ProgramFormModal
           selected={
             selected
           }
-          form={form}
-          setForm={setForm}
+
+          form={
+            form
+          }
+
+          setForm={
+            setForm
+          }
+
           requirements={
             requirements
           }
+
           onAddRequirement={
             addRequirement
           }
+
           onUpdateRequirement={
             updateRequirement
           }
+
           onRemoveRequirement={
             removeRequirement
           }
+
+          selectedFiles={
+            selectedFiles
+          }
+
+          documentType={
+            documentType
+          }
+
+          setDocumentType={
+            setDocumentType
+          }
+
+          onDocumentSelect={
+            handleDocumentSelect
+          }
+
+          onRemoveSelectedFile={
+            removeSelectedFile
+          }
+
+          documents={
+            documents
+          }
+
+          isLoadingDocuments={
+            isLoadingDocuments
+          }
+
+          isUploading={
+            isUploading
+          }
+
+          isDeleting={
+            isDeletingDocument
+          }
+
+          onDeleteDocument={
+            deleteDocument
+          }
+
           onClose={
             closeForm
           }
+
           onSave={
             saveProgram
           }
+
           onDelete={() => {
-            if (
-              selected
-            ) {
+            if (selected) {
               setShowDelete(
                 true,
               );
             }
           }}
+
+          isCreating={
+            isCreatingProgram ||
+            isUpdatingProgram
+          }
         />
+
       )}
 
-
-      {/* ====================================================
-          DELETE MODAL
-      ==================================================== */}
+      {/* DELETE PROGRAM */}
 
       {showDelete &&
         selected && (
+
           <DeleteModal
             program={
               selected
             }
+
+            isDeleting={
+              isDeletingProgram
+            }
+
             onCancel={() =>
               setShowDelete(
                 false,
               )
             }
+
             onConfirm={
               confirmDelete
             }
           />
+
         )}
+
+      {/* BATCH FORM */}
+
+      {showBatchForm && (
+
+        <BatchFormModal
+          selectedBatch={
+            selectedBatch
+          }
+
+          batchForm={
+            batchForm
+          }
+
+          setBatchForm={
+            setBatchForm
+          }
+
+          programs={
+            programs
+          }
+
+          isCreating={
+            isCreatingBatch
+          }
+
+          isUpdating={
+            isUpdatingBatch
+          }
+
+          onClose={() => {
+            setShowBatchForm(
+              false,
+            );
+
+            setSelectedBatch(
+              null,
+            );
+          }}
+
+          onSave={
+            saveBatch
+          }
+        />
+
+      )}
+
+      {/* ======================================================
+          ASSIGN TRAINER MODAL
+      ====================================================== */}
+
+      {assigningBatch && (
+
+        <TrainerAssignmentModal
+          batch={
+            assigningBatch
+          }
+
+          trainers={
+            activeTrainers
+          }
+
+          assignments={
+            assignments
+          }
+
+          selectedTrainerId={
+            selectedTrainerId
+          }
+
+          setSelectedTrainerId={
+            setSelectedTrainerId
+          }
+
+          isLoadingTrainers={
+            isLoadingTrainers
+          }
+
+          isAssigning={
+            isAssigningTrainer ||
+            isCreatingAssignment
+          }
+
+          isDeleting={
+            isDeletingAssignment
+          }
+
+          onClose={() => {
+            if (
+              isAssigningTrainer ||
+              isCreatingAssignment ||
+              isDeletingAssignment
+            ) {
+              return;
+            }
+
+            setAssigningBatch(
+              null,
+            );
+
+            setSelectedTrainerId(
+              "",
+            );
+          }}
+
+          onSave={
+            saveTrainerAssignment
+          }
+        />
+
+      )}
 
     </div>
   );
 }
 
-
 // ============================================================
-// DETAILS MODAL
+// PROGRAM DETAILS MODAL
 // ============================================================
 
 function ProgramDetailsModal({
   program,
+  batches,
+  assignments,
+  documents,
+  isLoadingDocuments,
   onClose,
   onManage,
+  onCreateBatch,
+  onEditBatch,
+  onDeleteBatch,
+  isDeletingBatch,
+  onAssignTrainer,
+  onRemoveTrainer,
+  onUpdateBatchStatus,
+  isUpdatingStatus,
 }: {
   program: TrainingProgram;
-  onClose: () => void;
-  onManage: () => void;
-}) {
 
+  batches: TrainingBatch[];
+
+  assignments: TrainerAssignment[];
+
+  documents: {
+    id: string;
+    documentName: string;
+    documentType: string;
+    fileUrl: string;
+    uploadedAt: string;
+  }[];
+
+  isLoadingDocuments: boolean;
+
+  onClose: () => void;
+
+  onManage: () => void;
+
+  onCreateBatch: () => void;
+
+  onEditBatch: (
+    batch: TrainingBatch,
+  ) => void;
+
+  onDeleteBatch: (
+    batch: TrainingBatch,
+  ) => Promise<void>;
+
+  isDeletingBatch: boolean;
+
+  onAssignTrainer: (
+    batch: TrainingBatch,
+  ) => void;
+
+  onRemoveTrainer: (
+    batch: TrainingBatch,
+  ) => Promise<void>;
+
+  onUpdateBatchStatus: (
+    batch: TrainingBatch,
+    status: string,
+  ) => Promise<void>;
+
+  isUpdatingStatus: boolean;
+}) {
   return (
     <Modal
-      onClose={onClose}
+      wide
+      onClose={
+        onClose
+      }
     >
 
-      <div className="flex shrink-0 items-start justify-between border-b border-[#eef0f2] bg-white px-6 py-5">
+      {/* HEADER */}
 
-        <div className="pr-6">
+      <div className="flex shrink-0 items-start justify-between border-b border-[#eef0f2] px-6 py-5">
+
+        <div>
 
           <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-gray-400">
             Training Program
           </p>
 
-          <h2 className="mt-1 text-xl font-bold tracking-tight">
-            {program.title}
+          <h2 className="mt-1 text-xl font-bold">
+            {
+              program.title
+            }
           </h2>
 
           <p className="mt-1 font-mono text-[10px] text-gray-400">
-            {program.code}
+            {
+              program.code
+            }
           </p>
 
         </div>
@@ -1121,17 +2620,20 @@ function ProgramDetailsModal({
           onClick={
             onClose
           }
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-lg text-gray-500 hover:bg-gray-200"
+          className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 text-lg text-gray-500"
         >
           ×
         </button>
 
       </div>
 
+      {/* BODY */}
 
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
 
         <div className="space-y-5">
+
+          {/* DESCRIPTION */}
 
           <div className="rounded-2xl bg-[#f7f8fa] p-5">
 
@@ -1143,6 +2645,7 @@ function ProgramDetailsModal({
 
           </div>
 
+          {/* PROGRAM INFO */}
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 
@@ -1166,10 +2669,15 @@ function ProgramDetailsModal({
             />
 
             <Info
-              title="Schedule"
+              title="Status"
               value={
-                program.schedule
+                program.status
               }
+            />
+
+            <Info
+              title="Capacity"
+              value={`${program.enrolled} / ${program.capacity}`}
             />
 
             <Info
@@ -1179,27 +2687,332 @@ function ProgramDetailsModal({
               }
             />
 
-            <Info
-              title="Trainer"
-              value={
-                program.trainer
-              }
-            />
-
-            <Info
-              title="Capacity"
-              value={`${program.enrolled} / ${program.capacity} participants`}
-            />
-
-            <Info
-              title="Status"
-              value={
-                program.status
-              }
-            />
-
           </div>
 
+          {/* BATCHES */}
+
+          <div className="rounded-2xl border border-[#e7e9ec] p-5">
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+              <div>
+
+                <h3 className="text-sm font-bold">
+                  Training Batches
+                </h3>
+
+                <p className="mt-1 text-xs text-gray-500">
+                  Schedule and manage batches
+                  and trainer assignments
+                  for this training program.
+                </p>
+
+              </div>
+
+              <button
+                type="button"
+                onClick={
+                  onCreateBatch
+                }
+                className="rounded-xl bg-[#191c1e] px-4 py-2.5 text-[11px] font-semibold text-white"
+              >
+                + Create Batch
+              </button>
+
+            </div>
+
+            <div className="mt-4 space-y-3">
+
+              {batches.length ===
+              0 ? (
+
+                <div className="rounded-xl border border-dashed border-gray-300 p-6 text-center">
+
+                  <p className="text-xs font-semibold text-gray-600">
+                    No training batches
+                  </p>
+
+                  <p className="mt-1 text-[11px] text-gray-400">
+                    Create a batch for this
+                    training program.
+                  </p>
+
+                </div>
+
+              ) : (
+
+                batches.map(
+                  (
+                    batch,
+                  ) => {
+
+                    const assignment =
+                      assignments.find(
+                        (
+                          item,
+                        ) =>
+                          item.trainingBatchId ===
+                            batch.id &&
+                          item.isActive,
+                      );
+
+                    return (
+                      <div
+                        key={
+                          batch.id
+                        }
+                        className="rounded-xl border border-[#e7e9ec] bg-[#fafbfc] p-4"
+                      >
+
+                        <div className="flex flex-col gap-4">
+
+                          {/* BATCH HEADER */}
+
+                          <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+
+                            <div className="min-w-0 flex-1">
+
+                              <div className="flex flex-wrap items-center gap-2">
+
+                                <p className="text-xs font-bold text-gray-800">
+                                  {
+                                    batch.batchCode
+                                  }
+                                </p>
+
+                                <span className="rounded-full bg-gray-200 px-2 py-1 text-[9px] font-bold text-gray-600">
+                                  {
+                                    batch.status
+                                  }
+                                </span>
+
+                              </div>
+
+                              <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+
+                                <SmallInfo
+                                  label="Start"
+                                  value={
+                                    toDateInputValue(
+                                      batch.startDate,
+                                    )
+                                  }
+                                />
+
+                                <SmallInfo
+                                  label="End"
+                                  value={
+                                    toDateInputValue(
+                                      batch.endDate,
+                                    )
+                                  }
+                                />
+
+                                <SmallInfo
+                                  label="Capacity"
+                                  value={String(
+                                    batch.capacity,
+                                  )}
+                                />
+
+                                <SmallInfo
+                                  label="Enrolled"
+                                  value={String(
+                                    batch.enrolledCount,
+                                  )}
+                                />
+
+                              </div>
+
+                              <p className="mt-2 text-[10px] text-gray-500">
+                                Location:{" "}
+                                {batch.location ??
+                                  "Not specified"}
+                              </p>
+
+                            </div>
+
+                            {/* BATCH ACTIONS */}
+
+                            <div className="flex flex-wrap gap-2">
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  onEditBatch(
+                                    batch,
+                                  )
+                                }
+                                className="rounded-lg border border-[#e7e9ec] bg-white px-3 py-2 text-[10px] font-semibold text-gray-600 hover:bg-gray-50"
+                              >
+                                Edit
+                              </button>
+
+                              <select
+                                value={
+                                  batch.status
+                                }
+                                disabled={
+                                  isUpdatingStatus ||
+                                  isDeletingBatch
+                                }
+                                onChange={(
+                                  event,
+                                ) =>
+                                  onUpdateBatchStatus(
+                                    batch,
+                                    event.target.value,
+                                  )
+                                }
+                                className="rounded-lg border border-[#e7e9ec] bg-white px-2 py-2 text-[10px] font-semibold text-gray-600 disabled:opacity-50"
+                              >
+
+                                {batchStatuses.map(
+                                  (
+                                    status,
+                                  ) => (
+                                    <option
+                                      key={
+                                        status
+                                      }
+                                      value={
+                                        status
+                                      }
+                                    >
+                                      {status}
+                                    </option>
+                                  ),
+                                )}
+
+                              </select>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  onDeleteBatch(
+                                    batch,
+                                  )
+                                }
+                                disabled={
+                                  isDeletingBatch ||
+                                  isUpdatingStatus
+                                }
+                                className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-semibold text-red-600 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {isDeletingBatch
+                                  ? "Deleting..."
+                                  : "Delete"}
+                              </button>
+
+                            </div>
+
+                          </div>
+
+                          {/* TRAINER ASSIGNMENT */}
+
+                          <div className="rounded-xl border border-dashed border-gray-200 bg-white p-3">
+
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+                              <div className="min-w-0">
+
+                                <p className="text-[9px] font-bold uppercase tracking-wide text-gray-400">
+                                  Assigned Trainer
+                                </p>
+
+                                {assignment ? (
+
+                                  <div className="mt-1 flex items-center gap-2">
+
+                                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-900 text-[9px] font-bold text-white">
+                                      {assignment.trainerName
+                                        ?.charAt(0)
+                                        .toUpperCase() ??
+                                        "T"}
+                                    </div>
+
+                                    <div className="min-w-0">
+
+                                      <p className="truncate text-xs font-semibold text-gray-800">
+                                        {
+                                          assignment.trainerName
+                                        }
+                                      </p>
+
+                                      <p className="text-[9px] text-gray-400">
+                                        Assigned
+                                      </p>
+
+                                    </div>
+
+                                  </div>
+
+                                ) : (
+
+                                  <p className="mt-1 text-xs font-medium text-gray-400">
+                                    No trainer assigned
+                                  </p>
+
+                                )}
+
+                              </div>
+
+                              <div className="flex gap-2">
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    onAssignTrainer(
+                                      batch,
+                                    )
+                                  }
+                                  disabled={
+                                    isDeletingBatch
+                                  }
+                                  className="rounded-lg bg-gray-900 px-3 py-2 text-[10px] font-semibold text-white disabled:opacity-50"
+                                >
+                                  {assignment
+                                    ? "Change Trainer"
+                                    : "Assign Trainer"}
+                                </button>
+
+                                {assignment && (
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      onRemoveTrainer(
+                                        batch,
+                                      )
+                                    }
+                                    disabled={
+                                      isDeletingBatch
+                                    }
+                                    className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-semibold text-red-600 disabled:opacity-50"
+                                  >
+                                    Remove
+                                  </button>
+
+                                )}
+
+                              </div>
+
+                            </div>
+
+                          </div>
+
+                        </div>
+
+                      </div>
+                    );
+                  },
+                )
+
+              )}
+
+            </div>
+
+          </div>
 
           {/* REQUIREMENTS */}
 
@@ -1215,8 +3028,7 @@ function ProgramDetailsModal({
 
                 <p className="mt-1 text-xs text-gray-500">
                   Requirements participants
-                  must complete before
-                  enrollment approval.
+                  need to submit.
                 </p>
 
               </div>
@@ -1224,8 +3036,8 @@ function ProgramDetailsModal({
               <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-bold text-gray-600">
                 {
                   program.requirements.filter(
-                    (item) =>
-                      item.required,
+                    (requirement) =>
+                      requirement.required,
                   ).length
                 }{" "}
                 Required
@@ -1233,55 +3045,137 @@ function ProgramDetailsModal({
 
             </div>
 
+            <div className="mt-4 space-y-2">
+
+              {program.requirements.length ===
+              0 ? (
+
+                <div className="rounded-xl border border-dashed border-gray-300 p-6 text-center text-xs text-gray-500">
+                  No requirements configured.
+                </div>
+
+              ) : (
+
+                program.requirements.map(
+                  (
+                    requirement,
+                  ) => (
+
+                    <div
+                      key={
+                        requirement.id
+                      }
+                      className="flex items-start gap-3 rounded-xl bg-[#fafbfc] p-3"
+                    >
+
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gray-900 text-[10px] font-bold text-white">
+                        ✓
+                      </div>
+
+                      <div>
+
+                        <p className="text-xs font-semibold text-gray-800">
+                          {
+                            requirement.name
+                          }
+                        </p>
+
+                        <p className="mt-1 text-[11px] leading-5 text-gray-500">
+                          {
+                            requirement.description ||
+                            "No description."
+                          }
+                        </p>
+
+                      </div>
+
+                    </div>
+
+                  ),
+                )
+
+              )}
+
+            </div>
+
+          </div>
+
+          {/* DOCUMENTS */}
+
+          <div className="rounded-2xl border border-[#e7e9ec] p-5">
+
+            <h3 className="text-sm font-bold">
+              Training Documents
+            </h3>
+
+            <p className="mt-1 text-xs text-gray-500">
+              Documents attached to this
+              training program.
+            </p>
 
             <div className="mt-4 space-y-2">
 
-              {program.requirements.map(
-                (
-                  requirement,
-                ) => (
+              {isLoadingDocuments ? (
 
-                  <div
-                    key={
-                      requirement.id
-                    }
-                    className="flex items-center gap-3 rounded-xl bg-[#f8f9fa] p-3"
-                  >
+                <div className="rounded-xl bg-[#fafbfc] p-5 text-center text-xs text-gray-500">
+                  Loading documents...
+                </div>
 
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#191c1e] text-white">
-                      ✓
-                    </div>
+              ) : documents.length ===
+                0 ? (
 
-                    <div className="min-w-0 flex-1">
+                <div className="rounded-xl border border-dashed border-gray-300 p-6 text-center text-xs text-gray-500">
+                  No documents uploaded.
+                </div>
 
-                      <p className="text-xs font-semibold">
-                        {
-                          requirement.name
-                        }
-                      </p>
+              ) : (
 
-                      <p className="mt-0.5 text-[10px] leading-4 text-gray-500">
-                        {
-                          requirement.description
-                        }
-                      </p>
+                documents.map(
+                  (
+                    document,
+                  ) => (
 
-                    </div>
-
-                    <span
-                      className={`text-[9px] font-bold uppercase ${
-                        requirement.required
-                          ? "text-red-600"
-                          : "text-gray-400"
-                      }`}
+                    <a
+                      key={
+                        document.id
+                      }
+                      href={
+                        document.fileUrl
+                      }
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-3 rounded-xl bg-[#fafbfc] p-3"
                     >
-                      {requirement.required
-                        ? "Required"
-                        : "Optional"}
-                    </span>
 
-                  </div>
-                ),
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-200">
+                        📄
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+
+                        <p className="truncate text-xs font-semibold">
+                          {
+                            document.documentName
+                          }
+                        </p>
+
+                        <p className="mt-1 text-[10px] text-gray-500">
+                          {
+                            document.documentType
+                          }
+                        </p>
+
+                      </div>
+
+                      <span className="text-xs text-gray-400">
+                        ↗
+                      </span>
+
+                    </a>
+
+                  ),
+                )
+
               )}
 
             </div>
@@ -1292,15 +3186,16 @@ function ProgramDetailsModal({
 
       </div>
 
+      {/* FOOTER */}
 
-      <div className="flex shrink-0 gap-2 border-t border-[#eef0f2] bg-white px-6 py-4">
+      <div className="flex shrink-0 gap-2 border-t border-[#eef0f2] px-6 py-4">
 
         <button
           type="button"
           onClick={
             onManage
           }
-          className="flex-1 rounded-xl bg-[#191c1e] py-3 text-xs font-semibold text-white hover:opacity-90"
+          className="flex-1 rounded-xl bg-[#191c1e] py-3 text-xs font-semibold text-white"
         >
           Manage Program
         </button>
@@ -1310,7 +3205,7 @@ function ProgramDetailsModal({
           onClick={
             onClose
           }
-          className="rounded-xl border border-[#e7e9ec] px-5 py-3 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+          className="rounded-xl border border-[#e7e9ec] px-5 py-3 text-xs font-semibold text-gray-600"
         >
           Close
         </button>
@@ -1321,9 +3216,726 @@ function ProgramDetailsModal({
   );
 }
 
+// ============================================================
+// TRAINER ASSIGNMENT MODAL
+// ============================================================
+
+function TrainerAssignmentModal({
+  batch,
+  trainers,
+  assignments,
+  selectedTrainerId,
+  setSelectedTrainerId,
+  isLoadingTrainers,
+  isAssigning,
+  isDeleting,
+  onClose,
+  onSave,
+}: {
+  batch: TrainingBatch;
+
+  trainers: TrainerProfile[];
+
+  assignments: TrainerAssignment[];
+
+  selectedTrainerId: string;
+
+  setSelectedTrainerId: (
+    value: string,
+  ) => void;
+
+  isLoadingTrainers: boolean;
+
+  isAssigning: boolean;
+
+  isDeleting: boolean;
+
+  onClose: () => void;
+
+  onSave: () => void;
+}) {
+  const currentAssignment =
+    assignments.find(
+      (assignment) =>
+        assignment.trainingBatchId ===
+          batch.id &&
+        assignment.isActive,
+    );
+
+  const isSaving =
+    isAssigning ||
+    isDeleting;
+
+  return (
+    <Modal
+      onClose={
+        onClose
+      }
+    >
+
+      {/* HEADER */}
+
+      <div className="flex shrink-0 items-start justify-between border-b border-[#eef0f2] px-6 py-5">
+
+        <div>
+
+          <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-gray-400">
+            Trainer Assignment
+          </p>
+
+          <h2 className="mt-1 text-xl font-bold text-gray-900">
+            {currentAssignment
+              ? "Change Trainer"
+              : "Assign Trainer"}
+          </h2>
+
+          <p className="mt-1 text-xs text-gray-500">
+            Assign an active trainer to
+            this training batch.
+          </p>
+
+        </div>
+
+        <button
+          type="button"
+          onClick={
+            onClose
+          }
+          disabled={
+            isSaving
+          }
+          className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 text-lg text-gray-500 disabled:opacity-50"
+        >
+          ×
+        </button>
+
+      </div>
+
+      {/* BODY */}
+
+      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+
+        <div className="space-y-5">
+
+          {/* BATCH INFORMATION */}
+
+          <div className="rounded-2xl bg-[#f7f8fa] p-5">
+
+            <p className="text-[9px] font-bold uppercase tracking-wide text-gray-400">
+              Training Batch
+            </p>
+
+            <p className="mt-1 text-sm font-bold text-gray-900">
+              {
+                batch.batchCode
+              }
+            </p>
+
+            <div className="mt-3 grid grid-cols-2 gap-3">
+
+              <SmallInfo
+                label="Program"
+                value={
+                  batch.programName
+                }
+              />
+
+              <SmallInfo
+                label="Capacity"
+                value={
+                  String(
+                    batch.capacity,
+                  )
+                }
+              />
+
+              <SmallInfo
+                label="Start"
+                value={
+                  toDateInputValue(
+                    batch.startDate,
+                  )
+                }
+              />
+
+              <SmallInfo
+                label="End"
+                value={
+                  toDateInputValue(
+                    batch.endDate,
+                  )
+                }
+              />
+
+            </div>
+
+          </div>
+
+          {/* CURRENT TRAINER */}
+
+          {currentAssignment && (
+
+            <div className="rounded-xl border border-green-200 bg-green-50 p-4">
+
+              <p className="text-[9px] font-bold uppercase tracking-wide text-green-600">
+                Current Trainer
+              </p>
+
+              <div className="mt-2 flex items-center gap-3">
+
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-600 text-sm font-bold text-white">
+                  {currentAssignment.trainerName
+                    ?.charAt(0)
+                    .toUpperCase() ??
+                    "T"}
+                </div>
+
+                <div>
+
+                  <p className="text-xs font-bold text-green-900">
+                    {
+                      currentAssignment.trainerName
+                    }
+                  </p>
+
+                  <p className="mt-0.5 text-[10px] text-green-700">
+                    Currently assigned
+                  </p>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          )}
+
+          {/* TRAINER SELECT */}
+
+          <div>
+
+            <label className="mb-1.5 block text-[11px] font-bold text-gray-600">
+              Select Trainer
+              <span className="ml-1 text-red-500">
+                *
+              </span>
+            </label>
+
+            {isLoadingTrainers ? (
+
+              <div className="rounded-xl border border-[#e7e9ec] bg-[#fafbfc] p-4 text-xs text-gray-500">
+                Loading active trainers...
+              </div>
+
+            ) : trainers.length ===
+              0 ? (
+
+              <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+
+                <p className="text-xs font-semibold text-red-700">
+                  No active trainers found.
+                </p>
+
+                <p className="mt-1 text-[10px] leading-5 text-red-600">
+                  Activate a trainer profile
+                  before assigning a trainer
+                  to this batch.
+                </p>
+
+              </div>
+
+            ) : (
+
+              <select
+                value={
+                  selectedTrainerId
+                }
+                onChange={(
+                  event,
+                ) =>
+                  setSelectedTrainerId(
+                    event.target.value,
+                  )
+                }
+                disabled={
+                  isSaving
+                }
+                className="h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#fafbfc] px-3 text-xs outline-none focus:border-gray-300 focus:bg-white disabled:opacity-50"
+              >
+
+                <option value="">
+                  Select a trainer...
+                </option>
+
+                {trainers.map(
+                  (
+                    trainer,
+                  ) => (
+
+                    <option
+                      key={
+                        trainer.id
+                      }
+                      value={
+                        trainer.id
+                      }
+                    >
+                      {
+                        trainer.fullName
+                      }
+                      {" — "}
+                      {
+                        trainer.specialization
+                      }
+                    </option>
+
+                  ),
+                )}
+
+              </select>
+
+            )}
+
+          </div>
+
+          {/* SELECTED TRAINER PREVIEW */}
+
+          {selectedTrainerId && (
+
+            (() => {
+              const trainer =
+                trainers.find(
+                  (item) =>
+                    item.id ===
+                    selectedTrainerId,
+                );
+
+              if (!trainer) {
+                return null;
+              }
+
+              return (
+                <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+
+                  <p className="text-[9px] font-bold uppercase tracking-wide text-blue-600">
+                    Selected Trainer
+                  </p>
+
+                  <div className="mt-2 flex items-center gap-3">
+
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-900 text-sm font-bold text-white">
+                      {trainer.fullName
+                        ?.charAt(0)
+                        .toUpperCase() ??
+                        "T"}
+                    </div>
+
+                    <div className="min-w-0">
+
+                      <p className="truncate text-xs font-bold text-gray-900">
+                        {
+                          trainer.fullName
+                        }
+                      </p>
+
+                      <p className="mt-0.5 text-[10px] text-gray-500">
+                        {
+                          trainer.specialization ||
+                          "No specialization"
+                        }
+                      </p>
+
+                      <p className="mt-0.5 text-[10px] text-gray-400">
+                        {
+                          trainer.email
+                        }
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                </div>
+              );
+            })()
+
+          )}
+
+        </div>
+
+      </div>
+
+      {/* FOOTER */}
+
+      <div className="flex shrink-0 justify-end gap-2 border-t border-[#eef0f2] px-6 py-4">
+
+        <button
+          type="button"
+          onClick={
+            onClose
+          }
+          disabled={
+            isSaving
+          }
+          className="rounded-xl border border-[#e7e9ec] px-5 py-3 text-xs font-semibold text-gray-600 disabled:opacity-50"
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          onClick={
+            onSave
+          }
+          disabled={
+            isSaving ||
+            isLoadingTrainers ||
+            trainers.length === 0 ||
+            !selectedTrainerId
+          }
+          className="rounded-xl bg-[#191c1e] px-5 py-3 text-xs font-semibold text-white disabled:opacity-50"
+        >
+          {isSaving
+            ? "Assigning..."
+            : currentAssignment
+              ? "Change Trainer"
+              : "Assign Trainer"}
+        </button>
+
+      </div>
+
+    </Modal>
+  );
+}
 
 // ============================================================
-// FORM MODAL
+// BATCH FORM MODAL
+// ============================================================
+
+function BatchFormModal({
+  selectedBatch,
+  batchForm,
+  setBatchForm,
+  programs,
+  isCreating,
+  isUpdating,
+  onClose,
+  onSave,
+}: {
+  selectedBatch:
+    | TrainingBatch
+    | null;
+
+  batchForm: BatchFormState;
+
+  setBatchForm: React.Dispatch<
+    React.SetStateAction<BatchFormState>
+  >;
+
+  programs: TrainingProgram[];
+
+  isCreating: boolean;
+
+  isUpdating: boolean;
+
+  onClose: () => void;
+
+  onSave: () => void;
+}) {
+  const isSaving =
+    isCreating ||
+    isUpdating;
+
+  return (
+    <Modal
+      onClose={
+        onClose
+      }
+    >
+
+      <div className="flex shrink-0 items-start justify-between border-b border-[#eef0f2] px-6 py-5">
+
+        <div>
+
+          <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-gray-400">
+            Training Management
+          </p>
+
+          <h2 className="mt-1 text-xl font-bold">
+            {
+              selectedBatch
+                ? "Edit Training Batch"
+                : "Create Training Batch"
+            }
+          </h2>
+
+        </div>
+
+        <button
+          type="button"
+          onClick={
+            onClose
+          }
+          disabled={
+            isSaving
+          }
+          className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 text-lg text-gray-500"
+        >
+          ×
+        </button>
+
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+
+        <div className="space-y-5">
+
+          <FormSelect
+            label="Training Program"
+            value={
+              batchForm.trainingProgramId
+            }
+            options={
+              programs.map(
+                (program) =>
+                  program.id,
+              )
+            }
+            optionLabels={
+              programs.reduce(
+                (
+                  result,
+                  program,
+                ) => ({
+                  ...result,
+                  [program.id]:
+                    `${program.code} — ${program.title}`,
+                }),
+                {} as Record<
+                  string,
+                  string
+                >,
+              )
+            }
+            onChange={(
+              value,
+            ) =>
+              setBatchForm(
+                (
+                  current,
+                ) => ({
+                  ...current,
+                  trainingProgramId:
+                    value,
+                }),
+              )
+            }
+          />
+
+          <FormInput
+            label="Batch Code"
+            value={
+              batchForm.batchCode
+            }
+            onChange={(
+              value,
+            ) =>
+              setBatchForm(
+                (
+                  current,
+                ) => ({
+                  ...current,
+                  batchCode:
+                    value,
+                }),
+              )
+            }
+            placeholder="AFS-001"
+            required
+          />
+
+          <FormInput
+            label="Location"
+            value={
+              batchForm.location
+            }
+            onChange={(
+              value,
+            ) =>
+              setBatchForm(
+                (
+                  current,
+                ) => ({
+                  ...current,
+                  location:
+                    value,
+                }),
+              )
+            }
+            placeholder="CDM Training Room"
+          />
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+
+            <FormInput
+              label="Start Date"
+              type="date"
+              value={
+                batchForm.startDate
+              }
+              onChange={(
+                value,
+              ) =>
+                setBatchForm(
+                  (
+                    current,
+                  ) => ({
+                    ...current,
+                    startDate:
+                      value,
+                  }),
+                )
+              }
+              required
+            />
+
+            <FormInput
+              label="End Date"
+              type="date"
+              value={
+                batchForm.endDate
+              }
+              onChange={(
+                value,
+              ) =>
+                setBatchForm(
+                  (
+                    current,
+                  ) => ({
+                    ...current,
+                    endDate:
+                      value,
+                  }),
+                )
+              }
+              required
+            />
+
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+
+            <FormInput
+              label="Start Time"
+              type="time"
+              value={
+                batchForm.startTime
+              }
+              onChange={(
+                value,
+              ) =>
+                setBatchForm(
+                  (
+                    current,
+                  ) => ({
+                    ...current,
+                    startTime:
+                      value,
+                  }),
+                )
+              }
+            />
+
+            <FormInput
+              label="End Time"
+              type="time"
+              value={
+                batchForm.endTime
+              }
+              onChange={(
+                value,
+              ) =>
+                setBatchForm(
+                  (
+                    current,
+                  ) => ({
+                    ...current,
+                    endTime:
+                      value,
+                  }),
+                )
+              }
+            />
+
+          </div>
+
+          <FormInput
+            label="Capacity"
+            type="number"
+            value={
+              batchForm.capacity
+            }
+            onChange={(
+              value,
+            ) =>
+              setBatchForm(
+                (
+                  current,
+                ) => ({
+                  ...current,
+                  capacity:
+                    value,
+                }),
+              )
+            }
+            placeholder="30"
+            required
+          />
+
+        </div>
+
+      </div>
+
+      <div className="flex shrink-0 justify-end gap-2 border-t border-[#eef0f2] px-6 py-4">
+
+        <button
+          type="button"
+          onClick={
+            onClose
+          }
+          disabled={
+            isSaving
+          }
+          className="rounded-xl border border-[#e7e9ec] px-5 py-3 text-xs font-semibold text-gray-600"
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          onClick={
+            onSave
+          }
+          disabled={
+            isSaving
+          }
+          className="rounded-xl bg-[#191c1e] px-5 py-3 text-xs font-semibold text-white disabled:opacity-50"
+        >
+          {isSaving
+            ? "Saving..."
+            : selectedBatch
+              ? "Save Changes"
+              : "Create Batch"}
+        </button>
+
+      </div>
+
+    </Modal>
+  );
+}
+
+// ============================================================
+// PROGRAM FORM MODAL
 // ============================================================
 
 function ProgramFormModal({
@@ -1334,9 +3946,20 @@ function ProgramFormModal({
   onAddRequirement,
   onUpdateRequirement,
   onRemoveRequirement,
+  selectedFiles,
+  documentType,
+  setDocumentType,
+  onDocumentSelect,
+  onRemoveSelectedFile,
+  documents,
+  isLoadingDocuments,
+  isUploading,
+  isDeleting,
+  onDeleteDocument,
   onClose,
   onSave,
   onDelete,
+  isCreating,
 }: {
   selected:
     | TrainingProgram
@@ -1347,31 +3970,17 @@ function ProgramFormModal({
     title: string;
     category: string;
     description: string;
-    duration: string;
     hours: string;
-    capacity: string;
-    schedule: string;
-    location: string;
-    trainer: string;
-    status: ProgramStatus;
   };
 
   setForm: React.Dispatch<
-    React.SetStateAction<
-      {
-        code: string;
-        title: string;
-        category: string;
-        description: string;
-        duration: string;
-        hours: string;
-        capacity: string;
-        schedule: string;
-        location: string;
-        trainer: string;
-        status: ProgramStatus;
-      }
-    >
+    React.SetStateAction<{
+      code: string;
+      title: string;
+      category: string;
+      description: string;
+      hours: string;
+    }>
   >;
 
   requirements: Requirement[];
@@ -1390,60 +3999,97 @@ function ProgramFormModal({
     id: string,
   ) => void;
 
+  selectedFiles: {
+    id: string;
+    file: File;
+    documentType: string;
+  }[];
+
+  documentType: string;
+
+  setDocumentType: (
+    value: string,
+  ) => void;
+
+  onDocumentSelect: (
+    file: File,
+  ) => void;
+
+  onRemoveSelectedFile: (
+    id: string,
+  ) => void;
+
+  documents: {
+    id: string;
+    documentName: string;
+    documentType: string;
+    fileUrl: string;
+    uploadedAt: string;
+  }[];
+
+  isLoadingDocuments: boolean;
+
+  isUploading: boolean;
+
+  isDeleting: boolean;
+
+  onDeleteDocument: (
+    documentId: string,
+  ) => Promise<boolean>;
+
   onClose: () => void;
 
   onSave: () => void;
 
   onDelete: () => void;
-}) {
 
+  isCreating: boolean;
+}) {
   return (
     <Modal
       wide
-      onClose={onClose}
+      onClose={
+        onClose
+      }
     >
 
-      {/* HEADER */}
+      <div className="flex shrink-0 items-start justify-between border-b border-[#eef0f2] px-6 py-5">
 
-      <div className="flex shrink-0 items-start justify-between border-b border-[#eef0f2] bg-white px-6 py-5">
-
-        <div className="pr-6">
+        <div>
 
           <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-gray-400">
             Training Management
           </p>
 
-          <h2 className="mt-1 text-xl font-bold tracking-tight">
-            {selected
-              ? "Manage Training Program"
-              : "Create Training Program"}
+          <h2 className="mt-1 text-xl font-bold">
+            {
+              selected
+                ? "Manage Training Program"
+                : "Create Training Program"
+            }
           </h2>
-
-          <p className="mt-1 text-xs leading-5 text-gray-500">
-            Configure training information
-            and enrollment requirements.
-          </p>
 
         </div>
 
         <button
           type="button"
-          onClick={onClose}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-lg text-gray-500 hover:bg-gray-200"
+          onClick={
+            onClose
+          }
+          disabled={
+            isCreating ||
+            isUploading
+          }
+          className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 text-lg text-gray-500"
         >
           ×
         </button>
 
       </div>
 
-
-      {/* BODY */}
-
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
 
         <div className="space-y-6">
-
-          {/* BASIC */}
 
           <FormSection
             title="Basic Information"
@@ -1462,15 +4108,16 @@ function ProgramFormModal({
                 ) =>
                   setForm({
                     ...form,
-                    code: value,
+                    code:
+                      value,
                   })
                 }
-                placeholder="e.g. CSS-NCII"
+                placeholder="CSS-NCII"
                 required
               />
 
               <FormInput
-                label="Training Title"
+                label="Training Name"
                 value={
                   form.title
                 }
@@ -1512,29 +4159,26 @@ function ProgramFormModal({
                 }
               />
 
-              <FormSelect
-                label="Status"
+              <FormInput
+                label="Duration Hours"
+                type="number"
                 value={
-                  form.status
+                  form.hours
                 }
-                options={[
-                  "Active",
-                  "Draft",
-                  "Archived",
-                ]}
                 onChange={(
                   value,
                 ) =>
                   setForm({
                     ...form,
-                    status:
-                      value as ProgramStatus,
+                    hours:
+                      value,
                   })
                 }
+                placeholder="268"
+                required
               />
 
             </div>
-
 
             <FormTextarea
               label="Description"
@@ -1550,149 +4194,22 @@ function ProgramFormModal({
                     value,
                 })
               }
-              placeholder="Describe what participants will learn..."
+              placeholder="Describe the training program..."
               required
             />
 
           </FormSection>
 
-
-          {/* SCHEDULE */}
-
-          <FormSection
-            title="Schedule & Capacity"
-            description="Define when and where the training will be conducted."
-          >
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-
-              <FormInput
-                label="Training Duration"
-                value={
-                  form.duration
-                }
-                onChange={(
-                  value,
-                ) =>
-                  setForm({
-                    ...form,
-                    duration:
-                      value,
-                  })
-                }
-                placeholder="e.g. Aug 20 – Oct 20, 2026"
-                required
-              />
-
-              <FormInput
-                label="Training Hours"
-                value={
-                  form.hours
-                }
-                onChange={(
-                  value,
-                ) =>
-                  setForm({
-                    ...form,
-                    hours:
-                      value,
-                  })
-                }
-                type="number"
-                placeholder="e.g. 268"
-                required
-              />
-
-              <FormInput
-                label="Schedule"
-                value={
-                  form.schedule
-                }
-                onChange={(
-                  value,
-                ) =>
-                  setForm({
-                    ...form,
-                    schedule:
-                      value,
-                  })
-                }
-                placeholder="e.g. Mon – Fri, 8 AM – 5 PM"
-                required
-              />
-
-              <FormInput
-                label="Participant Capacity"
-                value={
-                  form.capacity
-                }
-                onChange={(
-                  value,
-                ) =>
-                  setForm({
-                    ...form,
-                    capacity:
-                      value,
-                  })
-                }
-                type="number"
-                placeholder="e.g. 25"
-                required
-              />
-
-              <FormInput
-                label="Training Location"
-                value={
-                  form.location
-                }
-                onChange={(
-                  value,
-                ) =>
-                  setForm({
-                    ...form,
-                    location:
-                      value,
-                  })
-                }
-                placeholder="e.g. Computer Laboratory 1"
-                required
-              />
-
-              <FormInput
-                label="Assigned Trainer"
-                value={
-                  form.trainer
-                }
-                onChange={(
-                  value,
-                ) =>
-                  setForm({
-                    ...form,
-                    trainer:
-                      value,
-                  })
-                }
-                placeholder="e.g. Maria Santos"
-                required
-              />
-
-            </div>
-
-          </FormSection>
-
-
-          {/* REQUIREMENTS */}
-
           <FormSection
             title="Enrollment Requirements"
-            description="These requirements will automatically appear when participants enroll in this training."
+            description="Documents and requirements participants must complete."
             action={
               <button
                 type="button"
                 onClick={
                   onAddRequirement
                 }
-                className="rounded-lg border border-[#e7e9ec] px-3 py-2 text-[11px] font-semibold text-gray-600 hover:bg-gray-50"
+                className="rounded-lg border border-[#e7e9ec] px-3 py-2 text-[11px] font-semibold text-gray-600"
               >
                 + Add Requirement
               </button>
@@ -1714,17 +4231,17 @@ function ProgramFormModal({
                     className="rounded-xl border border-[#e7e9ec] bg-[#fafbfc] p-4"
                   >
 
-                    <div className="flex items-start gap-3">
+                    <div className="flex gap-3">
 
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#191c1e] text-[10px] font-bold text-white">
-                        {index +
-                          1}
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-900 text-[10px] font-bold text-white">
+                        {
+                          index + 1
+                        }
                       </div>
-
 
                       <div className="min-w-0 flex-1">
 
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto]">
+                        <div className="grid gap-3 md:grid-cols-[1fr_auto]">
 
                           <input
                             value={
@@ -1736,16 +4253,14 @@ function ProgramFormModal({
                               onUpdateRequirement(
                                 requirement.id,
                                 "name",
-                                event
-                                  .target
-                                  .value,
+                                event.target.value,
                               )
                             }
                             placeholder="Requirement name"
-                            className="h-10 rounded-lg border border-[#e7e9ec] bg-white px-3 text-xs font-semibold outline-none focus:border-gray-300"
+                            className="h-10 rounded-lg border border-[#e7e9ec] bg-white px-3 text-xs outline-none"
                           />
 
-                          <label className="flex h-10 items-center gap-2 rounded-lg border border-[#e7e9ec] bg-white px-3">
+                          <label className="flex items-center gap-2 rounded-lg border border-[#e7e9ec] bg-white px-3">
 
                             <input
                               type="checkbox"
@@ -1758,22 +4273,18 @@ function ProgramFormModal({
                                 onUpdateRequirement(
                                   requirement.id,
                                   "required",
-                                  event
-                                    .target
-                                    .checked,
+                                  event.target.checked,
                                 )
                               }
-                              className="h-3.5 w-3.5"
                             />
 
-                            <span className="text-[10px] font-semibold text-gray-600">
+                            <span className="text-[10px] font-semibold">
                               Required
                             </span>
 
                           </label>
 
                         </div>
-
 
                         <textarea
                           value={
@@ -1785,20 +4296,15 @@ function ProgramFormModal({
                             onUpdateRequirement(
                               requirement.id,
                               "description",
-                              event
-                                .target
-                                .value,
+                              event.target.value,
                             )
                           }
-                          placeholder="Describe this requirement..."
-                          rows={
-                            2
-                          }
-                          className="mt-2 w-full resize-none rounded-lg border border-[#e7e9ec] bg-white px-3 py-2 text-xs outline-none focus:border-gray-300"
+                          placeholder="Requirement description"
+                          rows={2}
+                          className="mt-2 w-full resize-none rounded-lg border border-[#e7e9ec] bg-white px-3 py-2 text-xs outline-none"
                         />
 
                       </div>
-
 
                       <button
                         type="button"
@@ -1807,7 +4313,7 @@ function ProgramFormModal({
                             requirement.id,
                           )
                         }
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600"
+                        className="h-8 w-8 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600"
                       >
                         ×
                       </button>
@@ -1815,32 +4321,253 @@ function ProgramFormModal({
                     </div>
 
                   </div>
+
                 ),
               )}
 
             </div>
 
+          </FormSection>
 
-            {requirements.length ===
-              0 && (
-                <div className="rounded-xl border border-dashed border-gray-300 p-8 text-center">
+          <FormSection
+            title="Training Documents"
+            description="Upload manuals, curriculum, syllabus, guides, and other training files."
+            action={
+              <label className="cursor-pointer rounded-lg border border-[#e7e9ec] px-3 py-2 text-[11px] font-semibold text-gray-600">
 
-                  <p className="text-xs font-semibold">
-                    No requirements added
-                  </p>
+                + Add Document
 
-                  <button
-                    type="button"
-                    onClick={
-                      onAddRequirement
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                  className="hidden"
+                  onChange={(
+                    event,
+                  ) => {
+                    const file =
+                      event.target.files?.[0];
+
+                    if (!file) {
+                      return;
                     }
-                    className="mt-4 rounded-lg bg-[#191c1e] px-3 py-2 text-[11px] font-semibold text-white"
-                  >
-                    + Add Requirement
-                  </button>
 
-                </div>
-              )}
+                    onDocumentSelect(
+                      file,
+                    );
+
+                    event.target.value =
+                      "";
+                  }}
+                />
+
+              </label>
+            }
+          >
+
+            <div>
+
+              <label className="mb-1.5 block text-[11px] font-bold text-gray-600">
+                Document Type
+              </label>
+
+              <select
+                value={
+                  documentType
+                }
+                onChange={(
+                  event,
+                ) =>
+                  setDocumentType(
+                    event.target.value,
+                  )
+                }
+                className="h-10 w-full rounded-xl border border-[#e7e9ec] bg-[#fafbfc] px-3 text-xs outline-none"
+              >
+
+                <option value="TrainingManual">
+                  Training Manual
+                </option>
+
+                <option value="Curriculum">
+                  Curriculum
+                </option>
+
+                <option value="Syllabus">
+                  Syllabus
+                </option>
+
+                <option value="TrainingGuide">
+                  Training Guide
+                </option>
+
+                <option value="Other">
+                  Other
+                </option>
+
+              </select>
+
+            </div>
+
+            {selectedFiles.length >
+              0 && (
+
+              <div className="space-y-2">
+
+                <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                  Files to Upload
+                </p>
+
+                {selectedFiles.map(
+                  (
+                    item,
+                  ) => (
+
+                    <div
+                      key={
+                        item.id
+                      }
+                      className="flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50/50 p-3"
+                    >
+
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100">
+                        📄
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+
+                        <p className="truncate text-xs font-semibold">
+                          {
+                            item.file.name
+                          }
+                        </p>
+
+                        <p className="mt-1 text-[10px] text-gray-500">
+                          {
+                            item.documentType
+                          }
+                        </p>
+
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onRemoveSelectedFile(
+                            item.id,
+                          )
+                        }
+                        disabled={
+                          isUploading
+                        }
+                        className="h-8 w-8 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600"
+                      >
+                        ×
+                      </button>
+
+                    </div>
+
+                  ),
+                )}
+
+              </div>
+
+            )}
+
+            {selected && (
+
+              <div className="space-y-2">
+
+                <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                  Uploaded Documents
+                </p>
+
+                {isLoadingDocuments ? (
+
+                  <div className="rounded-xl bg-gray-50 p-5 text-center text-xs text-gray-500">
+                    Loading documents...
+                  </div>
+
+                ) : documents.length ===
+                  0 ? (
+
+                  <div className="rounded-xl border border-dashed border-gray-300 p-6 text-center text-xs text-gray-500">
+                    No documents uploaded.
+                  </div>
+
+                ) : (
+
+                  documents.map(
+                    (
+                      document,
+                    ) => (
+
+                      <div
+                        key={
+                          document.id
+                        }
+                        className="flex items-center gap-3 rounded-xl bg-[#fafbfc] p-3"
+                      >
+
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-200">
+                          📄
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+
+                          <a
+                            href={
+                              document.fileUrl
+                            }
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block truncate text-xs font-semibold hover:underline"
+                          >
+                            {
+                              document.documentName
+                            }
+                          </a>
+
+                          <p className="mt-1 text-[10px] text-gray-500">
+                            {
+                              document.documentType
+                            }
+                          </p>
+
+                        </div>
+
+                        <button
+                          type="button"
+                          disabled={
+                            isDeleting
+                          }
+                          onClick={async () => {
+                            if (
+                              !window.confirm(
+                                `Delete ${document.documentName}?`,
+                              )
+                            ) {
+                              return;
+                            }
+
+                            await onDeleteDocument(
+                              document.id,
+                            );
+                          }}
+                          className="rounded-lg px-2 py-1 text-[10px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                        >
+                          Delete
+                        </button>
+
+                      </div>
+
+                    ),
+                  )
+
+                )}
+
+              </div>
+
+            )}
 
           </FormSection>
 
@@ -1848,21 +4575,25 @@ function ProgramFormModal({
 
       </div>
 
-
-      {/* FOOTER */}
-
-      <div className="flex shrink-0 flex-col gap-2 border-t border-[#eef0f2] bg-white px-6 py-4 sm:flex-row sm:items-center sm:justify-end">
+      <div className="flex shrink-0 flex-col gap-2 border-t border-[#eef0f2] px-6 py-4 sm:flex-row sm:justify-end">
 
         {selected && (
+
           <button
             type="button"
             onClick={
               onDelete
             }
+            disabled={
+              isCreating ||
+              isUploading ||
+              isDeleting
+            }
             className="rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-xs font-semibold text-red-700 hover:bg-red-100 sm:mr-auto"
           >
             Delete Program
           </button>
+
         )}
 
         <button
@@ -1870,7 +4601,11 @@ function ProgramFormModal({
           onClick={
             onClose
           }
-          className="rounded-xl border border-[#e7e9ec] px-5 py-3 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+          disabled={
+            isCreating ||
+            isUploading
+          }
+          className="rounded-xl border border-[#e7e9ec] px-5 py-3 text-xs font-semibold text-gray-600"
         >
           Cancel
         </button>
@@ -1880,11 +4615,19 @@ function ProgramFormModal({
           onClick={
             onSave
           }
-          className="rounded-xl bg-[#191c1e] px-5 py-3 text-xs font-semibold text-white hover:opacity-90"
+          disabled={
+            isCreating ||
+            isUploading
+          }
+          className="rounded-xl bg-[#191c1e] px-5 py-3 text-xs font-semibold text-white disabled:opacity-50"
         >
-          {selected
-            ? "Save Changes"
-            : "Create Training"}
+          {isUploading
+            ? "Uploading..."
+            : isCreating
+              ? "Saving..."
+              : selected
+                ? "Save Changes"
+                : "Create Training"}
         </button>
 
       </div>
@@ -1893,27 +4636,30 @@ function ProgramFormModal({
   );
 }
 
-
 // ============================================================
-// DELETE MODAL
+// DELETE PROGRAM MODAL
 // ============================================================
 
 function DeleteModal({
   program,
+  isDeleting,
   onCancel,
   onConfirm,
 }: {
   program: TrainingProgram;
+
+  isDeleting: boolean;
+
   onCancel: () => void;
+
   onConfirm: () => void;
 }) {
-
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
+    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
 
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
 
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-50 text-lg font-bold text-red-600">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-50 font-bold text-red-600">
           !
         </div>
 
@@ -1922,12 +4668,17 @@ function DeleteModal({
         </h2>
 
         <p className="mt-2 text-sm leading-6 text-gray-500">
+
           Are you sure you want to
           delete{" "}
+
           <strong>
-            {program.title}
+            {
+              program.title
+            }
           </strong>
           ?
+
         </p>
 
         <div className="mt-6 flex gap-3">
@@ -1937,7 +4688,10 @@ function DeleteModal({
             onClick={
               onCancel
             }
-            className="flex-1 rounded-xl border border-[#e7e9ec] py-3 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+            disabled={
+              isDeleting
+            }
+            className="flex-1 rounded-xl border border-[#e7e9ec] py-3 text-xs font-semibold text-gray-600"
           >
             Cancel
           </button>
@@ -1947,9 +4701,14 @@ function DeleteModal({
             onClick={
               onConfirm
             }
-            className="flex-1 rounded-xl bg-red-600 py-3 text-xs font-semibold text-white hover:bg-red-700"
+            disabled={
+              isDeleting
+            }
+            className="flex-1 rounded-xl bg-red-600 py-3 text-xs font-semibold text-white disabled:opacity-50"
           >
-            Delete Program
+            {isDeleting
+              ? "Deleting..."
+              : "Delete Program"}
           </button>
 
         </div>
@@ -1960,9 +4719,8 @@ function DeleteModal({
   );
 }
 
-
 // ============================================================
-// MODAL
+// GENERIC MODAL
 // ============================================================
 
 function Modal({
@@ -1974,38 +4732,36 @@ function Modal({
   onClose: () => void;
   wide?: boolean;
 }) {
-
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-3 backdrop-blur-[2px] sm:p-5"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-3 backdrop-blur-sm"
       onMouseDown={(
         event,
       ) => {
-
         if (
           event.target ===
           event.currentTarget
         ) {
           onClose();
         }
-
       }}
     >
 
       <div
-        className={`flex max-h-[92vh] w-full flex-col overflow-hidden rounded-2xl border border-white/50 bg-white shadow-2xl ${
+        className={`flex max-h-[92vh] w-full flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ${
           wide
-            ? "max-w-4xl"
+            ? "max-w-5xl"
             : "max-w-2xl"
         }`}
       >
-        {children}
+        {
+          children
+        }
       </div>
 
     </div>
   );
 }
-
 
 // ============================================================
 // FORM SECTION
@@ -2022,7 +4778,6 @@ function FormSection({
   action?: React.ReactNode;
   children: React.ReactNode;
 }) {
-
   return (
     <section className="rounded-2xl border border-[#e7e9ec] bg-white">
 
@@ -2034,7 +4789,7 @@ function FormSection({
             {title}
           </h3>
 
-          <p className="mt-1 max-w-xl text-xs leading-5 text-gray-500">
+          <p className="mt-1 text-xs leading-5 text-gray-500">
             {description}
           </p>
 
@@ -2051,7 +4806,6 @@ function FormSection({
     </section>
   );
 }
-
 
 // ============================================================
 // INPUT
@@ -2074,7 +4828,6 @@ function FormInput({
   type?: string;
   required?: boolean;
 }) {
-
   return (
     <div>
 
@@ -2091,26 +4844,28 @@ function FormInput({
       </label>
 
       <input
-        type={type}
-        value={value}
+        type={
+          type
+        }
+        value={
+          value
+        }
         onChange={(
           event,
         ) =>
           onChange(
-            event.target
-              .value,
+            event.target.value,
           )
         }
         placeholder={
           placeholder
         }
-        className="h-10 w-full rounded-xl border border-[#e7e9ec] bg-[#fafbfc] px-3 text-xs outline-none placeholder:text-gray-400 focus:border-gray-300 focus:bg-white"
+        className="h-10 w-full rounded-xl border border-[#e7e9ec] bg-[#fafbfc] px-3 text-xs outline-none focus:border-gray-300 focus:bg-white"
       />
 
     </div>
   );
 }
-
 
 // ============================================================
 // SELECT
@@ -2120,16 +4875,20 @@ function FormSelect({
   label,
   value,
   options,
+  optionLabels,
   onChange,
 }: {
   label: string;
   value: string;
   options: string[];
+  optionLabels?: Record<
+    string,
+    string
+  >;
   onChange: (
     value: string,
   ) => void;
 }) {
-
   return (
     <div>
 
@@ -2138,20 +4897,28 @@ function FormSelect({
       </label>
 
       <select
-        value={value}
+        value={
+          value
+        }
         onChange={(
           event,
         ) =>
           onChange(
-            event.target
-              .value,
+            event.target.value,
           )
         }
         className="h-10 w-full rounded-xl border border-[#e7e9ec] bg-[#fafbfc] px-3 text-xs outline-none focus:border-gray-300 focus:bg-white"
       >
 
+        <option value="">
+          Select...
+        </option>
+
         {options.map(
-          (option) => (
+          (
+            option,
+          ) => (
+
             <option
               key={
                 option
@@ -2160,8 +4927,14 @@ function FormSelect({
                 option
               }
             >
-              {option}
+              {
+                optionLabels?.[
+                  option
+                ] ??
+                option
+              }
             </option>
+
           ),
         )}
 
@@ -2170,7 +4943,6 @@ function FormSelect({
     </div>
   );
 }
-
 
 // ============================================================
 // TEXTAREA
@@ -2191,7 +4963,6 @@ function FormTextarea({
   placeholder?: string;
   required?: boolean;
 }) {
-
   return (
     <div>
 
@@ -2208,26 +4979,26 @@ function FormTextarea({
       </label>
 
       <textarea
-        value={value}
+        value={
+          value
+        }
         onChange={(
           event,
         ) =>
           onChange(
-            event.target
-              .value,
+            event.target.value,
           )
         }
         placeholder={
           placeholder
         }
         rows={4}
-        className="w-full resize-none rounded-xl border border-[#e7e9ec] bg-[#fafbfc] px-3 py-2.5 text-xs leading-5 outline-none placeholder:text-gray-400 focus:border-gray-300 focus:bg-white"
+        className="w-full resize-none rounded-xl border border-[#e7e9ec] bg-[#fafbfc] px-3 py-3 text-xs leading-5 outline-none focus:border-gray-300 focus:bg-white"
       />
 
     </div>
   );
 }
-
 
 // ============================================================
 // INFO
@@ -2240,15 +5011,40 @@ function Info({
   title: string;
   value: string;
 }) {
-
   return (
-    <div className="rounded-xl bg-[#f8f9fa] p-4">
+    <div className="rounded-xl border border-[#e7e9ec] bg-[#fafbfc] p-4">
 
-      <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
+      <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">
         {title}
       </p>
 
-      <p className="mt-1.5 text-xs font-semibold leading-5">
+      <p className="mt-1 text-sm font-semibold text-gray-800">
+        {value}
+      </p>
+
+    </div>
+  );
+}
+
+// ============================================================
+// SMALL INFO
+// ============================================================
+
+function SmallInfo({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div>
+
+      <p className="text-[9px] font-bold uppercase tracking-wide text-gray-400">
+        {label}
+      </p>
+
+      <p className="mt-1 text-[10px] font-semibold text-gray-700">
         {value}
       </p>
 

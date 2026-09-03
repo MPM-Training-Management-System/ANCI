@@ -4,3 +4,6 @@ export * from "./common";
 export * from "./training";
 export * from "./trainer";
 export * from "./IdValidationResponse";
+export * from "./enrollment";
+export * from "./Admin";
+export * from "./Attendance";

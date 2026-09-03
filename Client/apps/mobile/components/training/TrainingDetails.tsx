@@ -12,11 +12,11 @@ import {
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 import type {
-  ParticipantTraining,
-} from "@/src/data/participantTraining";
+  TrainingBatch,
+} from "@repo/types";
 
 interface Props {
-  training: ParticipantTraining;
+  training: TrainingBatch;
 
   alreadyEnrolled: boolean;
 
@@ -31,12 +31,23 @@ export default function TrainingDetails({
   onBack,
   onEnroll,
 }: Props) {
-  const remainingSlots =
-    training.slots -
-    training.enrolled;
+  // ==========================================
+  // AVAILABLE SLOTS
+  // ==========================================
+
+  const remainingSlots = Math.max(
+    training.capacity -
+      training.enrolledCount,
+    0
+  );
 
   const isFull =
     remainingSlots <= 0;
+
+
+  // ==========================================
+  // ENROLL
+  // ==========================================
 
   const handleEnroll = () => {
     if (alreadyEnrolled) {
@@ -60,13 +71,51 @@ export default function TrainingDetails({
     onEnroll();
   };
 
+
+  // ==========================================
+  // STATUS
+  // ==========================================
+
+  const statusText =
+    training.status;
+
+  const statusStyle =
+    getStatusStyle(
+      training.status
+    );
+
+
+  // ==========================================
+  // PROGRESS
+  // ==========================================
+
+  const progress =
+    training.capacity > 0
+      ? Math.min(
+          100,
+          (training.enrolledCount /
+            training.capacity) *
+            100
+        )
+      : 0;
+
+
   return (
     <View style={styles.container}>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={
+          styles.content
+        }
       >
+
+        {/* ====================================
+            HEADER
+        ==================================== */}
+
         <View style={styles.header}>
+
           <Pressable
             onPress={onBack}
             style={styles.backButton}
@@ -78,185 +127,301 @@ export default function TrainingDetails({
             />
           </Pressable>
 
+
           <Text style={styles.headerTitle}>
             Training Details
           </Text>
 
-          <View style={styles.headerSpacer} />
+
+          <View
+            style={styles.headerSpacer}
+          />
+
         </View>
 
+
+        {/* ====================================
+            HERO
+        ==================================== */}
+
         <View style={styles.hero}>
+
           <View style={styles.heroIcon}>
+
             <Ionicons
               name="school-outline"
               size={30}
               color="#2563EB"
             />
+
           </View>
+
 
           <Text style={styles.heroTitle}>
-            {training.title}
+            {training.programName}
           </Text>
+
 
           <Text style={styles.code}>
-            {training.code}
+            {training.batchCode}
           </Text>
 
-          <View style={styles.heroMode}>
-            <Text style={styles.heroModeText}>
-              {training.mode}
+
+          {/* STATUS */}
+
+          <View
+            style={[
+              styles.statusBadge,
+              statusStyle,
+            ]}
+          >
+            <View
+              style={styles.statusDot}
+            />
+
+            <Text
+              style={styles.statusText}
+            >
+              {statusText}
             </Text>
+
           </View>
+
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            About this training
-          </Text>
 
-          <Text style={styles.description}>
-            {training.description}
-          </Text>
-        </View>
+        {/* ====================================
+            TRAINING INFORMATION
+        ==================================== */}
 
         <View style={styles.section}>
+
           <Text style={styles.sectionTitle}>
             Training Information
           </Text>
 
-          <InfoItem
-            icon="person-outline"
-            label="Trainer"
-            value={training.trainer}
-          />
 
           <InfoItem
-            icon="calendar-outline"
-            label="Schedule"
-            value={training.schedule}
+            icon="pricetag-outline"
+            label="Batch Code"
+            value={
+              training.batchCode
+            }
           />
 
-          <InfoItem
-            icon="time-outline"
-            label="Time"
-            value={training.time}
-          />
-
-          <InfoItem
-            icon="hourglass-outline"
-            label="Duration"
-            value={training.duration}
-          />
 
           <InfoItem
             icon="location-outline"
             label="Location"
-            value={training.location}
+            value={
+              training.location ||
+              "Not specified"
+            }
           />
+
+
+          <InfoItem
+            icon="calendar-outline"
+            label="Start Date"
+            value={formatDate(
+              training.startDate
+            )}
+          />
+
+
+          <InfoItem
+            icon="calendar-outline"
+            label="End Date"
+            value={formatDate(
+              training.endDate
+            )}
+          />
+
         </View>
 
+
+        {/* ====================================
+            TRAINING CAPACITY
+        ==================================== */}
+
         <View style={styles.section}>
+
           <Text style={styles.sectionTitle}>
             Training Capacity
           </Text>
 
-          <View style={styles.capacityCard}>
+
+          <View
+            style={styles.capacityCard}
+          >
+
             <View>
-              <Text style={styles.capacityLabel}>
+
+              <Text
+                style={styles.capacityLabel}
+              >
                 PARTICIPANTS
               </Text>
 
-              <Text style={styles.capacityValue}>
-                {training.enrolled} /{" "}
-                {training.slots}
+
+              <Text
+                style={styles.capacityValue}
+              >
+                {training.enrolledCount} /{" "}
+                {training.capacity}
               </Text>
+
             </View>
 
-            <View style={styles.capacityIcon}>
+
+            <View
+              style={styles.capacityIcon}
+            >
+
               <Ionicons
                 name="people-outline"
                 size={19}
                 color="#2563EB"
               />
+
             </View>
+
           </View>
 
-          <View style={styles.progressTrack}>
+
+          {/* PROGRESS */}
+
+          <View
+            style={styles.progressTrack}
+          >
+
             <View
               style={[
                 styles.progressFill,
                 {
-                  width: `${Math.min(
-                    100,
-                    (training.enrolled /
-                      training.slots) *
-                      100
-                  )}%`,
+                  width: `${progress}%`,
                 },
               ]}
             />
+
           </View>
 
-          <Text style={styles.slotText}>
+
+          <Text
+            style={styles.slotText}
+          >
             {isFull
               ? "This training is currently full."
               : `${remainingSlots} slots remaining`}
           </Text>
+
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            Requirements
-          </Text>
 
-          {training.requirements.map(
-            (requirement, index) => (
-              <View
-                key={`${training.id}-${index}`}
-                style={styles.requirement}
-              >
-                <View style={styles.check}>
-                  <Ionicons
-                    name="checkmark"
-                    size={12}
-                    color="#16A34A"
-                  />
-                </View>
-
-                <Text style={styles.requirementText}>
-                  {requirement}
-                </Text>
-              </View>
-            )
-          )}
-        </View>
+        {/* ====================================
+            TRAINING PERIOD
+        ==================================== */}
 
         <View style={styles.section}>
+
           <Text style={styles.sectionTitle}>
             Training Period
           </Text>
 
+
           <View style={styles.dateRow}>
+
             <DateItem
               label="START DATE"
-              value={training.startDate}
+              value={formatDate(
+                training.startDate
+              )}
             />
+
 
             <DateItem
               label="END DATE"
-              value={training.endDate}
+              value={formatDate(
+                training.endDate
+              )}
             />
+
           </View>
+
         </View>
+
+
+        {/* ====================================
+            BATCH STATUS INFORMATION
+        ==================================== */}
+
+        <View style={styles.section}>
+
+          <Text style={styles.sectionTitle}>
+            Batch Status
+          </Text>
+
+
+          <View
+            style={styles.statusCard}
+          >
+
+            <View
+              style={[
+                styles.largeStatusIcon,
+                statusStyle,
+              ]}
+            >
+
+              <Ionicons
+                name={getStatusIcon(
+                  training.status
+                )}
+                size={20}
+                color="#2563EB"
+              />
+
+            </View>
+
+
+            <View
+              style={styles.statusContent}
+            >
+
+              <Text
+                style={styles.statusCardLabel}
+              >
+                CURRENT STATUS
+              </Text>
+
+
+              <Text
+                style={styles.statusCardValue}
+              >
+                {training.status}
+              </Text>
+
+            </View>
+
+          </View>
+
+        </View>
+
+
+        {/* ====================================
+            ENROLL BUTTON
+        ==================================== */}
 
         <Pressable
           onPress={handleEnroll}
           style={[
             styles.enrollButton,
-            (isFull || alreadyEnrolled) &&
+            (isFull ||
+              alreadyEnrolled) &&
               styles.disabledButton,
           ]}
         >
+
           <Ionicons
             name={
               alreadyEnrolled
@@ -269,57 +434,96 @@ export default function TrainingDetails({
             color="#FFFFFF"
           />
 
-          <Text style={styles.enrollButtonText}>
+
+          <Text
+            style={styles.enrollButtonText}
+          >
             {alreadyEnrolled
               ? "Already Enrolled"
               : isFull
               ? "Training Full"
               : "Enroll Now"}
           </Text>
+
         </Pressable>
 
-        {!alreadyEnrolled && !isFull && (
-          <Text style={styles.bottomNote}>
-            Your enrollment will be submitted
-            for administrator review.
-          </Text>
-        )}
+
+        {!alreadyEnrolled &&
+          !isFull && (
+            <Text
+              style={styles.bottomNote}
+            >
+              Your enrollment will be
+              submitted for administrator
+              review.
+            </Text>
+          )}
+
       </ScrollView>
+
     </View>
   );
 }
+
+
+// ==========================================
+// INFO ITEM
+// ==========================================
 
 function InfoItem({
   icon,
   label,
   value,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
+  icon:
+    keyof typeof Ionicons.glyphMap;
+
   label: string;
+
   value: string;
 }) {
+
   return (
     <View style={styles.infoItem}>
+
       <View style={styles.infoIcon}>
+
         <Ionicons
           name={icon}
           size={17}
           color="#2563EB"
         />
+
       </View>
 
-      <View style={styles.infoContent}>
-        <Text style={styles.infoLabel}>
+
+      <View
+        style={styles.infoContent}
+      >
+
+        <Text
+          style={styles.infoLabel}
+        >
           {label}
         </Text>
 
-        <Text style={styles.infoValue}>
+
+        <Text
+          style={styles.infoValue}
+        >
           {value}
         </Text>
+
       </View>
+
     </View>
   );
 }
+
+
+// ==========================================
+// DATE ITEM
+// ==========================================
 
 function DateItem({
   label,
@@ -328,28 +532,141 @@ function DateItem({
   label: string;
   value: string;
 }) {
+
   return (
     <View style={styles.dateItem}>
+
       <Text style={styles.dateLabel}>
         {label}
       </Text>
 
+
       <Text style={styles.dateValue}>
         {value}
       </Text>
+
     </View>
   );
 }
 
+
+// ==========================================
+// DATE FORMAT
+// ==========================================
+
+function formatDate(
+  value: string
+): string {
+
+  if (!value) {
+    return "Not specified";
+  }
+
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return value;
+  }
+
+  return date.toLocaleDateString(
+    "en-US",
+    {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }
+  );
+}
+
+
+// ==========================================
+// STATUS STYLE
+// ==========================================
+
+function getStatusStyle(
+  status: string
+) {
+
+  switch (
+    status.toLowerCase()
+  ) {
+
+    case "published":
+      return styles.publishedStatus;
+
+    case "ongoing":
+      return styles.ongoingStatus;
+
+    case "completed":
+      return styles.completedStatus;
+
+    case "cancelled":
+      return styles.cancelledStatus;
+
+    case "draft":
+    default:
+      return styles.draftStatus;
+  }
+}
+
+
+// ==========================================
+// STATUS ICON
+// ==========================================
+
+function getStatusIcon(
+  status: string
+): keyof typeof Ionicons.glyphMap {
+
+  switch (
+    status.toLowerCase()
+  ) {
+
+    case "published":
+      return "checkmark-circle-outline";
+
+    case "ongoing":
+      return "play-circle-outline";
+
+    case "completed":
+      return "trophy-outline";
+
+    case "cancelled":
+      return "close-circle-outline";
+
+    case "draft":
+    default:
+      return "document-outline";
+  }
+}
+
+
+// ==========================================
+// STYLES
+// ==========================================
+
 const styles = StyleSheet.create({
+
   container: {
     flex: 1,
     backgroundColor: "#F8FAFC",
   },
 
+
   content: {
     paddingBottom: 90,
+    marginTop: 30,
   },
+
+
+  // ========================================
+  // HEADER
+  // ========================================
 
   header: {
     paddingHorizontal: 20,
@@ -358,6 +675,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
+
 
   backButton: {
     width: 40,
@@ -370,15 +688,22 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
+
   headerTitle: {
     fontSize: 15,
     fontWeight: "800",
     color: "#0F172A",
   },
 
+
   headerSpacer: {
     width: 40,
   },
+
+
+  // ========================================
+  // HERO
+  // ========================================
 
   hero: {
     marginHorizontal: 20,
@@ -391,6 +716,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
+
   heroIcon: {
     width: 62,
     height: 62,
@@ -400,6 +726,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
+
   heroTitle: {
     marginTop: 13,
     textAlign: "center",
@@ -408,6 +735,7 @@ const styles = StyleSheet.create({
     color: "#0F172A",
   },
 
+
   code: {
     marginTop: 5,
     fontSize: 8,
@@ -415,24 +743,71 @@ const styles = StyleSheet.create({
     color: "#64748B",
   },
 
-  heroMode: {
+
+  // ========================================
+  // STATUS BADGE
+  // ========================================
+
+  statusBadge: {
     marginTop: 11,
-    paddingHorizontal: 10,
+    paddingHorizontal: 11,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: "#DBEAFE",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
   },
 
-  heroModeText: {
+
+  statusDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: "#2563EB",
+  },
+
+
+  statusText: {
     fontSize: 7,
     fontWeight: "800",
     color: "#1D4ED8",
   },
 
+
+  publishedStatus: {
+    backgroundColor: "#DBEAFE",
+  },
+
+
+  ongoingStatus: {
+    backgroundColor: "#DCFCE7",
+  },
+
+
+  completedStatus: {
+    backgroundColor: "#F1F5F9",
+  },
+
+
+  cancelledStatus: {
+    backgroundColor: "#FEE2E2",
+  },
+
+
+  draftStatus: {
+    backgroundColor: "#F1F5F9",
+  },
+
+
+  // ========================================
+  // SECTION
+  // ========================================
+
   section: {
     marginTop: 22,
     paddingHorizontal: 20,
   },
+
 
   sectionTitle: {
     marginBottom: 10,
@@ -441,11 +816,10 @@ const styles = StyleSheet.create({
     color: "#0F172A",
   },
 
-  description: {
-    fontSize: 9,
-    lineHeight: 15,
-    color: "#64748B",
-  },
+
+  // ========================================
+  // INFO
+  // ========================================
 
   infoItem: {
     marginBottom: 10,
@@ -458,6 +832,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
+
   infoIcon: {
     width: 35,
     height: 35,
@@ -467,10 +842,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
+
   infoContent: {
     flex: 1,
     marginLeft: 9,
   },
+
 
   infoLabel: {
     fontSize: 6,
@@ -479,12 +856,18 @@ const styles = StyleSheet.create({
     color: "#94A3B8",
   },
 
+
   infoValue: {
     marginTop: 3,
     fontSize: 9,
     fontWeight: "700",
     color: "#334155",
   },
+
+
+  // ========================================
+  // CAPACITY
+  // ========================================
 
   capacityCard: {
     padding: 14,
@@ -497,6 +880,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
 
+
   capacityLabel: {
     fontSize: 6,
     fontWeight: "900",
@@ -504,12 +888,14 @@ const styles = StyleSheet.create({
     color: "#94A3B8",
   },
 
+
   capacityValue: {
     marginTop: 3,
     fontSize: 13,
     fontWeight: "900",
     color: "#0F172A",
   },
+
 
   capacityIcon: {
     width: 40,
@@ -520,6 +906,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
+
   progressTrack: {
     height: 7,
     marginTop: 9,
@@ -528,11 +915,13 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
 
+
   progressFill: {
     height: "100%",
     borderRadius: 999,
     backgroundColor: "#2563EB",
   },
+
 
   slotText: {
     marginTop: 5,
@@ -540,32 +929,16 @@ const styles = StyleSheet.create({
     color: "#64748B",
   },
 
-  requirement: {
-    marginBottom: 8,
-    flexDirection: "row",
-    alignItems: "center",
-  },
 
-  check: {
-    width: 25,
-    height: 25,
-    borderRadius: 8,
-    backgroundColor: "#DCFCE7",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  requirementText: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 8,
-    color: "#475569",
-  },
+  // ========================================
+  // DATE
+  // ========================================
 
   dateRow: {
     flexDirection: "row",
     gap: 8,
   },
+
 
   dateItem: {
     flex: 1,
@@ -576,6 +949,7 @@ const styles = StyleSheet.create({
     borderColor: "#E2E8F0",
   },
 
+
   dateLabel: {
     fontSize: 5.5,
     fontWeight: "900",
@@ -583,12 +957,64 @@ const styles = StyleSheet.create({
     color: "#94A3B8",
   },
 
+
   dateValue: {
     marginTop: 5,
     fontSize: 8,
     fontWeight: "700",
     color: "#334155",
   },
+
+
+  // ========================================
+  // STATUS CARD
+  // ========================================
+
+  statusCard: {
+    padding: 13,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+
+  largeStatusIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+
+  statusContent: {
+    marginLeft: 10,
+    flex: 1,
+  },
+
+
+  statusCardLabel: {
+    fontSize: 5.5,
+    fontWeight: "900",
+    letterSpacing: 0.7,
+    color: "#94A3B8",
+  },
+
+
+  statusCardValue: {
+    marginTop: 3,
+    fontSize: 9,
+    fontWeight: "800",
+    color: "#334155",
+  },
+
+
+  // ========================================
+  // ENROLL
+  // ========================================
 
   enrollButton: {
     marginHorizontal: 20,
@@ -602,15 +1028,18 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
+
   disabledButton: {
     backgroundColor: "#94A3B8",
   },
+
 
   enrollButtonText: {
     fontSize: 10,
     fontWeight: "900",
     color: "#FFFFFF",
   },
+
 
   bottomNote: {
     marginTop: 8,
@@ -620,4 +1049,5 @@ const styles = StyleSheet.create({
     lineHeight: 11,
     color: "#94A3B8",
   },
+
 });

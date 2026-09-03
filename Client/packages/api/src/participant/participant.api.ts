@@ -10,9 +10,13 @@ export class ParticipantApi {
 
 
 
-  getAll() {
+  async getMe():
+  Promise<ParticipantProfile> {
     return this.api.request<ParticipantProfile>(
-      ParticipantEndpoints.getMe
+      ParticipantEndpoints.getMe,
+      {
+        method: "GET",
+      }
     );
   }
  

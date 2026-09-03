@@ -9,7 +9,7 @@
     birthDate: string;
     address: string;
     gender: string;
-    profileImage: string;
+    profileImageUrl: string;
     role: string;
     status: string;
     email:string;

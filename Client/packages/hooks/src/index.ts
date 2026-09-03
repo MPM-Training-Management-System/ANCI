@@ -5,3 +5,10 @@ export * from "./useLogin"
 export * from "./useMe"
 export * from "./useTrainerApplication";
 export * from "./useTrainerMe"
+export * from "./useTrainingProgramDocuments";
+export * from "./useTrainingPrograms"
+export * from "./useTrainingBatches";
+export * from "./useTrainerAssignments";
+export * from "./useEnrollments";
+export * from "./useAdminMe";
+export * from "./Attendance";

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
 
 import {
   ActivityIndicator,
@@ -7,10 +7,11 @@ import {
   StyleSheet,
   Text,
   View,
+  RefreshControl
 } from "react-native";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useParticipantProfile } from "@repo/hooks";
+import { useMe } from "@repo/hooks";
 
 import ProfileHeader from "./ProfileHeader";
 import ProfileInfoCard from "./ProfileInfoCard";
@@ -25,13 +26,24 @@ import {
 import { participantApi } from "@/api/api";
 
 export default function ProfileScreen() {
+
+  const [refreshing, setRefreshing] = useState(false);
   const {
     profile,
     isLoading,
     error,
     refetch,
-  } = useParticipantProfile(participantApi);
+  } = useMe(participantApi);
 
+
+  const onRefresh = useCallback(async () => {
+  try {
+    setRefreshing(true);
+    await refetch();
+  } finally {
+    setRefreshing(false);
+  }
+}, [refetch]);
   // ==========================================
   // LOADING
   // ==========================================
@@ -134,6 +146,15 @@ export default function ProfileScreen() {
       style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
+        refreshControl={
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+      tintColor="#2563EB"
+      colors={["#2563EB"]}
+    />
+  }
+
     >
       {/* ======================================
           PAGE HEADER
@@ -141,9 +162,7 @@ export default function ProfileScreen() {
 
       <View style={styles.pageHeader}>
         <View>
-          <Text style={styles.eyebrow}>
-            PARTICIPANT PORTAL
-          </Text>
+          
 
           <Text style={styles.title}>
             Profile
@@ -255,8 +274,8 @@ const styles = StyleSheet.create({
   },
 
   content: {
-    paddingTop: 20,
-    paddingBottom: 45,
+    paddingTop: 30,
+    paddingBottom: 90,
   },
 
   // ==========================================

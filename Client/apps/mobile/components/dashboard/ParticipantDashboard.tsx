@@ -1,12 +1,31 @@
-import React from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useCallback,
+  useState
+} from "react";
 
 import {
+  ActivityIndicator,
+  Image,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
+  RefreshControl
 } from "react-native";
-import { useParticipantProfile} from "@repo/hooks"
+
+import {
+  router,
+} from "expo-router";
+
+import {
+  useMe,
+  useEnrollments,
+  useTrainingBatches,
+} from "@repo/hooks";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 import {
@@ -15,375 +34,731 @@ import {
 } from "@/src/data/participant";
 
 import UpcomingTraining from "./UpcomingTraining";
-import { participantApi } from "@/api/api";
+
+import {
+  participantApi,
+  enrollmentApi,
+  trainingBatchApi,
+} from "@/api/api";
+
+
+// ============================================================
+// DASHBOARD
+// ============================================================
 
 export default function ParticipantDashboard() {
 
-    const {
+
+ const [refreshing, setRefreshing] = useState(false);
+
+ 
+  // ==========================================================
+  // PARTICIPANT PROFILE
+  // ==========================================================
+
+  const {
     profile,
     isLoading,
-    error,
-    refetch,
-  } = useParticipantProfile(participantApi);
-  const participant = mockParticipant;
+    refetch
+  } = useMe(
+    participantApi
+  );
 
-  const training = participant.training;
 
-  const statistics = participant.statistics;
+   const onRefresh = useCallback(async () => {
+  try {
+    setRefreshing(true);
+    await refetch();
+  } finally {
+    setRefreshing(false);
+  }
+}, [refetch]);
 
-  const modules = participant.learningModules;
 
-  const attendance = participant.attendance;
+  // ==========================================================
+  // MY ENROLLMENTS
+  // ==========================================================
 
-  const assessments = mockAssessments;
+  const {
+    enrollments,
+    isLoading:
+      enrollmentsLoading,
+    refreshMyEnrollments,
+  } = useEnrollments(
+    enrollmentApi
+  );
+
+
+  // ==========================================================
+  // TRAINING BATCHES
+  //
+  // GET /api/training-batches
+  //
+  // This contains the assigned trainer.
+  // ==========================================================
+
+  const {
+    batches,
+    isLoading:
+      batchesLoading,
+  } = useTrainingBatches(
+    trainingBatchApi
+  );
+
+
+  // ==========================================================
+  // LOAD MY ENROLLMENTS
+  // ==========================================================
+
+  useEffect(() => {
+
+    refreshMyEnrollments()
+      .catch((error) => {
+
+        console.error(
+          "FAILED TO LOAD MY ENROLLMENTS:",
+          error
+        );
+
+      });
+
+  }, [
+    refreshMyEnrollments,
+  ]);
+
+
+  // ==========================================================
+  // MOCK DATA
+  // ==========================================================
+
+  const participant =
+    mockParticipant;
+
+
+  const statistics =
+    participant.statistics;
+
+
+  const modules =
+    participant.learningModules;
+
+
+  const attendance =
+    participant.attendance;
+
+
+  const assessments =
+    mockAssessments;
+
+
+  // ==========================================================
+  // CURRENT ENROLLMENT
+  //
+  // Only APPROVED is shown as current training.
+  // ==========================================================
+
+  const currentEnrollment =
+    useMemo(() => {
+
+      return enrollments.find(
+        (enrollment) =>
+          String(
+            enrollment.status
+          ).toLowerCase() ===
+          "approved"
+      ) ?? null;
+
+    }, [
+      enrollments,
+    ]);
+
+
+  // ==========================================================
+  // CURRENT TRAINING BATCH
+  //
+  // Find the TrainingBatch that belongs to the
+  // current enrollment.
+  // ==========================================================
+
+  const currentBatch =
+    useMemo(() => {
+
+      if (!currentEnrollment) {
+        return null;
+      }
+
+
+      return batches.find(
+        (batch) =>
+          batch.id ===
+          currentEnrollment.trainingBatchId
+      ) ?? null;
+
+    }, [
+      batches,
+      currentEnrollment,
+    ]);
+
+
+  // ==========================================================
+  // CURRENT TRAINER
+  //
+  // Trainer comes from TrainingBatch.
+  // ==========================================================
+
+  const currentTrainer =
+    currentBatch?.trainer ?? null;
+
+
+  // ==========================================================
+  // COMPLETED MODULES
+  // ==========================================================
 
   const completedModules =
     modules.filter(
       (module) =>
-        module.status === "Completed"
+        module.status ===
+        "Completed"
     ).length;
+
+
+  // ==========================================================
+  // COMPLETED ASSESSMENTS
+  // ==========================================================
 
   const completedAssessments =
     assessments.filter(
       (assessment) =>
-        assessment.status === "Completed"
+        assessment.status ===
+        "Completed"
     ).length;
+
+
+  // ==========================================================
+  // UPCOMING ATTENDANCE
+  // ==========================================================
 
   const upcomingAttendance =
     attendance.find(
       (item) =>
-        item.attendanceOpen === true
+        item.attendanceOpen ===
+        true
     );
+
+
+  // ==========================================================
+  // LOADING
+  // ==========================================================
+
+  if (
+    isLoading ||
+    enrollmentsLoading ||
+    batchesLoading
+  ) {
+
+    return (
+      <View
+        style={
+          styles.loadingContainer
+        }
+      >
+
+        <ActivityIndicator
+          size="large"
+          color="#2563EB"
+        />
+
+
+        <Text
+          style={
+            styles.loadingText
+          }
+        >
+          Loading dashboard...
+        </Text>
+
+      </View>
+    );
+  }
+
+
+  // ==========================================================
+  // DASHBOARD
+  // ==========================================================
 
   return (
     <ScrollView
-      style={styles.container}
+      style={
+        styles.container
+      }
+
       contentContainerStyle={
         styles.content
       }
-      showsVerticalScrollIndicator={false}
+
+      showsVerticalScrollIndicator={
+        false
+      }
+
+      refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#2563EB"
+            colors={["#2563EB"]}
+          />}
+      
     >
-     
 
-      <View style={styles.welcomeSection}>
-        <View style={styles.welcomeText}>
-          <Text style={styles.eyebrow}>
-            PARTICIPANT PORTAL
-          </Text>
+      {/* ================================================== */}
+      {/* WELCOME */}
+      {/* ================================================== */}
 
-          <Text style={styles.greeting}>
+      <View
+        style={
+          styles.welcomeSection
+        }
+      >
+
+        <View
+          style={
+            styles.welcomeText
+          }
+        >
+
+
+
+          <Text
+            style={
+              styles.greeting
+            }
+          >
             Welcome back,
           </Text>
 
+
           <Text
-            style={styles.name}
+            style={
+              styles.name
+            }
+
             numberOfLines={1}
           >
-            {profile?.firstName}
+            {
+              profile?.firstName ??
+              "Participant"
+            }
           </Text>
 
-          <Text style={styles.subtitle}>
+
+          <Text
+            style={
+              styles.subtitle
+            }
+          >
             Continue your training journey.
           </Text>
+
         </View>
 
-        <View style={styles.avatar}>
-          {profile?.profileImage ? (
-            <View style={styles.imagePlaceholder}>
-              <Text style={styles.avatarText}>
-                {participant.fullName
-                  .charAt(0)
-                  .toUpperCase()}
-              </Text>
-            </View>
+
+        {/* ================================================= */}
+        {/* PROFILE IMAGE */}
+        {/* ================================================= */}
+
+        <View
+          style={
+            styles.avatar
+          }
+        >
+
+          {profile?.profileImageUrl ? (
+
+            <Image
+              source={{
+                uri:
+                  profile.profileImageUrl,
+              }}
+
+              style={
+                styles.avatarImage
+              }
+            />
+
           ) : (
-            <Text style={styles.avatarText}>
-              {profile?.firstName
-                .charAt(0)
-                .toUpperCase()}
+
+            <Text
+              style={
+                styles.avatarText
+              }
+            >
+              {
+                profile?.firstName
+                  ?.charAt(0)
+                  .toUpperCase() ?? "P"
+              }
             </Text>
+
           )}
+
         </View>
+
       </View>
 
-  
+
+      {/* ================================================== */}
+      {/* PENDING ACCOUNT */}
+      {/* ================================================== */}
 
       {profile?.status ===
         "Pending" && (
-        <View style={styles.pendingCard}>
-          <View style={styles.pendingIcon}>
+
+        <View
+          style={
+            styles.pendingCard
+          }
+        >
+
+          <View
+            style={
+              styles.pendingIcon
+            }
+          >
+
             <Ionicons
               name="time-outline"
               size={18}
               color="#B45309"
             />
+
           </View>
 
-          <View style={styles.pendingContent}>
-            <Text style={styles.pendingTitle}>
+
+          <View
+            style={
+              styles.pendingContent
+            }
+          >
+
+            <Text
+              style={
+                styles.pendingTitle
+              }
+            >
               Account under review
             </Text>
 
-            <Text style={styles.pendingText}>
+
+            <Text
+              style={
+                styles.pendingText
+              }
+            >
               Your participant account is currently
               pending administrator approval.
             </Text>
+
           </View>
+
         </View>
+
       )}
 
+
+      {/* ================================================== */}
+      {/* YOUR TRAINING */}
+      {/* ================================================== */}
 
       <SectionTitle
         title="Your Training"
         subtitle="Current assigned program"
       />
 
-      <UpcomingTraining
-        training={training}
-      />
 
-      {/* ================================================= */}
-      {/* STATISTICS */}
-      {/* ================================================= */}
+      {currentEnrollment ? (
+
+        <UpcomingTraining
+          training={
+            currentEnrollment
+          }
+
+          trainer={
+            currentTrainer
+          }
+
+        />
+
+      ) : (
+
+       <NoCurrentTraining
+  onBrowse={() =>
+    router.push("/training")
+  }
+/>
+
+      )}
+
+
+      {/* ================================================== */}
+      {/* TRAINING OVERVIEW */}
+      {/* ================================================== */}
 
       <SectionTitle
         title="Training Overview"
         subtitle="Your current progress"
       />
 
-      <View style={styles.statsGrid}>
+
+      <View
+        style={
+          styles.statsGrid
+        }
+      >
+
         <StatCard
           icon="school-outline"
           label="Progress"
-          value={`${statistics.trainingProgress}%`}
+          value={
+            `${statistics.trainingProgress}%`
+          }
         />
+
 
         <StatCard
           icon="calendar-outline"
           label="Attendance"
-          value={`${statistics.attendanceRate}%`}
+          value={
+            `${statistics.attendanceRate}%`
+          }
         />
+
 
         <StatCard
           icon="book-outline"
           label="Modules"
-          value={`${completedModules}/${statistics.totalModules}`}
+          value={
+            `${completedModules}/${statistics.totalModules}`
+          }
         />
+
 
         <StatCard
           icon="clipboard-outline"
           label="Assessments"
-          value={`${completedAssessments}/${statistics.totalAssessments}`}
+          value={
+            `${completedAssessments}/${statistics.totalAssessments}`
+          }
         />
+
       </View>
 
-      {/* ================================================= */}
+
+      {/* ================================================== */}
       {/* ATTENDANCE */}
-      {/* ================================================= */}
+      {/* ================================================== */}
 
       <SectionTitle
         title="Attendance"
         subtitle="Your latest attendance status"
       />
 
-      <View style={styles.attendanceCard}>
+
+      <View
+        style={
+          styles.attendanceCard
+        }
+      >
+
         {upcomingAttendance ? (
-          <>
-            <View style={styles.attendanceIcon}>
-              <Ionicons
-                name="radio-outline"
-                size={20}
-                color="#2563EB"
-              />
-            </View>
 
-            <View style={styles.attendanceContent}>
-              <Text style={styles.attendanceLabel}>
-                ATTENDANCE IS OPEN
-              </Text>
+          <View
+            style={
+              styles.attendanceRow
+            }
+          >
 
-              <Text
-                style={styles.attendanceTitle}
-                numberOfLines={1}
-              >
-                {upcomingAttendance.sessionTitle}
-              </Text>
+            <View
+              style={
+                styles.attendanceIcon
+              }
+            >
 
-              <Text style={styles.attendanceDate}>
-                {upcomingAttendance.date} •{" "}
-                {upcomingAttendance.mode}
-              </Text>
-            </View>
-
-            <View style={styles.openBadge}>
-              <Text style={styles.openBadgeText}>
-                OPEN
-              </Text>
-            </View>
-          </>
-        ) : (
-          <>
-            <View style={styles.attendanceIcon}>
               <Ionicons
                 name="checkmark-circle-outline"
                 size={20}
-                color="#16A34A"
+                color="#15803D"
               />
+
             </View>
 
-            <View style={styles.attendanceContent}>
-              <Text style={styles.attendanceLabel}>
-                ATTENDANCE
-              </Text>
 
-              <Text style={styles.attendanceTitle}>
-                No active attendance
-              </Text>
-
-              <Text style={styles.attendanceDate}>
-                There is no attendance session open
-                right now.
-              </Text>
-            </View>
-          </>
-        )}
-      </View>
-
-      {/* ================================================= */}
-      {/* LEARNING */}
-      {/* ================================================= */}
-
-      <SectionTitle
-        title="Continue Learning"
-        subtitle="Pick up where you left off"
-      />
-
-      <View style={styles.learningCard}>
-        {modules
-          .filter(
-            (module) =>
-              module.status ===
-              "In Progress"
-          )
-          .slice(0, 1)
-          .map((module) => (
             <View
-              key={module.id}
-              style={styles.learningContent}
+              style={
+                styles.attendanceContent
+              }
             >
-              <View style={styles.learningIcon}>
-                <Ionicons
-                  name="book-outline"
-                  size={20}
-                  color="#2563EB"
-                />
-              </View>
+
+              <Text
+                style={
+                  styles.attendanceTitle
+                }
+              >
+                {
+                  upcomingAttendance.sessionTitle
+                }
+              </Text>
+
+
+              <Text
+                style={
+                  styles.attendanceDate
+                }
+              >
+                {
+                  upcomingAttendance.date
+                }
+              </Text>
+
+
+              <Text
+                style={
+                  styles.attendanceMode
+                }
+              >
+                {
+                  upcomingAttendance.mode
+                }
+              </Text>
+
+            </View>
+
+
+            <View
+              style={
+                styles.attendanceStatus
+              }
+            >
 
               <View
-                style={styles.learningText}
+                style={
+                  styles.attendanceStatusDot
+                }
+              />
+
+
+              <Text
+                style={
+                  styles.attendanceStatusText
+                }
               >
-                <Text style={styles.learningLabel}>
-                  IN PROGRESS
-                </Text>
+                OPEN
+              </Text>
 
-                <Text
-                  style={styles.learningTitle}
-                  numberOfLines={2}
-                >
-                  {module.title}
-                </Text>
-
-                <View
-                  style={styles.moduleProgress}
-                >
-                  <View
-                    style={
-                      styles.moduleProgressTrack
-                    }
-                  >
-                    <View
-                      style={[
-                        styles.moduleProgressFill,
-                        {
-                          width: `${module.progress}%`,
-                        },
-                      ]}
-                    />
-                  </View>
-
-                  <Text
-                    style={
-                      styles.moduleProgressText
-                    }
-                  >
-                    {module.progress}%
-                  </Text>
-                </View>
-              </View>
             </View>
-          ))}
+
+          </View>
+
+        ) : (
+
+          <View
+            style={
+              styles.noAttendance
+            }
+          >
+
+            <View
+              style={
+                styles.noAttendanceIcon
+              }
+            >
+
+              <Ionicons
+                name="calendar-outline"
+                size={18}
+                color="#94A3B8"
+              />
+
+            </View>
+
+
+            <View
+              style={
+                styles.noAttendanceContent
+              }
+            >
+
+              <Text
+                style={
+                  styles.noAttendanceTitle
+                }
+              >
+                No attendance session
+              </Text>
+
+
+              <Text
+                style={
+                  styles.noAttendanceText
+                }
+              >
+                There is currently no open attendance session.
+              </Text>
+
+            </View>
+
+          </View>
+
+        )}
+
       </View>
 
-      {/* ================================================= */}
-      {/* ASSESSMENT */}
-      {/* ================================================= */}
+
+      {/* ================================================== */}
+      {/* RECENT ACTIVITY */}
+      {/* ================================================== */}
 
       <SectionTitle
-        title="Assessments"
-        subtitle="Your assessment progress"
+        title="Recent Activity"
+        subtitle="Your latest training activity"
       />
 
-      <View style={styles.assessmentCard}>
-        <View style={styles.assessmentIcon}>
-          <Ionicons
-            name="clipboard-outline"
-            size={20}
-            color="#7C3AED"
-          />
-        </View>
 
-        <View style={styles.assessmentContent}>
-          <Text style={styles.assessmentLabel}>
-            NEXT ASSESSMENT
-          </Text>
+      <View
+        style={
+          styles.activityCard
+        }
+      >
 
-          <Text
-            style={styles.assessmentTitle}
-            numberOfLines={2}
-          >
-            {
-              assessments.find(
-                (item) =>
-                  item.status ===
-                  "Available"
-              )?.title
-            }
-          </Text>
-
-          <Text style={styles.assessmentMeta}>
-            {
-              assessments.find(
-                (item) =>
-                  item.status ===
-                  "Available"
-              )?.questions.length
-            }{" "}
-            questions
-          </Text>
-        </View>
-
-        <Ionicons
-          name="chevron-forward"
-          size={18}
-          color="#CBD5E1"
+        <ActivityItem
+          icon="school-outline"
+          title="Training Enrollment"
+          description={
+            currentEnrollment
+              ? `Enrolled in ${currentEnrollment.programName}`
+              : "No active training enrollment"
+          }
         />
+
+
+        <ActivityItem
+          icon="book-outline"
+          title="Learning Modules"
+          description={
+            `${completedModules} module(s) completed`
+          }
+        />
+
+
+        <ActivityItem
+          icon="clipboard-outline"
+          title="Assessments"
+          description={
+            `${completedAssessments} assessment(s) completed`
+          }
+        />
+
       </View>
 
-      {/* ================================================= */}
-      {/* BOTTOM SPACE */}
-      {/* ================================================= */}
-
-      <View style={styles.bottomSpace} />
     </ScrollView>
   );
 }
@@ -400,15 +775,31 @@ function SectionTitle({
   title: string;
   subtitle: string;
 }) {
+
   return (
-    <View style={styles.sectionTitle}>
-      <Text style={styles.sectionHeading}>
+    <View
+      style={
+        styles.sectionHeader
+      }
+    >
+
+      <Text
+        style={
+          styles.sectionTitle
+        }
+      >
         {title}
       </Text>
 
-      <Text style={styles.sectionSubtitle}>
+
+      <Text
+        style={
+          styles.sectionSubtitle
+        }
+      >
         {subtitle}
       </Text>
+
     </View>
   );
 }
@@ -423,27 +814,226 @@ function StatCard({
   label,
   value,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: React.ComponentProps<
+    typeof Ionicons
+  >["name"];
+
   label: string;
+
   value: string;
 }) {
+
   return (
-    <View style={styles.statCard}>
-      <View style={styles.statIcon}>
+    <View
+      style={
+        styles.statCard
+      }
+    >
+
+      <View
+        style={
+          styles.statIcon
+        }
+      >
+
         <Ionicons
           name={icon}
           size={17}
           color="#2563EB"
         />
+
       </View>
 
-      <Text style={styles.statValue}>
+
+      <Text
+        style={
+          styles.statLabel
+        }
+      >
+        {label}
+      </Text>
+
+
+      <Text
+        style={
+          styles.statValue
+        }
+      >
         {value}
       </Text>
 
-      <Text style={styles.statLabel}>
-        {label}
-      </Text>
+    </View>
+  );
+}
+
+
+// ============================================================
+// ACTIVITY ITEM
+// ============================================================
+
+function ActivityItem({
+  icon,
+  title,
+  description,
+}: {
+  icon: React.ComponentProps<
+    typeof Ionicons
+  >["name"];
+
+  title: string;
+
+  description: string;
+}) {
+
+  return (
+    <View
+      style={
+        styles.activityItem
+      }
+    >
+
+      <View
+        style={
+          styles.activityIcon
+        }
+      >
+
+        <Ionicons
+          name={icon}
+          size={16}
+          color="#2563EB"
+        />
+
+      </View>
+
+
+      <View
+        style={
+          styles.activityContent
+        }
+      >
+
+        <Text
+          style={
+            styles.activityTitle
+          }
+        >
+          {title}
+        </Text>
+
+
+        <Text
+          style={
+            styles.activityDescription
+          }
+        >
+          {description}
+        </Text>
+
+      </View>
+
+    </View>
+  );
+}
+
+
+// ============================================================
+// NO CURRENT TRAINING
+// ============================================================
+
+function NoCurrentTraining({
+  onBrowse,
+}: {
+  onBrowse: () => void;
+}) {
+
+  return (
+    <View
+      style={
+        styles.noTrainingCard
+      }
+    >
+
+      <View
+        style={
+          styles.noTrainingIcon
+        }
+      >
+
+        <Ionicons
+          name="school-outline"
+          size={22}
+          color="#64748B"
+        />
+
+      </View>
+
+
+      <View
+        style={
+          styles.noTrainingContent
+        }
+      >
+
+        <Text
+          style={
+            styles.noTrainingTitle
+          }
+        >
+          No Active Training
+        </Text>
+
+
+        <Text
+          style={
+            styles.noTrainingText
+          }
+        >
+          You currently don't have an active training
+          enrollment. Browse available training programs
+          and enroll in one to get started.
+        </Text>
+
+
+        <Pressable
+          onPress={
+            onBrowse
+          }
+
+          style={({ pressed }) => [
+            styles.browseButton,
+
+            pressed &&
+              styles.browseButtonPressed,
+          ]}
+        >
+
+          <Ionicons
+            name="search-outline"
+            size={14}
+            color="#FFFFFF"
+          />
+
+
+          <Text
+            style={
+              styles.browseButtonText
+            }
+          >
+            Browse Trainings
+          </Text>
+
+
+          <Ionicons
+            name="arrow-forward"
+            size={14}
+            color="#FFFFFF"
+          />
+
+        </Pressable>
+
+      </View>
+
     </View>
   );
 }
@@ -453,381 +1043,635 @@ function StatCard({
 // STYLES
 // ============================================================
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8FAFC",
-  },
+const styles =
+  StyleSheet.create({
 
-  content: {
-    paddingTop: 22,
-    paddingBottom: 90,
-  },
+    // --------------------------------------------------------
+    // CONTAINER
+    // --------------------------------------------------------
 
-  // ----------------------------------------------------------
-  // WELCOME
-  // ----------------------------------------------------------
+    container: {
+      flex: 1,
 
-  welcomeSection: {
-    marginHorizontal: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
+      backgroundColor: "#F8FAFC",
+    },
 
-  welcomeText: {
-    flex: 1,
-    paddingRight: 15,
-  },
 
-  eyebrow: {
-    fontSize: 7,
-    fontWeight: "900",
-    letterSpacing: 1.2,
-    color: "#2563EB",
-  },
+    content: {
+      paddingTop: 38,
 
-  greeting: {
-    marginTop: 5,
-    fontSize: 11,
-    color: "#64748B",
-  },
+      paddingBottom: 70,
+    },
 
-  name: {
-    marginTop: 2,
-    fontSize: 23,
-    fontWeight: "800",
-    letterSpacing: -0.5,
-    color: "#0F172A",
-  },
 
-  subtitle: {
-    marginTop: 4,
-    fontSize: 8,
-    color: "#94A3B8",
-  },
+    // --------------------------------------------------------
+    // LOADING
+    // --------------------------------------------------------
 
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 18,
-    backgroundColor: "#2563EB",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    loadingContainer: {
+      flex: 1,
 
-  imagePlaceholder: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+      backgroundColor: "#F8FAFC",
 
-  avatarText: {
-    fontSize: 18,
-    fontWeight: "900",
-    color: "#FFFFFF",
-  },
+      alignItems: "center",
 
-  // ----------------------------------------------------------
-  // PENDING
-  // ----------------------------------------------------------
+      justifyContent: "center",
+    },
 
-  pendingCard: {
-    marginHorizontal: 20,
-    marginTop: 18,
-    padding: 13,
-    borderRadius: 16,
-    backgroundColor: "#FFFBEB",
-    borderWidth: 1,
-    borderColor: "#FDE68A",
-    flexDirection: "row",
-    alignItems: "center",
-  },
 
-  pendingIcon: {
-    width: 35,
-    height: 35,
-    borderRadius: 11,
-    backgroundColor: "#FEF3C7",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    loadingText: {
+      marginTop: 10,
 
-  pendingContent: {
-    flex: 1,
-    marginLeft: 9,
-  },
+      fontSize: 12,
 
-  pendingTitle: {
-    fontSize: 9,
-    fontWeight: "800",
-    color: "#92400E",
-  },
+      color: "#64748B",
+    },
 
-  pendingText: {
-    marginTop: 2,
-    fontSize: 7,
-    lineHeight: 11,
-    color: "#A16207",
-  },
 
-  // ----------------------------------------------------------
-  // SECTION
-  // ----------------------------------------------------------
+    // --------------------------------------------------------
+    // WELCOME
+    // --------------------------------------------------------
 
-  sectionTitle: {
-    marginHorizontal: 20,
-    marginTop: 24,
-    marginBottom: 10,
-  },
+    welcomeSection: {
+      marginHorizontal: 20,
 
-  sectionHeading: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#0F172A",
-  },
+      flexDirection: "row",
 
-  sectionSubtitle: {
-    marginTop: 2,
-    fontSize: 7.5,
-    color: "#94A3B8",
-  },
+      alignItems: "center",
 
-  // ----------------------------------------------------------
-  // STATS
-  // ----------------------------------------------------------
+      justifyContent: "space-between",
+    },
 
-  statsGrid: {
-    marginHorizontal: 20,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 9,
-  },
 
-  statCard: {
-    width: "48%",
-    minHeight: 94,
-    padding: 13,
-    borderRadius: 17,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
+    welcomeText: {
+      flex: 1,
 
-  statIcon: {
-    width: 31,
-    height: 31,
-    borderRadius: 10,
-    backgroundColor: "#EEF4FF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+      paddingRight: 15,
+    },
 
-  statValue: {
-    marginTop: 8,
-    fontSize: 17,
-    fontWeight: "900",
-    color: "#0F172A",
-  },
 
-  statLabel: {
-    marginTop: 1,
-    fontSize: 7,
-    color: "#94A3B8",
-  },
+    eyebrow: {
+      fontSize: 7,
 
-  // ----------------------------------------------------------
-  // ATTENDANCE
-  // ----------------------------------------------------------
+      fontWeight: "900",
 
-  attendanceCard: {
-    marginHorizontal: 20,
-    padding: 14,
-    borderRadius: 19,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    flexDirection: "row",
-    alignItems: "center",
-  },
+      letterSpacing: 1.2,
 
-  attendanceIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
-    backgroundColor: "#EEF4FF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+      color: "#2563EB",
+    },
 
-  attendanceContent: {
-    flex: 1,
-    marginLeft: 10,
-    paddingRight: 8,
-  },
 
-  attendanceLabel: {
-    fontSize: 6,
-    fontWeight: "900",
-    letterSpacing: 0.8,
-    color: "#2563EB",
-  },
+    greeting: {
+      marginTop: 4,
 
-  attendanceTitle: {
-    marginTop: 3,
-    fontSize: 10,
-    fontWeight: "800",
-    color: "#0F172A",
-  },
+      fontSize: 12,
 
-  attendanceDate: {
-    marginTop: 3,
-    fontSize: 7,
-    lineHeight: 11,
-    color: "#94A3B8",
-  },
+      color: "#64748B",
+    },
 
-  openBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: "#DCFCE7",
-  },
 
-  openBadgeText: {
-    fontSize: 6,
-    fontWeight: "900",
-    color: "#15803D",
-  },
+    name: {
+      marginTop: 1,
 
-  // ----------------------------------------------------------
-  // LEARNING
-  // ----------------------------------------------------------
+      fontSize: 22,
 
-  learningCard: {
-    marginHorizontal: 20,
-    borderRadius: 19,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
+      fontWeight: "800",
 
-  learningContent: {
-    padding: 15,
-    flexDirection: "row",
-    alignItems: "center",
-  },
+      color: "#0F172A",
+    },
 
-  learningIcon: {
-    width: 43,
-    height: 43,
-    borderRadius: 13,
-    backgroundColor: "#EEF4FF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
 
-  learningText: {
-    flex: 1,
-    marginLeft: 10,
-  },
+    subtitle: {
+      marginTop: 4,
 
-  learningLabel: {
-    fontSize: 6,
-    fontWeight: "900",
-    letterSpacing: 0.8,
-    color: "#2563EB",
-  },
+      fontSize: 9,
 
-  learningTitle: {
-    marginTop: 3,
-    fontSize: 10,
-    lineHeight: 14,
-    fontWeight: "800",
-    color: "#0F172A",
-  },
+      color: "#94A3B8",
+    },
 
-  moduleProgress: {
-    marginTop: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
 
-  moduleProgressTrack: {
-    flex: 1,
-    height: 5,
-    borderRadius: 999,
-    backgroundColor: "#E2E8F0",
-    overflow: "hidden",
-  },
+    // --------------------------------------------------------
+    // AVATAR
+    // --------------------------------------------------------
 
-  moduleProgressFill: {
-    height: "100%",
-    borderRadius: 999,
-    backgroundColor: "#2563EB",
-  },
+    avatar: {
+      width: 52,
 
-  moduleProgressText: {
-    fontSize: 7,
-    fontWeight: "800",
-    color: "#2563EB",
-  },
+      height: 52,
 
-  // ----------------------------------------------------------
-  // ASSESSMENT
-  // ----------------------------------------------------------
+      borderRadius: 18,
 
-  assessmentCard: {
-    marginHorizontal: 20,
-    padding: 15,
-    borderRadius: 19,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    flexDirection: "row",
-    alignItems: "center",
-  },
+      backgroundColor: "#E2E8F0",
 
-  assessmentIcon: {
-    width: 43,
-    height: 43,
-    borderRadius: 13,
-    backgroundColor: "#F3E8FF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+      alignItems: "center",
 
-  assessmentContent: {
-    flex: 1,
-    marginLeft: 10,
-    paddingRight: 8,
-  },
+      justifyContent: "center",
 
-  assessmentLabel: {
-    fontSize: 6,
-    fontWeight: "900",
-    letterSpacing: 0.8,
-    color: "#7C3AED",
-  },
+      overflow: "hidden",
+    },
 
-  assessmentTitle: {
-    marginTop: 3,
-    fontSize: 10,
-    lineHeight: 14,
-    fontWeight: "800",
-    color: "#0F172A",
-  },
 
-  assessmentMeta: {
-    marginTop: 3,
-    fontSize: 7,
-    color: "#94A3B8",
-  },
+    avatarImage: {
+      width: "100%",
 
-  bottomSpace: {
-    height: 25,
-  },
-});
+      height: "100%",
+    },
+
+
+    avatarText: {
+      fontSize: 18,
+
+      fontWeight: "800",
+
+      color: "#475569",
+    },
+
+
+    // --------------------------------------------------------
+    // PENDING
+    // --------------------------------------------------------
+
+    pendingCard: {
+      marginHorizontal: 20,
+
+      marginTop: 20,
+
+      padding: 13,
+
+      borderRadius: 16,
+
+      backgroundColor: "#FFFBEB",
+
+      borderWidth: 1,
+
+      borderColor: "#FDE68A",
+
+      flexDirection: "row",
+
+      alignItems: "center",
+    },
+
+
+    pendingIcon: {
+      width: 36,
+
+      height: 36,
+
+      borderRadius: 11,
+
+      backgroundColor: "#FEF3C7",
+
+      alignItems: "center",
+
+      justifyContent: "center",
+    },
+
+
+    pendingContent: {
+      flex: 1,
+
+      marginLeft: 10,
+    },
+
+
+    pendingTitle: {
+      fontSize: 9,
+
+      fontWeight: "800",
+
+      color: "#92400E",
+    },
+
+
+    pendingText: {
+      marginTop: 2,
+
+      fontSize: 7.5,
+
+      lineHeight: 12,
+
+      color: "#A16207",
+    },
+
+
+    // --------------------------------------------------------
+    // SECTION
+    // --------------------------------------------------------
+
+    sectionHeader: {
+      marginTop: 25,
+
+      marginHorizontal: 20,
+
+      marginBottom: 10,
+    },
+
+
+    sectionTitle: {
+      fontSize: 13,
+
+      fontWeight: "800",
+
+      color: "#0F172A",
+    },
+
+
+    sectionSubtitle: {
+      marginTop: 2,
+
+      fontSize: 8,
+
+      color: "#94A3B8",
+    },
+
+
+    // --------------------------------------------------------
+    // STATS
+    // --------------------------------------------------------
+
+    statsGrid: {
+      marginHorizontal: 20,
+
+      flexDirection: "row",
+
+      flexWrap: "wrap",
+
+      gap: 9,
+    },
+
+
+    statCard: {
+      width: "48%",
+
+      padding: 13,
+
+      borderRadius: 16,
+
+      backgroundColor: "#FFFFFF",
+
+      borderWidth: 1,
+
+      borderColor: "#E2E8F0",
+    },
+
+
+    statIcon: {
+      width: 31,
+
+      height: 31,
+
+      borderRadius: 10,
+
+      backgroundColor: "#EEF4FF",
+
+      alignItems: "center",
+
+      justifyContent: "center",
+
+      marginBottom: 8,
+    },
+
+
+    statLabel: {
+      fontSize: 7,
+
+      color: "#94A3B8",
+    },
+
+
+    statValue: {
+      marginTop: 2,
+
+      fontSize: 15,
+
+      fontWeight: "800",
+
+      color: "#0F172A",
+    },
+
+
+    // --------------------------------------------------------
+    // ATTENDANCE
+    // --------------------------------------------------------
+
+    attendanceCard: {
+      marginHorizontal: 20,
+
+      padding: 13,
+
+      borderRadius: 17,
+
+      backgroundColor: "#FFFFFF",
+
+      borderWidth: 1,
+
+      borderColor: "#E2E8F0",
+    },
+
+
+    attendanceRow: {
+      flexDirection: "row",
+
+      alignItems: "center",
+    },
+
+
+    attendanceIcon: {
+      width: 38,
+
+      height: 38,
+
+      borderRadius: 12,
+
+      backgroundColor: "#DCFCE7",
+
+      alignItems: "center",
+
+      justifyContent: "center",
+    },
+
+
+    attendanceContent: {
+      marginLeft: 10,
+
+      flex: 1,
+    },
+
+
+    attendanceTitle: {
+      fontSize: 9,
+
+      fontWeight: "800",
+
+      color: "#334155",
+    },
+
+
+    attendanceDate: {
+      marginTop: 2,
+
+      fontSize: 7,
+
+      color: "#64748B",
+    },
+
+
+    attendanceMode: {
+      marginTop: 1,
+
+      fontSize: 6.5,
+
+      color: "#94A3B8",
+    },
+
+
+    attendanceStatus: {
+      flexDirection: "row",
+
+      alignItems: "center",
+
+      gap: 5,
+    },
+
+
+    attendanceStatusDot: {
+      width: 7,
+
+      height: 7,
+
+      borderRadius: 999,
+
+      backgroundColor: "#16A34A",
+    },
+
+
+    attendanceStatusText: {
+      fontSize: 6.5,
+
+      fontWeight: "800",
+
+      color: "#15803D",
+    },
+
+
+    noAttendance: {
+      flexDirection: "row",
+
+      alignItems: "center",
+    },
+
+
+    noAttendanceIcon: {
+      width: 38,
+
+      height: 38,
+
+      borderRadius: 12,
+
+      backgroundColor: "#F1F5F9",
+
+      alignItems: "center",
+
+      justifyContent: "center",
+    },
+
+
+    noAttendanceContent: {
+      flex: 1,
+
+      marginLeft: 10,
+    },
+
+
+    noAttendanceTitle: {
+      fontSize: 9,
+
+      fontWeight: "800",
+
+      color: "#475569",
+    },
+
+
+    noAttendanceText: {
+      marginTop: 2,
+
+      fontSize: 7,
+
+      lineHeight: 11,
+
+      color: "#94A3B8",
+    },
+
+
+    // --------------------------------------------------------
+    // ACTIVITY
+    // --------------------------------------------------------
+
+    activityCard: {
+      marginHorizontal: 20,
+
+      padding: 5,
+
+      borderRadius: 17,
+
+      backgroundColor: "#FFFFFF",
+
+      borderWidth: 1,
+
+      borderColor: "#E2E8F0",
+    },
+
+
+    activityItem: {
+      padding: 10,
+
+      flexDirection: "row",
+
+      alignItems: "center",
+    },
+
+
+    activityIcon: {
+      width: 34,
+
+      height: 34,
+
+      borderRadius: 11,
+
+      backgroundColor: "#EEF4FF",
+
+      alignItems: "center",
+
+      justifyContent: "center",
+    },
+
+
+    activityContent: {
+      flex: 1,
+
+      marginLeft: 10,
+    },
+
+
+    activityTitle: {
+      fontSize: 8.5,
+
+      fontWeight: "800",
+
+      color: "#334155",
+    },
+
+
+    activityDescription: {
+      marginTop: 2,
+
+      fontSize: 7,
+
+      color: "#94A3B8",
+    },
+
+
+    // --------------------------------------------------------
+    // NO ACTIVE TRAINING
+    // --------------------------------------------------------
+
+    noTrainingCard: {
+      marginHorizontal: 20,
+
+      padding: 17,
+
+      borderRadius: 19,
+
+      backgroundColor: "#FFFFFF",
+
+      borderWidth: 1,
+
+      borderColor: "#E2E8F0",
+
+      flexDirection: "row",
+
+      alignItems: "flex-start",
+    },
+
+
+    noTrainingIcon: {
+      width: 44,
+
+      height: 44,
+
+      borderRadius: 14,
+
+      backgroundColor: "#EEF4FF",
+
+      alignItems: "center",
+
+      justifyContent: "center",
+    },
+
+
+    noTrainingContent: {
+      flex: 1,
+
+      marginLeft: 11,
+    },
+
+
+    noTrainingTitle: {
+      fontSize: 10,
+
+      fontWeight: "800",
+
+      color: "#334155",
+    },
+
+
+    noTrainingText: {
+      marginTop: 4,
+
+      fontSize: 7.5,
+
+      lineHeight: 12,
+
+      color: "#94A3B8",
+    },
+
+
+    // --------------------------------------------------------
+    // BROWSE BUTTON
+    // --------------------------------------------------------
+
+    browseButton: {
+      marginTop: 11,
+
+      height: 34,
+
+      paddingHorizontal: 11,
+
+      borderRadius: 10,
+
+      backgroundColor: "#2563EB",
+
+      flexDirection: "row",
+
+      alignItems: "center",
+
+      alignSelf: "flex-start",
+
+      gap: 6,
+    },
+
+
+    browseButtonText: {
+      fontSize: 7.5,
+
+      fontWeight: "800",
+
+      color: "#FFFFFF",
+    },
+
+
+    browseButtonPressed: {
+      opacity: 0.7,
+    },
+
+  });

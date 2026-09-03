@@ -1,5 +1,4 @@
 using server.Models.Auth;
-
 namespace server.Models.Trainer;
 
 public class TrainerProfile
@@ -59,4 +58,6 @@ public class TrainerProfile
 
     public User User { get; set; }
         = default!;
+
+          public ICollection<TrainerAssignment> Assignments { get; set; } = [];
 }

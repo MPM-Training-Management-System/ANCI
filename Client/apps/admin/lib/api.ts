@@ -2,6 +2,13 @@ import {
   ApiClient,
   AuthApi,
   TrainerApplicationApi,
+  TrainingProgramApi,
+  TrainingProgramDocumentApi,
+  TrainingBatchApi,
+  TrainerAssignmentApi,
+  TrainerApi,
+  AdminApi,
+  EnrollmentApi,
 } from "@repo/api";
 
 import {
@@ -9,9 +16,7 @@ import {
 } from "@/lib/auth";
 
 
-// =========================================================
-// API BASE URL
-// =========================================================
+
 
 const baseUrl =
   process.env.NEXT_PUBLIC_API_URL;
@@ -23,9 +28,7 @@ if (!baseUrl) {
 }
 
 
-// =========================================================
-// API CLIENT
-// =========================================================
+
 
 export const api =
   new ApiClient({
@@ -61,9 +64,31 @@ export const authApi =
   new AuthApi(api);
 
 
-// =========================================================
-// TRAINER APPLICATION API
-// =========================================================
 
+
+export const trainingProgramApi =
+  new TrainingProgramApi(api);
+
+  export const adminApi =
+  new AdminApi(api);
+
+
+
+
+export const trainingProgramDocumentApi =
+  new TrainingProgramDocumentApi(api);
+  export const enrollmentApi =
+  new EnrollmentApi(api);
+
+
+
+export const trainingBatchApi =
+  new TrainingBatchApi(api);
 export const trainerApplicationApi =
   new TrainerApplicationApi(api);
+
+  export const trainerApi =
+  new TrainerApi(api);
+  
+  export const trainerAssignmentApi =
+  new TrainerAssignmentApi(api);

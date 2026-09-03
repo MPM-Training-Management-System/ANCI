@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
-import Logo from "@/assets/image/ANCILOGO.png";
+
 
 import { SidebarHeaderProps } from "./types";
 
@@ -22,7 +22,7 @@ export default function SidebarHeader({
       {/* Logo */}
       <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white shadow">
         <Image
-          src={Logo}
+          src="/assets/image/ANCILOGO.png"
           alt="ACE NextGen"
           width={36}
           height={36}

@@ -24,7 +24,7 @@ export class TrainerApi {
     Promise<TrainerProfile> {
 
     return this.api.request<TrainerProfile>(
-      "/api/trainer-applications/me",
+      "/api/trainer-profiles/me",
       {
         method: "GET",
       }

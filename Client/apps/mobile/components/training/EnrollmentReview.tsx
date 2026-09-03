@@ -1,6 +1,7 @@
 import React from "react";
 
 import {
+  ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
@@ -12,53 +13,98 @@ import {
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 import type {
-  ParticipantTraining,
-} from "@/src/data/participantTraining";
+  TrainingBatch,
+} from "@repo/types";
 
 import type {
   EnrollmentFormData,
 } from "./EnrollmentForm";
 
+
+// =========================================================
+// PROPS
+// =========================================================
 interface Props {
-  training: ParticipantTraining;
-
+  training: TrainingBatch;
   formData: EnrollmentFormData;
-
   onBack: () => void;
-
-  onSubmit: () => void;
+  onSubmit: () => void | Promise<void>;
+  isSubmitting: boolean;
 }
+
+
+// =========================================================
+// COMPONENT
+// =========================================================
 
 export default function EnrollmentReview({
   training,
   formData,
   onBack,
   onSubmit,
+  isSubmitting,
 }: Props) {
-  const handleSubmit = () => {
-    Alert.alert(
-      "Submit Enrollment",
-      "Are you sure you want to submit this enrollment application?",
-      [
-        {
-          text: "Review Again",
-          style: "cancel",
-        },
-        {
-          text: "Submit",
-          onPress: onSubmit,
-        },
-      ]
-    );
-  };
+
+  // =======================================================
+  // CONFIRM SUBMIT
+  // =======================================================
+
+ const handleSubmit = () => {
+  if (isSubmitting) {
+    return;
+  }
+
+  Alert.alert(
+    "Submit Enrollment",
+    "Are you sure you want to submit this enrollment application?",
+    [
+      {
+        text: "Review Again",
+        style: "cancel",
+      },
+      {
+        text: "Submit",
+        onPress: onSubmit,
+      },
+    ]
+  );
+};
+
+  // =======================================================
+  // AVAILABLE SLOTS
+  // =======================================================
+
+  const availableSlots = Math.max(
+    training.capacity -
+      training.enrolledCount,
+    0
+  );
+
+
+  // =======================================================
+  // DATE RANGE
+  // =======================================================
+
+  const dateRange =
+    `${formatDate(training.startDate)} – ${formatDate(
+      training.endDate
+    )}`;
+
 
   return (
     <View style={styles.container}>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
+
+        {/* =====================================
+            HEADER
+        ===================================== */}
+
         <View style={styles.header}>
+
           <Pressable
             onPress={onBack}
             style={styles.backButton}
@@ -70,7 +116,9 @@ export default function EnrollmentReview({
             />
           </Pressable>
 
+
           <View style={styles.headerText}>
+
             <Text style={styles.step}>
               STEP 2 OF 2
             </Text>
@@ -83,34 +131,58 @@ export default function EnrollmentReview({
               Check your information before
               submitting.
             </Text>
+
           </View>
+
         </View>
 
+
+        {/* =====================================
+            SELECTED TRAINING
+        ===================================== */}
+
         <View style={styles.trainingCard}>
+
           <View style={styles.trainingIcon}>
+
             <Ionicons
               name="school-outline"
               size={21}
               color="#2563EB"
             />
+
           </View>
+
 
           <View style={styles.trainingContent}>
+
             <Text style={styles.trainingLabel}>
-              TRAINING PROGRAM
+              SELECTED TRAINING
             </Text>
+
 
             <Text style={styles.trainingTitle}>
-              {training.title}
+              {training.programName}
             </Text>
+
 
             <Text style={styles.trainingCode}>
-              {training.code}
+              Batch: {training.batchCode}
             </Text>
+
           </View>
+
         </View>
 
-        <Section title="Participant Information">
+
+        {/* =====================================
+            PARTICIPANT INFORMATION
+        ===================================== */}
+
+        <Section
+          title="Participant Information"
+        >
+
           <ReviewItem
             label="Full Name"
             value={
@@ -119,11 +191,15 @@ export default function EnrollmentReview({
             icon="person-outline"
           />
 
+
           <ReviewItem
             label="Email"
-            value={formData.email}
+            value={
+              formData.email
+            }
             icon="mail-outline"
           />
+
 
           <ReviewItem
             label="Mobile Number"
@@ -132,59 +208,105 @@ export default function EnrollmentReview({
             }
             icon="call-outline"
           />
+
         </Section>
 
-        <Section title="Training Information">
-          <ReviewItem
-            label="Trainer"
-            value={training.trainer}
-            icon="person-circle-outline"
-          />
+
+        {/* =====================================
+            TRAINING INFORMATION
+        ===================================== */}
+
+        <Section
+          title="Training Information"
+        >
 
           <ReviewItem
-            label="Schedule"
-            value={`${training.schedule} • ${training.time}`}
-            icon="calendar-outline"
+            label="Training Program"
+            value={
+              training.programName
+            }
+            icon="school-outline"
           />
 
+
           <ReviewItem
-            label="Mode"
-            value={formData.mode}
-            icon="git-compare-outline"
+            label="Batch Code"
+            value={
+              training.batchCode
+            }
+            icon="pricetag-outline"
           />
+
 
           <ReviewItem
             label="Location"
-            value={training.location}
+            value={
+              training.location ??
+              "Not specified"
+            }
             icon="location-outline"
           />
 
-          <ReviewItem
-            label="Duration"
-            value={training.duration}
-            icon="hourglass-outline"
-          />
 
           <ReviewItem
             label="Training Period"
-            value={`${training.startDate} – ${training.endDate}`}
-            icon="calendar-number-outline"
+            value={dateRange}
+            icon="calendar-outline"
           />
+
+
+          <ReviewItem
+            label="Available Slots"
+            value={
+              `${availableSlots} slots remaining`
+            }
+            icon="people-outline"
+          />
+
+
+          <ReviewItem
+            label="Capacity"
+            value={
+              `${training.capacity} participants`
+            }
+            icon="people-circle-outline"
+          />
+
+
+          <ReviewItem
+            label="Current Enrollment"
+            value={
+              `${training.enrolledCount} participants`
+            }
+            icon="person-add-outline"
+          />
+
         </Section>
 
+
+        {/* =====================================
+            NOTICE
+        ===================================== */}
+
         <View style={styles.notice}>
+
           <View style={styles.noticeIcon}>
+
             <Ionicons
               name="shield-checkmark-outline"
               size={18}
               color="#2563EB"
             />
+
           </View>
 
+
           <View style={styles.noticeContent}>
+
             <Text style={styles.noticeTitle}>
               Before you submit
             </Text>
+
 
             <Text style={styles.noticeText}>
               Your application will be sent to
@@ -192,33 +314,65 @@ export default function EnrollmentReview({
               Approval is required before you
               can access the training.
             </Text>
+
           </View>
+
         </View>
 
-        <Pressable
-          onPress={handleSubmit}
-          style={styles.submitButton}
-        >
-          <Ionicons
-            name="send-outline"
-            size={18}
-            color="#FFFFFF"
-          />
 
-          <Text style={styles.submitText}>
-            Submit Enrollment
-          </Text>
-        </Pressable>
+        {/* =====================================
+            SUBMIT BUTTON
+        ===================================== */}
+
+       <Pressable
+  onPress={handleSubmit}
+  disabled={isSubmitting}
+  style={[
+    styles.submitButton,
+    isSubmitting && styles.submitButtonDisabled,
+  ]}
+>
+  {isSubmitting ? (
+    <ActivityIndicator
+      size="small"
+      color="#FFFFFF"
+    />
+  ) : (
+    <Ionicons
+      name="send-outline"
+      size={18}
+      color="#FFFFFF"
+    />
+  )}
+
+  <Text style={styles.submitText}>
+    {isSubmitting
+      ? "Submitting..."
+      : "Submit Enrollment"}
+  </Text>
+</Pressable>
+
+
+        {/* =====================================
+            BOTTOM NOTE
+        ===================================== */}
 
         <Text style={styles.bottomNote}>
           By submitting this application, you
           confirm that the information provided
           is accurate.
         </Text>
+
       </ScrollView>
+
     </View>
   );
 }
+
+
+// =========================================================
+// SECTION
+// =========================================================
 
 function Section({
   title,
@@ -227,16 +381,24 @@ function Section({
   title: string;
   children: React.ReactNode;
 }) {
+
   return (
     <View style={styles.section}>
+
       <Text style={styles.sectionTitle}>
         {title}
       </Text>
 
       {children}
+
     </View>
   );
 }
+
+
+// =========================================================
+// REVIEW ITEM
+// =========================================================
 
 function ReviewItem({
   label,
@@ -244,33 +406,85 @@ function ReviewItem({
   icon,
 }: {
   label: string;
+
   value: string;
-  icon: keyof typeof Ionicons.glyphMap;
+
+  icon:
+    keyof typeof Ionicons.glyphMap;
 }) {
+
   return (
     <View style={styles.reviewItem}>
+
       <View style={styles.reviewIcon}>
+
         <Ionicons
           name={icon}
           size={16}
           color="#2563EB"
         />
+
       </View>
 
+
       <View style={styles.reviewContent}>
+
         <Text style={styles.reviewLabel}>
           {label}
         </Text>
 
+
         <Text style={styles.reviewValue}>
           {value}
         </Text>
+
       </View>
+
     </View>
   );
 }
 
+
+// =========================================================
+// DATE FORMAT
+// =========================================================
+
+function formatDate(
+  value: string
+): string {
+
+  if (!value) {
+    return "Not specified";
+  }
+
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return value;
+  }
+
+  return date.toLocaleDateString(
+    "en-US",
+    {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }
+  );
+}
+
+
+// =========================================================
+// STYLES
+// =========================================================
+
 const styles = StyleSheet.create({
+
   container: {
     flex: 1,
     backgroundColor: "#F8FAFC",
@@ -280,6 +494,11 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 90,
   },
+
+
+  // ========================================
+  // HEADER
+  // ========================================
 
   header: {
     flexDirection: "row",
@@ -298,6 +517,7 @@ const styles = StyleSheet.create({
   },
 
   headerText: {
+    flex: 1,
     marginLeft: 12,
   },
 
@@ -320,6 +540,11 @@ const styles = StyleSheet.create({
     fontSize: 8,
     color: "#64748B",
   },
+
+
+  // ========================================
+  // TRAINING CARD
+  // ========================================
 
   trainingCard: {
     marginTop: 20,
@@ -362,9 +587,14 @@ const styles = StyleSheet.create({
 
   trainingCode: {
     marginTop: 2,
-    fontSize: 6,
+    fontSize: 7,
     color: "#64748B",
   },
+
+
+  // ========================================
+  // SECTION
+  // ========================================
 
   section: {
     marginTop: 23,
@@ -376,6 +606,11 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: "#0F172A",
   },
+
+
+  // ========================================
+  // REVIEW ITEM
+  // ========================================
 
   reviewItem: {
     marginBottom: 8,
@@ -416,6 +651,11 @@ const styles = StyleSheet.create({
     color: "#334155",
   },
 
+
+  // ========================================
+  // NOTICE
+  // ========================================
+
   notice: {
     marginTop: 20,
     padding: 14,
@@ -453,6 +693,11 @@ const styles = StyleSheet.create({
     color: "#475569",
   },
 
+
+  // ========================================
+  // SUBMIT
+  // ========================================
+
   submitButton: {
     height: 52,
     marginTop: 22,
@@ -470,6 +715,11 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
 
+
+  // ========================================
+  // BOTTOM NOTE
+  // ========================================
+
   bottomNote: {
     marginTop: 8,
     paddingHorizontal: 20,
@@ -478,4 +728,8 @@ const styles = StyleSheet.create({
     lineHeight: 11,
     color: "#94A3B8",
   },
+  submitButtonDisabled: {
+  opacity: 0.7,
+},
+
 });

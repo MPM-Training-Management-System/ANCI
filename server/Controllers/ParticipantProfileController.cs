@@ -26,10 +26,7 @@ public class ParticipantProfileController
     }
 
 
-    // =========================================================
-    // GET MY PROFILE
-    // GET /api/participant-profiles/me
-    // =========================================================
+   
 
     [HttpGet("me")]
     public async Task<ActionResult<ParticipantProfileDto>>

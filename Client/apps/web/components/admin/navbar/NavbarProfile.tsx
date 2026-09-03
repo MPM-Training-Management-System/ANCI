@@ -1,6 +1,6 @@
 "use client";
 
-// import Image from "next/image";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 import {
@@ -34,8 +34,7 @@ export default function NavbarProfile() {
     refetch,
   } = useTrainerMe(trainerApi);
   
-
-  return (
+ return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
@@ -44,26 +43,26 @@ export default function NavbarProfile() {
         >
           <div className="flex items-center gap-3">
             <div className="relative">
-              {/* {user. ? (
+               {profile?.profileImageUrl ? (
                 <Image
-                  // src={user?.profileImage}
-                  alt={user?.fullName || "Profile"}
+                  src={profile.profileImageUrl} 
+                  alt={profile?.fullName || "Profile"}
                   width={40}
                   height={40}
                   className="h-10 w-10 rounded-full object-cover"
                 />
-              ) : ( */}
+              ) : ( 
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#002B5C] font-semibold text-white">
                   {profile?.fullName}
                 </div>
               )
-
+            }
               <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
             </div>
 
             <div className="hidden text-left lg:block">
               <h4 className="text-sm font-semibold text-gray-900">
-                {profile?.fullName}
+                {profile?.firstName}
               </h4>
 
               <p className="text-xs text-gray-500">
