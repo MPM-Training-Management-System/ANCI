@@ -12,6 +12,11 @@
             Guid sessionId,
             Guid trainerUserId);
 
+           Task<OpenAttendanceSessionDto> GetOpenSessionAsync(
+    Guid batchId,
+    Guid userId);
+
+
         Task<IEnumerable<AttendanceRecordDto>> GetSessionAsync(
             Guid sessionId,
             Guid userId);

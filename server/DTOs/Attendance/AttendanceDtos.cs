@@ -11,6 +11,11 @@ public record AttendanceQrDto(
     DateTime ExpiresAt
 );
 
+public record OpenAttendanceSessionDto(
+    bool IsOpen,
+    Guid? AttendanceSessionId
+);
+
 public record ScanAttendanceRequest(
     Guid AttendanceSessionId,
     string Token

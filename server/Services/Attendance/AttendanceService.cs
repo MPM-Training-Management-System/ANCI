@@ -688,4 +688,81 @@ public class AttendanceService : IAttendanceService
             ))
             .ToListAsync();
     }
+    public async Task<Guid?> GetOpenSessionIdAsync(
+    Guid batchId,
+    Guid userId)
+{
+    var batch =
+        await _context.TrainingBatches
+            .Include(b => b.TrainerAssignments)
+                .ThenInclude(a => a.TrainerProfile)
+            .FirstOrDefaultAsync(
+                b => b.Id == batchId);
+
+    if (batch == null)
+    {
+        return null;
+    }
+
+    // =====================================================
+    // TRAINER
+    // =====================================================
+
+    if (batch.TrainerAssignments != null)
+    {
+        var trainerUserId =
+            batch.TrainerAssignments
+                .FirstOrDefault()
+                .TrainerProfile
+                .UserId;
+
+        if (trainerUserId != userId)
+        {
+            return null;
+        }
+    }
+
+    // =====================================================
+    // FIND OPEN SESSION
+    // =====================================================
+
+    var session =
+        await _context.AttendanceSessions
+            .Where(s =>
+                s.TrainingBatchId == batchId &&
+                s.Status ==
+                    AttendanceSessionStatus.Open)
+            .OrderByDescending(
+                s => s.OpenedAt)
+            .FirstOrDefaultAsync();
+
+    return session?.Id;
+}
+public async Task<OpenAttendanceSessionDto> GetOpenSessionAsync(
+    Guid batchId,
+    Guid userId)
+{
+    var session =
+        await _context.AttendanceSessions
+            .Where(s =>
+                s.TrainingBatchId == batchId &&
+                s.Status == AttendanceSessionStatus.Open
+            )
+            .OrderByDescending(
+                s => s.OpenedAt)
+            .FirstOrDefaultAsync();
+
+    if (session == null)
+    {
+        return new OpenAttendanceSessionDto(
+            false,
+            null
+        );
+    }
+
+    return new OpenAttendanceSessionDto(
+        true,
+        session.Id
+    );
+}
 }
