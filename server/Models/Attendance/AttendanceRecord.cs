@@ -11,6 +11,8 @@ public class AttendanceRecord
 
     public Guid EnrollmentId { get; set; }
 
+    public DateOnly AttendanceDate { get; set; }
+
     public DateTime? TimeIn { get; set; }
 
     public DateTime? TimeOut { get; set; }

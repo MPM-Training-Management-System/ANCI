@@ -13,7 +13,8 @@ public record AttendanceQrDto(
 
 public record OpenAttendanceSessionDto(
     bool IsOpen,
-    Guid? AttendanceSessionId
+    Guid? AttendanceSessionId,
+    bool ManualAttendanceOpen
 );
 
 public record ScanAttendanceRequest(

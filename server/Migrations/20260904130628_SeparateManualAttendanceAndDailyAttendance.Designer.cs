@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using server.Data;
@@ -11,9 +12,11 @@ using server.Data;
 namespace server.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260904130628_SeparateManualAttendanceAndDailyAttendance")]
+    partial class SeparateManualAttendanceAndDailyAttendance
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -530,9 +533,6 @@ namespace server.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
-                    b.Property<decimal>("BreakHours")
-                        .HasColumnType("numeric");
-
                     b.Property<int>("Capacity")
                         .HasColumnType("integer");
 
@@ -542,16 +542,9 @@ namespace server.Migrations
                     b.Property<TimeOnly?>("EndTime")
                         .HasColumnType("time without time zone");
 
-                    b.Property<bool>("IncludeWeekends")
-                        .HasColumnType("boolean");
-
                     b.Property<string>("Location")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
-
-                    b.Property<string>("ScheduleStatus")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("timestamp with time zone");
@@ -675,45 +668,6 @@ namespace server.Migrations
                     b.HasIndex("TrainingProgramId");
 
                     b.ToTable("TrainingProgramRequirements");
-                });
-
-            modelBuilder.Entity("server.Models.Training.TrainingSession", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("DurationHours")
-                        .HasPrecision(8, 2)
-                        .HasColumnType("numeric(8,2)");
-
-                    b.Property<TimeOnly>("EndTime")
-                        .HasColumnType("time without time zone");
-
-                    b.Property<DateTime>("SessionDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("SessionNumber")
-                        .HasColumnType("integer");
-
-                    b.Property<TimeOnly>("StartTime")
-                        .HasColumnType("time without time zone");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("TrainingBatchId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TrainingBatchId", "SessionDate");
-
-                    b.HasIndex("TrainingBatchId", "SessionNumber")
-                        .IsUnique();
-
-                    b.ToTable("TrainingSessions");
                 });
 
             modelBuilder.Entity("TrainerAssignment", b =>
@@ -891,17 +845,6 @@ namespace server.Migrations
                     b.Navigation("TrainingProgram");
                 });
 
-            modelBuilder.Entity("server.Models.Training.TrainingSession", b =>
-                {
-                    b.HasOne("server.Models.Training.TrainingBatch", "TrainingBatch")
-                        .WithMany("TrainingSessions")
-                        .HasForeignKey("TrainingBatchId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("TrainingBatch");
-                });
-
             modelBuilder.Entity("server.Models.Attendance.AttendanceSession", b =>
                 {
                     b.Navigation("Records");
@@ -945,8 +888,6 @@ namespace server.Migrations
                     b.Navigation("Enrollments");
 
                     b.Navigation("TrainerAssignments");
-
-                    b.Navigation("TrainingSessions");
                 });
 
             modelBuilder.Entity("server.Models.Training.TrainingProgram", b =>

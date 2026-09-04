@@ -49,6 +49,9 @@ public DbSet<TrainingProgramRequirement>
     public DbSet<TrainingBatch> TrainingBatches
         => Set<TrainingBatch>();
 
+        public DbSet<TrainingSession> TrainingSessions
+    => Set<TrainingSession>();
+
     public DbSet<TrainerAssignment> TrainerAssignments
         => Set<TrainerAssignment>();
 
@@ -426,53 +429,114 @@ public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
         });
 
 
-        // ==========================================
-        // TRAINING BATCH
-        // ==========================================
+      modelBuilder.Entity<TrainingBatch>(entity =>
+{
+    entity.HasKey(x => x.Id);
 
-        modelBuilder.Entity<TrainingBatch>(entity =>
-        {
-            entity.HasKey(x => x.Id);
+    entity.Property(x => x.BatchCode)
+        .IsRequired()
+        .HasMaxLength(50);
 
-            entity.Property(x => x.BatchCode)
-                .IsRequired()
-                .HasMaxLength(50);
+    entity.HasIndex(x => x.BatchCode)
+        .IsUnique();
 
-            entity.HasIndex(x => x.BatchCode)
-                .IsUnique();
+    entity.Property(x => x.Location)
+        .HasMaxLength(255);
 
-            entity.Property(x => x.Location)
-                .HasMaxLength(255);
+    entity.Property(x => x.StartDate)
+        .IsRequired();
 
-            entity.Property(x => x.StartDate)
-                .IsRequired();
+    entity.Property(x => x.EndDate)
+        .IsRequired();
 
-            entity.Property(x => x.EndDate)
-                .IsRequired();
+    entity.Property(x => x.StartTime)
+        .IsRequired(false);
 
-            entity.Property(x => x.Capacity)
-                .IsRequired();
+    entity.Property(x => x.EndTime)
+        .IsRequired(false);
 
-            entity.Property(x => x.Status)
-                .HasConversion<string>()
-                .IsRequired();
+    
+    entity.Property(x => x.Capacity)
+        .IsRequired();
 
-            entity.HasOne(x => x.TrainingProgram)
-                .WithMany(x => x.Batches)
-                .HasForeignKey(x => x.TrainingProgramId)
-                .OnDelete(DeleteBehavior.Restrict);
+    entity.Property(x => x.Status)
+        .HasConversion<string>()
+        .IsRequired();
 
-            entity.HasMany(x => x.TrainerAssignments)
-                .WithOne(x => x.TrainingBatch)
-                .HasForeignKey(x => x.TrainingBatchId)
-                .OnDelete(DeleteBehavior.Restrict);
+    entity.Property(x => x.ScheduleStatus)
+        .HasConversion<string>()
+        .IsRequired();
 
-            entity.HasMany(x => x.Enrollments)
-                .WithOne(x => x.TrainingBatch)
-                .HasForeignKey(x => x.TrainingBatchId)
-                .OnDelete(DeleteBehavior.Restrict);
-        });
+    entity.Property(x => x.IncludeWeekends)
+        .IsRequired();
 
+    entity.HasOne(x => x.TrainingProgram)
+        .WithMany(x => x.Batches)
+        .HasForeignKey(x => x.TrainingProgramId)
+        .OnDelete(DeleteBehavior.Restrict);
+
+    entity.HasMany(x => x.TrainerAssignments)
+        .WithOne(x => x.TrainingBatch)
+        .HasForeignKey(x => x.TrainingBatchId)
+        .OnDelete(DeleteBehavior.Restrict);
+
+    entity.HasMany(x => x.Enrollments)
+        .WithOne(x => x.TrainingBatch)
+        .HasForeignKey(x => x.TrainingBatchId)
+        .OnDelete(DeleteBehavior.Restrict);
+
+    entity.HasMany(x => x.TrainingSessions)
+        .WithOne(x => x.TrainingBatch)
+        .HasForeignKey(x => x.TrainingBatchId)
+        .OnDelete(DeleteBehavior.Cascade);
+});
+
+// ==========================================
+// TRAINING SESSION
+// ==========================================
+
+modelBuilder.Entity<TrainingSession>(entity =>
+{
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.SessionNumber)
+        .IsRequired();
+
+    entity.Property(x => x.SessionDate)
+        .IsRequired();
+
+    entity.Property(x => x.StartTime)
+        .IsRequired();
+
+    entity.Property(x => x.EndTime)
+        .IsRequired();
+
+    entity.Property(x => x.DurationHours)
+        .HasPrecision(8, 2)
+        .IsRequired();
+
+    entity.Property(x => x.Status)
+        .HasConversion<string>()
+        .IsRequired();
+
+    entity.HasIndex(x => new
+    {
+        x.TrainingBatchId,
+        x.SessionDate
+    });
+
+    entity.HasIndex(x => new
+    {
+        x.TrainingBatchId,
+        x.SessionNumber
+    })
+    .IsUnique();
+
+    entity.HasOne(x => x.TrainingBatch)
+        .WithMany(x => x.TrainingSessions)
+        .HasForeignKey(x => x.TrainingBatchId)
+        .OnDelete(DeleteBehavior.Cascade);
+});
 
         // ==========================================
         // TRAINER ASSIGNMENT
@@ -584,7 +648,7 @@ public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
                 .HasForeignKey(x => x.EnrollmentId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
-        // ==========================================
+ // ==========================================
 // ATTENDANCE SESSION
 // ==========================================
 
@@ -593,6 +657,10 @@ modelBuilder.Entity<AttendanceSession>(entity =>
     entity.HasKey(x => x.Id);
 
     entity.Property(x => x.Status)
+        .HasConversion<string>()
+        .IsRequired();
+
+    entity.Property(x => x.ManualAttendanceStatus)
         .HasConversion<string>()
         .IsRequired();
 
@@ -636,6 +704,9 @@ modelBuilder.Entity<AttendanceRecord>(entity =>
     entity.Property(x => x.Method)
         .HasMaxLength(50);
 
+    entity.Property(x => x.AttendanceDate)
+        .IsRequired();
+
     entity.Property(x => x.TimeIn)
         .IsRequired(false);
 
@@ -646,12 +717,22 @@ modelBuilder.Entity<AttendanceRecord>(entity =>
 
     entity.HasIndex(x => x.EnrollmentId);
 
-    // One attendance record per enrollment
-    // in one attendance session.
+    // ==========================================
+    // ONE ATTENDANCE PER ENROLLMENT PER DAY
+    // ==========================================
+    //
+    // QR + Manual use the same record.
+    //
+    // Example:
+    //
+    // Enrollment A + Sept 4 = allowed
+    // Enrollment A + Sept 4 = duplicate
+    // Enrollment A + Sept 5 = allowed
+    //
     entity.HasIndex(x => new
     {
-        x.AttendanceSessionId,
-        x.EnrollmentId
+        x.EnrollmentId,
+        x.AttendanceDate
     })
     .IsUnique();
 

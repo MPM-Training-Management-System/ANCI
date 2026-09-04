@@ -9,6 +9,7 @@ import {
   TrainerApi,
   AdminApi,
   EnrollmentApi,
+  AttendanceApi,
 } from "@repo/api";
 
 import {
@@ -68,6 +69,8 @@ export const authApi =
 
 export const trainingProgramApi =
   new TrainingProgramApi(api);
+  export const attendanceApi =
+  new AttendanceApi(api);
 
   export const adminApi =
   new AdminApi(api);

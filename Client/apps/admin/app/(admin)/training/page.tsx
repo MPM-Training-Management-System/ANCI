@@ -42,8 +42,11 @@ import type {
   TrainerProfile,
   TrainerAssignment,
   AssignTrainerRequest,
+  TrainingScheduleRecommendation,
+GenerateTrainingScheduleRequest,
+TrainingSession
 } from "@repo/types";
-
+import TrainingScheduleAction from "./TrainingScheduleAction";
 import {
   columns,
   type ProgramStatus,
@@ -426,22 +429,31 @@ export default function TrainingProgramsPage() {
   // ==========================================================
 
   const {
-    batches,
-    createBatch,
-    updateBatch,
-    updateBatchStatus,
-    deleteBatch,
-    isLoading: isLoadingBatches,
-    isCreating: isCreatingBatch,
-    isUpdating: isUpdatingBatch,
-    isDeleting: isDeletingBatch,
-    isUpdatingStatus:
-      isUpdatingBatchStatus,
-    error: batchError,
-  } =
-    useTrainingBatches(
-      trainingBatchApi,
-    );
+  batches,
+  createBatch,
+  updateBatch,
+  updateBatchStatus,
+  deleteBatch,
+
+  // SCHEDULE
+  scheduleRecommendation,
+  trainingSessions,
+  isLoadingSchedule,
+  isGeneratingSchedule,
+  scheduleError,
+  getScheduleRecommendation,
+  generateSchedule,
+  getSchedule,
+  approveSchedule,
+
+  // BATCH LOADING
+  isLoading: isLoadingBatches,
+  isCreating: isCreatingBatch,
+  isUpdating: isUpdatingBatch,
+  isDeleting: isDeletingBatch,
+  isUpdatingStatus: isUpdatingBatchStatus,
+  error: batchError,
+} = useTrainingBatches(trainingBatchApi);
 
   const handleDeleteBatch =
   useCallback(
@@ -2270,6 +2282,42 @@ export default function TrainingProgramsPage() {
             isUpdatingStatus={
               isUpdatingBatchStatus
             }
+
+            scheduleRecommendation={
+  scheduleRecommendation
+}
+
+trainingSessions={
+  trainingSessions
+}
+
+isLoadingSchedule={
+  isLoadingSchedule
+}
+
+isGeneratingSchedule={
+  isGeneratingSchedule
+}
+
+scheduleError={
+  scheduleError
+}
+
+getScheduleRecommendation={
+  getScheduleRecommendation
+}
+
+generateSchedule={
+  generateSchedule
+}
+
+getSchedule={
+  getSchedule
+}
+
+approveSchedule={
+  approveSchedule
+}
           />
 
         )}
@@ -2535,6 +2583,17 @@ function ProgramDetailsModal({
   onRemoveTrainer,
   onUpdateBatchStatus,
   isUpdatingStatus,
+
+  // SCHEDULE
+  scheduleRecommendation,
+  trainingSessions,
+  isLoadingSchedule,
+  isGeneratingSchedule,
+  scheduleError,
+  getScheduleRecommendation,
+  generateSchedule,
+  getSchedule,
+  approveSchedule,
 }: {
   program: TrainingProgram;
 
@@ -2580,6 +2639,39 @@ function ProgramDetailsModal({
     batch: TrainingBatch,
     status: string,
   ) => Promise<void>;
+
+    scheduleRecommendation:
+    TrainingScheduleRecommendation | null;
+
+  trainingSessions:
+    TrainingSession[];
+
+  isLoadingSchedule:
+    boolean;
+
+  isGeneratingSchedule:
+    boolean;
+
+  scheduleError:
+    string | null;
+
+  getScheduleRecommendation: (
+    trainingBatchId: string,
+  ) => Promise<TrainingScheduleRecommendation | null>;
+
+  generateSchedule: (
+    trainingBatchId: string,
+    request: GenerateTrainingScheduleRequest,
+  ) => Promise<TrainingSession[] | null>;
+
+  getSchedule: (
+    trainingBatchId: string,
+  ) => Promise<TrainingSession[] | null>;
+
+  approveSchedule: (
+  trainingBatchId: string,
+  sessions: TrainingSession[],
+) => Promise<boolean>;
 
   isUpdatingStatus: boolean;
 }) {
@@ -2847,6 +2939,37 @@ function ProgramDetailsModal({
                               >
                                 Edit
                               </button>
+<TrainingScheduleAction
+  batch={batch}
+  scheduleRecommendation={
+    scheduleRecommendation
+  }
+  trainingSessions={
+    trainingSessions
+  }
+  isLoadingSchedule={
+    isLoadingSchedule
+  }
+  isGeneratingSchedule={
+    isGeneratingSchedule
+  }
+  scheduleError={
+    scheduleError
+  }
+  getScheduleRecommendation={
+    getScheduleRecommendation
+  }
+  generateSchedule={
+    generateSchedule
+  }
+  getSchedule={
+    getSchedule
+  }
+  approveSchedule={
+    approveSchedule
+  }
+/>
+
 
                               <select
                                 value={

@@ -61,21 +61,12 @@ public class TrainerAssignmentsController : ControllerBase
     // ==========================================
     // GET /api/trainer-assignments/me
     // ==========================================
-
-    [HttpGet("me")]
-    [Authorize(Roles = "Trainer")]
-    public async Task<ActionResult<IEnumerable<TrainerAssignmentDto>>>
-        GetMyAssignments()
-    {
-        var trainerUserId = GetCurrentUserId();
-
-        var result =
-            await _service.GetMyAssignmentsAsync(
-                trainerUserId
-            );
-
-        return Ok(result);
-    }
+[HttpGet("me")] [Authorize(Roles = "Trainer")] 
+public async Task<ActionResult<IEnumerable<TrainerAssignmentDto>>> 
+GetMyAssignments() { var trainerUserId = GetCurrentUserId(); 
+var result = await _service.GetMyAssignmentsAsync
+( trainerUserId ); 
+return Ok(result); }
 
 
     // ==========================================
@@ -115,4 +106,6 @@ public class TrainerAssignmentsController : ControllerBase
 
         return userId;
     }
+
+    
 }

@@ -15,6 +15,9 @@ public class AttendanceSession
 
     public AttendanceSessionStatus Status { get; set; }
 
+    public ManualAttendanceStatus ManualAttendanceStatus { get; set; }
+
+
     public Guid OpenedByUserId { get; set; }
 
     public TrainingBatch TrainingBatch { get; set; } = default!;
