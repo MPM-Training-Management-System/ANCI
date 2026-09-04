@@ -1,14 +1,27 @@
-
 import React from "react";
 
 export interface NavbarProps {
+  // Desktop sidebar state
   collapsed: boolean;
-  setCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
+
+  setCollapsed: React.Dispatch<
+    React.SetStateAction<boolean>
+  >;
+
+  // Mobile sidebar state
+  mobileOpen: boolean;
+
+  setMobileOpen: React.Dispatch<
+    React.SetStateAction<boolean>
+  >;
 }
 
 export interface NavbarCollapseProps {
   collapsed: boolean;
-  setCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
+
+  setCollapsed: React.Dispatch<
+    React.SetStateAction<boolean>
+  >;
 }
 
 export interface NavbarTitleProps {

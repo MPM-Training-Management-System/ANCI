@@ -24,4 +24,7 @@ public interface ITrainingBatchService
     );
     Task<IEnumerable<TrainingProgramRequirementDto>>
     GetRequirementsAsync(Guid trainingBatchId);
+
+    Task<IEnumerable<TrainingBatchDto>> GetAssignedAsync(
+    Guid trainerUserId);
 }

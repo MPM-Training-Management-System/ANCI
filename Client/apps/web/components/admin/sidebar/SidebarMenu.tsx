@@ -22,119 +22,79 @@ export default function SidebarMenu({
   collapsed,
 }: SidebarMenuProps) {
   const [user, setUser] =
-    useState<StoredUser | null>(
-      null
-    );
-
-  // =========================================================
-  // LOAD USER
-  // =========================================================
+    useState<StoredUser | null>(null);
 
   useEffect(() => {
-    const storedUser =
-      auth.getUser();
+    const storedUser = auth.getUser();
 
-    setUser(
-      storedUser
-    );
+    setUser(storedUser);
   }, []);
 
-  // =========================================================
-  // CHECK TRAINER
-  // =========================================================
-
   const isTrainer =
-    user?.role?.toLowerCase() ===
-    "trainer";
-
-  // =========================================================
-  // CHECK ACTIVE
-  // =========================================================
-
-  /*
-   * Supports both:
-   *
-   * status: "Active"
-   *
-   * and
-   *
-   * isActive: true
-   */
+    user?.role?.toLowerCase() === "trainer";
 
   const isActive =
     user?.isActive === true ||
-    user?.status?.toLowerCase() ===
-      "active";
-
-  // =========================================================
-  // PENDING TRAINER
-  // =========================================================
+    user?.status?.toLowerCase() === "active";
 
   const isPendingTrainer =
-    isTrainer &&
-    !isActive;
+    isTrainer && !isActive;
 
   return (
-    <nav className="flex-1 overflow-y-auto px-3 py-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-      {sidebarMenu.map(
-        (section) => (
-          <div
-            key={
-              section.title
-            }
-            className="mb-6"
-          >
-            {/* =================================================
-                SECTION TITLE
-            ================================================= */}
+    <nav
+      className="
+        min-h-0
+        flex-1
+        overflow-y-auto
+        overflow-x-hidden
+        px-3
+        py-2
+        scrollbar-thin
+        scrollbar-thumb-white/10
+        scrollbar-track-transparent
+      "
+    >
+      {sidebarMenu.map((section) => (
+        <div
+          key={section.title}
+          className="mb-6"
+        >
+          {/* Section Title */}
+          {!collapsed && (
+            <h3
+              className="
+                mb-2
+                px-3
+                text-[10px]
+                font-bold
+                uppercase
+                tracking-[0.25em]
+                text-white/40
+              "
+            >
+              {section.title}
+            </h3>
+          )}
 
-            {!collapsed && (
-              <h3 className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.25em] text-white/40">
-                {section.title}
-              </h3>
-            )}
+          {/* Menu Items */}
+          <div className="space-y-1">
+            {section.items.map((item) => {
+              const locked =
+                isPendingTrainer &&
+                item.href !== "/setting";
 
-            {/* =================================================
-                MENU ITEMS
-            ================================================= */}
-
-            <div className="space-y-1">
-              {section.items.map(
-                (item) => {
-
-                  /*
-                   * Pending trainer:
-                   *
-                   * Lock everything except Settings.
-                   */
-
-                  const locked =
-                    isPendingTrainer &&
-                    item.href !==
-                      "/setting";
-
-                  return (
-                    <SidebarItem
-                      key={
-                        item.href
-                      }
-                      item={
-                        item
-                      }
-                      collapsed={
-                        collapsed
-                      }
-                      locked={
-                        locked
-                      }
-                    />
-                  );
-                }
-              )}
-            </div>
+              return (
+                <SidebarItem
+                  key={item.href}
+                  item={item}
+                  collapsed={collapsed}
+                  locked={locked}
+                />
+              );
+            })}
           </div>
-        )
-      )}
+        </div>
+      ))}
     </nav>
   );
 }

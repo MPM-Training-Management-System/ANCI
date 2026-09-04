@@ -33,6 +33,15 @@ export class TrainingBatchApi {
     );
   }
 
+  async getAssigned(): Promise<TrainingBatch[]> {
+
+    return this.api.request<TrainingBatch[]>(
+      TrainingBatchEndpoints.assigned,
+      {
+        method: "GET",
+      }
+    );
+  }
 
 
 
