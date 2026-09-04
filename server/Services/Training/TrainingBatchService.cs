@@ -85,6 +85,87 @@ public class TrainingBatchService : ITrainingBatchService
         );
     });
 }
+
+public async Task<IEnumerable<TrainingBatchDto>> GetAssignedAsync(
+    Guid trainerUserId)
+{
+    var batches = await _context.TrainingBatches
+        .AsNoTracking()
+        .Include(x => x.TrainingProgram)
+        .Include(x => x.TrainerAssignments)
+            .ThenInclude(x => x.TrainerProfile)
+                .ThenInclude(x => x.User)
+        .Where(x =>
+            x.TrainerAssignments.Any(assignment =>
+                assignment.IsActive &&
+                assignment.TrainerProfile.UserId == trainerUserId
+            )
+        )
+        .OrderByDescending(x => x.StartDate)
+        .ToListAsync();
+
+    var batchIds = batches
+        .Select(x => x.Id)
+        .ToList();
+
+    var enrollmentCounts = await _context.Enrollments
+        .Where(x =>
+            batchIds.Contains(x.TrainingBatchId) &&
+            x.Status != EnrollmentStatus.Rejected &&
+            x.Status != EnrollmentStatus.Cancelled
+        )
+        .GroupBy(x => x.TrainingBatchId)
+        .Select(g => new
+        {
+            TrainingBatchId = g.Key,
+            Count = g.Count()
+        })
+        .ToDictionaryAsync(
+            x => x.TrainingBatchId,
+            x => x.Count
+        );
+
+    return batches.Select(x =>
+    {
+        var assignment = x.TrainerAssignments
+            .FirstOrDefault(a =>
+                a.IsActive &&
+                a.TrainerProfile.UserId == trainerUserId
+            );
+
+        TrainingBatchTrainerDto? trainer = null;
+
+        if (assignment?.TrainerProfile?.User is not null)
+        {
+            trainer = new TrainingBatchTrainerDto(
+                assignment.TrainerProfile.Id,
+                assignment.TrainerProfile.UserId,
+                assignment.TrainerProfile.User.FullName,
+                assignment.TrainerProfile.User.UserCode,
+                assignment.TrainerProfile.User.Email,
+                assignment.TrainerProfile.ProfileImageUrl
+            );
+        }
+
+        enrollmentCounts.TryGetValue(
+            x.Id,
+            out var enrolledCount
+        );
+
+        return new TrainingBatchDto(
+            x.Id,
+            x.TrainingProgram.Name,
+            x.BatchCode,
+            x.Location,
+            x.StartDate,
+            x.EndDate,
+            x.Capacity,
+            enrolledCount,
+            x.Status.ToString(),
+            trainer
+        );
+    });
+}
     public async Task<TrainingBatchDto?> GetByIdAsync(Guid id)
     {
         return await _context.TrainingBatches

@@ -20,8 +20,11 @@ export default function SidebarFooter({
 }: SidebarFooterProps) {
   const router = useRouter();
 
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [open, setOpen] =
+    useState(false);
+
+  const [loading, setLoading] =
+    useState(false);
 
   const handleLogout = async () => {
     try {
@@ -40,29 +43,52 @@ export default function SidebarFooter({
 
   return (
     <>
-      <div className="border-t border-white/10 p-4">
+      {/* Footer */}
+      <div
+        className="
+          shrink-0
+          border-t
+          border-white/10
+          p-4
+        "
+      >
         <Button
           variant="ghost"
           onClick={() => setOpen(true)}
+          disabled={loading}
           className={`
-            w-full rounded-xl
+            min-h-12
+            rounded-xl
+            bg-white/5
+            text-white/80
+            transition-all
+            hover:bg-red-500
+            hover:text-white
+
             ${
               collapsed
                 ? "flex h-12 w-12 items-center justify-center p-0"
-                : "flex items-center gap-3 px-4 py-3"
+                : "flex w-full items-center gap-3 px-4 py-3"
             }
-            bg-white/5
-            text-white/80
-            hover:bg-red-500
-            hover:text-white
-            transition-all
+
+            /* Mobile */
+            max-md:!flex
+            max-md:!h-12
+            max-md:!w-full
+            max-md:!justify-start
+            max-md:!gap-3
+            max-md:!px-4
+            max-md:!py-3
           `}
         >
           {loading ? (
             <Spinner size="sm" />
           ) : (
             <>
-              <LogOut size={20} />
+              <LogOut
+                size={20}
+                className="shrink-0"
+              />
 
               {!collapsed && (
                 <span className="font-medium">
@@ -74,13 +100,16 @@ export default function SidebarFooter({
         </Button>
       </div>
 
+      {/* Confirm Logout */}
       <ConfirmDialog
         open={open}
         title="Logout"
         description="Are you sure you want to logout?"
         confirmText="Logout"
         cancelText="Cancel"
-        onCancel={() => setOpen(false)}
+        onCancel={() =>
+          setOpen(false)
+        }
         onConfirm={handleLogout}
       />
     </>

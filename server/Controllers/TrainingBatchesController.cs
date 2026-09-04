@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -35,6 +36,37 @@ public class TrainingBatchesController : ControllerBase
 
         return Ok(result);
     }
+
+    // ==========================================
+// GET /api/training-batches/assigned
+// ==========================================
+// Trainer only
+// Returns only batches assigned to
+// the currently logged-in trainer
+// ==========================================
+
+[HttpGet("assigned")]
+[Authorize(Roles = "Trainer")]
+public async Task<ActionResult<IEnumerable<TrainingBatchDto>>>
+    GetAssigned()
+{
+    var userIdClaim =
+        User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+        ?? User.FindFirst("sub")?.Value;
+
+    if (!Guid.TryParse(userIdClaim, out var trainerUserId))
+    {
+        return Unauthorized(new
+        {
+            message = "Invalid trainer user identity."
+        });
+    }
+
+    var result =
+        await _service.GetAssignedAsync(trainerUserId);
+
+    return Ok(result);
+}
 
 
     // ==========================================

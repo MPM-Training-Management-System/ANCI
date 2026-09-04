@@ -4,64 +4,114 @@ import SidebarHeader from "./sidebar/SidebarHeader";
 import SidebarMenu from "./sidebar/SidebarMenu";
 import SidebarFooter from "./sidebar/SidebarFooter";
 
-interface SidebarProps {
-  collapsed: boolean;
-  setCollapsed: (
-    value: boolean
-  ) => void;
-}
+import { SidebarProps } from "./sidebar/types";
 
 export default function Sidebar({
   collapsed,
-  setCollapsed,
+  mobileOpen,
+  setMobileOpen,
 }: SidebarProps) {
   return (
-    <aside
-      className={`
-        fixed
-        left-0
-        top-0
-        z-40
-        flex
-        h-screen
-        flex-col
-        border-r
-        border-white/10
-        bg-primary
-        transition-all
-        duration-300
-        ${
-          collapsed
-            ? "w-32"
-            : "w-80"
-        }
-      `}
-    >
+    <>
+      {/* =========================================
+          MOBILE OVERLAY
+          ========================================= */}
 
-   
+      {mobileOpen && (
+        <button
+          type="button"
+          aria-label="Close sidebar"
+          onClick={() => setMobileOpen(false)}
+          className="
+            fixed
+            inset-0
+            z-[80]
+            cursor-default
+            border-0
+            bg-black/50
+            p-0
+            md:hidden
+          "
+        />
+      )}
 
-      <SidebarHeader
-        collapsed={
-          collapsed
-        }
-      />
+      {/* =========================================
+          SIDEBAR
+          ========================================= */}
 
-   
+      <aside
+        className={`
+          fixed
+          left-0
+          top-0
+          z-[110]
+          flex
+          h-dvh
+          flex-col
+          overflow-hidden
 
-      <SidebarMenu
-        collapsed={
-          collapsed
-        }
-      />
+          border-r
+          border-white/10
+          bg-primary
 
-     
+          /* =====================================
+             MOBILE
+             ===================================== */
 
-      <SidebarFooter
-        collapsed={
-          collapsed
-        }
-      />
+          w-[280px]
 
-    </aside>
+          transform
+          transition-transform
+          duration-300
+          ease-in-out
+
+          ${
+            mobileOpen
+              ? "translate-x-0"
+              : "-translate-x-full"
+          }
+
+          /* =====================================
+             DESKTOP
+             ===================================== */
+
+          md:translate-x-0
+          md:transition-[width]
+          md:duration-300
+
+          ${
+            collapsed
+              ? "md:w-32"
+              : "md:w-80"
+          }
+        `}
+      >
+        {/* =====================================
+            HEADER
+            ===================================== */}
+
+        <SidebarHeader
+          collapsed={collapsed}
+          mobileOpen={mobileOpen}
+          setMobileOpen={setMobileOpen}
+        />
+
+        {/* =====================================
+            MENU
+            ===================================== */}
+
+        <SidebarMenu
+          collapsed={collapsed}
+        />
+
+        {/* =====================================
+            FOOTER
+            ===================================== */}
+
+        <SidebarFooter
+          collapsed={collapsed}
+        />
+      </aside>
+    </>
   );
 }

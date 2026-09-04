@@ -107,43 +107,41 @@ export default function TrainerAttendancePage() {
     selectedBatchId,
   ]);
 
-  // =========================================================
-  // LOAD BATCHES
-  // =========================================================
+ const loadBatches = useCallback(async () => {
+  try {
+    setIsLoadingBatches(true);
+    setError(null);
 
-  const loadBatches = useCallback(async () => {
-    try {
-      setIsLoadingBatches(true);
-      setError(null);
+    // Get ONLY training batches assigned
+    // to the currently logged-in trainer.
+    const result =
+      await trainingBatchApi.getAssigned();
 
-      const result =
-        await trainingBatchApi.getAll();
+    setBatches(result);
 
-      setBatches(result);
+    const firstBatch =
+      result.at(0);
 
-      const firstBatch =
-        result.at(0);
-
-      if (
-        firstBatch &&
-        !selectedBatchId
-      ) {
-        setSelectedBatchId(
-          firstBatch.id
-        );
-      }
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to load training batches."
+    if (
+      firstBatch &&
+      !selectedBatchId
+    ) {
+      setSelectedBatchId(
+        firstBatch.id
       );
-    } finally {
-      setIsLoadingBatches(false);
     }
-  }, [
-    selectedBatchId,
-  ]);
+  } catch (err) {
+    setError(
+      err instanceof Error
+        ? err.message
+        : "Unable to load training batches."
+    );
+  } finally {
+    setIsLoadingBatches(false);
+  }
+}, [
+  selectedBatchId,
+]);
 
   // =========================================================
   // LOAD ATTENDANCE
@@ -790,18 +788,7 @@ const startScanner = useCallback(async () => {
 
         <div>
 
-          <div className="mb-3 flex items-center gap-2 text-xs text-gray-400">
-            <span>
-              Trainer
-            </span>
-
-            <span>/</span>
-
-            <span className="font-medium text-gray-700">
-              Attendance
-            </span>
-          </div>
-
+          
           <h1 className="text-3xl font-bold tracking-tight text-[#17191c]">
             Attendance
           </h1>

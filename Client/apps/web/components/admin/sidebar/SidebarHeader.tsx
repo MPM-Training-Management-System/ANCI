@@ -11,38 +11,92 @@ export default function SidebarHeader({
   collapsed,
 }: SidebarHeaderProps) {
   return (
-    <Link
-      href="/dashboard"
-      className={`
-        flex items-center
-        ${collapsed ? "justify-center" : "gap-3"}
-        px-4 py-6
-      `}
-    >
-      {/* Logo */}
-      <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white shadow">
-        <Image
-          src={Logo}
-          alt="ACE NextGen"
-          width={36}
-          height={36}
-          priority
-          className="object-contain"
-        />
-      </div>
+    <div className="shrink-0 px-4 py-5">
+      <Link
+        href="/dashboard"
+        className={`
+          flex
+          min-w-0
+          items-center
+          rounded-xl
+          transition-colors
+          hover:bg-white/5
 
-      {/* Company Name */}
-      {!collapsed && (
-        <div className="overflow-hidden">
-          <h1 className="truncate text-lg font-bold tracking-tight text-white">
+          ${collapsed
+            ? "justify-center p-1"
+            : "gap-3 px-2 py-2"
+          }
+
+          /* On mobile, sidebar is always full width */
+          max-md:!justify-start
+          max-md:gap-3
+          max-md:px-2
+          max-md:py-2
+        `}
+      >
+        {/* Logo */}
+        <div
+          className="
+            relative
+            flex
+            h-12
+            w-12
+            shrink-0
+            items-center
+            justify-center
+            rounded-xl
+            bg-white
+            shadow
+          "
+        >
+          <Image
+            src={Logo}
+            alt="ACE NextGen"
+            width={36}
+            height={36}
+            priority
+            className="object-contain"
+          />
+        </div>
+
+        {/* Company Name */}
+        <div
+          className={`
+            min-w-0
+            overflow-hidden
+
+            ${collapsed
+              ? "md:hidden"
+              : "block"
+            }
+          `}
+        >
+          <h1
+            className="
+              truncate
+              text-lg
+              font-bold
+              tracking-tight
+              text-white
+            "
+          >
             ACE NEXTGEN
           </h1>
 
-          <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-yellow-400">
+          <p
+            className="
+              truncate
+              text-[10px]
+              font-semibold
+              uppercase
+              tracking-[0.25em]
+              text-yellow-400
+            "
+          >
             Consultancy Inc.
           </p>
         </div>
-      )}
-    </Link>
+      </Link>
+    </div>
   );
 }

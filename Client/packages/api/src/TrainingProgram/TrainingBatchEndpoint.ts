@@ -6,6 +6,8 @@ export const TrainingBatchEndpoints = {
 
   create: "/api/training-batches",
 
+  assigned: "/api/training-batches/assigned",
+
   update: (id: string) =>
     `/api/training-batches/${id}`,
 
