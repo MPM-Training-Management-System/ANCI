@@ -20,6 +20,16 @@ public class Enrollment
 
     public string? ReviewRemarks { get; set; }
 
+    // =====================================================
+    // PERMANENT ATTENDANCE QR
+    // =====================================================
+
+    public string? AttendanceToken { get; set; }
+
+    // =====================================================
+    // NAVIGATION
+    // =====================================================
+
     public ParticipantProfile ParticipantProfile { get; set; } = default!;
 
     public TrainingBatch TrainingBatch { get; set; } = default!;

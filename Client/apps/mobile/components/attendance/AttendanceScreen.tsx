@@ -1,4 +1,6 @@
 import React, {
+  useCallback,
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -19,142 +21,299 @@ import AttendanceSessionCard from "./AttendanceSessionCard";
 import AttendanceSummary from "./AttendanceSummary";
 import AttendanceHistory from "./AttendanceHistory";
 
-import {
-  mockParticipant,
-  type ParticipantAttendance,
-} from "@/src/data/participant";
+import { useEnrollments } from "@repo/hooks";
+import { attendanceApi, enrollmentApi } from "@/api/api";
+
+
+
+import type { Enrollment,AttendanceRecordDto } from "@repo/types";
+
+// ============================================================
+// ATTENDANCE UI TYPE
+// ============================================================
+
+type AttendanceItem = {
+  id: string;
+
+  date: string;
+
+  mode: "Online" | "Face-to-Face";
+
+  timeIn: string | null;
+
+  timeOut: string | null;
+
+  attendanceStatus: string;
+
+  attendanceMethod: string | null;
+};
+
+
+// ============================================================
+// COMPONENT
+// ============================================================
 
 export default function AttendanceScreen() {
-  /*
-   * ============================================================
-   * MOCK TRAINER ATTENDANCE STATE
-   * ============================================================
-   *
-   * Temporary muna habang wala pa tayong backend
-   * attendance-session endpoint.
-   *
-   * true  = trainer opened attendance
-   * false = attendance closed
-   *
-   * Later magiging backend value ito.
-   */
 
-  const [isAttendanceOpen, setIsAttendanceOpen] =
-    useState(true);
+  // ============================================================
+  // ENROLLMENTS
+  // ============================================================
 
-  /*
-   * ============================================================
-   * ATTENDANCE DATA
-   * ============================================================
-   *
-   * ParticipantAttendance[] ang actual structure
-   * ng participant.ts mo.
-   */
+  const {
+    enrollments,
+    loadMyEnrollments,
+    isLoading: isLoadingEnrollments,
+    error: enrollmentError,
+  } = useEnrollments(enrollmentApi);
+
+
+  // ============================================================
+  // ATTENDANCE
+  // ============================================================
 
   const [attendance, setAttendance] =
-    useState<ParticipantAttendance[]>(
-      mockParticipant.attendance ?? []
+    useState<AttendanceItem[]>([]);
+
+  const [isLoadingAttendance, setIsLoadingAttendance] =
+    useState(false);
+
+
+  // ============================================================
+  // LOAD ENROLLMENTS
+  // ============================================================
+
+  useEffect(() => {
+    loadMyEnrollments();
+  }, [loadMyEnrollments]);
+
+
+  // ============================================================
+  // CURRENT APPROVED ENROLLMENT
+  // ============================================================
+
+  const currentEnrollment = useMemo(() => {
+
+    const list =
+      (enrollments ?? []) as Enrollment[];
+
+    return (
+      list.find(
+        (item) =>
+          String(item.status).toLowerCase() ===
+          "approved"
+      ) ?? null
     );
 
-  /*
-   * ============================================================
-   * CURRENT ATTENDANCE
-   * ============================================================
-   *
-   * Since array ang attendance, kukunin natin
-   * ang first/current record.
-   *
-   * Kung may current record na may timeIn/timeOut,
-   * iyon ang gagamitin.
-   */
+  }, [enrollments]);
+
+
+  // ============================================================
+  // ENROLLMENT DATA
+  // ============================================================
+
+  const enrollmentId =
+    currentEnrollment?.id ?? null;
+
+  const batchId =
+    currentEnrollment?.trainingBatchId ?? null;
+
+  const attendanceToken =
+    currentEnrollment?.attendanceToken ?? null;
+
+  const participantName =
+    currentEnrollment?.participant?.fullName ??
+    "Participant";
+
+
+  // ============================================================
+  // QR AVAILABLE
+  // ============================================================
+
+  const hasAttendanceQr =
+    Boolean(
+      currentEnrollment &&
+      attendanceToken &&
+      String(
+        currentEnrollment.status
+      ).toLowerCase() === "approved"
+    );
+
+
+  // ============================================================
+  // LOAD ATTENDANCE
+  // ============================================================
+
+  const loadAttendance = useCallback(
+    async () => {
+
+      if (!batchId) {
+        setAttendance([]);
+        return;
+      }
+
+      try {
+
+        setIsLoadingAttendance(true);
+
+        const records =
+          await attendanceApi.getBatch(
+            batchId
+          );
+
+        const mapped: AttendanceItem[] =
+          (records ?? []).map(
+            (record: any) => {
+
+              return {
+                id: String(
+                  record.id
+                ),
+
+                date:
+                  record.date ??
+                  record.attendanceDate ??
+                  record.createdAt ??
+                  new Date().toISOString(),
+
+                mode:
+                  record.mode === "Online"
+                    ? "Online"
+                    : "Face-to-Face",
+
+                timeIn:
+                  record.timeIn
+                    ? formatTime(
+                        record.timeIn
+                      )
+                    : null,
+
+                timeOut:
+                  record.timeOut
+                    ? formatTime(
+                        record.timeOut
+                      )
+                    : null,
+
+                attendanceStatus:
+                  record.status ??
+                  "Absent",
+
+                attendanceMethod:
+                  record.method ??
+                  null,
+              };
+            }
+          );
+
+        setAttendance(mapped);
+
+      } catch (error) {
+
+        console.error(
+          "Failed to load attendance:",
+          error
+        );
+
+        setAttendance([]);
+
+      } finally {
+
+        setIsLoadingAttendance(false);
+
+      }
+
+    },
+    [batchId]
+  );
+
+
+  // ============================================================
+  // LOAD ATTENDANCE WHEN BATCH EXISTS
+  // ============================================================
+
+  useEffect(() => {
+
+    if (!batchId) {
+      return;
+    }
+
+    loadAttendance();
+
+  }, [
+    batchId,
+    loadAttendance,
+  ]);
+
+
+  // ============================================================
+  // CURRENT ATTENDANCE
+  // ============================================================
 
   const today = useMemo(() => {
+
     if (attendance.length === 0) {
       return null;
     }
 
-    const currentRecord =
+    return (
       attendance.find(
         (item) =>
           item.timeIn ||
           item.timeOut
-      );
-
-    return (
-      currentRecord ??
+      ) ??
       attendance[0]
     );
+
   }, [attendance]);
 
-  /*
-   * ============================================================
-   * EMPTY STATE
-   * ============================================================
-   */
 
-  if (!today) {
-    return (
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={
-          styles.emptyContainer
-        }
-      >
-        <View style={styles.emptyIcon}>
-          <Ionicons
-            name="calendar-outline"
-            size={30}
-            color="#94A3B8"
-          />
-        </View>
-
-        <Text style={styles.emptyTitle}>
-          No Attendance Available
-        </Text>
-
-        <Text style={styles.emptyText}>
-          Your attendance records will appear
-          here once your trainer creates an
-          attendance session.
-        </Text>
-      </ScrollView>
-    );
-  }
+  // ============================================================
+  // ACTIVE SESSION
+  // ============================================================
 
   /*
-   * ============================================================
-   * MODE
-   * ============================================================
+   * IMPORTANT
+   *
+   * We don't fake an OPEN session.
+   *
+   * The permanent QR can still be displayed
+   * regardless of session state.
+   *
+   * Actual OPEN/CLOSED state will come from
+   * the attendance session backend.
    */
 
-  const isOnline =
-    today.mode === "Online";
+  const isAttendanceOpen = false;
 
-  /*
-   * ============================================================
-   * TIME IN
-   * ============================================================
-   */
 
-  const handleTimeIn = () => {
-    /*
-     * Trainer must open attendance.
-     */
+  // ============================================================
+  // TIME IN
+  // ============================================================
 
-    if (!isAttendanceOpen) {
+  const handleTimeIn = async () => {
+
+    if (!enrollmentId) {
+
       Alert.alert(
-        "Attendance Closed",
-        "Your trainer has not opened attendance yet."
+        "No Enrollment",
+        "You do not have an approved training enrollment."
       );
 
       return;
     }
 
-    /*
-     * Already timed in.
-     */
+    if (!isAttendanceOpen) {
 
-    if (today.timeIn) {
+      Alert.alert(
+        "Attendance Closed",
+        "Your trainer has not opened the attendance session yet."
+      );
+
+      return;
+    }
+
+    if (today?.timeIn) {
+
       Alert.alert(
         "Already Timed In",
         `You already timed in at ${today.timeIn}.`
@@ -163,53 +322,31 @@ export default function AttendanceScreen() {
       return;
     }
 
-    const currentTime =
-      getCurrentTime();
-
-    setAttendance(
-      (previous) =>
-        previous.map(
-          (item) => {
-            if (
-              item.id !== today.id
-            ) {
-              return item;
-            }
-
-            return {
-              ...item,
-
-              attendanceStatus:
-                "Present",
-
-              attendanceMethod:
-                "TimeIn",
-
-              timeIn:
-                currentTime,
-            };
-          }
-        )
-    );
-
     Alert.alert(
-      "Time In Successful",
-      `Your attendance was recorded at ${currentTime}.`
+      "Attendance Session Required",
+      "An active trainer attendance session is required."
     );
   };
 
-  /*
-   * ============================================================
-   * TIME OUT
-   * ============================================================
-   */
 
-  const handleTimeOut = () => {
-    /*
-     * Attendance must still be open.
-     */
+  // ============================================================
+  // TIME OUT
+  // ============================================================
+
+  const handleTimeOut = async () => {
+
+    if (!enrollmentId) {
+
+      Alert.alert(
+        "No Enrollment",
+        "You do not have an approved training enrollment."
+      );
+
+      return;
+    }
 
     if (!isAttendanceOpen) {
+
       Alert.alert(
         "Attendance Closed",
         "The attendance session is no longer open."
@@ -218,24 +355,18 @@ export default function AttendanceScreen() {
       return;
     }
 
-    /*
-     * Time In required first.
-     */
+    if (!today?.timeIn) {
 
-    if (!today.timeIn) {
       Alert.alert(
         "Time In Required",
-        "You need to time in before you can time out."
+        "You need to Time In before you can Time Out."
       );
 
       return;
     }
 
-    /*
-     * Already timed out.
-     */
-
     if (today.timeOut) {
+
       Alert.alert(
         "Already Timed Out",
         `You already timed out at ${today.timeOut}.`
@@ -244,74 +375,177 @@ export default function AttendanceScreen() {
       return;
     }
 
-    const currentTime =
-      getCurrentTime();
-
-    setAttendance(
-      (previous) =>
-        previous.map(
-          (item) => {
-            if (
-              item.id !== today.id
-            ) {
-              return item;
-            }
-
-            return {
-              ...item,
-
-              timeOut:
-                currentTime,
-            };
-          }
-        )
-    );
-
     Alert.alert(
-      "Time Out Successful",
-      `Your attendance was completed at ${currentTime}.`
+      "Attendance Session Required",
+      "An active trainer attendance session is required."
     );
   };
 
-  /*
-   * ============================================================
-   * QR INFORMATION
-   * ============================================================
-   *
-   * Important:
-   *
-   * Participant does NOT scan trainer QR.
-   *
-   * Trainer scans participant QR.
-   */
+
+  // ============================================================
+  // QR INFORMATION
+  // ============================================================
 
   const handleQrInfo = () => {
+
     Alert.alert(
       "Participant QR",
-      "For face-to-face attendance, your trainer scans your participant QR code."
+      "Your trainer scans this permanent QR code during face-to-face training."
     );
+
   };
 
-  /*
-   * ============================================================
-   * ATTENDANCE STATUS
-   * ============================================================
-   */
+
+  // ============================================================
+  // STATUS
+  // ============================================================
 
   const statusText =
-    today.timeOut
+    today?.timeOut
       ? "Attendance completed"
-      : today.timeIn
+      : today?.timeIn
       ? "Currently present"
       : isAttendanceOpen
       ? "Ready to Time In"
       : "Waiting for trainer";
 
-  /*
-   * ============================================================
-   * RENDER
-   * ============================================================
-   */
+
+  // ============================================================
+  // LOADING
+  // ============================================================
+
+  if (
+    isLoadingEnrollments ||
+    isLoadingAttendance
+  ) {
+
+    return (
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={
+          styles.emptyContainer
+        }
+      >
+
+        <View style={styles.emptyIcon}>
+
+          <Ionicons
+            name="sync-outline"
+            size={30}
+            color="#2563EB"
+          />
+
+        </View>
+
+        <Text style={styles.emptyTitle}>
+          Loading Attendance
+        </Text>
+
+        <Text style={styles.emptyText}>
+          Loading your enrollment and
+          attendance information...
+        </Text>
+
+      </ScrollView>
+    );
+  }
+
+
+  // ============================================================
+  // ERROR
+  // ============================================================
+
+  if (
+    enrollmentError &&
+    !currentEnrollment
+  ) {
+
+    return (
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={
+          styles.emptyContainer
+        }
+      >
+
+        <View style={styles.emptyIcon}>
+
+          <Ionicons
+            name="alert-circle-outline"
+            size={30}
+            color="#DC2626"
+          />
+
+        </View>
+
+        <Text style={styles.emptyTitle}>
+          Unable to Load Enrollment
+        </Text>
+
+        <Text style={styles.emptyText}>
+          {String(enrollmentError)}
+        </Text>
+
+        <Pressable
+          style={styles.retryButton}
+          onPress={() =>
+            loadMyEnrollments()
+          }
+        >
+
+          <Text style={styles.retryButtonText}>
+            Retry
+          </Text>
+
+        </Pressable>
+
+      </ScrollView>
+    );
+  }
+
+
+  // ============================================================
+  // NO APPROVED ENROLLMENT
+  // ============================================================
+
+  if (!currentEnrollment) {
+
+    return (
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={
+          styles.emptyContainer
+        }
+      >
+
+        <View style={styles.emptyIcon}>
+
+          <Ionicons
+            name="school-outline"
+            size={30}
+            color="#94A3B8"
+          />
+
+        </View>
+
+        <Text style={styles.emptyTitle}>
+          No Approved Enrollment
+        </Text>
+
+        <Text style={styles.emptyText}>
+          Your permanent attendance QR will
+          appear here after your training
+          enrollment has been approved.
+        </Text>
+
+      </ScrollView>
+    );
+  }
+
+
+  // ============================================================
+  // RENDER
+  // ============================================================
 
   return (
     <ScrollView
@@ -323,13 +557,14 @@ export default function AttendanceScreen() {
         false
       }
     >
+
       {/* ======================================================
           HEADER
       ====================================================== */}
 
       <View style={styles.header}>
+
         <View>
-         
 
           <Text style={styles.title}>
             Attendance
@@ -338,22 +573,63 @@ export default function AttendanceScreen() {
           <Text style={styles.subtitle}>
             Manage your training attendance.
           </Text>
+
         </View>
 
         <View style={styles.headerIcon}>
+
           <Ionicons
             name="calendar-outline"
             size={20}
             color="#2563EB"
           />
+
         </View>
+
       </View>
 
+
       {/* ======================================================
-          TRAINER SESSION STATUS
+          TRAINING
+      ====================================================== */}
+
+      <View style={styles.trainingCard}>
+
+        <View style={styles.trainingIcon}>
+
+          <Ionicons
+            name="school-outline"
+            size={19}
+            color="#2563EB"
+          />
+
+        </View>
+
+        <View style={styles.trainingContent}>
+
+          <Text style={styles.trainingLabel}>
+            TRAINING
+          </Text>
+
+          <Text style={styles.trainingName}>
+            {currentEnrollment.programName}
+          </Text>
+
+          <Text style={styles.trainingBatch}>
+            Batch {currentEnrollment.batchCode}
+          </Text>
+
+        </View>
+
+      </View>
+
+
+      {/* ======================================================
+          SESSION STATUS
       ====================================================== */}
 
       <View style={styles.sessionStatusCard}>
+
         <View
           style={[
             styles.sessionStatusIcon,
@@ -362,6 +638,7 @@ export default function AttendanceScreen() {
               : styles.closedIcon,
           ]}
         >
+
           <Ionicons
             name={
               isAttendanceOpen
@@ -375,11 +652,13 @@ export default function AttendanceScreen() {
                 : "#64748B"
             }
           />
+
         </View>
 
         <View
           style={styles.sessionStatusContent}
         >
+
           <Text
             style={
               styles.sessionStatusLabel
@@ -404,9 +683,10 @@ export default function AttendanceScreen() {
             }
           >
             {isAttendanceOpen
-              ? "You may record your Time In and Time Out."
+              ? "You may record your attendance."
               : "Wait for your trainer to open the attendance session."}
           </Text>
+
         </View>
 
         <View
@@ -417,6 +697,7 @@ export default function AttendanceScreen() {
               : styles.openBadgeClosed,
           ]}
         >
+
           <Text
             style={[
               styles.openBadgeText,
@@ -429,77 +710,98 @@ export default function AttendanceScreen() {
               ? "OPEN"
               : "CLOSED"}
           </Text>
+
         </View>
+
       </View>
 
+
       {/* ======================================================
-          TODAY'S SESSION
+          TODAY
       ====================================================== */}
 
-      <AttendanceSessionCard
-        attendance={today}
-        onTimeIn={handleTimeIn}
-        onTimeOut={handleTimeOut}
-      />
+      {today && (
+
+        <AttendanceSessionCard
+          attendance={today as any}
+          onTimeIn={handleTimeIn}
+          onTimeOut={handleTimeOut}
+        />
+
+      )}
+
 
       {/* ======================================================
           CURRENT STATUS
       ====================================================== */}
 
-      <View style={styles.currentStatusCard}>
-        <View
-          style={[
-            styles.currentStatusIcon,
-            today.timeIn
-              ? styles.currentStatusActive
-              : styles.currentStatusWaiting,
-          ]}
-        >
-          <Ionicons
-            name={
+      {today && (
+
+        <View style={styles.currentStatusCard}>
+
+          <View
+            style={[
+              styles.currentStatusIcon,
               today.timeIn
-                ? "checkmark"
-                : "time-outline"
-            }
-            size={17}
-            color={
-              today.timeIn
-                ? "#16A34A"
-                : "#D97706"
-            }
-          />
+                ? styles.currentStatusActive
+                : styles.currentStatusWaiting,
+            ]}
+          >
+
+            <Ionicons
+              name={
+                today.timeIn
+                  ? "checkmark"
+                  : "time-outline"
+              }
+              size={17}
+              color={
+                today.timeIn
+                  ? "#16A34A"
+                  : "#D97706"
+              }
+            />
+
+          </View>
+
+          <View
+            style={styles.currentStatusContent}
+          >
+
+            <Text
+              style={styles.currentStatusLabel}
+            >
+              YOUR ATTENDANCE
+            </Text>
+
+            <Text
+              style={styles.currentStatusValue}
+            >
+              {statusText}
+            </Text>
+
+          </View>
+
         </View>
 
-        <View
-          style={styles.currentStatusContent}
-        >
-          <Text
-            style={styles.currentStatusLabel}
-          >
-            YOUR ATTENDANCE
-          </Text>
+      )}
 
-          <Text
-            style={styles.currentStatusValue}
-          >
-            {statusText}
-          </Text>
-        </View>
-      </View>
 
       {/* ======================================================
-          F2F QR
+          PERMANENT QR
       ====================================================== */}
 
-      {!isOnline &&
-        isAttendanceOpen && (
-          <View style={styles.section}>
+      <View style={styles.section}>
+
+        {hasAttendanceQr ? (
+
+          <>
             <ParticipantQrCard
               participantCode={
-                mockParticipant.userCode
+                attendanceToken!
               }
               participantName={
-                mockParticipant.fullName
+                participantName
               }
               sessionOpen={
                 isAttendanceOpen
@@ -510,25 +812,29 @@ export default function AttendanceScreen() {
               onPress={handleQrInfo}
               style={styles.qrNotice}
             >
+
               <View
                 style={styles.qrNoticeIcon}
               >
+
                 <Ionicons
                   name="scan-outline"
                   size={15}
                   color="#7C3AED"
                 />
+
               </View>
 
               <View
                 style={styles.qrNoticeContent}
               >
+
                 <Text
                   style={
                     styles.qrNoticeTitle
                   }
                 >
-                  Optional QR Attendance
+                  Permanent Participant QR
                 </Text>
 
                 <Text
@@ -536,80 +842,143 @@ export default function AttendanceScreen() {
                     styles.qrNoticeText
                   }
                 >
-                  Your trainer scans your QR
-                  code during face-to-face
-                  training. You do not scan
-                  the trainer's QR code.
+                  This QR code does not expire.
+                  Show it to your trainer during
+                  face-to-face training. Your
+                  trainer will scan it to record
+                  your attendance.
                 </Text>
+
               </View>
+
             </Pressable>
+          </>
+
+        ) : (
+
+          <View style={styles.qrUnavailable}>
+
+            <View
+              style={
+                styles.qrUnavailableIcon
+              }
+            >
+
+              <Ionicons
+                name="qr-code-outline"
+                size={25}
+                color="#94A3B8"
+              />
+
+            </View>
+
+            <Text
+              style={
+                styles.qrUnavailableTitle
+              }
+            >
+              Attendance QR Unavailable
+            </Text>
+
+            <Text
+              style={
+                styles.qrUnavailableText
+              }
+            >
+              Your permanent attendance QR
+              will appear once your approved
+              enrollment has an attendance token.
+            </Text>
+
           </View>
+
         )}
+
+      </View>
+
 
       {/* ======================================================
           ONLINE
       ====================================================== */}
 
-      {isOnline && (
+      {today?.mode === "Online" && (
+
         <View style={styles.section}>
+
           <View style={styles.onlineInfo}>
-            <View
-              style={styles.onlineIcon}
-            >
+
+            <View style={styles.onlineIcon}>
+
               <Ionicons
                 name="globe-outline"
                 size={20}
                 color="#2563EB"
               />
+
             </View>
 
-            <View
-              style={styles.onlineContent}
-            >
-              <Text
-                style={styles.onlineTitle}
-              >
+            <View style={styles.onlineContent}>
+
+              <Text style={styles.onlineTitle}>
                 Online Attendance
               </Text>
 
-              <Text
-                style={styles.onlineText}
-              >
+              <Text style={styles.onlineText}>
                 When your trainer opens
                 attendance, you can record
                 your Time In and Time Out
                 directly from this screen.
               </Text>
+
             </View>
+
           </View>
+
         </View>
+
       )}
+
 
       {/* ======================================================
           SUMMARY
       ====================================================== */}
 
-      <View style={styles.section}>
-        <AttendanceSummary
-          attendance={today}
-        />
-      </View>
+      {today && (
+
+        <View style={styles.section}>
+
+          <AttendanceSummary
+            attendance={today as any}
+          />
+
+        </View>
+
+      )}
+
 
       {/* ======================================================
           HISTORY
       ====================================================== */}
 
-      <View style={styles.section}>
-        <AttendanceHistory
-          history={attendance}
-        />
-      </View>
+      {attendance.length > 0 && (
+
+        <View style={styles.section}>
+
+          <AttendanceHistory
+            history={attendance as any}
+          />
+
+        </View>
+
+      )}
+
 
       {/* ======================================================
           INFORMATION
       ====================================================== */}
 
       <View style={styles.info}>
+
         <Ionicons
           name="shield-checkmark-outline"
           size={17}
@@ -617,26 +986,40 @@ export default function AttendanceScreen() {
         />
 
         <Text style={styles.infoText}>
-          Attendance can only be recorded while
-          the trainer's attendance session is
-          open. Participants may use Time In and
-          Time Out directly. For face-to-face
-          training, the participant QR is an
-          optional alternative for trainer
-          scanning.
+          Your attendance QR is permanent and
+          belongs to your approved enrollment.
+          Your trainer scans the QR during
+          face-to-face training. The QR itself
+          does not expire.
         </Text>
+
       </View>
+
     </ScrollView>
   );
 }
 
 
-/* ============================================================
-   CURRENT TIME
-============================================================ */
+// ============================================================
+// HELPERS
+// ============================================================
 
-function getCurrentTime() {
-  return new Date().toLocaleTimeString(
+function formatTime(
+  value: string
+): string {
+
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return value;
+  }
+
+  return date.toLocaleTimeString(
     "en-US",
     {
       hour: "numeric",
@@ -646,18 +1029,19 @@ function getCurrentTime() {
 }
 
 
-/* ============================================================
-   STYLES
-============================================================ */
+// ============================================================
+// STYLES
+// ============================================================
 
 const styles = StyleSheet.create({
+
   container: {
     flex: 1,
     backgroundColor: "#F8FAFC",
   },
 
   content: {
-    paddingTop: 30,
+    paddingTop: 20,
     paddingBottom: 40,
   },
 
@@ -667,13 +1051,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-  },
-
-  eyebrow: {
-    fontSize: 8,
-    fontWeight: "900",
-    letterSpacing: 1.4,
-    color: "#2563EB",
   },
 
   title: {
@@ -701,7 +1078,55 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  /* SESSION STATUS */
+  /* TRAINING */
+
+  trainingCard: {
+    marginHorizontal: 20,
+    marginBottom: 14,
+    padding: 13,
+    borderRadius: 17,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  trainingIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#EFF6FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  trainingContent: {
+    flex: 1,
+    marginLeft: 10,
+  },
+
+  trainingLabel: {
+    fontSize: 5.5,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+    color: "#94A3B8",
+  },
+
+  trainingName: {
+    marginTop: 2,
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#334155",
+  },
+
+  trainingBatch: {
+    marginTop: 2,
+    fontSize: 7,
+    color: "#64748B",
+  },
+
+  /* SESSION */
 
   sessionStatusCard: {
     marginHorizontal: 20,
@@ -837,7 +1262,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
 
-  /* QR */
+  /* QR NOTICE */
 
   qrNotice: {
     marginHorizontal: 20,
@@ -876,6 +1301,43 @@ const styles = StyleSheet.create({
     fontSize: 6.5,
     lineHeight: 10,
     color: "#9333EA",
+  },
+
+  /* QR UNAVAILABLE */
+
+  qrUnavailable: {
+    marginHorizontal: 20,
+    padding: 20,
+    borderRadius: 17,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    alignItems: "center",
+  },
+
+  qrUnavailableIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  qrUnavailableTitle: {
+    marginTop: 10,
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#334155",
+    textAlign: "center",
+  },
+
+  qrUnavailableText: {
+    marginTop: 5,
+    textAlign: "center",
+    fontSize: 8,
+    lineHeight: 13,
+    color: "#94A3B8",
   },
 
   /* ONLINE */
@@ -939,6 +1401,22 @@ const styles = StyleSheet.create({
     color: "#64748B",
   },
 
+  /* RETRY */
+
+  retryButton: {
+    marginTop: 15,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: "#2563EB",
+  },
+
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "700",
+  },
+
   /* EMPTY */
 
   emptyContainer: {
@@ -962,6 +1440,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "800",
     color: "#334155",
+    textAlign: "center",
   },
 
   emptyText: {
@@ -971,4 +1450,5 @@ const styles = StyleSheet.create({
     lineHeight: 14,
     color: "#94A3B8",
   },
+
 });

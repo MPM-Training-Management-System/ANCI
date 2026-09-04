@@ -7,247 +7,340 @@ import {
 } from "react-native";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
+import QRCode from "react-native-qrcode-svg";
 
-interface Props {
+
+// ============================================================
+// TYPES
+// ============================================================
+
+type ParticipantQrCardProps = {
   participantCode: string;
   participantName: string;
-  sessionOpen: boolean;
-}
+  sessionOpen?: boolean;
+};
+
+
+// ============================================================
+// COMPONENT
+// ============================================================
 
 export default function ParticipantQrCard({
   participantCode,
   participantName,
-  sessionOpen,
-}: Props) {
+  sessionOpen = false,
+}: ParticipantQrCardProps) {
   return (
     <View style={styles.card}>
+
+      {/* ======================================================
+          HEADER
+      ====================================================== */}
+
       <View style={styles.header}>
-        <View style={styles.headerText}>
-          <Text style={styles.eyebrow}>
-            OPTIONAL QR
-          </Text>
 
-          <Text style={styles.title}>
-            Show your QR to your trainer
-          </Text>
-
-          <Text style={styles.description}>
-            Your trainer can scan this QR instead
-            of manually recording your attendance.
-          </Text>
-        </View>
-
-        <View style={styles.qrIcon}>
+        <View style={styles.iconContainer}>
           <Ionicons
             name="qr-code-outline"
-            size={20}
+            size={22}
             color="#2563EB"
           />
         </View>
+
+        <View style={styles.headerContent}>
+
+          <Text style={styles.title}>
+            Attendance QR
+          </Text>
+
+          <Text style={styles.subtitle}>
+            Your permanent attendance QR
+          </Text>
+
+        </View>
+
       </View>
+
+
+      {/* ======================================================
+          QR CODE
+      ====================================================== */}
 
       <View style={styles.qrContainer}>
-        <View style={styles.qr}>
-          <QrPattern />
-        </View>
+
+        <QRCode
+          value={participantCode}
+          size={230}
+          backgroundColor="#FFFFFF"
+          color="#000000"
+        />
+
       </View>
 
-      <Text style={styles.name}>
-        {participantName}
-      </Text>
 
-      <Text style={styles.code}>
-        {participantCode}
-      </Text>
+      {/* ======================================================
+          PARTICIPANT
+      ====================================================== */}
+
+      <View style={styles.participantInfo}>
+
+        <Text style={styles.label}>
+          PARTICIPANT
+        </Text>
+
+        <Text style={styles.name}>
+          {participantName}
+        </Text>
+
+      </View>
+
+
+      {/* ======================================================
+          STATUS
+      ====================================================== */}
+
+      <View
+        style={[
+          styles.statusContainer,
+          sessionOpen
+            ? styles.statusOpen
+            : styles.statusClosed,
+        ]}
+      >
+
+        <View
+          style={[
+            styles.statusIcon,
+            sessionOpen
+              ? styles.statusIconOpen
+              : styles.statusIconClosed,
+          ]}
+        >
+          <Ionicons
+            name={
+              sessionOpen
+                ? "checkmark-circle"
+                : "lock-closed"
+            }
+            size={17}
+            color={
+              sessionOpen
+                ? "#15803D"
+                : "#64748B"
+            }
+          />
+        </View>
+
+        <View style={styles.statusContent}>
+
+          <Text style={styles.statusTitle}>
+            {sessionOpen
+              ? "Attendance is Open"
+              : "Permanent QR Code"}
+          </Text>
+
+          <Text style={styles.statusText}>
+            {sessionOpen
+              ? "Show this QR to your trainer."
+              : "This QR does not expire. It can be used when your trainer opens attendance."}
+          </Text>
+
+        </View>
+
+      </View>
+
+
+      {/* ======================================================
+          INSTRUCTION
+      ====================================================== */}
 
       <View style={styles.instruction}>
+
         <Ionicons
-          name={
-            sessionOpen
-              ? "information-circle-outline"
-              : "lock-closed-outline"
-          }
-          size={16}
-          color="#2563EB"
+          name="scan-outline"
+          size={17}
+          color="#7C3AED"
         />
 
         <Text style={styles.instructionText}>
-          {sessionOpen
-            ? "QR is optional. You can also use the Time In and Time Out buttons."
-            : "QR attendance becomes available when the trainer opens the session."}
+          Show this QR code to your trainer.
+          Your trainer will scan it to record
+          your attendance.
         </Text>
+
       </View>
+
     </View>
   );
 }
 
-function QrPattern() {
-  const pattern = [
-    "1111111001011111111",
-    "1000001010011000001",
-    "1011101001111011101",
-    "1011101010101011101",
-    "1011101001111011101",
-    "1000001011011000001",
-    "1111111010101111111",
-    "0000000011010000000",
-    "1010111110011010111",
-    "0111001001100100100",
-    "1101011110011110101",
-    "0010110011101001110",
-    "1111001110010111011",
-    "0000001011100101001",
-    "1111111010111110011",
-    "1000001011001001010",
-    "1011101000111110111",
-    "1011101011010010100",
-    "1011101001111011101",
-  ];
 
-  return (
-    <View style={styles.pattern}>
-      {pattern.map((row, rowIndex) =>
-        row.split("").map(
-          (cell, columnIndex) => (
-            <View
-              key={`${rowIndex}-${columnIndex}`}
-              style={[
-                styles.cell,
-                cell === "1" &&
-                  styles.filled,
-              ]}
-            />
-          )
-        )
-      )}
-    </View>
-  );
-}
+// ============================================================
+// STYLES
+// ============================================================
 
 const styles = StyleSheet.create({
+
   card: {
-    marginHorizontal: 20,
-    padding: 18,
-    borderRadius: 23,
+    width: "100%",
     backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
+    borderRadius: 20,
+    padding: 20,
+
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
-      height: 5,
+      height: 3,
     },
-    elevation: 3,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
   },
 
   header: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
   },
 
-  headerText: {
+  iconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#EFF6FF",
+  },
+
+  headerContent: {
     flex: 1,
-    paddingRight: 12,
-  },
-
-  eyebrow: {
-    fontSize: 7,
-    fontWeight: "900",
-    letterSpacing: 1.1,
-    color: "#2563EB",
+    marginLeft: 12,
   },
 
   title: {
-    marginTop: 4,
-    fontSize: 14,
-    fontWeight: "800",
+    fontSize: 18,
+    fontWeight: "700",
     color: "#0F172A",
   },
 
-  description: {
-    marginTop: 4,
-    fontSize: 8,
-    lineHeight: 13,
+  subtitle: {
+    marginTop: 3,
+    fontSize: 12,
     color: "#64748B",
   },
 
-  qrIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
-    backgroundColor: "#EEF4FF",
+  qrContainer: {
+    alignSelf: "center",
     alignItems: "center",
     justifyContent: "center",
-  },
 
-  qrContainer: {
-    marginTop: 18,
-    alignItems: "center",
-  },
+    width: 270,
+    height: 270,
 
-  qr: {
-    width: 190,
-    height: 190,
-    padding: 10,
-    borderRadius: 16,
     backgroundColor: "#FFFFFF",
+
     borderWidth: 1,
     borderColor: "#E2E8F0",
+
+    borderRadius: 18,
+
+    padding: 18,
+  },
+
+  participantInfo: {
     alignItems: "center",
-    justifyContent: "center",
+    marginTop: 20,
   },
 
-  pattern: {
-    width: 170,
-    height: 170,
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-
-  cell: {
-    width: "5.263%",
-    height: "5.263%",
-    backgroundColor: "#FFFFFF",
-  },
-
-  filled: {
-    backgroundColor: "#0F172A",
-  },
-
-  name: {
-    marginTop: 15,
-    textAlign: "center",
-    fontSize: 14,
+  label: {
+    fontSize: 10,
     fontWeight: "800",
-    color: "#0F172A",
-  },
-
-  code: {
-    marginTop: 3,
-    textAlign: "center",
-    fontSize: 9,
-    fontWeight: "700",
     letterSpacing: 1,
     color: "#64748B",
   },
 
-  instruction: {
-    marginTop: 14,
-    padding: 11,
-    borderRadius: 13,
+  name: {
+    marginTop: 5,
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#0F172A",
+    textAlign: "center",
+  },
+
+  statusContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+
+    marginTop: 18,
+
+    padding: 12,
+
+    borderRadius: 12,
+  },
+
+  statusOpen: {
+    backgroundColor: "#F0FDF4",
+  },
+
+  statusClosed: {
     backgroundColor: "#F8FAFC",
+  },
+
+  statusIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  statusIconOpen: {
+    backgroundColor: "#DCFCE7",
+  },
+
+  statusIconClosed: {
+    backgroundColor: "#E2E8F0",
+  },
+
+  statusContent: {
+    flex: 1,
+    marginLeft: 10,
+  },
+
+  statusTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#0F172A",
+  },
+
+  statusText: {
+    marginTop: 3,
+    fontSize: 11,
+    lineHeight: 16,
+    color: "#64748B",
+  },
+
+  instruction: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 7,
+
+    marginTop: 16,
+    paddingTop: 14,
+
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
   },
 
   instructionText: {
     flex: 1,
-    fontSize: 8,
-    lineHeight: 13,
+
+    marginLeft: 8,
+
+    fontSize: 12,
+    lineHeight: 18,
+
     color: "#64748B",
   },
+
 });

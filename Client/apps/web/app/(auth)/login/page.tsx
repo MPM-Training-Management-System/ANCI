@@ -51,6 +51,7 @@ export default function LoginPage() {
       event.preventDefault();
 
       setError(null);
+      console.log("🔥 LOGIN BUTTON CLICKED");
 
       // ------------------------------------------------------
       // VALIDATION
@@ -177,7 +178,8 @@ export default function LoginPage() {
             response.user
           );
 
-       
+          console.log("TOKEN SAVED:", auth.getToken());
+          console.log("USER SAVED:", auth.getUser());
 
           if (isActive) {
             notify.success(

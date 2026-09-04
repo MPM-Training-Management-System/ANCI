@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -19,128 +20,148 @@ interface Props {
 export default function ProtectedRoute({
   children,
 }: Props) {
-  const router =
-    useRouter();
+  const router = useRouter();
+  const pathname = usePathname();
 
-  const pathname =
-    usePathname();
-
-  const [
-    authorized,
-    setAuthorized,
-  ] = useState(false);
-
-  const [
-    checking,
-    setChecking,
-  ] = useState(true);
+  const [authorized, setAuthorized] = useState(false);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    const token =
-      auth.getToken();
+    let cancelled = false;
 
-    const user =
-      auth.getUser();
+    const checkAuth = () => {
+      try {
+        const token = auth.getToken();
+        const user = auth.getUser();
 
-    // =======================================================
-    // NO TOKEN
-    // =======================================================
+        console.log("========== AUTH CHECK ==========");
+        console.log("PATH:", pathname);
+        console.log("HAS TOKEN:", !!token);
+        console.log("USER:", user);
+        console.log("================================");
 
-    if (!token) {
-      router.replace(
-        "/login"
-      );
+        // =====================================================
+        // NO TOKEN
+        // =====================================================
 
-      return;
-    }
+        if (!token) {
+          if (!cancelled) {
+            setAuthorized(false);
+            setChecking(false);
+          }
 
-    // =======================================================
-    // NO USER
-    // =======================================================
+          router.replace("/login");
+          return;
+        }
 
-    if (!user) {
-      auth.logout();
+        // =====================================================
+        // NO USER
+        // =====================================================
 
-      router.replace(
-        "/login"
-      );
+        if (!user) {
+          auth.logout();
 
-      return;
-    }
+          if (!cancelled) {
+            setAuthorized(false);
+            setChecking(false);
+          }
 
-    // =======================================================
-    // TRAINER ONLY
-    // =======================================================
+          router.replace("/login");
+          return;
+        }
 
-    const role =
-      user?.role?.toLowerCase();
+        // =====================================================
+        // TRAINER ONLY
+        // =====================================================
 
-    if (
-      role !== "trainer"
-    ) {
-      auth.logout();
+        const role =
+          typeof user.role === "string"
+            ? user.role.toLowerCase()
+            : "";
 
-      router.replace(
-        "/login"
-      );
+        if (role !== "trainer") {
+          auth.logout();
 
-      return;
-    }
+          if (!cancelled) {
+            setAuthorized(false);
+            setChecking(false);
+          }
 
-    // =======================================================
-    // TRAINER STATUS
-    // =======================================================
+          router.replace("/login");
+          return;
+        }
 
-    const isActive =
-      user?.isActive === true ||
-      user?.status?.toLowerCase() ===
-        "active";
+        // =====================================================
+        // TRAINER STATUS
+        // =====================================================
 
-    // =======================================================
-    // PENDING TRAINER
-    // =======================================================
+        const isActive =
+          user.isActive === true ||
+          (
+            typeof user.status === "string" &&
+            user.status.toLowerCase() === "active"
+          );
 
-    if (!isActive) {
+        // =====================================================
+        // PENDING TRAINER
+        // =====================================================
 
-      /*
-       * These are the only pages
-       * a pending trainer can access.
-       */
+        if (!isActive) {
+          const allowedRoutes = [
+            "/trainer-application",
+            "/setting",
+          ];
 
-      const allowedRoutes = [
-        "/trainer-application",
-        "/setting",
-      ];
+          const isAllowed =
+            allowedRoutes.some(
+              (route) =>
+                pathname === route ||
+                pathname.startsWith(`${route}/`)
+            );
 
-      const isAllowed =
-        allowedRoutes.some(
-          (route) =>
-            pathname === route ||
-            pathname.startsWith(
-              `${route}/`
-            )
+          if (!isAllowed) {
+            if (!cancelled) {
+              setAuthorized(false);
+              setChecking(false);
+            }
+
+            router.replace("/trainer-application");
+            return;
+          }
+        }
+
+        // =====================================================
+        // AUTHORIZED
+        // =====================================================
+
+        if (!cancelled) {
+          setAuthorized(true);
+          setChecking(false);
+        }
+
+      } catch (error) {
+        console.error(
+          "AUTH CHECK ERROR:",
+          error
         );
 
-      if (!isAllowed) {
-        router.replace(
-          "/trainer-application"
-        );
+        auth.logout();
 
-        return;
+        if (!cancelled) {
+          setAuthorized(false);
+          setChecking(false);
+        }
+
+        router.replace("/login");
       }
-    }
+    };
 
-    // =======================================================
-    // AUTHORIZED
-    // =======================================================
+    checkAuth();
 
-    setAuthorized(true);
-    setChecking(false);
-
-  }, [
-    pathname,
-    router,
-  ]);
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname, router]);
 
   // =========================================================
   // CHECKING
@@ -148,15 +169,13 @@ export default function ProtectedRoute({
 
   if (checking) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50">
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <div className="text-center">
-
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900" />
 
           <p className="mt-4 text-sm text-slate-500">
             Checking account...
           </p>
-
         </div>
       </div>
     );
@@ -170,9 +189,6 @@ export default function ProtectedRoute({
     return null;
   }
 
-  return (
-    <>
-      {children}
-    </>
-  );
+  return <>{children}</>;
 }
+

@@ -35,6 +35,7 @@ public record EnrollmentDto(
     DateTime EnrolledAt,
     DateTime? ApprovedAt,
     string? ReviewRemarks,
+    string? AttendanceToken,
     List<EnrollmentDocumentDto> Documents
 );
 

@@ -15,23 +15,49 @@ export default function NavbarCollapse({
       size="icon"
       onClick={() => setCollapsed(!collapsed)}
       className="
-        h-13
-        w-13
-        rounded-xl
+        h-10 w-10
+        sm:h-11 sm:w-11
+        lg:h-13 lg:w-13
+
+        rounded-lg
+        sm:rounded-xl
+
         border
         border-gray-200
         bg-white
         text-gray-700
         shadow-sm
+
         transition-all
         hover:bg-gray-100
         hover:text-[#002B5C]
+
+        active:scale-95
+
+        shrink-0
       "
+      aria-label={
+        collapsed
+          ? "Open sidebar"
+          : "Close sidebar"
+      }
     >
       {collapsed ? (
-        <PanelLeftOpen size={30} />
+        <PanelLeftOpen
+          className="
+            h-5 w-5
+            sm:h-6 sm:w-6
+            lg:h-[30px] lg:w-[30px]
+          "
+        />
       ) : (
-        <PanelLeftClose size={30} />
+        <PanelLeftClose
+          className="
+            h-5 w-5
+            sm:h-6 sm:w-6
+            lg:h-[30px] lg:w-[30px]
+          "
+        />
       )}
     </Button>
   );

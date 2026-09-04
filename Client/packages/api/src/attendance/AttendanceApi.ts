@@ -21,20 +21,26 @@ export class AttendanceApi {
   ) {}
 
 
+  // ================================
   // TRAINER
+  // ================================
 
-  async openSession(
-    request: OpenAttendanceRequest
-  ): Promise<void> {
+async openSession(
+  request: OpenAttendanceRequest
+): Promise<{
+  attendanceSessionId: string;
+}> {
 
-    await this.api.request(
-      AttendanceEndpoints.openSession,
-      {
-        method: "POST",
-        body: request,
-      }
-    );
-  }
+  return this.api.request<{
+    attendanceSessionId: string;
+  }>(
+    AttendanceEndpoints.openSession,
+    {
+      method: "POST",
+      body: request,
+    }
+  );
+}
 
 
   async closeSession(
@@ -45,23 +51,6 @@ export class AttendanceApi {
       AttendanceEndpoints.closeSession(id),
       {
         method: "POST",
-      }
-    );
-  }
-
-
-  async getQr(
-    id: string,
-    enrollmentId: string
-  ): Promise<AttendanceQrDto> {
-
-    return this.api.request<AttendanceQrDto>(
-      AttendanceEndpoints.getQr(
-        id,
-        enrollmentId
-      ),
-      {
-        method: "GET",
       }
     );
   }
@@ -81,7 +70,9 @@ export class AttendanceApi {
   }
 
 
+  // ================================
   // TRAINER / PARTICIPANT / ADMIN
+  // ================================
 
   async getSession(
     id: string
@@ -109,7 +100,30 @@ export class AttendanceApi {
   }
 
 
+  // ================================
+  // ATTENDANCE QR
+  // ================================
+
+  async getQr(
+    id: string,
+    enrollmentId: string
+  ): Promise<AttendanceQrDto> {
+
+    return this.api.request<AttendanceQrDto>(
+      AttendanceEndpoints.getQr(
+        id,
+        enrollmentId
+      ),
+      {
+        method: "GET",
+      }
+    );
+  }
+
+
+  // ================================
   // PARTICIPANT
+  // ================================
 
   async manual(
     request: ManualAttendanceRequest

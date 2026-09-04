@@ -517,19 +517,32 @@ public class EnrollmentService : IEnrollmentService
         // APPROVED DATE
         // -----------------------------------------------------
 
-        if (
-            enrollment.Status ==
-            EnrollmentStatus.Approved
+       if (
+    enrollment.Status ==
+    EnrollmentStatus.Approved
+)
+{
+    enrollment.ApprovedAt =
+        DateTime.UtcNow;
+
+     enrollment.AttendanceToken ??= GenerateAttendanceToken();
+
+    if (
+        string.IsNullOrWhiteSpace(
+            enrollment.AttendanceToken
         )
-        {
-            enrollment.ApprovedAt =
-                DateTime.UtcNow;
-        }
-        else
-        {
-            enrollment.ApprovedAt =
-                null;
-        }
+    )
+    {
+        enrollment.AttendanceToken =
+            Guid.NewGuid()
+                .ToString("N");
+    }
+}
+else
+{
+    enrollment.ApprovedAt =
+        null;
+}
 
 
         // -----------------------------------------------------
@@ -616,8 +629,15 @@ public class EnrollmentService : IEnrollmentService
             enrollment.ApprovedAt,
 
             enrollment.ReviewRemarks,
+             enrollment.AttendanceToken,
 
             documentDtos
         );
     }
+    private static string GenerateAttendanceToken()
+{
+    return Convert.ToBase64String(
+        System.Security.Cryptography.RandomNumberGenerator.GetBytes(32)
+    );
+}
 }

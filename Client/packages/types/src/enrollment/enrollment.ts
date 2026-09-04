@@ -63,17 +63,12 @@ export interface EnrollmentTrainer {
 
 export interface Enrollment {
   id: string;
-
   participantProfileId: string;
-
   participant: EnrollmentParticipant;
-
   trainingBatchId: string;
-
   programName: string;
-
   batchCode: string;
-
+ attendanceToken?: string | null;
   status: EnrollmentStatus;
 
   enrolledAt: string;
