@@ -194,4 +194,30 @@ public async Task<IActionResult> OpenSession(
 
             return Guid.Parse(value);
         }
+        // =========================================================
+// GET CURRENT OPEN ATTENDANCE SESSION
+// Trainer / Participant / Admin
+//
+// Used by frontend to determine whether
+// attendance is currently OPEN.
+//
+// 200 = OPEN
+// 404 = CLOSED / no active session
+// =========================================================
+
+[HttpGet("batch/{batchId:guid}/open")]
+[Authorize(Roles = "Trainer,Participant,Admin")]
+public async Task<IActionResult> GetOpenSession(
+    Guid batchId)
+{
+    var userId =
+        GetCurrentUserId();
+
+    var result =
+        await _service.GetOpenSessionAsync(
+            batchId,
+            userId);
+
+    return Ok(result);
+}
     }

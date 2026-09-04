@@ -30,7 +30,8 @@ export default function TrainerAttendancePage() {
   // TRAINING BATCHES
   // =========================================================
 
-  const [batches, setBatches] = useState<TrainingBatch[]>([]);
+  const [batches, setBatches] =
+    useState<TrainingBatch[]>([]);
 
   const [selectedBatchId, setSelectedBatchId] =
     useState<string>("");
@@ -42,14 +43,26 @@ export default function TrainerAttendancePage() {
   const [records, setRecords] =
     useState<AttendanceRecordWithProfile[]>([]);
 
+  /*
+   * IMPORTANT:
+   *
+   * This is now obtained from the BACKEND.
+   *
+   * null     = CLOSED
+   * session  = OPEN
+   */
   const [openSessionId, setOpenSessionId] =
     useState<string | null>(null);
+
+  const [isCheckingSession, setIsCheckingSession] =
+    useState(false);
 
   // =========================================================
   // UI STATE
   // =========================================================
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] =
+    useState("");
 
   const [isLoadingBatches, setIsLoadingBatches] =
     useState(true);
@@ -57,11 +70,17 @@ export default function TrainerAttendancePage() {
   const [isLoadingAttendance, setIsLoadingAttendance] =
     useState(false);
 
-  const [isOpening, setIsOpening] = useState(false);
+  const [isOpening, setIsOpening] =
+    useState(false);
 
-  const [isClosing, setIsClosing] = useState(false);
+  const [isClosing, setIsClosing] =
+    useState(false);
 
-  const [isScanning, setIsScanning] = useState(false);
+  const [isScanning, setIsScanning] =
+    useState(false);
+
+  const [isCameraModalOpen, setIsCameraModalOpen] =
+    useState(false);
 
   const [error, setError] =
     useState<string | null>(null);
@@ -99,7 +118,9 @@ export default function TrainerAttendancePage() {
   const selectedBatch = useMemo(() => {
     return (
       batches.find(
-        batch => batch.id === selectedBatchId
+        batch =>
+          batch.id ===
+          selectedBatchId
       ) ?? null
     );
   }, [
@@ -107,68 +128,145 @@ export default function TrainerAttendancePage() {
     selectedBatchId,
   ]);
 
- const loadBatches = useCallback(async () => {
-  try {
-    setIsLoadingBatches(true);
-    setError(null);
-
-    // Get ONLY training batches assigned
-    // to the currently logged-in trainer.
-    const result =
-      await trainingBatchApi.getAssigned();
-
-    setBatches(result);
-
-    const firstBatch =
-      result.at(0);
-
-    if (
-      firstBatch &&
-      !selectedBatchId
-    ) {
-      setSelectedBatchId(
-        firstBatch.id
-      );
-    }
-  } catch (err) {
-    setError(
-      err instanceof Error
-        ? err.message
-        : "Unable to load training batches."
-    );
-  } finally {
-    setIsLoadingBatches(false);
-  }
-}, [
-  selectedBatchId,
-]);
-
   // =========================================================
-  // LOAD ATTENDANCE
+  // LOAD ASSIGNED TRAINING BATCHES
   // =========================================================
 
-  const loadAttendance = useCallback(
-    async (batchId: string) => {
+  const loadBatches =
+    useCallback(async () => {
       try {
-        setIsLoadingAttendance(true);
+        setIsLoadingBatches(true);
         setError(null);
 
+        /*
+         * IMPORTANT:
+         *
+         * Trainer only gets batches assigned
+         * to the currently logged-in trainer.
+         */
         const result =
-          await attendanceApi.getBatch(
-            batchId
-          );
+          await trainingBatchApi.getAssigned();
 
-        setRecords(result);
+        setBatches(result);
+
+        const firstBatch =
+          result.at(0);
+
+        if (
+          firstBatch &&
+          !selectedBatchId
+        ) {
+          setSelectedBatchId(
+            firstBatch.id
+          );
+        }
       } catch (err) {
         setError(
           err instanceof Error
             ? err.message
-            : "Unable to load attendance records."
+            : "Unable to load training batches."
+        );
+      } finally {
+        setIsLoadingBatches(false);
+      }
+    }, [
+      selectedBatchId,
+    ]);
+
+  // =========================================================
+  // LOAD ATTENDANCE RECORDS
+  // =========================================================
+
+  const loadAttendance =
+    useCallback(
+      async (
+        batchId: string
+      ) => {
+        try {
+          setIsLoadingAttendance(true);
+          setError(null);
+
+          const result =
+            await attendanceApi.getBatch(
+              batchId
+            );
+
+          setRecords(result);
+        } catch (err) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Unable to load attendance records."
+          );
+
+          setRecords([]);
+        } finally {
+          setIsLoadingAttendance(false);
+        }
+      },
+      []
+    );
+
+  // =========================================================
+  // GET CURRENT OPEN SESSION
+  // =========================================================
+  //
+  // GET
+  // /api/attendance/batch/{batchId}/open
+  //
+  // 200:
+  // {
+  //   attendanceSessionId: "..."
+  // }
+  //
+  // 404:
+  // No open attendance session.
+  //
+  // THIS IS NOW THE SOURCE OF TRUTH.
+  // =========================================================
+const loadOpenSession =
+  useCallback(
+    async (
+      batchId: string
+    ) => {
+      if (!batchId) {
+        setOpenSessionId(null);
+        return null;
+      }
+
+      try {
+        setIsCheckingSession(true);
+
+        const result =
+          await attendanceApi.getOpenSession(
+            batchId
+          );
+
+        if (
+          !result.isOpen ||
+          !result.attendanceSessionId
+        ) {
+          setOpenSessionId(null);
+
+          return null;
+        }
+
+        setOpenSessionId(
+          result.attendanceSessionId
         );
 
-        setRecords([]);
+        return result.attendanceSessionId;
+      } catch (err) {
+        console.error(
+          "Unable to check attendance session:",
+          err
+        );
+
+        setOpenSessionId(null);
+
+        return null;
       } finally {
-        setIsLoadingAttendance(false);
+        setIsCheckingSession(false);
       }
     },
     []
@@ -185,58 +283,89 @@ export default function TrainerAttendancePage() {
   ]);
 
   // =========================================================
-  // RESTORE OPEN SESSION
-  // =========================================================
-
-  useEffect(() => {
-    if (!selectedBatchId) {
-      setOpenSessionId(null);
-      return;
-    }
-
-    const storageKey =
-      `attendance-session-${selectedBatchId}`;
-
-    const savedSessionId =
-      window.localStorage.getItem(
-        storageKey
-      );
-
-    if (savedSessionId) {
-      setOpenSessionId(
-        savedSessionId
-      );
-    } else {
-      setOpenSessionId(null);
-    }
-  }, [
-    selectedBatchId,
-  ]);
-
-  // =========================================================
-  // LOAD ATTENDANCE WHEN BATCH CHANGES
+  // LOAD ATTENDANCE + CHECK SESSION
+  // WHEN BATCH CHANGES
   // =========================================================
 
   useEffect(() => {
     if (!selectedBatchId) {
       setRecords([]);
+      setOpenSessionId(null);
       return;
     }
 
+    /*
+     * Get attendance records.
+     */
     void loadAttendance(
+      selectedBatchId
+    );
+
+    /*
+     * Get real session status
+     * from backend.
+     */
+    void loadOpenSession(
       selectedBatchId
     );
   }, [
     selectedBatchId,
     loadAttendance,
+    loadOpenSession,
+  ]);
+
+  // =========================================================
+  // AUTOMATIC SESSION STATUS REFRESH
+  // =========================================================
+  //
+  // Every 5 seconds:
+  //
+  // Backend is checked again.
+  //
+  // This means:
+  //
+  // Trainer opens attendance
+  //       ↓
+  // Another browser/device
+  //       ↓
+  // detects OPEN automatically
+  //
+  // Trainer closes attendance
+  //       ↓
+  // Other browser/device
+  //       ↓
+  // detects CLOSED automatically
+  //
+  // =========================================================
+
+  useEffect(() => {
+    if (!selectedBatchId) {
+      return;
+    }
+
+    const interval =
+      window.setInterval(() => {
+        void loadOpenSession(
+          selectedBatchId
+        );
+      }, 5000);
+
+    return () => {
+      window.clearInterval(
+        interval
+      );
+    };
+  }, [
+    selectedBatchId,
+    loadOpenSession,
   ]);
 
   // =========================================================
   // STOP SCANNER
   // =========================================================
 
-  const stopScanner = useCallback(
-    async () => {
+  const stopScanner =
+    useCallback(async () => {
       const scanner =
         scannerRef.current;
 
@@ -260,9 +389,20 @@ export default function TrainerAttendancePage() {
       scannerRef.current = null;
 
       setIsScanning(false);
-    },
-    []
-  );
+    }, []);
+
+  // =========================================================
+  // CLOSE CAMERA MODAL
+  // =========================================================
+
+  const closeCameraModal =
+    useCallback(async () => {
+      await stopScanner();
+
+      setIsCameraModalOpen(false);
+    }, [
+      stopScanner,
+    ]);
 
   // =========================================================
   // CLEANUP SCANNER
@@ -287,13 +427,19 @@ export default function TrainerAttendancePage() {
 
   const recordScannedToken =
     useCallback(
-      async (token: string) => {
+      async (
+        token: string
+      ) => {
         if (
           processingScanRef.current
         ) {
           return;
         }
 
+        /*
+         * Always use the current backend
+         * session state.
+         */
         if (!openSessionId) {
           setScanError(
             "Open the attendance session before scanning."
@@ -367,159 +513,249 @@ export default function TrainerAttendancePage() {
         loadAttendance,
       ]
     );
-const startScanner = useCallback(async () => {
-  if (!openSessionId) {
-    setScanError("Open the attendance session first.");
-    return;
-  }
 
-  if (isScanning) {
-    return;
-  }
+  // =========================================================
+  // START SCANNER
+  // =========================================================
 
-  try {
-    setScanError(null);
-    setError(null);
-    setScanResult(null);
-
-    const { Html5Qrcode } = await import("html5-qrcode");
-
-    const readerElement = document.getElementById(
-      "attendance-qr-reader"
-    );
-
-    if (!readerElement) {
-      throw new Error(
-        "QR scanner container was not found."
-      );
-    }
-
-    // Prevent an old scanner instance from holding the camera.
-    if (scannerRef.current) {
-      try {
-        await scannerRef.current.stop();
-      } catch {
-        // Ignore if already stopped.
-      }
-
-      try {
-        scannerRef.current.clear();
-      } catch {
-        // Ignore clear errors.
-      }
-
-      scannerRef.current = null;
-    }
-
-    // Ask browser for camera permission first.
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: {
-          ideal: "environment",
-        },
-      },
-      audio: false,
-    });
-
-    // We only needed this to verify that the camera can actually open.
-    stream.getTracks().forEach(track => track.stop());
-
-    const scanner = new Html5Qrcode(
-      "attendance-qr-reader"
-    );
-
-    scannerRef.current = scanner;
-
-    await scanner.start(
-      {
-        facingMode: "environment",
-      },
-      {
-        fps: 10,
-        qrbox: {
-          width: 280,
-          height: 280,
-        },
-        aspectRatio: 1,
-      },
-      async decodedText => {
-        console.log(
-          "QR DECODED:",
-          decodedText
+  const startScanner =
+    useCallback(async () => {
+      if (!openSessionId) {
+        setScanError(
+          "Open the attendance session first."
         );
+        return;
+      }
 
-        if (processingScanRef.current) {
-          return;
+      /*
+       * Don't start another scanner
+       * if one already exists.
+       */
+      if (scannerRef.current) {
+        return;
+      }
+
+      try {
+        setScanError(null);
+        setError(null);
+        setScanResult(null);
+
+        const { Html5Qrcode } =
+          await import(
+            "html5-qrcode"
+          );
+
+        const readerElement =
+          document.getElementById(
+            "attendance-qr-reader"
+          );
+
+        if (!readerElement) {
+          throw new Error(
+            "QR scanner container was not found."
+          );
         }
 
-        await stopScanner();
+        /*
+         * Get available cameras.
+         */
+        const cameras =
+          await Html5Qrcode.getCameras();
 
-        await recordScannedToken(
-          decodedText
+        if (!cameras.length) {
+          throw new Error(
+            "No camera was found on this device."
+          );
+        }
+
+        /*
+         * Prefer rear/back/environment
+         * camera.
+         */
+        const environmentCamera =
+          cameras.find(
+            camera =>
+              /back|rear|environment/i.test(
+                camera.label
+              )
+          );
+
+        const selectedCamera =
+          environmentCamera ??
+          cameras[0];
+
+        if (!selectedCamera) {
+          throw new Error(
+            "Unable to select a camera."
+          );
+        }
+
+        const scanner =
+          new Html5Qrcode(
+            "attendance-qr-reader"
+          );
+
+        scannerRef.current =
+          scanner;
+
+        await scanner.start(
+          selectedCamera.id,
+          {
+            fps: 10,
+            qrbox: {
+              width: 280,
+              height: 280,
+            },
+            aspectRatio: 1,
+          },
+          async decodedText => {
+            console.log(
+              "QR DECODED:",
+              decodedText
+            );
+
+            if (
+              processingScanRef.current
+            ) {
+              return;
+            }
+
+            /*
+             * Stop scanner first.
+             */
+            await stopScanner();
+
+            /*
+             * Close modal.
+             */
+            setIsCameraModalOpen(
+              false
+            );
+
+            /*
+             * Submit token.
+             */
+            await recordScannedToken(
+              decodedText
+            );
+          },
+          () => {
+            /*
+             * QR not detected yet.
+             */
+          }
         );
-      },
-      () => {
-        // QR not detected yet.
+
+        setIsScanning(true);
+
+        console.log(
+          "QR SCANNER STARTED SUCCESSFULLY"
+        );
+      } catch (err) {
+        console.error(
+          "QR SCANNER START ERROR:",
+          err
+        );
+
+        setIsScanning(false);
+
+        if (scannerRef.current) {
+          try {
+            await scannerRef.current.stop();
+          } catch {}
+
+          try {
+            scannerRef.current.clear();
+          } catch {}
+
+          scannerRef.current = null;
+        }
+
+        if (
+          err instanceof DOMException &&
+          err.name ===
+            "NotAllowedError"
+        ) {
+          setScanError(
+            "Camera permission was denied. Please allow camera access in Chrome settings."
+          );
+        } else if (
+          err instanceof DOMException &&
+          err.name ===
+            "NotReadableError"
+        ) {
+          setScanError(
+            "The camera could not be started. Another app or browser tab may already be using the camera."
+          );
+        } else if (
+          err instanceof DOMException &&
+          err.name ===
+            "OverconstrainedError"
+        ) {
+          setScanError(
+            "The selected camera is not available. Please try another camera."
+          );
+        } else {
+          setScanError(
+            err instanceof Error
+              ? err.message
+              : "Unable to start the QR scanner."
+          );
+        }
       }
-    );
+    }, [
+      openSessionId,
+      stopScanner,
+      recordScannedToken,
+    ]);
 
-    setIsScanning(true);
+  // =========================================================
+  // OPEN CAMERA MODAL
+  // =========================================================
 
-    console.log(
-      "QR SCANNER STARTED SUCCESSFULLY"
-    );
-  } catch (err) {
-    console.error(
-      "QR SCANNER START ERROR:",
-      err
-    );
-
-    setIsScanning(false);
-
-    if (scannerRef.current) {
-      try {
-        await scannerRef.current.stop();
-      } catch {
-        // Ignore cleanup errors.
+  const openCameraModal =
+    useCallback(() => {
+      /*
+       * Do not allow scanner while
+       * attendance is closed.
+       */
+      if (!openSessionId) {
+        setScanError(
+          "Open the attendance session first."
+        );
+        return;
       }
 
-      try {
-        scannerRef.current.clear();
-      } catch {
-        // Ignore cleanup errors.
-      }
+      setScanError(null);
+      setScanResult(null);
+      setIsCameraModalOpen(true);
+    }, [
+      openSessionId,
+    ]);
 
-      scannerRef.current = null;
+  // =========================================================
+  // START CAMERA AFTER MODAL MOUNTS
+  // =========================================================
+
+  useEffect(() => {
+    if (!isCameraModalOpen) {
+      return;
     }
 
-    if (
-      err instanceof DOMException &&
-      err.name === "NotAllowedError"
-    ) {
-      setScanError(
-        "Camera permission was denied. Please allow camera access in Chrome settings."
+    const timer =
+      window.setTimeout(() => {
+        void startScanner();
+      }, 150);
+
+    return () => {
+      window.clearTimeout(
+        timer
       );
-    } else if (
-      err instanceof DOMException &&
-      err.name === "NotReadableError"
-    ) {
-      setScanError(
-        "The camera could not be started. Another app or browser tab may already be using the camera. Close other camera apps/tabs and try again."
-      );
-    } else {
-      setScanError(
-        err instanceof Error
-          ? err.message
-          : "Unable to start the QR scanner."
-      );
-    }
-  }
-}, [
-  openSessionId,
-  isScanning,
-  stopScanner,
-  recordScannedToken,
-]);
+    };
+  }, [
+    isCameraModalOpen,
+    startScanner,
+  ]);
 
   // =========================================================
   // MANUAL TOKEN SUBMIT
@@ -551,30 +787,36 @@ const startScanner = useCallback(async () => {
         setScanError(null);
         setSuccessMessage(null);
 
-        const result =
-          await attendanceApi.openSession({
-            trainingBatchId:
-              selectedBatchId,
-          });
+        /*
+         * Open session in backend.
+         */
+        await attendanceApi.openSession({
+          trainingBatchId:
+            selectedBatchId,
+        });
 
+        /*
+         * IMPORTANT:
+         *
+         * Do NOT generate our own session ID.
+         *
+         * Ask backend for the actual
+         * currently OPEN session.
+         */
         const sessionId =
-          result.attendanceSessionId;
+          await loadOpenSession(
+            selectedBatchId
+          );
 
         if (!sessionId) {
           throw new Error(
-            "The server did not return an attendance session ID."
+            "Attendance was opened, but the active session could not be retrieved."
           );
         }
 
-        setOpenSessionId(
-          sessionId
-        );
-
-        window.localStorage.setItem(
-          `attendance-session-${selectedBatchId}`,
-          sessionId
-        );
-
+        /*
+         * Refresh attendance records.
+         */
         await loadAttendance(
           selectedBatchId
         );
@@ -598,6 +840,7 @@ const startScanner = useCallback(async () => {
       }
     }, [
       selectedBatchId,
+      loadOpenSession,
       loadAttendance,
     ]);
 
@@ -617,22 +860,36 @@ const startScanner = useCallback(async () => {
         setScanError(null);
         setSuccessMessage(null);
 
-        await stopScanner();
+        /*
+         * Stop camera before closing.
+         */
+        await closeCameraModal();
 
+        /*
+         * Close the actual backend session.
+         */
         await attendanceApi.closeSession(
           openSessionId
         );
 
-        setOpenSessionId(
-          null
-        );
+        /*
+         * Clear local representation.
+         *
+         * This is NOT the source of truth.
+         * The backend will confirm CLOSED
+         * on the next check.
+         */
+        setOpenSessionId(null);
 
         if (selectedBatchId) {
-          window.localStorage.removeItem(
-            `attendance-session-${selectedBatchId}`
+          await loadAttendance(
+            selectedBatchId
           );
 
-          await loadAttendance(
+          /*
+           * Confirm backend status.
+           */
+          await loadOpenSession(
             selectedBatchId
           );
         }
@@ -660,8 +917,9 @@ const startScanner = useCallback(async () => {
     }, [
       openSessionId,
       selectedBatchId,
-      stopScanner,
+      closeCameraModal,
       loadAttendance,
+      loadOpenSession,
     ]);
 
   // =========================================================
@@ -675,15 +933,27 @@ const startScanner = useCallback(async () => {
       setSuccessMessage(null);
 
       if (selectedBatchId) {
-        await loadAttendance(
-          selectedBatchId
-        );
+        /*
+         * Refresh both:
+         *
+         * 1. Attendance records
+         * 2. Backend session status
+         */
+        await Promise.all([
+          loadAttendance(
+            selectedBatchId
+          ),
+          loadOpenSession(
+            selectedBatchId
+          ),
+        ]);
       } else {
         await loadBatches();
       }
     }, [
       selectedBatchId,
       loadAttendance,
+      loadOpenSession,
       loadBatches,
     ]);
 
@@ -744,7 +1014,11 @@ const startScanner = useCallback(async () => {
       record => {
         const status =
           record.status
-            ?.toLowerCase();
+            ?.toLowerCase()
+            .replace(
+              /[\s_-]/g,
+              ""
+            );
 
         return (
           status ===
@@ -762,13 +1036,17 @@ const startScanner = useCallback(async () => {
   if (isLoadingBatches) {
     return (
       <div className="flex min-h-[500px] items-center justify-center">
+
         <div className="text-center">
+
           <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-gray-900" />
 
           <p className="mt-4 text-sm text-gray-500">
             Loading attendance...
           </p>
+
         </div>
+
       </div>
     );
   }
@@ -788,7 +1066,6 @@ const startScanner = useCallback(async () => {
 
         <div>
 
-          
           <h1 className="text-3xl font-bold tracking-tight text-[#17191c]">
             Attendance
           </h1>
@@ -809,13 +1086,15 @@ const startScanner = useCallback(async () => {
           }
           disabled={
             isLoadingAttendance ||
-            isLoadingBatches
+            isCheckingSession
           }
           className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[#e5e7eb] bg-white px-4 text-xs font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
+
           <RefreshIcon />
 
           Refresh
+
         </button>
 
       </header>
@@ -825,6 +1104,7 @@ const startScanner = useCallback(async () => {
       ===================================================== */}
 
       {error && (
+
         <Alert
           type="error"
           title="Attendance error"
@@ -833,9 +1113,11 @@ const startScanner = useCallback(async () => {
             setError(null)
           }
         />
+
       )}
 
       {successMessage && (
+
         <Alert
           type="success"
           title="Success"
@@ -844,6 +1126,7 @@ const startScanner = useCallback(async () => {
             setSuccessMessage(null)
           }
         />
+
       )}
 
       {/* =====================================================
@@ -881,10 +1164,12 @@ const startScanner = useCallback(async () => {
           <div className="mt-5">
 
             <select
-              value={selectedBatchId}
+              value={
+                selectedBatchId
+              }
               onChange={event => {
 
-                void stopScanner();
+                void closeCameraModal();
 
                 setSelectedBatchId(
                   event.target.value
@@ -907,6 +1192,7 @@ const startScanner = useCallback(async () => {
                 setSuccessMessage(
                   null
                 );
+
               }}
               className="h-12 w-full rounded-xl border border-[#e5e7eb] bg-[#f8f9fa] px-4 text-xs font-medium text-gray-700 outline-none transition focus:border-gray-400 focus:bg-white"
             >
@@ -917,6 +1203,7 @@ const startScanner = useCallback(async () => {
 
               {batches.map(
                 batch => (
+
                   <option
                     key={batch.id}
                     value={batch.id}
@@ -925,6 +1212,7 @@ const startScanner = useCallback(async () => {
                     {" — "}
                     {batch.programName}
                   </option>
+
                 )
               )}
 
@@ -971,9 +1259,11 @@ const startScanner = useCallback(async () => {
                 </InfoPill>
 
                 {selectedBatch.location && (
+
                   <InfoPill>
                     {selectedBatch.location}
                   </InfoPill>
+
                 )}
 
               </div>
@@ -1011,11 +1301,13 @@ const startScanner = useCallback(async () => {
                         : "bg-gray-900 text-white"
                     }`}
                   >
+
                     {openSessionId ? (
                       <UnlockIcon />
                     ) : (
                       <LockIcon />
                     )}
+
                   </div>
 
                   <div>
@@ -1071,13 +1363,25 @@ const startScanner = useCallback(async () => {
 
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
-                <p className="max-w-lg text-xs leading-5 text-gray-500">
+                <div>
 
-                  {openSessionId
-                    ? "Attendance is active. Scan participant QR codes for Time In and Time Out."
-                    : "Attendance is currently closed. Open a session before recording participant attendance."}
+                  <p className="max-w-lg text-xs leading-5 text-gray-500">
 
-                </p>
+                    {isCheckingSession
+                      ? "Checking attendance session..."
+                      : openSessionId
+                      ? "Attendance is active. Scan participant QR codes for Time In and Time Out."
+                      : "Attendance is currently closed. Open a session before recording participant attendance."}
+
+                  </p>
+
+                  {!isCheckingSession && (
+                    <p className="mt-2 text-[9px] text-gray-400">
+                      Session status is synchronized with the server.
+                    </p>
+                  )}
+
+                </div>
 
                 {!openSessionId ? (
 
@@ -1086,7 +1390,10 @@ const startScanner = useCallback(async () => {
                     onClick={() =>
                       void handleOpenAttendance()
                     }
-                    disabled={isOpening}
+                    disabled={
+                      isOpening ||
+                      isCheckingSession
+                    }
                     className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
 
@@ -1105,7 +1412,10 @@ const startScanner = useCallback(async () => {
                     onClick={() =>
                       void handleCloseAttendance()
                     }
-                    disabled={isClosing}
+                    disabled={
+                      isClosing ||
+                      isCheckingSession
+                    }
                     className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-gray-900 px-5 text-xs font-bold text-white shadow-sm transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
                   >
 
@@ -1159,13 +1469,13 @@ const startScanner = useCallback(async () => {
 
         <section className="overflow-hidden rounded-2xl border border-[#e7e9ec] bg-white shadow-sm">
 
-          <div className="border-b border-[#eef0f2] p-5">
+          <div className="p-5">
 
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
 
               <div className="flex items-start gap-3">
 
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-900 text-white">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-900 text-white">
                   <QrIcon />
                 </div>
 
@@ -1180,10 +1490,54 @@ const startScanner = useCallback(async () => {
                   </h2>
 
                   <p className="mt-1 max-w-xl text-xs leading-5 text-gray-500">
-                    Use the camera to scan the participant's permanent attendance QR.
+                    Scan the participant's permanent QR code to record attendance.
                   </p>
 
                 </div>
+
+              </div>
+
+              <button
+                type="button"
+                onClick={
+                  openCameraModal
+                }
+                disabled={
+                  !openSessionId ||
+                  isCheckingSession
+                }
+                className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-gray-900 px-5 text-xs font-bold text-white shadow-sm transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-40"
+              >
+
+                <CameraIcon />
+
+                Open Camera
+
+              </button>
+
+            </div>
+
+            {/* =================================================
+                SCANNER STATUS
+            ================================================= */}
+
+            <div className="mt-5 flex items-center justify-between rounded-xl border border-gray-100 bg-[#fafbfc] px-4 py-3">
+
+              <div>
+
+                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                  Scanner status
+                </p>
+
+                <p className="mt-1 text-xs font-semibold text-gray-700">
+
+                  {isCheckingSession
+                    ? "Checking attendance session..."
+                    : openSessionId
+                    ? "Ready to scan participant QR"
+                    : "Open attendance session first"}
+
+                </p>
 
               </div>
 
@@ -1197,266 +1551,137 @@ const startScanner = useCallback(async () => {
 
             </div>
 
-          </div>
-
-          <div className="p-5">
-
             {/* =================================================
-                CAMERA AREA
+                SCAN GUIDE
             ================================================= */}
 
-            <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,430px)_1fr]">
+            <div className="mt-5 rounded-2xl border border-gray-200 bg-white p-5">
 
-              <div>
+              <div className="flex items-start gap-3">
 
-                {/* =================================================
-                    IMPORTANT:
-                    attendance-qr-reader ALWAYS EXISTS IN DOM
-                ================================================= */}
-
-                <div
-                  className={`relative overflow-hidden rounded-2xl border ${
-                    isScanning
-                      ? "border-emerald-300 bg-black"
-                      : "border-gray-200 bg-[#f8f9fa]"
-                  }`}
-                >
-
-                  {/* =================================================
-                      REAL HTML5 QR SCANNER CONTAINER
-
-                      DO NOT PUT THIS INSIDE {!isScanning}.
-                  ================================================= */}
-
-                  <div
-                    id="attendance-qr-reader"
-                    className="min-h-[360px] w-full"
-                  />
-
-                  {/* =================================================
-                      PLACEHOLDER
-                  ================================================= */}
-
-                  {!isScanning && (
-
-                    <div className="absolute inset-0 flex min-h-[360px] flex-col items-center justify-center bg-[#f8f9fa] px-6 text-center">
-
-                      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-gray-500 shadow-sm">
-                        <CameraIcon />
-                      </div>
-
-                      <h3 className="mt-5 text-sm font-bold text-gray-800">
-                        Camera Scanner
-                      </h3>
-
-                      <p className="mt-2 max-w-xs text-xs leading-5 text-gray-400">
-                        Start the camera and point it at the participant's permanent QR code.
-                      </p>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void startScanner()
-                        }
-                        disabled={
-                          !openSessionId
-                        }
-                        className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gray-900 px-5 text-xs font-bold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-
-                        <CameraIcon />
-
-                        Start Scanner
-
-                      </button>
-
-                    </div>
-
-                  )}
-
-                  {/* =================================================
-                      SCANNING OVERLAY
-                  ================================================= */}
-
-                  {isScanning && (
-
-                    <>
-
-                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-
-                        <div className="h-[280px] w-[280px] rounded-3xl border-2 border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.28)]" />
-
-                      </div>
-
-                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            void stopScanner()
-                          }
-                          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-4 text-xs font-bold text-gray-800 shadow-lg"
-                        >
-
-                          <StopIcon />
-
-                          Stop Camera
-
-                        </button>
-
-                      </div>
-
-                    </>
-
-                  )}
-
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                  <ScanIcon />
                 </div>
-
-                <p className="mt-3 text-center text-[10px] text-gray-400">
-
-                  {isScanning
-                    ? "Point the participant QR inside the scanning frame."
-                    : "Camera permission is required to scan QR codes."}
-
-                </p>
-
-              </div>
-
-              {/* =================================================
-                  SCAN INFORMATION
-              ================================================= */}
-
-              <div className="flex flex-col justify-between">
 
                 <div>
 
-                  <div className="rounded-2xl border border-gray-200 bg-[#fafbfc] p-5">
+                  <h3 className="text-sm font-bold text-gray-800">
+                    Automatic Time In / Time Out
+                  </h3>
 
-                    <div className="flex items-start gap-3">
-
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                        <ScanIcon />
-                      </div>
-
-                      <div>
-
-                        <h3 className="text-sm font-bold text-gray-800">
-                          Automatic Time In / Time Out
-                        </h3>
-
-                        <p className="mt-2 text-xs leading-5 text-gray-500">
-                          The same permanent participant QR is used for both actions.
-                        </p>
-
-                      </div>
-
-                    </div>
-
-                    <div className="mt-5 space-y-3">
-
-                      <StepItem
-                        number="1"
-                        title="First scan"
-                        description="Creates the participant's Time In record."
-                      />
-
-                      <StepItem
-                        number="2"
-                        title="Second scan"
-                        description="Records Time Out for the same session."
-                      />
-
-                      <StepItem
-                        number="3"
-                        title="Complete"
-                        description="A third scan is rejected once attendance is complete."
-                      />
-
-                    </div>
-
-                  </div>
-
-                  {scanResult && (
-
-                    <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-
-                      <div className="flex items-start gap-3">
-
-                        <div className="mt-0.5 text-emerald-600">
-                          <CheckIcon />
-                        </div>
-
-                        <div>
-
-                          <p className="text-xs font-bold text-emerald-700">
-                            Scan successful
-                          </p>
-
-                          <p className="mt-1 text-[10px] leading-5 text-emerald-600">
-                            {scanResult}
-                          </p>
-
-                        </div>
-
-                      </div>
-
-                    </div>
-
-                  )}
+                  <p className="mt-1 text-xs leading-5 text-gray-500">
+                    The same permanent participant QR is used for both actions.
+                  </p>
 
                 </div>
 
-                {/* =================================================
-                    MANUAL TOKEN FALLBACK
-                ================================================= */}
+              </div>
 
-                <div className="mt-5">
+              <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
 
-                  <label className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                    QR Token fallback
-                  </label>
+                <StepItem
+                  number="1"
+                  title="First scan"
+                  description="Creates the participant's Time In record."
+                />
 
-                  <div className="flex flex-col gap-2 sm:flex-row">
+                <StepItem
+                  number="2"
+                  title="Second scan"
+                  description="Records Time Out for the same session."
+                />
 
-                    <input
-                      value={scannedToken}
-                      onChange={event =>
-                        setScannedToken(
-                          event.target.value
-                        )
-                      }
-                      disabled={
-                        !openSessionId
-                      }
-                      placeholder="Paste decoded QR token..."
-                      className="h-11 min-w-0 flex-1 rounded-xl border border-[#e5e7eb] bg-[#f8f9fa] px-4 text-xs outline-none transition focus:border-gray-400 focus:bg-white disabled:cursor-not-allowed disabled:opacity-50"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        void handleManualToken()
-                      }
-                      disabled={
-                        !openSessionId ||
-                        !scannedToken.trim()
-                      }
-                      className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-xs font-bold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      Submit
-                    </button>
-
-                  </div>
-
-                </div>
+                <StepItem
+                  number="3"
+                  title="Complete"
+                  description="A third scan is rejected once attendance is complete."
+                />
 
               </div>
 
             </div>
 
-            {/* =====================================================
+            {/* =================================================
+                SCAN RESULT
+            ================================================= */}
+
+            {scanResult && (
+
+              <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+
+                <div className="flex items-start gap-3">
+
+                  <div className="mt-0.5 text-emerald-600">
+                    <CheckIcon />
+                  </div>
+
+                  <div>
+
+                    <p className="text-xs font-bold text-emerald-700">
+                      Scan successful
+                    </p>
+
+                    <p className="mt-1 text-[10px] leading-5 text-emerald-600">
+                      {scanResult}
+                    </p>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            )}
+
+            {/* =================================================
+                MANUAL TOKEN FALLBACK
+            ================================================= */}
+
+            <div className="mt-5">
+
+              <label className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                QR Token fallback
+              </label>
+
+              <div className="flex flex-col gap-2 sm:flex-row">
+
+                <input
+                  value={
+                    scannedToken
+                  }
+                  onChange={event =>
+                    setScannedToken(
+                      event.target.value
+                    )
+                  }
+                  disabled={
+                    !openSessionId
+                  }
+                  placeholder="Paste decoded QR token..."
+                  className="h-11 min-w-0 flex-1 rounded-xl border border-[#e5e7eb] bg-[#f8f9fa] px-4 text-xs outline-none transition focus:border-gray-400 focus:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                />
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    void handleManualToken()
+                  }
+                  disabled={
+                    !openSessionId ||
+                    !scannedToken.trim()
+                  }
+                  className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-xs font-bold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Submit
+                </button>
+
+              </div>
+
+            </div>
+
+            {/* =================================================
                 SCAN ERROR
-            ===================================================== */}
+            ================================================= */}
 
             {scanError && (
 
@@ -1489,6 +1714,186 @@ const startScanner = useCallback(async () => {
       )}
 
       {/* =====================================================
+          CAMERA MODAL
+      ===================================================== */}
+
+      {isCameraModalOpen && (
+
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          onMouseDown={event => {
+
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              void closeCameraModal();
+            }
+
+          }}
+        >
+
+          <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
+
+            {/* =================================================
+                MODAL HEADER
+            ================================================= */}
+
+            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+
+              <div className="flex items-center gap-3">
+
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-900 text-white">
+                  <CameraIcon />
+                </div>
+
+                <div>
+
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-600">
+                    QR Attendance
+                  </p>
+
+                  <h2 className="mt-1 text-sm font-bold text-gray-900">
+                    Scan Participant QR
+                  </h2>
+
+                </div>
+
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  void closeCameraModal()
+                }
+                className="flex h-9 w-9 items-center justify-center rounded-xl text-xl text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+                aria-label="Close camera"
+              >
+                ×
+              </button>
+
+            </div>
+
+            {/* =================================================
+                CAMERA
+            ================================================= */}
+
+            <div className="p-5">
+
+              <div className="relative overflow-hidden rounded-2xl bg-black">
+
+                <div
+                  id="attendance-qr-reader"
+                  className="min-h-[360px] w-full"
+                />
+
+                {!isScanning && (
+
+                  <div className="absolute inset-0 flex min-h-[360px] flex-col items-center justify-center bg-gray-950 px-6 text-center">
+
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 text-white">
+                      <CameraIcon />
+                    </div>
+
+                    <p className="mt-4 text-sm font-bold text-white">
+                      Starting camera...
+                    </p>
+
+                    <p className="mt-2 max-w-xs text-xs leading-5 text-white/60">
+                      Please allow camera access when Chrome asks for permission.
+                    </p>
+
+                  </div>
+
+                )}
+
+                {isScanning && (
+
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+
+                    <div className="h-[280px] w-[280px] rounded-3xl border-2 border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
+
+                  </div>
+
+                )}
+
+              </div>
+
+              {/* =================================================
+                  MODAL FOOTER
+              ================================================= */}
+
+              <div className="mt-4 flex items-center justify-between gap-3">
+
+                <div>
+
+                  <p className="text-xs font-bold text-gray-700">
+
+                    {isScanning
+                      ? "Scanning..."
+                      : "Starting camera..."}
+
+                  </p>
+
+                  <p className="mt-1 text-[10px] text-gray-400">
+                    Point the participant QR inside the frame.
+                  </p>
+
+                </div>
+
+                {isScanning && (
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void closeCameraModal()
+                    }
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 text-xs font-bold text-white transition hover:bg-black"
+                  >
+
+                    <StopIcon />
+
+                    Stop
+
+                  </button>
+
+                )}
+
+              </div>
+
+              {scanError && (
+
+                <div className="mt-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
+
+                  <div className="mt-0.5 text-red-600">
+                    <ErrorIcon />
+                  </div>
+
+                  <div>
+
+                    <p className="text-xs font-bold text-red-700">
+                      Scan failed
+                    </p>
+
+                    <p className="mt-1 text-[10px] leading-5 text-red-600">
+                      {scanError}
+                    </p>
+
+                  </div>
+
+                </div>
+
+              )}
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
+
+      {/* =====================================================
           SUMMARY
       ===================================================== */}
 
@@ -1498,29 +1903,45 @@ const startScanner = useCallback(async () => {
 
           <SummaryCard
             label="Total Records"
-            value={records.length}
-            icon={<UsersIcon />}
+            value={
+              records.length
+            }
+            icon={
+              <UsersIcon />
+            }
           />
 
           <SummaryCard
             label="Present"
-            value={presentCount}
+            value={
+              presentCount
+            }
             variant="success"
-            icon={<CheckIcon />}
+            icon={
+              <CheckIcon />
+            }
           />
 
           <SummaryCard
             label="Late"
-            value={lateCount}
+            value={
+              lateCount
+            }
             variant="warning"
-            icon={<ClockIcon />}
+            icon={
+              <ClockIcon />
+            }
           />
 
           <SummaryCard
             label="Incomplete"
-            value={incompleteCount}
+            value={
+              incompleteCount
+            }
             variant="info"
-            icon={<IncompleteIcon />}
+            icon={
+              <IncompleteIcon />
+            }
           />
 
         </div>
@@ -1656,7 +2077,9 @@ const startScanner = useCallback(async () => {
                     record => (
 
                       <tr
-                        key={record.id}
+                        key={
+                          record.id
+                        }
                         className="transition hover:bg-[#fafbfc]"
                       >
 
@@ -1667,20 +2090,33 @@ const startScanner = useCallback(async () => {
                             <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-gray-100">
 
                               {record.profileImageUrl ? (
+
                                 <img
-                                  src={record.profileImageUrl}
-                                  alt={record.participantName}
+                                  src={
+                                    record.profileImageUrl
+                                  }
+                                  alt={
+                                    record.participantName
+                                  }
                                   className="h-full w-full object-cover"
-                                  onError={event => {
-                                    event.currentTarget.style.display = "none";
-                                  }}
+                                  onError={
+                                    event => {
+                                      event.currentTarget.style.display =
+                                        "none";
+                                    }
+                                  }
                                 />
+
                               ) : (
+
                                 <div className="flex h-full w-full items-center justify-center text-xs font-bold text-gray-600">
+
                                   {getInitials(
                                     record.participantName
                                   )}
+
                                 </div>
+
                               )}
 
                             </div>
@@ -1868,6 +2304,7 @@ function SummaryCard({
     | "warning"
     | "info";
 }) {
+
   const iconClass =
     variant === "success"
       ? "bg-emerald-50 text-emerald-600"
@@ -1949,6 +2386,7 @@ function AttendanceStatusBadge({
 }: {
   status: string;
 }) {
+
   const normalized =
     status
       ?.toLowerCase()
@@ -2004,7 +2442,8 @@ function AttendanceStatusBadge({
     <span
       className={`inline-flex rounded-full border px-2.5 py-1.5 text-[9px] font-bold ${className}`}
     >
-      {status || "Unknown"}
+      {status ||
+        "Unknown"}
     </span>
   );
 }
@@ -2018,12 +2457,15 @@ function TimeValue({
 }: {
   value: string | null;
 }) {
+
   if (!value) {
+
     return (
       <span className="text-xs text-gray-300">
         —
       </span>
     );
+
   }
 
   const date =
@@ -2034,17 +2476,20 @@ function TimeValue({
       date.getTime()
     )
   ) {
+
     return (
       <span className="text-xs text-gray-500">
         {value}
       </span>
     );
+
   }
 
   return (
     <div>
 
       <p className="text-xs font-semibold text-gray-700">
+
         {date.toLocaleTimeString(
           "en-US",
           {
@@ -2052,9 +2497,11 @@ function TimeValue({
             minute: "2-digit",
           }
         )}
+
       </p>
 
       <p className="mt-0.5 text-[9px] text-gray-400">
+
         {date.toLocaleDateString(
           "en-US",
           {
@@ -2063,6 +2510,7 @@ function TimeValue({
             year: "numeric",
           }
         )}
+
       </p>
 
     </div>
@@ -2078,33 +2526,42 @@ function EmptyState({
 }: {
   search: boolean;
 }) {
+
   return (
     <div className="px-6 py-16 text-center">
 
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-gray-400">
 
         {search ? (
+
           <SearchIcon
             className="!h-5 !w-5"
           />
+
         ) : (
+
           <UsersIcon
             className="!h-5 !w-5"
           />
+
         )}
 
       </div>
 
       <p className="mt-4 text-sm font-bold text-gray-700">
+
         {search
           ? "No matching participants"
           : "No attendance records"}
+
       </p>
 
       <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-gray-400">
+
         {search
           ? "Try another participant name, status, or attendance method."
           : "Attendance records will appear here after a participant is recorded."}
+
       </p>
 
     </div>
@@ -2128,6 +2585,7 @@ function Alert({
   message: string;
   onClose: () => void;
 }) {
+
   const success =
     type === "success";
 
@@ -2149,11 +2607,13 @@ function Alert({
               : "text-red-600"
           }
         >
+
           {success ? (
             <CheckIcon />
           ) : (
             <ErrorIcon />
           )}
+
         </div>
 
         <div>
@@ -2204,6 +2664,7 @@ function InfoPill({
 }: {
   children: ReactNode;
 }) {
+
   return (
     <span className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[9px] font-bold text-gray-500">
       {children}
@@ -2220,6 +2681,7 @@ function TableHeader({
 }: {
   children: ReactNode;
 }) {
+
   return (
     <th className="px-5 py-3 text-left text-[9px] font-bold uppercase tracking-wider text-gray-400">
       {children}
@@ -2234,6 +2696,7 @@ function TableHeader({
 function getInitials(
   name: string
 ) {
+
   return name
     .split(" ")
     .filter(Boolean)
@@ -2261,6 +2724,7 @@ type IconProps = {
 function RefreshIcon({
   className = "",
 }: IconProps) {
+
   return (
     <svg
       className={`!h-4 !w-4 !shrink-0 ${className}`}
@@ -2271,9 +2735,11 @@ function RefreshIcon({
       stroke="currentColor"
       strokeWidth="2"
     >
+
       <path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 5v4h4" />
 
       <path d="M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4" />
+
     </svg>
   );
 }
@@ -2285,6 +2751,7 @@ function RefreshIcon({
 function BatchIcon({
   className = "",
 }: IconProps) {
+
   return (
     <svg
       className={`!h-5 !w-5 !shrink-0 ${className}`}
@@ -2295,6 +2762,7 @@ function BatchIcon({
       stroke="currentColor"
       strokeWidth="1.8"
     >
+
       <rect
         x="3"
         y="4"
@@ -2304,6 +2772,7 @@ function BatchIcon({
       />
 
       <path d="M8 4v16M16 4v16M3 9h18M3 15h18" />
+
     </svg>
   );
 }
@@ -2315,6 +2784,7 @@ function BatchIcon({
 function UnlockIcon({
   className = "",
 }: IconProps) {
+
   return (
     <svg
       className={`!h-5 !w-5 !shrink-0 ${className}`}
@@ -2325,6 +2795,7 @@ function UnlockIcon({
       stroke="currentColor"
       strokeWidth="2"
     >
+
       <rect
         x="5"
         y="10"
@@ -2334,6 +2805,7 @@ function UnlockIcon({
       />
 
       <path d="M8 10V7a4 4 0 0 1 7.8-1" />
+
     </svg>
   );
 }
@@ -2345,6 +2817,7 @@ function UnlockIcon({
 function LockIcon({
   className = "",
 }: IconProps) {
+
   return (
     <svg
       className={`!h-5 !w-5 !shrink-0 ${className}`}
@@ -2355,6 +2828,7 @@ function LockIcon({
       stroke="currentColor"
       strokeWidth="2"
     >
+
       <rect
         x="5"
         y="10"
@@ -2364,6 +2838,7 @@ function LockIcon({
       />
 
       <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+
     </svg>
   );
 }
@@ -2375,6 +2850,7 @@ function LockIcon({
 function PlayIcon({
   className = "",
 }: IconProps) {
+
   return (
     <svg
       className={`!h-4 !w-4 !shrink-0 ${className}`}
@@ -2383,7 +2859,9 @@ function PlayIcon({
       viewBox="0 0 24 24"
       fill="currentColor"
     >
+
       <path d="M8 5v14l11-7z" />
+
     </svg>
   );
 }
@@ -2395,6 +2873,7 @@ function PlayIcon({
 function StopIcon({
   className = "",
 }: IconProps) {
+
   return (
     <svg
       className={`!h-4 !w-4 !shrink-0 ${className}`}
@@ -2403,6 +2882,7 @@ function StopIcon({
       viewBox="0 0 24 24"
       fill="currentColor"
     >
+
       <rect
         x="6"
         y="6"
@@ -2410,6 +2890,7 @@ function StopIcon({
         height="12"
         rx="2"
       />
+
     </svg>
   );
 }
@@ -2421,6 +2902,7 @@ function StopIcon({
 function QrIcon({
   className = "",
 }: IconProps) {
+
   return (
     <svg
       className={`!h-4 !w-4 !shrink-0 ${className}`}
@@ -2431,6 +2913,7 @@ function QrIcon({
       stroke="currentColor"
       strokeWidth="1.8"
     >
+
       <rect
         x="4"
         y="4"
@@ -2453,6 +2936,7 @@ function QrIcon({
       />
 
       <path d="M14 14h3v3h-3zM17 17h3v3h-3zM14 20h3" />
+
     </svg>
   );
 }
@@ -2464,6 +2948,7 @@ function QrIcon({
 function CameraIcon({
   className = "",
 }: IconProps) {
+
   return (
     <svg
       className={`!h-5 !w-5 !shrink-0 ${className}`}
@@ -2474,6 +2959,7 @@ function CameraIcon({
       stroke="currentColor"
       strokeWidth="1.8"
     >
+
       <path d="M4 7h4l2-2h4l2 2h4a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z" />
 
       <circle
@@ -2481,6 +2967,7 @@ function CameraIcon({
         cy="13"
         r="4"
       />
+
     </svg>
   );
 }
@@ -2492,6 +2979,7 @@ function CameraIcon({
 function ScanIcon({
   className = "",
 }: IconProps) {
+
   return (
     <svg
       className={`!h-4 !w-4 !shrink-0 ${className}`}
@@ -2502,9 +2990,11 @@ function ScanIcon({
       stroke="currentColor"
       strokeWidth="1.8"
     >
+
       <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" />
 
       <path d="M7 12h10M7 15h10M7 9h10" />
+
     </svg>
   );
 }
@@ -2516,6 +3006,7 @@ function ScanIcon({
 function SearchIcon({
   className = "",
 }: IconProps) {
+
   return (
     <svg
       className={`!h-4 !w-4 !shrink-0 ${className}`}
@@ -2526,6 +3017,7 @@ function SearchIcon({
       stroke="currentColor"
       strokeWidth="2"
     >
+
       <circle
         cx="11"
         cy="11"
@@ -2533,6 +3025,7 @@ function SearchIcon({
       />
 
       <path d="m16 16 4 4" />
+
     </svg>
   );
 }
@@ -2544,6 +3037,7 @@ function SearchIcon({
 function UsersIcon({
   className = "",
 }: IconProps) {
+
   return (
     <svg
       className={`!h-5 !w-5 !shrink-0 ${className}`}
@@ -2554,6 +3048,7 @@ function UsersIcon({
       stroke="currentColor"
       strokeWidth="1.8"
     >
+
       <path d="M16 20v-1.5a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4V20" />
 
       <circle
@@ -2563,6 +3058,7 @@ function UsersIcon({
       />
 
       <path d="M16 11a3 3 0 1 0 0-6M17 14.5a4 4 0 0 1 4 4V20" />
+
     </svg>
   );
 }
@@ -2574,6 +3070,7 @@ function UsersIcon({
 function CheckIcon({
   className = "",
 }: IconProps) {
+
   return (
     <svg
       className={`!h-4 !w-4 !shrink-0 ${className}`}
@@ -2584,7 +3081,9 @@ function CheckIcon({
       stroke="currentColor"
       strokeWidth="2.2"
     >
+
       <path d="m5 12 4 4L19 6" />
+
     </svg>
   );
 }
@@ -2596,6 +3095,7 @@ function CheckIcon({
 function ClockIcon({
   className = "",
 }: IconProps) {
+
   return (
     <svg
       className={`!h-4 !w-4 !shrink-0 ${className}`}
@@ -2606,6 +3106,7 @@ function ClockIcon({
       stroke="currentColor"
       strokeWidth="2"
     >
+
       <circle
         cx="12"
         cy="12"
@@ -2613,6 +3114,7 @@ function ClockIcon({
       />
 
       <path d="M12 8v4l3 2" />
+
     </svg>
   );
 }
@@ -2624,6 +3126,7 @@ function ClockIcon({
 function IncompleteIcon({
   className = "",
 }: IconProps) {
+
   return (
     <svg
       className={`!h-4 !w-4 !shrink-0 ${className}`}
@@ -2634,6 +3137,7 @@ function IncompleteIcon({
       stroke="currentColor"
       strokeWidth="2"
     >
+
       <circle
         cx="12"
         cy="12"
@@ -2641,6 +3145,7 @@ function IncompleteIcon({
       />
 
       <path d="M12 8v4M12 16h.01" />
+
     </svg>
   );
 }
@@ -2652,6 +3157,7 @@ function IncompleteIcon({
 function ManualIcon({
   className = "",
 }: IconProps) {
+
   return (
     <svg
       className={`!h-3.5 !w-3.5 !shrink-0 ${className}`}
@@ -2662,9 +3168,11 @@ function ManualIcon({
       stroke="currentColor"
       strokeWidth="2"
     >
+
       <path d="M4 17.5V20h2.5L18 8.5 15.5 6z" />
 
       <path d="m14 7.5 2.5 2.5M19 4l1 1" />
+
     </svg>
   );
 }
@@ -2676,6 +3184,7 @@ function ManualIcon({
 function ErrorIcon({
   className = "",
 }: IconProps) {
+
   return (
     <svg
       className={`!h-4 !w-4 !shrink-0 ${className}`}
@@ -2686,6 +3195,7 @@ function ErrorIcon({
       stroke="currentColor"
       strokeWidth="2"
     >
+
       <circle
         cx="12"
         cy="12"
@@ -2693,6 +3203,7 @@ function ErrorIcon({
       />
 
       <path d="M12 8v5M12 16h.01" />
+
     </svg>
   );
 }
