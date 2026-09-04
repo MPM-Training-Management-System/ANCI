@@ -10,7 +10,7 @@ import type {
   
   TrainerSystemSettings,
 } from "./type";
-import { TrainerProfile } from "@repo/types";
+import type { TrainerProfile } from "@repo/types";
 import { useTrainerMe } from "@repo/hooks";
 import { trainerApi } from "@/lib/api";
 
