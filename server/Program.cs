@@ -154,7 +154,7 @@ builder.Services
         };
 });
 
-builder.Services.AddAuthorization();
+
 
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
@@ -206,12 +206,8 @@ builder.Services.AddSwaggerGen(options =>
 var app = builder.Build();
 app.UseCors("FrontendPolicy");
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
+app.UseSwagger();
+app.UseSwaggerUI();
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
