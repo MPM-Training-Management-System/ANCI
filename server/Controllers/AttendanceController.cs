@@ -295,23 +295,24 @@ public class AttendanceController : ControllerBase
     //   manualAttendanceOpen: false
     // }
     // =========================================================
+[HttpGet("batch/{batchId:guid}/open")]
+[Authorize(Roles = "Trainer,Participant,Admin")]
+public async Task<ActionResult<OpenAttendanceSessionDto>>
+    GetOpenSession(
+        Guid batchId,
+        [FromQuery] Guid trainingSessionId)
+{
+    var userId =
+        GetCurrentUserId();
 
-    [HttpGet("batch/{batchId:guid}/open")]
-    [Authorize(Roles = "Trainer,Participant,Admin")]
-    public async Task<ActionResult<OpenAttendanceSessionDto>>
-        GetOpenSession(
-            Guid batchId)
-    {
-        var userId =
-            GetCurrentUserId();
+    var result =
+        await _service.GetOpenSessionAsync(
+            batchId,
+            trainingSessionId,
+            userId);
 
-        var result =
-            await _service.GetOpenSessionAsync(
-                batchId,
-                userId);
-
-        return Ok(result);
-    }
+    return Ok(result);
+}
 
     // =========================================================
     // CURRENT USER ID

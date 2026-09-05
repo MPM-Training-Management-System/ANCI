@@ -222,23 +222,26 @@ export class AttendanceApi {
   // IMPORTANT:
   // isOpen and manualAttendanceOpen are DIFFERENT states.
   // ============================================================
-
-  async getOpenSession(
-    batchId: string
-  ): Promise<{
+async getOpenSession(
+  batchId: string,
+  trainingSessionId: string
+): Promise<{
+  isOpen: boolean;
+  attendanceSessionId: string | null;
+  manualAttendanceOpen: boolean;
+}> {
+  return this.api.request<{
     isOpen: boolean;
     attendanceSessionId: string | null;
     manualAttendanceOpen: boolean;
-  }> {
-    return this.api.request<{
-      isOpen: boolean;
-      attendanceSessionId: string | null;
-      manualAttendanceOpen: boolean;
-    }>(
-      AttendanceEndpoints.getOpenSession(batchId),
-      {
-        method: "GET",
-      }
-    );
-  }
+  }>(
+    AttendanceEndpoints.getOpenSession(
+      batchId,
+      trainingSessionId
+    ),
+    {
+      method: "GET",
+    }
+  );
+}
 }

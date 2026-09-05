@@ -1,7 +1,8 @@
 namespace server.DTOs.Attendance;
 
 public record OpenAttendanceRequest(
-    Guid TrainingBatchId
+    Guid TrainingBatchId,
+    Guid TrainingSessionId
 );
 
 public record AttendanceQrDto(

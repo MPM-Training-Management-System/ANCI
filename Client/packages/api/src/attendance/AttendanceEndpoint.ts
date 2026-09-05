@@ -60,13 +60,13 @@ export const AttendanceEndpoints = {
   //   manualAttendanceOpen: boolean
   // }
   //
-  getOpenSession: (batchId: string) =>
-    `/api/attendance/batch/${batchId}/open`,
+   getOpenSession: (
+    trainingBatchId: string,
+    trainingSessionId: string,
+  ) =>
+    `/api/attendance/batch/${trainingBatchId}/open?trainingSessionId=${trainingSessionId}`,
 
-  // =========================================================
-  // PARTICIPANT
-  // =========================================================
-
+  
   // MANUAL TIME IN / TIME OUT
   manual:
     "/api/attendance/manual",

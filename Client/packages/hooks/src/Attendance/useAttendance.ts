@@ -191,97 +191,75 @@ export function useAttendance(
   // IMPORTANT:
   // We do NOT use QR to determine session state.
   // ==========================================================
+const loadOpenAttendanceSession =
+  useCallback(
+    async (
+      batchId: string,
+      trainingSessionId: string
+    ): Promise<
+      OpenAttendanceSessionDto | null
+    > => {
 
-  const loadOpenAttendanceSession =
-    useCallback(
-      async (
-        batchId: string
-      ): Promise<
-        OpenAttendanceSessionDto | null
-      > => {
+      if (!batchId || !trainingSessionId) {
+        setOpenSessionId(null);
+        setManualAttendanceOpen(false);
 
-        if (!batchId) {
+        return null;
+      }
+
+      try {
+
+        setIsLoadingOpenSession(true);
+        setOpenSessionError(null);
+
+        const result =
+          await api.getOpenSession(
+            batchId,
+            trainingSessionId
+          );
+
+        if (result.isOpen) {
+          setOpenSessionId(
+            result.attendanceSessionId
+          );
+        } else {
           setOpenSessionId(null);
-          setManualAttendanceOpen(false);
-
-          return null;
         }
 
-        try {
+        setManualAttendanceOpen(
+          result.isOpen &&
+          result.manualAttendanceOpen
+        );
 
-          setIsLoadingOpenSession(true);
-          setOpenSessionError(null);
+        return result;
 
-          const result =
-            await api.getOpenSession(
-              batchId
-            );
+      } catch (err) {
 
-          // ==================================================
-          // SESSION STATE
-          // ==================================================
+        setOpenSessionId(null);
+        setManualAttendanceOpen(false);
 
-          if (result.isOpen) {
-            setOpenSessionId(
-              result.attendanceSessionId
-            );
-          } else {
-            setOpenSessionId(null);
-          }
+        const normalizedError =
+          err instanceof Error
+            ? err
+            : new Error(
+                "Failed to load attendance session status."
+              );
 
-          // ==================================================
-          // MANUAL ATTENDANCE STATE
-          //
-          // Only valid while a session is open.
-          // ==================================================
+        setOpenSessionError(
+          normalizedError
+        );
 
-          setManualAttendanceOpen(
-            result.isOpen &&
-            result.manualAttendanceOpen
-          );
+        return null;
 
-          return result;
+      } finally {
 
-        } catch (err) {
+        setIsLoadingOpenSession(false);
 
-          /*
-           * No active session should simply mean:
-           *
-           * Session = CLOSED
-           * Manual = CLOSED
-           *
-           * We keep the error available for UI/debugging.
-           */
+      }
 
-          setOpenSessionId(null);
-
-          setManualAttendanceOpen(false);
-
-          const normalizedError =
-            err instanceof Error
-              ? err
-              : new Error(
-                  "Failed to load attendance session status."
-                );
-
-          setOpenSessionError(
-            normalizedError
-          );
-
-          return null;
-
-        } finally {
-
-          setIsLoadingOpenSession(
-            false
-          );
-
-        }
-
-      },
-      [api]
-    );
-
+    },
+    [api]
+  );
 
   // ==========================================================
   // GET ATTENDANCE SESSION RECORDS
@@ -414,10 +392,11 @@ export function useAttendance(
           // Get the actual session state from backend.
           // ================================================
 
-          const result =
-            await api.getOpenSession(
-              request.trainingBatchId
-            );
+         const result =
+  await api.getOpenSession(
+    request.trainingBatchId,
+    request.trainingSessionId
+  );
 
           if (result.isOpen) {
             setOpenSessionId(
@@ -798,23 +777,22 @@ export function useAttendance(
   // ==========================================================
   // REFRESH OPEN SESSION
   // ==========================================================
+const refreshOpenAttendanceSession =
+  useCallback(
+    async (
+      batchId: string,
+      trainingSessionId: string
+    ) => {
 
-  const refreshOpenAttendanceSession =
-    useCallback(
-      async (
-        batchId: string
-      ) => {
-
-        return loadOpenAttendanceSession(
-          batchId
-        );
-
-      },
-      [
-        loadOpenAttendanceSession,
-      ]
-    );
-
+      return loadOpenAttendanceSession(
+        batchId,
+        trainingSessionId
+      );
+    },
+    [
+      loadOpenAttendanceSession,
+    ]
+  );
 
   // ==========================================================
   // REFRESH SESSION RECORDS

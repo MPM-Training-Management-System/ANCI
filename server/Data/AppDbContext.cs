@@ -682,10 +682,18 @@ modelBuilder.Entity<AttendanceSession>(entity =>
         .HasForeignKey(x => x.TrainingBatchId)
         .OnDelete(DeleteBehavior.Restrict);
 
+    entity.HasOne(x => x.TrainingSession)
+    .WithMany(x => x.AttendanceSessions)
+    .HasForeignKey(x => x.TrainingSessionId)
+    .OnDelete(DeleteBehavior.Restrict);
+
+
     entity.HasMany(x => x.Records)
         .WithOne(x => x.AttendanceSession)
         .HasForeignKey(x => x.AttendanceSessionId)
         .OnDelete(DeleteBehavior.Cascade);
+    
+
 });
 
 

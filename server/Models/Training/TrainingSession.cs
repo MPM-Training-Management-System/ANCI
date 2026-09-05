@@ -1,4 +1,5 @@
 using server.Enums;
+using server.Models.Attendance;
 
 namespace server.Models.Training;
 
@@ -26,4 +27,6 @@ public class TrainingSession
 
     // Navigation
     public TrainingBatch TrainingBatch { get; set; } = default!;
+
+    public ICollection<AttendanceSession> AttendanceSessions { get; set; } = [];
 }

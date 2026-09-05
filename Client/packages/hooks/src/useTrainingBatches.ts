@@ -583,7 +583,7 @@ console.error(
   // /api/training-batches/{trainingBatchId}/schedule/approve
   // =========================================================
 
-  const approveSchedule = useCallback(
+ const approveSchedule = useCallback(
   async (
     trainingBatchId: string,
     sessions: TrainingSession[],
@@ -591,13 +591,25 @@ console.error(
     try {
       setScheduleError(null);
 
+      // Approve the preview schedule.
       await trainingBatchApi.approveSchedule(
         trainingBatchId,
         sessions,
       );
 
-      // Schedule is now officially approved
-      setTrainingSessions(sessions);
+      // IMPORTANT:
+      // The backend creates the real TrainingSession IDs
+      // when the schedule is approved.
+      //
+      // Therefore, do NOT keep using the preview sessions.
+      // Reload the schedule from the database so the frontend
+      // gets the actual persisted TrainingSession IDs.
+      const approvedSessions =
+  await getSchedule(trainingBatchId);
+
+if (approvedSessions !== null) {
+  setTrainingSessions(approvedSessions);
+}
 
       return true;
     } catch (error) {
@@ -616,7 +628,10 @@ console.error(
       return false;
     }
   },
-  [trainingBatchApi],
+  [
+    trainingBatchApi,
+    getSchedule,
+  ],
 );
   // =========================================================
   // INITIAL LOAD

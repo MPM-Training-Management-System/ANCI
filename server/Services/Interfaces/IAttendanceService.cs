@@ -35,8 +35,9 @@ public interface IAttendanceService
     // =========================================================
 
     Task<OpenAttendanceSessionDto> GetOpenSessionAsync(
-        Guid batchId,
-        Guid userId);
+    Guid batchId,
+    Guid trainingSessionId,
+    Guid userId);
 
 
     // =========================================================

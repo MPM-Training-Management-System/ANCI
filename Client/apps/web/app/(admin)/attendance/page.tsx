@@ -12,6 +12,7 @@ import {
 import type {
   AttendanceRecordDto,
   TrainingBatch,
+  TrainingSession
 } from "@repo/types";
 
 type AttendanceRecordWithProfile =
@@ -30,9 +31,15 @@ export default function TrainerAttendancePage() {
   // =========================================================
   // TRAINING BATCHES
   // =========================================================
+const [trainingSessions, setTrainingSessions] =
+  useState<TrainingSession[]>([]);
 
+const [selectedTrainingSessionId, setSelectedTrainingSessionId] =
+  useState<string>("");
   const [batches, setBatches] =
     useState<TrainingBatch[]>([]);
+
+    
 
   const [selectedBatchId, setSelectedBatchId] =
     useState<string>("");
@@ -187,6 +194,41 @@ export default function TrainerAttendancePage() {
       selectedBatchId,
     ]);
 
+
+    const loadTrainingSessions = useCallback(
+  async (batchId: string) => {
+    if (!batchId) {
+      setTrainingSessions([]);
+      setSelectedTrainingSessionId("");
+      return;
+    }
+
+    try {
+      const sessions =
+        await trainingBatchApi.getSchedule(batchId);
+
+      setTrainingSessions(
+        Array.isArray(sessions) ? sessions : []
+      );
+
+      const firstSession = sessions?.[0];
+
+      setSelectedTrainingSessionId(
+        firstSession?.id ?? ""
+      );
+    } catch (err) {
+      console.error(
+        "Unable to load training sessions:",
+        err
+      );
+
+      setTrainingSessions([]);
+      setSelectedTrainingSessionId("");
+    }
+  },
+  []
+);
+
   // =========================================================
   // LOAD ATTENDANCE RECORDS
   // =========================================================
@@ -228,9 +270,10 @@ export default function TrainerAttendancePage() {
   const loadOpenSession =
     useCallback(
       async (
-        batchId: string
+        batchId: string,
+        trainingSessionId: string
       ) => {
-        if (!batchId) {
+        if (!batchId || !trainingSessionId) {
           setOpenSessionId(null);
           setManualAttendanceOpen(false);
 
@@ -242,7 +285,8 @@ export default function TrainerAttendancePage() {
 
           const result =
             await attendanceApi.getOpenSession(
-              batchId
+              batchId,
+              trainingSessionId
             );
 
           // ===================================================
@@ -299,30 +343,44 @@ export default function TrainerAttendancePage() {
     loadBatches,
   ]);
 
+  useEffect(() => {
+  if (!selectedBatchId) {
+    setRecords([]);
+    setOpenSessionId(null);
+    setManualAttendanceOpen(false);
+    setSelectedDate("");
+    setTrainingSessions([]);
+    setSelectedTrainingSessionId("");
+
+    return;
+  }
+
+  void loadTrainingSessions(selectedBatchId);
+  void loadAttendance(selectedBatchId);
+}, [
+  selectedBatchId,
+  loadTrainingSessions,
+  loadAttendance,
+]);
+
   // =========================================================
-  // LOAD ATTENDANCE + SESSION WHEN BATCH CHANGES
+  // SYNC OPEN ATTENDANCE SESSION WITH SELECTED TRAINING SESSION
   // =========================================================
 
   useEffect(() => {
-    if (!selectedBatchId) {
-      setRecords([]);
+    if (!selectedBatchId || !selectedTrainingSessionId) {
       setOpenSessionId(null);
       setManualAttendanceOpen(false);
-      setSelectedDate("");
-
       return;
     }
 
-    void loadAttendance(
-      selectedBatchId
-    );
-
     void loadOpenSession(
-      selectedBatchId
+      selectedBatchId,
+      selectedTrainingSessionId
     );
   }, [
     selectedBatchId,
-    loadAttendance,
+    selectedTrainingSessionId,
     loadOpenSession,
   ]);
 
@@ -505,9 +563,7 @@ export default function TrainerAttendancePage() {
         setScanResult(null);
 
         const { Html5Qrcode } =
-          await import(
-            "html5-qrcode"
-          );
+          await import("html5-qrcode");
 
         const readerElement =
           document.getElementById(
@@ -520,6 +576,8 @@ export default function TrainerAttendancePage() {
           );
         }
 
+        readerElement.innerHTML = "";
+
         const cameras =
           await Html5Qrcode.getCameras();
 
@@ -529,66 +587,171 @@ export default function TrainerAttendancePage() {
           );
         }
 
-        const environmentCamera =
-          cameras.find(
-            camera =>
-              /back|rear|environment/i.test(
-                camera.label
-              )
-          );
-
-        const selectedCamera =
-          environmentCamera ??
-          cameras[0];
-
-        if (!selectedCamera) {
-          throw new Error(
-            "Unable to select a camera."
-          );
-        }
-
-        const scanner =
-          new Html5Qrcode(
-            "attendance-qr-reader"
-          );
-
-        scannerRef.current =
-          scanner;
-
-        await scanner.start(
-          selectedCamera.id,
-          {
-            fps: 10,
-            qrbox: {
-              width: 280,
-              height: 280,
-            },
-            aspectRatio: 1,
-          },
-          async decodedText => {
-            if (
-              processingScanRef.current
-            ) {
-              return;
-            }
-
-            await stopScanner();
-
-            setIsCameraModalOpen(
-              false
-            );
-
-            await recordScannedToken(
-              decodedText
-            );
-          },
-          () => {
-            // QR not detected yet.
-          }
+        console.log(
+          "Available cameras:",
+          cameras.map(camera => ({
+            id: camera.id,
+            label: camera.label,
+          }))
         );
 
-        setIsScanning(true);
+        // Prefer the rear/environment camera,
+        // but keep all cameras as fallbacks.
+       // Ignore virtual cameras such as OBS Virtual Camera.
+// Prefer a real physical camera.
+const realCameras = cameras.filter(camera => {
+  const label = camera.label.toLowerCase();
 
+  return !(
+    label.includes("obs virtual camera") ||
+    label.includes("virtual camera") ||
+    label.includes("obs camera")
+  );
+});
+
+if (!realCameras.length) {
+  throw new Error(
+    "No physical camera was found. Please connect or enable your laptop/USB camera."
+  );
+}
+
+const environmentCamera =
+  realCameras.find(camera =>
+    /back|rear|environment/i.test(
+      camera.label
+    )
+  );
+
+const selectedCamera =
+  environmentCamera ??
+  realCameras[0];
+
+if (!selectedCamera) {
+  throw new Error(
+    "Unable to select a physical camera."
+  );
+}
+
+      // OBS / virtual cameras are intentionally excluded.
+// Use realCameras here — NOT cameras — so OBS is never attempted.
+const orderedCameras = [
+  ...(environmentCamera
+    ? [environmentCamera]
+    : []),
+  ...realCameras.filter(
+    camera =>
+      camera.id !==
+      environmentCamera?.id
+  ),
+];
+
+        const scannerConfig = {
+          fps: 10,
+          qrbox: {
+            width: 280,
+            height: 280,
+          },
+          aspectRatio: 1,
+        };
+
+        let started = false;
+
+        for (const camera of orderedCameras) {
+          if (started) {
+            break;
+          }
+
+          let scanner: Html5Qrcode | null = null;
+
+          try {
+            console.log(
+              "Trying camera:",
+              camera.label || camera.id
+            );
+
+            const container =
+              document.getElementById(
+                "attendance-qr-reader"
+              );
+
+            if (container) {
+              container.innerHTML = "";
+            }
+
+            scanner =
+              new Html5Qrcode(
+                "attendance-qr-reader"
+              );
+
+            await scanner.start(
+              camera.id,
+              scannerConfig,
+              async decodedText => {
+                if (
+                  processingScanRef.current
+                ) {
+                  return;
+                }
+
+                await stopScanner();
+
+                setIsCameraModalOpen(false);
+
+                await recordScannedToken(
+                  decodedText
+                );
+              },
+              () => {
+                // QR not detected yet.
+              }
+            );
+
+            scannerRef.current = scanner;
+            setIsScanning(true);
+            started = true;
+
+            console.log(
+              "QR scanner started successfully:",
+              camera.label || camera.id
+            );
+          } catch (cameraError) {
+            console.error(
+              "Failed to start camera:",
+              camera.label || camera.id,
+              cameraError
+            );
+
+            try {
+              if (scanner) {
+                await scanner
+                  .stop()
+                  .catch(() => {});
+
+                scanner.clear();
+              }
+            } catch {
+              // Ignore cleanup errors.
+            }
+
+            scannerRef.current = null;
+            setIsScanning(false);
+
+            const container =
+              document.getElementById(
+                "attendance-qr-reader"
+              );
+
+            if (container) {
+              container.innerHTML = "";
+            }
+          }
+        }
+
+        if (!started) {
+          throw new Error(
+            "Could not start any available camera. Please close other apps or browser tabs using the camera, then try again."
+          );
+        }
       } catch (err) {
         console.error(
           "QR SCANNER START ERROR:",
@@ -596,48 +759,56 @@ export default function TrainerAttendancePage() {
         );
 
         setIsScanning(false);
+        scannerRef.current = null;
 
-        if (scannerRef.current) {
-          try {
-            await scannerRef.current.stop();
-          } catch {}
+        const errorName =
+          err instanceof DOMException
+            ? err.name
+            : "";
 
-          try {
-            scannerRef.current.clear();
-          } catch {}
-
-          scannerRef.current = null;
-        }
+        const message =
+          err instanceof Error
+            ? err.message
+            : String(err);
 
         if (
-          err instanceof DOMException &&
-          err.name ===
-            "NotAllowedError"
+          errorName ===
+            "NotAllowedError" ||
+          /permission|denied/i.test(
+            message
+          )
         ) {
           setScanError(
-            "Camera permission was denied. Please allow camera access in Chrome settings."
+            "Camera permission was denied. Please allow camera access in Chrome settings and try again."
           );
         } else if (
-          err instanceof DOMException &&
-          err.name ===
-            "NotReadableError"
+          errorName ===
+            "NotReadableError" ||
+          /NotReadableError|Could not start video source/i.test(
+            message
+          )
         ) {
           setScanError(
-            "The camera could not be started. Another app or browser tab may already be using the camera."
+            "The camera is currently unavailable. Please close other apps or browser tabs using the camera, then try again."
           );
         } else if (
-          err instanceof DOMException &&
-          err.name ===
+          errorName ===
             "OverconstrainedError"
         ) {
           setScanError(
             "The selected camera is not available. Please try another camera."
           );
+        } else if (
+          errorName ===
+            "NotFoundError"
+        ) {
+          setScanError(
+            "No camera was found on this device."
+          );
         } else {
           setScanError(
-            err instanceof Error
-              ? err.message
-              : "Unable to start the QR scanner."
+            message ||
+              "Unable to start the QR scanner."
           );
         }
       }
@@ -647,7 +818,6 @@ export default function TrainerAttendancePage() {
       recordScannedToken,
     ]);
 
-  // =========================================================
   // OPEN CAMERA MODAL
   // =========================================================
 
@@ -711,10 +881,17 @@ export default function TrainerAttendancePage() {
   // =========================================================
 
   const handleOpenAttendance =
-    useCallback(async () => {
-      if (!selectedBatchId) {
-        return;
-      }
+  useCallback(async () => {
+    if (!selectedBatchId) {
+      return;
+    }
+
+    if (!selectedTrainingSessionId) {
+      setError(
+        "Please select a training session first."
+      );
+      return;
+    }
 
       try {
         setIsOpening(true);
@@ -723,13 +900,14 @@ export default function TrainerAttendancePage() {
         setSuccessMessage(null);
 
         await attendanceApi.openSession({
-          trainingBatchId:
-            selectedBatchId,
-        });
+  trainingBatchId: selectedBatchId,
+  trainingSessionId: selectedTrainingSessionId,
+});
 
         const sessionId =
           await loadOpenSession(
-            selectedBatchId
+            selectedBatchId,
+            selectedTrainingSessionId
           );
 
         if (!sessionId) {
@@ -760,10 +938,11 @@ export default function TrainerAttendancePage() {
         setIsOpening(false);
       }
     }, [
-      selectedBatchId,
-      loadOpenSession,
-      loadAttendance,
-    ]);
+  selectedBatchId,
+  selectedTrainingSessionId,
+  loadOpenSession,
+  loadAttendance,
+]);
 
   // =========================================================
   // END SESSION
@@ -796,7 +975,8 @@ export default function TrainerAttendancePage() {
           );
 
           await loadOpenSession(
-            selectedBatchId
+            selectedBatchId,
+            selectedTrainingSessionId
           );
         }
 
@@ -823,6 +1003,7 @@ export default function TrainerAttendancePage() {
     }, [
       openSessionId,
       selectedBatchId,
+      selectedTrainingSessionId,
       closeCameraModal,
       loadAttendance,
       loadOpenSession,
@@ -854,7 +1035,8 @@ export default function TrainerAttendancePage() {
 
         if (selectedBatchId) {
           await loadOpenSession(
-            selectedBatchId
+            selectedBatchId,
+            selectedTrainingSessionId
           );
         }
 
@@ -878,6 +1060,7 @@ export default function TrainerAttendancePage() {
     }, [
       openSessionId,
       selectedBatchId,
+      selectedTrainingSessionId,
       loadOpenSession,
     ]);
 
@@ -903,7 +1086,8 @@ export default function TrainerAttendancePage() {
 
         if (selectedBatchId) {
           await loadOpenSession(
-            selectedBatchId
+            selectedBatchId,
+            selectedTrainingSessionId
           );
         }
 
@@ -927,6 +1111,7 @@ export default function TrainerAttendancePage() {
     }, [
       openSessionId,
       selectedBatchId,
+      selectedTrainingSessionId,
       loadOpenSession,
     ]);
 
@@ -948,7 +1133,8 @@ export default function TrainerAttendancePage() {
             selectedBatchId
           ),
           loadOpenSession(
-            selectedBatchId
+            selectedBatchId,
+            selectedTrainingSessionId
           ),
         ]);
       } else {
@@ -956,6 +1142,7 @@ export default function TrainerAttendancePage() {
       }
     }, [
       selectedBatchId,
+      selectedTrainingSessionId,
       loadAttendance,
       loadOpenSession,
       loadBatches,
@@ -1390,6 +1577,45 @@ export default function TrainerAttendancePage() {
 
             <div className="relative flex h-full flex-col justify-between gap-6">
 
+            <div className="mb-5">
+  <label className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-gray-400">
+    Training Session
+  </label>
+
+  <select
+    value={selectedTrainingSessionId}
+    onChange={(event) =>
+      setSelectedTrainingSessionId(event.target.value)
+    }
+    disabled={Boolean(openSessionId)}
+    className="h-11 w-full rounded-xl border border-[#e5e7eb] bg-[#f8f9fa] px-4 text-xs font-medium text-gray-700 outline-none transition focus:border-gray-400 focus:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+  >
+    <option value="">
+      Select training session
+    </option>
+
+    {trainingSessions.map((session) => (
+      <option
+        key={session.id}
+        value={session.id}
+      >
+        Session {session.sessionNumber}
+        {" — "}
+        {new Date(
+          session.sessionDate
+        ).toLocaleDateString()}
+        {" — "}
+        {session.startTime} - {session.endTime}
+      </option>
+    ))}
+  </select>
+
+  {trainingSessions.length === 0 && (
+    <p className="mt-2 text-[10px] text-gray-400">
+      No approved training sessions are available for this batch.
+    </p>
+  )}
+</div>
               {/* SESSION HEADER */}
 
               <div className="flex items-start justify-between gap-5">

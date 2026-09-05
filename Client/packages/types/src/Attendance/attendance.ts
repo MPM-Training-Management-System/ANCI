@@ -19,6 +19,8 @@ export type AttendanceStatus =
 
 export type OpenAttendanceRequest = {
   trainingBatchId: string;
+  trainingSessionId: string
+
 };
 
 // ============================================================

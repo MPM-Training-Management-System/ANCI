@@ -9,6 +9,10 @@ public class AttendanceSession
 
     public Guid TrainingBatchId { get; set; }
 
+    public Guid TrainingSessionId { get; set; }
+
+    public TrainingSession TrainingSession { get; set; } = null!;
+
     public DateTime OpenedAt { get; set; }
 
     public DateTime? ClosedAt { get; set; }
