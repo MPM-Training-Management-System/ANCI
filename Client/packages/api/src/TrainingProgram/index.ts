@@ -6,3 +6,4 @@ export * from "./TrainingBatchApi";
 export * from "./TrainingBatchEndpoint";
 export * from "./TrainerAssignmentApi";
 export * from "./TrainerAssignmentEndpoint";
+export * from "./TrainerAssignmentEndpoint";

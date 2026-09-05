@@ -12,11 +12,13 @@ import {
 import type {
   AttendanceRecordDto,
   TrainingBatch,
+  TrainingSession
 } from "@repo/types";
 
-type AttendanceRecordWithProfile = AttendanceRecordDto & {
-  profileImageUrl?: string | null;
-};
+type AttendanceRecordWithProfile =
+  AttendanceRecordDto & {
+    profileImageUrl?: string | null;
+  };
 
 import {
   attendanceApi,
@@ -29,9 +31,15 @@ export default function TrainerAttendancePage() {
   // =========================================================
   // TRAINING BATCHES
   // =========================================================
+const [trainingSessions, setTrainingSessions] =
+  useState<TrainingSession[]>([]);
 
+const [selectedTrainingSessionId, setSelectedTrainingSessionId] =
+  useState<string>("");
   const [batches, setBatches] =
     useState<TrainingBatch[]>([]);
+
+    
 
   const [selectedBatchId, setSelectedBatchId] =
     useState<string>("");
@@ -43,16 +51,19 @@ export default function TrainerAttendancePage() {
   const [records, setRecords] =
     useState<AttendanceRecordWithProfile[]>([]);
 
-  /*
-   * IMPORTANT:
-   *
-   * This is now obtained from the BACKEND.
-   *
-   * null     = CLOSED
-   * session  = OPEN
-   */
+  // =========================================================
+  // ACTIVE SESSION
+  // =========================================================
+
   const [openSessionId, setOpenSessionId] =
     useState<string | null>(null);
+
+  // =========================================================
+  // MANUAL ATTENDANCE
+  // =========================================================
+
+  const [manualAttendanceOpen, setManualAttendanceOpen] =
+    useState(false);
 
   const [isCheckingSession, setIsCheckingSession] =
     useState(false);
@@ -62,6 +73,16 @@ export default function TrainerAttendancePage() {
   // =========================================================
 
   const [search, setSearch] =
+    useState("");
+
+  // =========================================================
+  // DATE FILTER
+  //
+  // Empty string = All Dates
+  // YYYY-MM-DD = selected date
+  // =========================================================
+
+  const [selectedDate, setSelectedDate] =
     useState("");
 
   const [isLoadingBatches, setIsLoadingBatches] =
@@ -74,6 +95,12 @@ export default function TrainerAttendancePage() {
     useState(false);
 
   const [isClosing, setIsClosing] =
+    useState(false);
+
+  const [isOpeningManual, setIsOpeningManual] =
+    useState(false);
+
+  const [isClosingManual, setIsClosingManual] =
     useState(false);
 
   const [isScanning, setIsScanning] =
@@ -138,12 +165,6 @@ export default function TrainerAttendancePage() {
         setIsLoadingBatches(true);
         setError(null);
 
-        /*
-         * IMPORTANT:
-         *
-         * Trainer only gets batches assigned
-         * to the currently logged-in trainer.
-         */
         const result =
           await trainingBatchApi.getAssigned();
 
@@ -172,6 +193,41 @@ export default function TrainerAttendancePage() {
     }, [
       selectedBatchId,
     ]);
+
+
+    const loadTrainingSessions = useCallback(
+  async (batchId: string) => {
+    if (!batchId) {
+      setTrainingSessions([]);
+      setSelectedTrainingSessionId("");
+      return;
+    }
+
+    try {
+      const sessions =
+        await trainingBatchApi.getSchedule(batchId);
+
+      setTrainingSessions(
+        Array.isArray(sessions) ? sessions : []
+      );
+
+      const firstSession = sessions?.[0];
+
+      setSelectedTrainingSessionId(
+        firstSession?.id ?? ""
+      );
+    } catch (err) {
+      console.error(
+        "Unable to load training sessions:",
+        err
+      );
+
+      setTrainingSessions([]);
+      setSelectedTrainingSessionId("");
+    }
+  },
+  []
+);
 
   // =========================================================
   // LOAD ATTENDANCE RECORDS
@@ -208,69 +264,74 @@ export default function TrainerAttendancePage() {
     );
 
   // =========================================================
-  // GET CURRENT OPEN SESSION
+  // GET CURRENT SESSION STATE
   // =========================================================
-  //
-  // GET
-  // /api/attendance/batch/{batchId}/open
-  //
-  // 200:
-  // {
-  //   attendanceSessionId: "..."
-  // }
-  //
-  // 404:
-  // No open attendance session.
-  //
-  // THIS IS NOW THE SOURCE OF TRUTH.
-  // =========================================================
-const loadOpenSession =
-  useCallback(
-    async (
-      batchId: string
-    ) => {
-      if (!batchId) {
-        setOpenSessionId(null);
-        return null;
-      }
 
-      try {
-        setIsCheckingSession(true);
-
-        const result =
-          await attendanceApi.getOpenSession(
-            batchId
-          );
-
-        if (
-          !result.isOpen ||
-          !result.attendanceSessionId
-        ) {
+  const loadOpenSession =
+    useCallback(
+      async (
+        batchId: string,
+        trainingSessionId: string
+      ) => {
+        if (!batchId || !trainingSessionId) {
           setOpenSessionId(null);
+          setManualAttendanceOpen(false);
 
           return null;
         }
 
-        setOpenSessionId(
-          result.attendanceSessionId
-        );
+        try {
+          setIsCheckingSession(true);
 
-        return result.attendanceSessionId;
-      } catch (err) {
-        console.error(
-          "Unable to check attendance session:",
-          err
-        );
+          const result =
+            await attendanceApi.getOpenSession(
+              batchId,
+              trainingSessionId
+            );
 
-        setOpenSessionId(null);
+          // ===================================================
+          // SESSION CLOSED
+          // ===================================================
 
-        return null;
-      } finally {
-        setIsCheckingSession(false);
-      }
-    },
-    []
-  );
+          if (
+            !result.isOpen ||
+            !result.attendanceSessionId
+          ) {
+            setOpenSessionId(null);
+            setManualAttendanceOpen(false);
+
+            return null;
+          }
+
+          // ===================================================
+          // SESSION OPEN
+          // ===================================================
+
+          setOpenSessionId(
+            result.attendanceSessionId
+          );
+
+          setManualAttendanceOpen(
+            result.manualAttendanceOpen
+          );
+
+          return result.attendanceSessionId;
+        } catch (err) {
+          console.error(
+            "Unable to check attendance session:",
+            err
+          );
+
+          setOpenSessionId(null);
+          setManualAttendanceOpen(false);
+
+          return null;
+        } finally {
+          setIsCheckingSession(false);
+        }
+      },
+      []
+    );
 
   // =========================================================
   // INITIAL LOAD
@@ -282,81 +343,44 @@ const loadOpenSession =
     loadBatches,
   ]);
 
+  useEffect(() => {
+  if (!selectedBatchId) {
+    setRecords([]);
+    setOpenSessionId(null);
+    setManualAttendanceOpen(false);
+    setSelectedDate("");
+    setTrainingSessions([]);
+    setSelectedTrainingSessionId("");
+
+    return;
+  }
+
+  void loadTrainingSessions(selectedBatchId);
+  void loadAttendance(selectedBatchId);
+}, [
+  selectedBatchId,
+  loadTrainingSessions,
+  loadAttendance,
+]);
+
   // =========================================================
-  // LOAD ATTENDANCE + CHECK SESSION
-  // WHEN BATCH CHANGES
+  // SYNC OPEN ATTENDANCE SESSION WITH SELECTED TRAINING SESSION
   // =========================================================
 
   useEffect(() => {
-    if (!selectedBatchId) {
-      setRecords([]);
+    if (!selectedBatchId || !selectedTrainingSessionId) {
       setOpenSessionId(null);
+      setManualAttendanceOpen(false);
       return;
     }
 
-    /*
-     * Get attendance records.
-     */
-    void loadAttendance(
-      selectedBatchId
-    );
-
-    /*
-     * Get real session status
-     * from backend.
-     */
     void loadOpenSession(
-      selectedBatchId
+      selectedBatchId,
+      selectedTrainingSessionId
     );
   }, [
     selectedBatchId,
-    loadAttendance,
-    loadOpenSession,
-  ]);
-
-  // =========================================================
-  // AUTOMATIC SESSION STATUS REFRESH
-  // =========================================================
-  //
-  // Every 5 seconds:
-  //
-  // Backend is checked again.
-  //
-  // This means:
-  //
-  // Trainer opens attendance
-  //       ↓
-  // Another browser/device
-  //       ↓
-  // detects OPEN automatically
-  //
-  // Trainer closes attendance
-  //       ↓
-  // Other browser/device
-  //       ↓
-  // detects CLOSED automatically
-  //
-  // =========================================================
-
-  useEffect(() => {
-    if (!selectedBatchId) {
-      return;
-    }
-
-    const interval =
-      window.setInterval(() => {
-        void loadOpenSession(
-          selectedBatchId
-        );
-      }, 5000);
-
-    return () => {
-      window.clearInterval(
-        interval
-      );
-    };
-  }, [
-    selectedBatchId,
+    selectedTrainingSessionId,
     loadOpenSession,
   ]);
 
@@ -423,6 +447,9 @@ const loadOpenSession =
 
   // =========================================================
   // RECORD SCANNED TOKEN
+  //
+  // QR only depends on SESSION OPEN.
+  // Manual attendance status does NOT matter.
   // =========================================================
 
   const recordScannedToken =
@@ -436,14 +463,11 @@ const loadOpenSession =
           return;
         }
 
-        /*
-         * Always use the current backend
-         * session state.
-         */
         if (!openSessionId) {
           setScanError(
             "Open the attendance session before scanning."
           );
+
           return;
         }
 
@@ -454,6 +478,7 @@ const loadOpenSession =
           setScanError(
             "The QR code does not contain a valid attendance token."
           );
+
           return;
         }
 
@@ -524,13 +549,10 @@ const loadOpenSession =
         setScanError(
           "Open the attendance session first."
         );
+
         return;
       }
 
-      /*
-       * Don't start another scanner
-       * if one already exists.
-       */
       if (scannerRef.current) {
         return;
       }
@@ -541,9 +563,7 @@ const loadOpenSession =
         setScanResult(null);
 
         const { Html5Qrcode } =
-          await import(
-            "html5-qrcode"
-          );
+          await import("html5-qrcode");
 
         const readerElement =
           document.getElementById(
@@ -556,9 +576,8 @@ const loadOpenSession =
           );
         }
 
-        /*
-         * Get available cameras.
-         */
+        readerElement.innerHTML = "";
+
         const cameras =
           await Html5Qrcode.getCameras();
 
@@ -568,89 +587,171 @@ const loadOpenSession =
           );
         }
 
-        /*
-         * Prefer rear/back/environment
-         * camera.
-         */
-        const environmentCamera =
-          cameras.find(
-            camera =>
-              /back|rear|environment/i.test(
-                camera.label
-              )
-          );
+        console.log(
+          "Available cameras:",
+          cameras.map(camera => ({
+            id: camera.id,
+            label: camera.label,
+          }))
+        );
 
-        const selectedCamera =
-          environmentCamera ??
-          cameras[0];
+        // Prefer the rear/environment camera,
+        // but keep all cameras as fallbacks.
+       // Ignore virtual cameras such as OBS Virtual Camera.
+// Prefer a real physical camera.
+const realCameras = cameras.filter(camera => {
+  const label = camera.label.toLowerCase();
 
-        if (!selectedCamera) {
-          throw new Error(
-            "Unable to select a camera."
-          );
-        }
+  return !(
+    label.includes("obs virtual camera") ||
+    label.includes("virtual camera") ||
+    label.includes("obs camera")
+  );
+});
 
-        const scanner =
-          new Html5Qrcode(
-            "attendance-qr-reader"
-          );
+if (!realCameras.length) {
+  throw new Error(
+    "No physical camera was found. Please connect or enable your laptop/USB camera."
+  );
+}
 
-        scannerRef.current =
-          scanner;
+const environmentCamera =
+  realCameras.find(camera =>
+    /back|rear|environment/i.test(
+      camera.label
+    )
+  );
 
-        await scanner.start(
-          selectedCamera.id,
-          {
-            fps: 10,
-            qrbox: {
-              width: 280,
-              height: 280,
-            },
-            aspectRatio: 1,
+const selectedCamera =
+  environmentCamera ??
+  realCameras[0];
+
+if (!selectedCamera) {
+  throw new Error(
+    "Unable to select a physical camera."
+  );
+}
+
+      // OBS / virtual cameras are intentionally excluded.
+// Use realCameras here — NOT cameras — so OBS is never attempted.
+const orderedCameras = [
+  ...(environmentCamera
+    ? [environmentCamera]
+    : []),
+  ...realCameras.filter(
+    camera =>
+      camera.id !==
+      environmentCamera?.id
+  ),
+];
+
+        const scannerConfig = {
+          fps: 10,
+          qrbox: {
+            width: 280,
+            height: 280,
           },
-          async decodedText => {
+          aspectRatio: 1,
+        };
+
+        let started = false;
+
+        for (const camera of orderedCameras) {
+          if (started) {
+            break;
+          }
+
+          let scanner: Html5Qrcode | null = null;
+
+          try {
             console.log(
-              "QR DECODED:",
-              decodedText
+              "Trying camera:",
+              camera.label || camera.id
             );
 
-            if (
-              processingScanRef.current
-            ) {
-              return;
+            const container =
+              document.getElementById(
+                "attendance-qr-reader"
+              );
+
+            if (container) {
+              container.innerHTML = "";
             }
 
-            /*
-             * Stop scanner first.
-             */
-            await stopScanner();
+            scanner =
+              new Html5Qrcode(
+                "attendance-qr-reader"
+              );
 
-            /*
-             * Close modal.
-             */
-            setIsCameraModalOpen(
-              false
+            await scanner.start(
+              camera.id,
+              scannerConfig,
+              async decodedText => {
+                if (
+                  processingScanRef.current
+                ) {
+                  return;
+                }
+
+                await stopScanner();
+
+                setIsCameraModalOpen(false);
+
+                await recordScannedToken(
+                  decodedText
+                );
+              },
+              () => {
+                // QR not detected yet.
+              }
             );
 
-            /*
-             * Submit token.
-             */
-            await recordScannedToken(
-              decodedText
+            scannerRef.current = scanner;
+            setIsScanning(true);
+            started = true;
+
+            console.log(
+              "QR scanner started successfully:",
+              camera.label || camera.id
             );
-          },
-          () => {
-            /*
-             * QR not detected yet.
-             */
+          } catch (cameraError) {
+            console.error(
+              "Failed to start camera:",
+              camera.label || camera.id,
+              cameraError
+            );
+
+            try {
+              if (scanner) {
+                await scanner
+                  .stop()
+                  .catch(() => {});
+
+                scanner.clear();
+              }
+            } catch {
+              // Ignore cleanup errors.
+            }
+
+            scannerRef.current = null;
+            setIsScanning(false);
+
+            const container =
+              document.getElementById(
+                "attendance-qr-reader"
+              );
+
+            if (container) {
+              container.innerHTML = "";
+            }
           }
-        );
+        }
 
-        setIsScanning(true);
-
-        console.log(
-          "QR SCANNER STARTED SUCCESSFULLY"
-        );
+        if (!started) {
+          throw new Error(
+            "Could not start any available camera. Please close other apps or browser tabs using the camera, then try again."
+          );
+        }
       } catch (err) {
         console.error(
           "QR SCANNER START ERROR:",
@@ -658,48 +759,56 @@ const loadOpenSession =
         );
 
         setIsScanning(false);
+        scannerRef.current = null;
 
-        if (scannerRef.current) {
-          try {
-            await scannerRef.current.stop();
-          } catch {}
+        const errorName =
+          err instanceof DOMException
+            ? err.name
+            : "";
 
-          try {
-            scannerRef.current.clear();
-          } catch {}
-
-          scannerRef.current = null;
-        }
+        const message =
+          err instanceof Error
+            ? err.message
+            : String(err);
 
         if (
-          err instanceof DOMException &&
-          err.name ===
-            "NotAllowedError"
+          errorName ===
+            "NotAllowedError" ||
+          /permission|denied/i.test(
+            message
+          )
         ) {
           setScanError(
-            "Camera permission was denied. Please allow camera access in Chrome settings."
+            "Camera permission was denied. Please allow camera access in Chrome settings and try again."
           );
         } else if (
-          err instanceof DOMException &&
-          err.name ===
-            "NotReadableError"
+          errorName ===
+            "NotReadableError" ||
+          /NotReadableError|Could not start video source/i.test(
+            message
+          )
         ) {
           setScanError(
-            "The camera could not be started. Another app or browser tab may already be using the camera."
+            "The camera is currently unavailable. Please close other apps or browser tabs using the camera, then try again."
           );
         } else if (
-          err instanceof DOMException &&
-          err.name ===
+          errorName ===
             "OverconstrainedError"
         ) {
           setScanError(
             "The selected camera is not available. Please try another camera."
           );
+        } else if (
+          errorName ===
+            "NotFoundError"
+        ) {
+          setScanError(
+            "No camera was found on this device."
+          );
         } else {
           setScanError(
-            err instanceof Error
-              ? err.message
-              : "Unable to start the QR scanner."
+            message ||
+              "Unable to start the QR scanner."
           );
         }
       }
@@ -709,20 +818,16 @@ const loadOpenSession =
       recordScannedToken,
     ]);
 
-  // =========================================================
   // OPEN CAMERA MODAL
   // =========================================================
 
   const openCameraModal =
     useCallback(() => {
-      /*
-       * Do not allow scanner while
-       * attendance is closed.
-       */
       if (!openSessionId) {
         setScanError(
           "Open the attendance session first."
         );
+
         return;
       }
 
@@ -772,14 +877,21 @@ const loadOpenSession =
     ]);
 
   // =========================================================
-  // OPEN ATTENDANCE
+  // START SESSION
   // =========================================================
 
   const handleOpenAttendance =
-    useCallback(async () => {
-      if (!selectedBatchId) {
-        return;
-      }
+  useCallback(async () => {
+    if (!selectedBatchId) {
+      return;
+    }
+
+    if (!selectedTrainingSessionId) {
+      setError(
+        "Please select a training session first."
+      );
+      return;
+    }
 
       try {
         setIsOpening(true);
@@ -787,65 +899,53 @@ const loadOpenSession =
         setScanError(null);
         setSuccessMessage(null);
 
-        /*
-         * Open session in backend.
-         */
         await attendanceApi.openSession({
-          trainingBatchId:
-            selectedBatchId,
-        });
+  trainingBatchId: selectedBatchId,
+  trainingSessionId: selectedTrainingSessionId,
+});
 
-        /*
-         * IMPORTANT:
-         *
-         * Do NOT generate our own session ID.
-         *
-         * Ask backend for the actual
-         * currently OPEN session.
-         */
         const sessionId =
           await loadOpenSession(
-            selectedBatchId
+            selectedBatchId,
+            selectedTrainingSessionId
           );
 
         if (!sessionId) {
           throw new Error(
-            "Attendance was opened, but the active session could not be retrieved."
+            "Session was started, but the active session could not be retrieved."
           );
         }
 
-        /*
-         * Refresh attendance records.
-         */
         await loadAttendance(
           selectedBatchId
         );
 
         setSuccessMessage(
-          "Attendance session is now open."
+          "Training session is now open. QR scanning is enabled."
         );
       } catch (err) {
         console.error(
-          "OPEN ATTENDANCE ERROR:",
+          "START SESSION ERROR:",
           err
         );
 
         setError(
           err instanceof Error
             ? err.message
-            : "Unable to open attendance session."
+            : "Unable to start training session."
         );
       } finally {
         setIsOpening(false);
       }
     }, [
-      selectedBatchId,
-      loadOpenSession,
-      loadAttendance,
-    ]);
+  selectedBatchId,
+  selectedTrainingSessionId,
+  loadOpenSession,
+  loadAttendance,
+]);
 
   // =========================================================
-  // CLOSE ATTENDANCE
+  // END SESSION
   // =========================================================
 
   const handleCloseAttendance =
@@ -860,37 +960,23 @@ const loadOpenSession =
         setScanError(null);
         setSuccessMessage(null);
 
-        /*
-         * Stop camera before closing.
-         */
         await closeCameraModal();
 
-        /*
-         * Close the actual backend session.
-         */
         await attendanceApi.closeSession(
           openSessionId
         );
 
-        /*
-         * Clear local representation.
-         *
-         * This is NOT the source of truth.
-         * The backend will confirm CLOSED
-         * on the next check.
-         */
         setOpenSessionId(null);
+        setManualAttendanceOpen(false);
 
         if (selectedBatchId) {
           await loadAttendance(
             selectedBatchId
           );
 
-          /*
-           * Confirm backend status.
-           */
           await loadOpenSession(
-            selectedBatchId
+            selectedBatchId,
+            selectedTrainingSessionId
           );
         }
 
@@ -898,18 +984,18 @@ const loadOpenSession =
         setScanResult(null);
 
         setSuccessMessage(
-          "Attendance session has been closed."
+          "Training session has been ended. Manual attendance is also closed."
         );
       } catch (err) {
         console.error(
-          "CLOSE ATTENDANCE ERROR:",
+          "END SESSION ERROR:",
           err
         );
 
         setError(
           err instanceof Error
             ? err.message
-            : "Unable to close attendance session."
+            : "Unable to end training session."
         );
       } finally {
         setIsClosing(false);
@@ -917,13 +1003,122 @@ const loadOpenSession =
     }, [
       openSessionId,
       selectedBatchId,
+      selectedTrainingSessionId,
       closeCameraModal,
       loadAttendance,
       loadOpenSession,
     ]);
 
   // =========================================================
-  // REFRESH
+  // OPEN MANUAL ATTENDANCE
+  // =========================================================
+
+  const handleOpenManualAttendance =
+    useCallback(async () => {
+      if (!openSessionId) {
+        setError(
+          "Start the training session first."
+        );
+
+        return;
+      }
+
+      try {
+        setIsOpeningManual(true);
+        setError(null);
+        setScanError(null);
+        setSuccessMessage(null);
+
+        await attendanceApi.openManualAttendance(
+          openSessionId
+        );
+
+        if (selectedBatchId) {
+          await loadOpenSession(
+            selectedBatchId,
+            selectedTrainingSessionId
+          );
+        }
+
+        setSuccessMessage(
+          "Manual attendance is now open. Participants can use Time In and Time Out."
+        );
+      } catch (err) {
+        console.error(
+          "OPEN MANUAL ATTENDANCE ERROR:",
+          err
+        );
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Unable to open manual attendance."
+        );
+      } finally {
+        setIsOpeningManual(false);
+      }
+    }, [
+      openSessionId,
+      selectedBatchId,
+      selectedTrainingSessionId,
+      loadOpenSession,
+    ]);
+
+  // =========================================================
+  // CLOSE MANUAL ATTENDANCE
+  // =========================================================
+
+  const handleCloseManualAttendance =
+    useCallback(async () => {
+      if (!openSessionId) {
+        return;
+      }
+
+      try {
+        setIsClosingManual(true);
+        setError(null);
+        setScanError(null);
+        setSuccessMessage(null);
+
+        await attendanceApi.closeManualAttendance(
+          openSessionId
+        );
+
+        if (selectedBatchId) {
+          await loadOpenSession(
+            selectedBatchId,
+            selectedTrainingSessionId
+          );
+        }
+
+        setSuccessMessage(
+          "Manual attendance is closed. QR scanning remains available."
+        );
+      } catch (err) {
+        console.error(
+          "CLOSE MANUAL ATTENDANCE ERROR:",
+          err
+        );
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Unable to close manual attendance."
+        );
+      } finally {
+        setIsClosingManual(false);
+      }
+    }, [
+      openSessionId,
+      selectedBatchId,
+      selectedTrainingSessionId,
+      loadOpenSession,
+    ]);
+
+  // =========================================================
+  // MANUAL REFRESH
+  //
+  // NO AUTOMATIC POLLING.
   // =========================================================
 
   const handleRefresh =
@@ -933,18 +1128,13 @@ const loadOpenSession =
       setSuccessMessage(null);
 
       if (selectedBatchId) {
-        /*
-         * Refresh both:
-         *
-         * 1. Attendance records
-         * 2. Backend session status
-         */
         await Promise.all([
           loadAttendance(
             selectedBatchId
           ),
           loadOpenSession(
-            selectedBatchId
+            selectedBatchId,
+            selectedTrainingSessionId
           ),
         ]);
       } else {
@@ -952,13 +1142,18 @@ const loadOpenSession =
       }
     }, [
       selectedBatchId,
+      selectedTrainingSessionId,
       loadAttendance,
       loadOpenSession,
       loadBatches,
     ]);
 
   // =========================================================
-  // SEARCH
+  // FILTER RECORDS
+  //
+  // Search + Date filter are FRONTEND ONLY.
+  //
+  // No additional database request.
   // =========================================================
 
   const filteredRecords =
@@ -968,33 +1163,106 @@ const loadOpenSession =
           .trim()
           .toLowerCase();
 
-      if (!query) {
-        return records;
-      }
-
       return records.filter(
-        record =>
-          record.participantName
-            ?.toLowerCase()
-            .includes(query) ||
-          record.status
-            ?.toLowerCase()
-            .includes(query) ||
-          record.method
-            ?.toLowerCase()
-            .includes(query)
+        record => {
+          // ================================================
+          // SEARCH
+          // ================================================
+
+          const matchesSearch =
+            !query ||
+            record.participantName
+              ?.toLowerCase()
+              .includes(query) ||
+            record.status
+              ?.toLowerCase()
+              .includes(query) ||
+            record.method
+              ?.toLowerCase()
+              .includes(query);
+
+          if (!matchesSearch) {
+            return false;
+          }
+
+          // ================================================
+          // DATE
+          // ================================================
+
+          if (!selectedDate) {
+            return true;
+          }
+
+          /*
+           * Attendance records currently expose
+           * TimeIn / TimeOut.
+           *
+           * Use TimeIn as the attendance date.
+           */
+
+          const sourceDate =
+            record.timeIn ??
+            record.timeOut;
+
+          if (!sourceDate) {
+            return false;
+          }
+
+          const date =
+            new Date(
+              sourceDate
+            );
+
+          if (
+            Number.isNaN(
+              date.getTime()
+            )
+          ) {
+            return false;
+          }
+
+          const year =
+            date.getFullYear();
+
+          const month =
+            String(
+              date.getMonth() + 1
+            ).padStart(
+              2,
+              "0"
+            );
+
+          const day =
+            String(
+              date.getDate()
+            ).padStart(
+              2,
+              "0"
+            );
+
+          const recordDate =
+            `${year}-${month}-${day}`;
+
+          return (
+            recordDate ===
+            selectedDate
+          );
+        }
       );
     }, [
       records,
       search,
+      selectedDate,
     ]);
 
   // =========================================================
   // SUMMARY
+  //
+  // Summary follows the active date filter.
   // =========================================================
 
   const presentCount =
-    records.filter(
+    filteredRecords.filter(
       record =>
         record.status
           ?.toLowerCase() ===
@@ -1002,7 +1270,7 @@ const loadOpenSession =
     ).length;
 
   const lateCount =
-    records.filter(
+    filteredRecords.filter(
       record =>
         record.status
           ?.toLowerCase() ===
@@ -1010,7 +1278,7 @@ const loadOpenSession =
     ).length;
 
   const incompleteCount =
-    records.filter(
+    filteredRecords.filter(
       record => {
         const status =
           record.status
@@ -1028,6 +1296,17 @@ const loadOpenSession =
         );
       }
     ).length;
+
+  // =========================================================
+  // DATE FILTER LABEL
+  // =========================================================
+
+  const dateFilterLabel =
+    selectedDate
+      ? formatFilterDate(
+          selectedDate
+        )
+      : "All Dates";
 
   // =========================================================
   // LOADING
@@ -1078,6 +1357,8 @@ const loadOpenSession =
           </p>
 
         </div>
+
+        {/* MANUAL REFRESH ONLY */}
 
         <button
           type="button"
@@ -1179,7 +1460,13 @@ const loadOpenSession =
                   null
                 );
 
+                setManualAttendanceOpen(
+                  false
+                );
+
                 setSearch("");
+
+                setSelectedDate("");
 
                 setScannedToken("");
 
@@ -1290,6 +1577,47 @@ const loadOpenSession =
 
             <div className="relative flex h-full flex-col justify-between gap-6">
 
+            <div className="mb-5">
+  <label className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-gray-400">
+    Training Session
+  </label>
+
+  <select
+    value={selectedTrainingSessionId}
+    onChange={(event) =>
+      setSelectedTrainingSessionId(event.target.value)
+    }
+    disabled={Boolean(openSessionId)}
+    className="h-11 w-full rounded-xl border border-[#e5e7eb] bg-[#f8f9fa] px-4 text-xs font-medium text-gray-700 outline-none transition focus:border-gray-400 focus:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+  >
+    <option value="">
+      Select training session
+    </option>
+
+    {trainingSessions.map((session) => (
+      <option
+        key={session.id}
+        value={session.id}
+      >
+        Session {session.sessionNumber}
+        {" — "}
+        {new Date(
+          session.sessionDate
+        ).toLocaleDateString()}
+        {" — "}
+        {session.startTime} - {session.endTime}
+      </option>
+    ))}
+  </select>
+
+  {trainingSessions.length === 0 && (
+    <p className="mt-2 text-[10px] text-gray-400">
+      No approved training sessions are available for this batch.
+    </p>
+  )}
+</div>
+              {/* SESSION HEADER */}
+
               <div className="flex items-start justify-between gap-5">
 
                 <div className="flex items-start gap-4">
@@ -1361,6 +1689,8 @@ const loadOpenSession =
 
               </div>
 
+              {/* SESSION CONTROL */}
+
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
                 <div>
@@ -1370,8 +1700,8 @@ const loadOpenSession =
                     {isCheckingSession
                       ? "Checking attendance session..."
                       : openSessionId
-                      ? "Attendance is active. Scan participant QR codes for Time In and Time Out."
-                      : "Attendance is currently closed. Open a session before recording participant attendance."}
+                      ? "Training session is active. Participant QR scanning is available."
+                      : "Training session is currently closed. Start the session before recording attendance."}
 
                   </p>
 
@@ -1400,8 +1730,8 @@ const loadOpenSession =
                     <PlayIcon />
 
                     {isOpening
-                      ? "Opening..."
-                      : "Open Attendance"}
+                      ? "Starting..."
+                      : "Start Session"}
 
                   </button>
 
@@ -1422,12 +1752,140 @@ const loadOpenSession =
                     <StopIcon />
 
                     {isClosing
-                      ? "Closing..."
-                      : "Close Attendance"}
+                      ? "Ending..."
+                      : "End Session"}
 
                   </button>
 
                 )}
+
+              </div>
+
+              {/* MANUAL ATTENDANCE */}
+
+              <div className="rounded-2xl border border-gray-200 bg-white p-4">
+
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+
+                  <div className="flex items-start gap-3">
+
+                    <div
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                        manualAttendanceOpen
+                          ? "bg-emerald-50 text-emerald-600"
+                          : "bg-gray-100 text-gray-500"
+                      }`}
+                    >
+
+                      <ManualIcon />
+
+                    </div>
+
+                    <div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+
+                        <p className="text-xs font-bold text-gray-800">
+                          Manual Attendance
+                        </p>
+
+                        <span
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[8px] font-bold ${
+                            manualAttendanceOpen
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-gray-200 bg-gray-50 text-gray-500"
+                          }`}
+                        >
+
+                          <span
+                            className={`h-1.5 w-1.5 rounded-full ${
+                              manualAttendanceOpen
+                                ? "bg-emerald-500"
+                                : "bg-gray-400"
+                            }`}
+                          />
+
+                          {manualAttendanceOpen
+                            ? "OPEN"
+                            : "CLOSED"}
+
+                        </span>
+
+                      </div>
+
+                      <p className="mt-1 max-w-xl text-[10px] leading-5 text-gray-400">
+
+                        {manualAttendanceOpen
+                          ? "Participants can now use Time In and Time Out from the mobile app."
+                          : "Participants cannot manually record attendance. QR scanning remains available while the session is open."}
+
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                  {!openSessionId ? (
+
+                    <button
+                      type="button"
+                      disabled
+                      className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 text-[10px] font-bold text-gray-400 disabled:cursor-not-allowed"
+                    >
+
+                      <LockIcon />
+
+                      Start Session First
+
+                    </button>
+
+                  ) : manualAttendanceOpen ? (
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void handleCloseManualAttendance()
+                      }
+                      disabled={
+                        isClosingManual ||
+                        isCheckingSession
+                      }
+                      className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-[10px] font-bold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+
+                      <StopIcon />
+
+                      {isClosingManual
+                        ? "Closing..."
+                        : "Close Manual Attendance"}
+
+                    </button>
+
+                  ) : (
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void handleOpenManualAttendance()
+                      }
+                      disabled={
+                        isOpeningManual ||
+                        isCheckingSession
+                      }
+                      className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-[10px] font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+
+                      <PlayIcon />
+
+                      {isOpeningManual
+                        ? "Opening..."
+                        : "Open Manual Attendance"}
+
+                    </button>
+
+                  )}
+
+                </div>
 
               </div>
 
@@ -1517,10 +1975,6 @@ const loadOpenSession =
 
             </div>
 
-            {/* =================================================
-                SCANNER STATUS
-            ================================================= */}
-
             <div className="mt-5 flex items-center justify-between rounded-xl border border-gray-100 bg-[#fafbfc] px-4 py-3">
 
               <div>
@@ -1550,10 +2004,6 @@ const loadOpenSession =
               />
 
             </div>
-
-            {/* =================================================
-                SCAN GUIDE
-            ================================================= */}
 
             <div className="mt-5 rounded-2xl border border-gray-200 bg-white p-5">
 
@@ -1588,7 +2038,7 @@ const loadOpenSession =
                 <StepItem
                   number="2"
                   title="Second scan"
-                  description="Records Time Out for the same session."
+                  description="Records Time Out for the same attendance day."
                 />
 
                 <StepItem
@@ -1600,10 +2050,6 @@ const loadOpenSession =
               </div>
 
             </div>
-
-            {/* =================================================
-                SCAN RESULT
-            ================================================= */}
 
             {scanResult && (
 
@@ -1632,10 +2078,6 @@ const loadOpenSession =
               </div>
 
             )}
-
-            {/* =================================================
-                MANUAL TOKEN FALLBACK
-            ================================================= */}
 
             <div className="mt-5">
 
@@ -1678,10 +2120,6 @@ const loadOpenSession =
               </div>
 
             </div>
-
-            {/* =================================================
-                SCAN ERROR
-            ================================================= */}
 
             {scanError && (
 
@@ -1735,10 +2173,6 @@ const loadOpenSession =
 
           <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
 
-            {/* =================================================
-                MODAL HEADER
-            ================================================= */}
-
             <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
 
               <div className="flex items-center gap-3">
@@ -1773,10 +2207,6 @@ const loadOpenSession =
               </button>
 
             </div>
-
-            {/* =================================================
-                CAMERA
-            ================================================= */}
 
             <div className="p-5">
 
@@ -1818,10 +2248,6 @@ const loadOpenSession =
                 )}
 
               </div>
-
-              {/* =================================================
-                  MODAL FOOTER
-              ================================================= */}
 
               <div className="mt-4 flex items-center justify-between gap-3">
 
@@ -1902,9 +2328,9 @@ const loadOpenSession =
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
 
           <SummaryCard
-            label="Total Records"
+            label="Showing"
             value={
-              records.length
+              filteredRecords.length
             }
             icon={
               <UsersIcon />
@@ -1958,54 +2384,173 @@ const loadOpenSession =
 
           <div className="border-b border-[#eef0f2] p-5">
 
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-4">
 
-              <div>
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 
-                <div className="flex items-center gap-2">
+                <div>
 
-                  <h2 className="text-base font-bold text-gray-900">
-                    Attendance Records
-                  </h2>
+                  <div className="flex flex-wrap items-center gap-2">
 
-                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[9px] font-bold text-gray-500">
-                    {records.length}
-                  </span>
+                    <h2 className="text-base font-bold text-gray-900">
+                      Attendance Records
+                    </h2>
+
+                    <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[9px] font-bold text-gray-500">
+                      {filteredRecords.length}
+                    </span>
+
+                  </div>
+
+                  <p className="mt-1 text-xs text-gray-500">
+
+                    Showing{" "}
+
+                    <span className="font-semibold text-gray-700">
+                      {dateFilterLabel}
+                    </span>
+
+                    {" · "}
+
+                    <span className="font-semibold text-gray-700">
+                      {selectedBatch.batchCode}
+                    </span>
+
+                  </p>
 
                 </div>
 
-                <p className="mt-1 text-xs text-gray-500">
+                {/* =================================================
+                    SEARCH + DATE FILTER
+                ================================================= */}
 
-                  Live records for{" "}
+                <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
 
-                  <span className="font-semibold text-gray-700">
-                    {selectedBatch.batchCode}
+                  {/* SEARCH */}
+
+                  <div className="relative w-full sm:w-64">
+
+                    <SearchIcon
+                      className="absolute left-3 top-1/2 -translate-y-1/2 !h-4 !w-4 text-gray-400"
+                    />
+
+                    <input
+                      value={
+                        search
+                      }
+                      onChange={event =>
+                        setSearch(
+                          event.target.value
+                        )
+                      }
+                      placeholder="Search participant..."
+                      className="h-10 w-full rounded-xl border border-[#e5e7eb] bg-[#f8f9fa] pl-9 pr-3 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
+                    />
+
+                  </div>
+
+                  {/* DATE */}
+
+                  <div className="relative w-full sm:w-44">
+
+                    <input
+                      type="date"
+                      value={
+                        selectedDate
+                      }
+                      onChange={event =>
+                        setSelectedDate(
+                          event.target.value
+                        )
+                      }
+                      className="h-10 w-full rounded-xl border border-[#e5e7eb] bg-[#f8f9fa] px-3 text-xs font-medium text-gray-600 outline-none transition focus:border-gray-300 focus:bg-white"
+                    />
+
+                  </div>
+
+                  {/* CLEAR */}
+
+                  {selectedDate && (
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedDate(
+                          ""
+                        )
+                      }
+                      className="h-10 shrink-0 rounded-xl border border-gray-200 bg-white px-3 text-[10px] font-bold text-gray-500 transition hover:bg-gray-50 hover:text-gray-700"
+                    >
+                      Clear Date
+                    </button>
+
+                  )}
+
+                </div>
+
+              </div>
+
+              {/* ACTIVE FILTER */}
+
+              {(search.trim() ||
+                selectedDate) && (
+
+                <div className="flex flex-wrap items-center gap-2">
+
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">
+                    Active filters:
                   </span>
 
-                  .
+                  {search.trim() && (
 
-                </p>
+                    <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-[9px] font-semibold text-gray-600">
 
-              </div>
+                      Search: {search}
 
-              <div className="relative w-full md:w-72">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSearch("")
+                        }
+                        className="text-gray-400 hover:text-gray-700"
+                        aria-label="Clear search"
+                      >
+                        ×
+                      </button>
 
-                <SearchIcon
-                  className="absolute left-3 top-1/2 -translate-y-1/2 !h-4 !w-4 text-gray-400"
-                />
+                    </span>
 
-                <input
-                  value={search}
-                  onChange={event =>
-                    setSearch(
-                      event.target.value
-                    )
-                  }
-                  placeholder="Search participant..."
-                  className="h-10 w-full rounded-xl border border-[#e5e7eb] bg-[#f8f9fa] pl-9 pr-3 text-xs outline-none transition focus:bg-white"
-                />
+                  )}
 
-              </div>
+                  {selectedDate && (
+
+                    <span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-[9px] font-semibold text-blue-700">
+
+                      Date:{" "}
+                      {formatFilterDate(
+                        selectedDate
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedDate(
+                            ""
+                          )
+                        }
+                        className="text-blue-400 hover:text-blue-700"
+                        aria-label="Clear date"
+                      >
+                        ×
+                      </button>
+
+                    </span>
+
+                  )}
+
+                </div>
+
+              )}
 
             </div>
 
@@ -2032,7 +2577,8 @@ const loadOpenSession =
             <EmptyState
               search={
                 Boolean(
-                  search.trim()
+                  search.trim() ||
+                  selectedDate
                 )
               }
             />
@@ -2246,6 +2792,41 @@ const loadOpenSession =
       )}
 
     </div>
+  );
+}
+
+// =============================================================
+// FORMAT FILTER DATE
+// =============================================================
+
+function formatFilterDate(
+  value: string
+): string {
+
+  if (!value) {
+    return "All Dates";
+  }
+
+  const date =
+    new Date(
+      `${value}T00:00:00`
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return value;
+  }
+
+  return date.toLocaleDateString(
+    "en-US",
+    {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }
   );
 }
 
@@ -2551,7 +3132,7 @@ function EmptyState({
       <p className="mt-4 text-sm font-bold text-gray-700">
 
         {search
-          ? "No matching participants"
+          ? "No matching attendance records"
           : "No attendance records"}
 
       </p>
@@ -2559,7 +3140,7 @@ function EmptyState({
       <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-gray-400">
 
         {search
-          ? "Try another participant name, status, or attendance method."
+          ? "Try another participant name or select a different date."
           : "Attendance records will appear here after a participant is recorded."}
 
       </p>

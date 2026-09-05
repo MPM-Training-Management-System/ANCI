@@ -1,445 +1,939 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-type TrainingStatus =
-  | "Active"
-  | "Upcoming"
-  | "Completed";
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  MapPin,
+  RefreshCw,
+  Users,
+  BookOpen,
+  CheckCircle2,
+  PlayCircle,
+  CircleAlert,
+  X,
+} from "lucide-react";
 
-type ParticipantStatus =
-  | "Active"
-  | "Completed"
-  | "Dropped";
+import type {
+  TrainingBatch,
+  TrainerAssignment,
+  TrainingSession,
+} from "@repo/types";
 
-type Participant = {
-  id: string;
-  name: string;
-  email: string;
-  status: ParticipantStatus;
-  attendance: number;
-  assessment: "Passed" | "Pending" | "Failed";
+import {
+  trainerAssignmentApi,
+  trainingBatchApi,
+} from "@/lib/api";
+
+import { useTrainerAssignments } from "@repo/hooks";
+
+type TrainingDetails = {
+  batch: TrainingBatch;
+  assignment: TrainerAssignment;
+  sessions: TrainingSession[];
 };
 
-type Material = {
-  id: string;
-  title: string;
-  type: "PDF" | "Presentation" | "Video" | "Activity";
-};
+/* =========================================================
+   DATE HELPERS
+========================================================= */
 
-type Training = {
-  id: string;
-  code: string;
-  title: string;
-  category: string;
-  description: string;
-  startDate: string;
-  endDate: string;
-  schedule: string;
-  location: string;
-  capacity: number;
-  participants: number;
-  attendanceRate: number;
-  status: TrainingStatus;
-  assignedDate: string;
-  participantsList: Participant[];
-  materials: Material[];
-};
+function formatDate(date: string) {
+  if (!date) return "—";
 
-const mockTrainings: Training[] = [
-  {
-    id: "TRN-001",
-    code: "CSS-NCII",
-    title: "Computer Systems Servicing NC II",
-    category: "Information Technology",
-    description:
-      "Technical training focused on installation, configuration, maintenance, and troubleshooting of computer systems and networks.",
-    startDate: "August 20, 2026",
-    endDate: "October 20, 2026",
-    schedule: "Monday – Friday, 8:00 AM – 5:00 PM",
-    location: "Computer Laboratory 1",
-    capacity: 25,
-    participants: 18,
-    attendanceRate: 92,
-    status: "Active",
-    assignedDate: "August 10, 2026",
-    participantsList: [
-      {
-        id: "P-001",
-        name: "Juan Dela Cruz",
-        email: "juan.delacruz@example.com",
-        status: "Active",
-        attendance: 96,
-        assessment: "Passed",
-      },
-      {
-        id: "P-002",
-        name: "Maria Garcia",
-        email: "maria.garcia@example.com",
-        status: "Active",
-        attendance: 91,
-        assessment: "Passed",
-      },
-      {
-        id: "P-003",
-        name: "Pedro Santos",
-        email: "pedro.santos@example.com",
-        status: "Active",
-        attendance: 87,
-        assessment: "Pending",
-      },
-      {
-        id: "P-004",
-        name: "Ana Reyes",
-        email: "ana.reyes@example.com",
-        status: "Active",
-        attendance: 94,
-        assessment: "Passed",
-      },
-      {
-        id: "P-005",
-        name: "Mark Villanueva",
-        email: "mark.villanueva@example.com",
-        status: "Active",
-        attendance: 89,
-        assessment: "Pending",
-      },
-    ],
-    materials: [
-      {
-        id: "MAT-001",
-        title: "Computer Hardware Fundamentals",
-        type: "PDF",
-      },
-      {
-        id: "MAT-002",
-        title: "Installing Computer Systems",
-        type: "PDF",
-      },
-      {
-        id: "MAT-003",
-        title: "Networking Fundamentals",
-        type: "Presentation",
-      },
-      {
-        id: "MAT-004",
-        title: "Computer Assembly Activity",
-        type: "Activity",
-      },
-    ],
-  },
-  {
-    id: "TRN-002",
-    code: "WEB-DEV",
-    title: "Web Development Fundamentals",
-    category: "Digital Skills",
-    description:
-      "Introduction to modern web development covering HTML, CSS, JavaScript, responsive design, and basic application development.",
-    startDate: "August 25, 2026",
-    endDate: "October 30, 2026",
-    schedule: "Monday – Friday, 9:00 AM – 4:00 PM",
-    location: "ICT Laboratory",
-    capacity: 30,
-    participants: 21,
-    attendanceRate: 88,
-    status: "Upcoming",
-    assignedDate: "August 12, 2026",
-    participantsList: [
-      {
-        id: "P-006",
-        name: "Kevin Ramos",
-        email: "kevin.ramos@example.com",
-        status: "Active",
-        attendance: 0,
-        assessment: "Pending",
-      },
-      {
-        id: "P-007",
-        name: "Sarah Mendoza",
-        email: "sarah.mendoza@example.com",
-        status: "Active",
-        attendance: 0,
-        assessment: "Pending",
-      },
-      {
-        id: "P-008",
-        name: "Daniel Torres",
-        email: "daniel.torres@example.com",
-        status: "Active",
-        attendance: 0,
-        assessment: "Pending",
-      },
-    ],
-    materials: [
-      {
-        id: "MAT-005",
-        title: "HTML and CSS Fundamentals",
-        type: "PDF",
-      },
-      {
-        id: "MAT-006",
-        title: "JavaScript Basics",
-        type: "Presentation",
-      },
-      {
-        id: "MAT-007",
-        title: "Responsive Web Design Demo",
-        type: "Video",
-      },
-    ],
-  },
-  {
-    id: "TRN-003",
-    code: "EIM-NCII",
-    title: "Electrical Installation and Maintenance NC II",
-    category: "Electrical",
-    description:
-      "Training program covering electrical installation, maintenance, safety procedures, and troubleshooting.",
-    startDate: "June 01, 2026",
-    endDate: "August 10, 2026",
-    schedule: "Monday – Friday, 8:00 AM – 5:00 PM",
-    location: "Electrical Workshop",
-    capacity: 20,
-    participants: 20,
-    attendanceRate: 94,
-    status: "Completed",
-    assignedDate: "May 20, 2026",
-    participantsList: [
-      {
-        id: "P-009",
-        name: "Michael Aquino",
-        email: "michael.aquino@example.com",
-        status: "Completed",
-        attendance: 97,
-        assessment: "Passed",
-      },
-      {
-        id: "P-010",
-        name: "James Bautista",
-        email: "james.bautista@example.com",
-        status: "Completed",
-        attendance: 95,
-        assessment: "Passed",
-      },
-      {
-        id: "P-011",
-        name: "Carlo Fernandez",
-        email: "carlo.fernandez@example.com",
-        status: "Completed",
-        attendance: 91,
-        assessment: "Passed",
-      },
-    ],
-    materials: [
-      {
-        id: "MAT-008",
-        title: "Electrical Safety Guidelines",
-        type: "PDF",
-      },
-      {
-        id: "MAT-009",
-        title: "Electrical Installation Activity",
-        type: "Activity",
-      },
-    ],
-  },
-];
+  const parsed = new Date(String(date));
 
-const statusStyles: Record<TrainingStatus, string> = {
-  Active:
-    "border-emerald-200 bg-emerald-50 text-emerald-700",
-  Upcoming:
-    "border-blue-200 bg-blue-50 text-blue-700",
-  Completed:
-    "border-gray-200 bg-gray-100 text-gray-600",
-};
+  if (Number.isNaN(parsed.getTime())) {
+    return String(date);
+  }
 
-const materialStyles: Record<
-  Material["type"],
-  string
-> = {
-  PDF: "bg-red-50 text-red-600",
-  Presentation: "bg-orange-50 text-orange-600",
-  Video: "bg-purple-50 text-purple-600",
-  Activity: "bg-emerald-50 text-emerald-600",
-};
+  return parsed.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
 
-export default function MyTrainingPage() {
-  const [trainings] =
-    useState<Training[]>(mockTrainings);
+function formatDateRange(
+  startDate: string,
+  endDate: string,
+) {
+  if (!startDate && !endDate) {
+    return "Schedule not set";
+  }
 
-  const [search, setSearch] =
-    useState("");
+  if (startDate && endDate) {
+    return `${formatDate(startDate)} – ${formatDate(endDate)}`;
+  }
 
-  const [statusFilter, setStatusFilter] =
-    useState<"All" | TrainingStatus>("All");
+  return formatDate(startDate || endDate);
+}
 
-  const [selected, setSelected] =
-    useState<Training | null>(null);
+function getSessionTime(
+  startTime?: string | null,
+  endTime?: string | null,
+) {
+  if (!startTime && !endTime) {
+    return "Time not set";
+  }
 
-  const [showDetails, setShowDetails] =
-    useState(false);
+  if (startTime && endTime) {
+    return `${startTime} – ${endTime}`;
+  }
 
-  const [activeTab, setActiveTab] =
-    useState("Overview");
+  return startTime || endTime || "Time not set";
+}
 
-  const filteredTrainings = useMemo(() => {
-    const query = search
-      .toLowerCase()
-      .trim();
+function getStatusConfig(status: string) {
+  switch (status) {
+    case "Published":
+      return {
+        label: "Published",
+        className:
+          "bg-blue-50 text-blue-700 border-blue-200",
+        icon: CheckCircle2,
+      };
 
-    return trainings.filter((training) => {
-      const matchesSearch =
-        training.title
-          .toLowerCase()
-          .includes(query) ||
-        training.code
-          .toLowerCase()
-          .includes(query) ||
-        training.category
-          .toLowerCase()
-          .includes(query);
+    case "Ongoing":
+      return {
+        label: "Ongoing",
+        className:
+          "bg-emerald-50 text-emerald-700 border-emerald-200",
+        icon: PlayCircle,
+      };
 
-      const matchesStatus =
-        statusFilter === "All" ||
-        training.status === statusFilter;
+    case "Completed":
+      return {
+        label: "Completed",
+        className:
+          "bg-slate-100 text-slate-700 border-slate-200",
+        icon: CheckCircle2,
+      };
 
-      return (
-        matchesSearch &&
-        matchesStatus
-      );
-    });
-  }, [trainings, search, statusFilter]);
+    case "Cancelled":
+      return {
+        label: "Cancelled",
+        className:
+          "bg-red-50 text-red-700 border-red-200",
+        icon: CircleAlert,
+      };
 
-  const activeCount = trainings.filter(
-    (training) =>
-      training.status === "Active",
-  ).length;
+    default:
+      return {
+        label: status || "Draft",
+        className:
+          "bg-amber-50 text-amber-700 border-amber-200",
+        icon: CircleAlert,
+      };
+  }
+}
 
-  const upcomingCount = trainings.filter(
-    (training) =>
-      training.status === "Upcoming",
-  ).length;
+/* =========================================================
+   CALENDAR HELPERS
+========================================================= */
 
-  const completedCount = trainings.filter(
-    (training) =>
-      training.status === "Completed",
-  ).length;
+function toDateKey(date: Date) {
+  const year = date.getFullYear();
 
-  const totalParticipants =
-    trainings.reduce(
-      (sum, training) =>
-        sum + training.participants,
+  const month = String(
+    date.getMonth() + 1,
+  ).padStart(2, "0");
+
+  const day = String(
+    date.getDate(),
+  ).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function getSessionDateKey(
+  sessionDate: string,
+) {
+  if (!sessionDate) {
+    return "";
+  }
+
+  const value = String(sessionDate);
+
+  /*
+   * Handles normal ISO/API date strings such as:
+   * 2026-09-05
+   * 2026-09-05T00:00:00
+   */
+  const datePart = value.slice(0, 10);
+
+  if (
+    /^\d{4}-\d{2}-\d{2}$/.test(
+      datePart,
+    )
+  ) {
+    return datePart;
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return toDateKey(date);
+}
+
+function isSameDate(
+  first: Date,
+  second: Date,
+) {
+  return (
+    first.getFullYear() ===
+      second.getFullYear() &&
+    first.getMonth() ===
+      second.getMonth() &&
+    first.getDate() ===
+      second.getDate()
+  );
+}
+
+function getCalendarDays(
+  currentMonth: Date,
+) {
+  const year =
+    currentMonth.getFullYear();
+
+  const month =
+    currentMonth.getMonth();
+
+  const firstDay = new Date(
+    year,
+    month,
+    1,
+  );
+
+  const startDay =
+    firstDay.getDay();
+
+  const daysInMonth =
+    new Date(
+      year,
+      month + 1,
       0,
+    ).getDate();
+
+  const previousMonthDays =
+    new Date(
+      year,
+      month,
+      0,
+    ).getDate();
+
+  const days: {
+    date: Date;
+    isCurrentMonth: boolean;
+  }[] = [];
+
+  for (
+    let index = startDay - 1;
+    index >= 0;
+    index--
+  ) {
+    days.push({
+      date: new Date(
+        year,
+        month - 1,
+        previousMonthDays -
+          index,
+      ),
+      isCurrentMonth: false,
+    });
+  }
+
+  for (
+    let day = 1;
+    day <= daysInMonth;
+    day++
+  ) {
+    days.push({
+      date: new Date(
+        year,
+        month,
+        day,
+      ),
+      isCurrentMonth: true,
+    });
+  }
+
+  let nextDay = 1;
+
+  while (days.length < 42) {
+    days.push({
+      date: new Date(
+        year,
+        month + 1,
+        nextDay,
+      ),
+      isCurrentMonth: false,
+    });
+
+    nextDay++;
+  }
+
+  return days;
+}
+
+function formatMonthYear(
+  date: Date,
+) {
+  return date.toLocaleDateString(
+    "en-US",
+    {
+      month: "long",
+      year: "numeric",
+    },
+  );
+}
+
+function formatSelectedDate(
+  date: Date,
+) {
+  return date.toLocaleDateString(
+    "en-US",
+    {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    },
+  );
+}
+
+/* =========================================================
+   PAGE
+========================================================= */
+
+export default function TrainerMyTrainingPage() {
+  const {
+    myAssignments,
+    isLoadingMyAssignments,
+    error: assignmentError,
+    loadMyAssignments,
+  } = useTrainerAssignments(
+    trainerAssignmentApi,
+    {
+      loadAll: false,
+    },
+  );
+
+  const [
+    trainingBatches,
+    setTrainingBatches,
+  ] = useState<TrainingBatch[]>([]);
+
+  const [
+    isLoadingBatches,
+    setIsLoadingBatches,
+  ] = useState(false);
+
+  const [
+    batchError,
+    setBatchError,
+  ] = useState<string | null>(
+    null,
+  );
+
+  const [
+    selectedTraining,
+    setSelectedTraining,
+  ] = useState<TrainingDetails | null>(
+    null,
+  );
+
+  const [
+    isLoadingDetails,
+    setIsLoadingDetails,
+  ] = useState(false);
+
+  const [
+    detailsError,
+    setDetailsError,
+  ] = useState<string | null>(
+    null,
+  );
+
+  const [
+    search,
+    setSearch,
+  ] = useState("");
+
+  /* =======================================================
+     CALENDAR STATE
+  ======================================================= */
+
+  const [
+    currentMonth,
+    setCurrentMonth,
+  ] = useState<Date>(
+    new Date(),
+  );
+
+  const [
+    selectedDate,
+    setSelectedDate,
+  ] = useState<Date>(
+    new Date(),
+  );
+
+  /* =======================================================
+     LOAD TRAINING BATCHES
+  ======================================================= */
+
+  const loadTrainingBatches =
+    useCallback(async () => {
+      try {
+        setIsLoadingBatches(true);
+        setBatchError(null);
+
+        const result =
+          await trainingBatchApi.getAssigned();
+
+        const normalized =
+          Array.isArray(result)
+            ? result
+            : [];
+
+        setTrainingBatches(
+          normalized,
+        );
+      } catch (error) {
+        console.error(
+          "LOAD TRAINING BATCHES ERROR:",
+          error,
+        );
+
+        setBatchError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load training batches.",
+        );
+
+        setTrainingBatches([]);
+      } finally {
+        setIsLoadingBatches(false);
+      }
+    }, []);
+
+  /* =======================================================
+     LOAD PAGE
+  ======================================================= */
+
+  const loadPage =
+    useCallback(async () => {
+      await Promise.all([
+        loadMyAssignments(),
+        loadTrainingBatches(),
+      ]);
+    }, [
+      loadMyAssignments,
+      loadTrainingBatches,
+    ]);
+
+  useEffect(() => {
+    void loadPage();
+  }, [loadPage]);
+
+  /* =======================================================
+     MY TRAININGS
+  ======================================================= */
+
+  const myTrainings =
+    useMemo(() => {
+      if (
+        !myAssignments.length ||
+        !trainingBatches.length
+      ) {
+        return [];
+      }
+
+      const assignedBatchIds =
+        new Set(
+          myAssignments
+            .filter(
+              (assignment) =>
+                assignment.isActive,
+            )
+            .map(
+              (assignment) =>
+                assignment.trainingBatchId,
+            ),
+        );
+
+      return trainingBatches
+        .filter((batch) =>
+          assignedBatchIds.has(
+            batch.id,
+          ),
+        )
+        .map((batch) => {
+          const assignment =
+            myAssignments.find(
+              (item) =>
+                item.trainingBatchId ===
+                  batch.id &&
+                item.isActive,
+            );
+
+          return {
+            batch,
+            assignment: assignment!,
+          };
+        })
+        .filter(
+          (item) =>
+            item.assignment,
+        );
+    }, [
+      myAssignments,
+      trainingBatches,
+    ]);
+
+  /* =======================================================
+     FILTER
+  ======================================================= */
+
+  const filteredTrainings =
+    useMemo(() => {
+      const keyword =
+        search
+          .trim()
+          .toLowerCase();
+
+      if (!keyword) {
+        return myTrainings;
+      }
+
+      return myTrainings.filter(
+        ({ batch }) =>
+          batch.programName
+            ?.toLowerCase()
+            .includes(keyword) ||
+          batch.batchCode
+            ?.toLowerCase()
+            .includes(keyword) ||
+          batch.location
+            ?.toLowerCase()
+            .includes(keyword) ||
+          batch.status
+            ?.toLowerCase()
+            .includes(keyword),
+      );
+    }, [
+      myTrainings,
+      search,
+    ]);
+
+  /* =======================================================
+     STATS
+  ======================================================= */
+
+  const stats =
+    useMemo(() => {
+      const assigned =
+        myTrainings.length;
+
+      const ongoing =
+        myTrainings.filter(
+          ({ batch }) =>
+            batch.status ===
+            "Ongoing",
+        ).length;
+
+      const upcoming =
+        myTrainings.filter(
+          ({ batch }) =>
+            batch.status ===
+            "Published",
+        ).length;
+
+      const completed =
+        myTrainings.filter(
+          ({ batch }) =>
+            batch.status ===
+            "Completed",
+        ).length;
+
+      return {
+        assigned,
+        ongoing,
+        upcoming,
+        completed,
+      };
+    }, [myTrainings]);
+
+  /* =======================================================
+     OPEN TRAINING
+  ======================================================= */
+
+  const openTraining =
+    useCallback(
+      async (
+        batch: TrainingBatch,
+        assignment: TrainerAssignment,
+      ) => {
+        try {
+          setSelectedTraining({
+            batch,
+            assignment,
+            sessions: [],
+          });
+
+          setIsLoadingDetails(
+            true,
+          );
+
+          setDetailsError(null);
+
+          const sessions =
+            await trainingBatchApi.getSchedule(
+              batch.id,
+            );
+
+          const normalizedSessions =
+            Array.isArray(sessions)
+              ? sessions
+              : [];
+
+          setSelectedTraining({
+            batch,
+            assignment,
+            sessions:
+              normalizedSessions,
+          });
+
+          /*
+           * FIX:
+           * Convert sessionDate safely
+           * before passing it to Date.
+           */
+          const firstSession = normalizedSessions[0];
+
+if (firstSession) {
+  const firstSessionDate = String(
+    firstSession.sessionDate,
+  );
+
+  const parsedFirstSessionDate = new Date(
+    firstSessionDate,
+  );
+
+  if (!Number.isNaN(parsedFirstSessionDate.getTime())) {
+    setCurrentMonth(
+      new Date(
+        parsedFirstSessionDate.getFullYear(),
+        parsedFirstSessionDate.getMonth(),
+        1,
+      ),
     );
 
-  function openTraining(training: Training) {
-    setSelected(training);
-    setActiveTab("Overview");
-    setShowDetails(true);
+    setSelectedDate(parsedFirstSessionDate);
   }
+} else {
+  const today = new Date();
 
-  function closeTraining() {
-    setSelected(null);
-    setShowDetails(false);
-  }
+  setCurrentMonth(
+    new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      1,
+    ),
+  );
+
+  setSelectedDate(today);
+}
+        } catch (error) {
+          console.error(
+            "LOAD TRAINING DETAILS ERROR:",
+            error,
+          );
+
+          setDetailsError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load training schedule.",
+          );
+
+          setSelectedTraining({
+            batch,
+            assignment,
+            sessions: [],
+          });
+        } finally {
+          setIsLoadingDetails(
+            false,
+          );
+        }
+      },
+      [],
+    );
+
+  /* =======================================================
+     CLOSE
+  ======================================================= */
+
+  const closeDetails =
+    useCallback(() => {
+      setSelectedTraining(null);
+      setDetailsError(null);
+    }, []);
+
+  /* =======================================================
+     CALENDAR
+  ======================================================= */
+
+  const calendarDays =
+    useMemo(
+      () =>
+        getCalendarDays(
+          currentMonth,
+        ),
+      [currentMonth],
+    );
+
+  const sessionsByDate =
+    useMemo(() => {
+      const map =
+        new Map<
+          string,
+          TrainingSession[]
+        >();
+
+      if (
+        !selectedTraining
+      ) {
+        return map;
+      }
+
+      selectedTraining.sessions.forEach(
+        (session) => {
+          const key =
+            getSessionDateKey(
+              String(
+                session.sessionDate,
+              ),
+            );
+
+          if (!key) {
+            return;
+          }
+
+          const existing =
+            map.get(key) ?? [];
+
+          existing.push(
+            session,
+          );
+
+          map.set(
+            key,
+            existing,
+          );
+        },
+      );
+
+      return map;
+    }, [
+      selectedTraining,
+    ]);
+
+  const selectedDateKey =
+    toDateKey(selectedDate);
+
+  const selectedDaySessions =
+    sessionsByDate.get(
+      selectedDateKey,
+    ) ?? [];
+
+  /* =======================================================
+     CALENDAR NAVIGATION
+  ======================================================= */
+
+  const goToPreviousMonth =
+    () => {
+      setCurrentMonth(
+        (current) =>
+          new Date(
+            current.getFullYear(),
+            current.getMonth() - 1,
+            1,
+          ),
+      );
+    };
+
+  const goToNextMonth =
+    () => {
+      setCurrentMonth(
+        (current) =>
+          new Date(
+            current.getFullYear(),
+            current.getMonth() + 1,
+            1,
+          ),
+      );
+    };
+
+  const goToToday = () => {
+    const today =
+      new Date();
+
+    setCurrentMonth(
+      new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        1,
+      ),
+    );
+
+    setSelectedDate(
+      today,
+    );
+  };
+
+  /* =======================================================
+     LOADING
+  ======================================================= */
+
+  const isLoading =
+    isLoadingMyAssignments ||
+    isLoadingBatches;
+
+  const pageError =
+    assignmentError ||
+    batchError;
+
+  /* =======================================================
+     RENDER
+  ======================================================= */
 
   return (
-    <div className="space-y-6">
+    <div className="h-screen overflow-y-auto bg-[#f7f8fa] px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-6 pb-10">
 
-      {/* =====================================================
-          PAGE HEADER
-      ===================================================== */}
+        {/* =================================================
+            HEADER
+        ================================================= */}
 
-      <div>
-
-        <div className="mb-2 flex items-center gap-2 text-xs text-gray-400">
-          <span>Trainer</span>
-          <span>/</span>
-          <span className="font-medium text-gray-600">
-            My Training
-          </span>
-        </div>
-
-        <h1 className="text-2xl font-bold tracking-tight text-[#17191c] sm:text-3xl">
-          My Training
-        </h1>
-
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
-          View the training programs assigned to
-          you and manage your training activities.
-        </p>
-
-      </div>
-
-      {/* =====================================================
-          SUMMARY
-      ===================================================== */}
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-
-        <SummaryCard
-          label="My Trainings"
-          value={trainings.length}
-          description="All assigned trainings"
-          icon="▣"
-        />
-
-        <SummaryCard
-          label="Active"
-          value={activeCount}
-          description="Currently conducting"
-          icon="✓"
-          type="success"
-        />
-
-        <SummaryCard
-          label="Upcoming"
-          value={upcomingCount}
-          description="Starting soon"
-          icon="◷"
-          type="info"
-        />
-
-        <SummaryCard
-          label="Participants"
-          value={totalParticipants}
-          description="Across assigned trainings"
-          icon="♙"
-        />
-
-      </div>
-
-      {/* =====================================================
-          SEARCH / FILTER
-      ===================================================== */}
-
-      <section className="rounded-2xl border border-[#e7e9ec] bg-white p-5">
-
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
+            <div className="mb-2 flex items-center gap-2 text-sm text-slate-500">
+              <BookOpen className="h-4 w-4" />
+              Trainer Portal
+            </div>
 
-            <h2 className="text-sm font-bold">
-              Assigned Trainings
-            </h2>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+              My Training
+            </h1>
 
-            <p className="mt-1 text-xs text-gray-500">
-              These training programs were assigned
-              to you by the administrator.
+            <p className="mt-1 text-sm text-slate-500 sm:text-base">
+              View and manage the training batches assigned to you.
             </p>
-
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <button
+            type="button"
+            onClick={() =>
+              void loadPage()
+            }
+            disabled={isLoading}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${
+                isLoading
+                  ? "animate-spin"
+                  : ""
+              }`}
+            />
 
-            <div className="relative">
+            Refresh
+          </button>
+        </div>
 
-              <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-gray-400">
-                ⌕
-              </span>
+        {/* =================================================
+            ERROR
+        ================================================= */}
 
+        {pageError && (
+          <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            <CircleAlert className="mt-0.5 h-5 w-5 shrink-0" />
+
+            <div>
+              <p className="font-semibold">
+                Unable to load your trainings
+              </p>
+
+              <p className="mt-1">
+                {pageError}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* =================================================
+            STATS
+        ================================================= */}
+
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatCard
+            label="Assigned"
+            value={stats.assigned}
+            icon={
+              <BookOpen className="h-5 w-5" />
+            }
+          />
+
+          <StatCard
+            label="Upcoming"
+            value={stats.upcoming}
+            icon={
+              <CalendarDays className="h-5 w-5" />
+            }
+          />
+
+          <StatCard
+            label="Ongoing"
+            value={stats.ongoing}
+            icon={
+              <PlayCircle className="h-5 w-5" />
+            }
+          />
+
+          <StatCard
+            label="Completed"
+            value={stats.completed}
+            icon={
+              <CheckCircle2 className="h-5 w-5" />
+            }
+          />
+        </div>
+
+        {/* =================================================
+            SEARCH
+        ================================================= */}
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-semibold text-slate-900">
+                My Assigned Trainings
+              </h2>
+
+              <p className="mt-1 text-sm text-slate-500">
+                These are the training batches assigned specifically to you.
+              </p>
+            </div>
+
+            <div className="w-full sm:w-72">
               <input
+                type="text"
                 value={search}
                 onChange={(event) =>
                   setSearch(
@@ -447,1499 +941,840 @@ export default function MyTrainingPage() {
                   )
                 }
                 placeholder="Search training..."
-                className="h-10 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] pl-9 pr-4 text-xs outline-none transition focus:border-gray-300 focus:bg-white sm:w-[240px]"
+                className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
               />
-
             </div>
-
-            <select
-              value={statusFilter}
-              onChange={(event) =>
-                setStatusFilter(
-                  event.target.value as
-                    | "All"
-                    | TrainingStatus,
-                )
-              }
-              className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none transition focus:border-gray-300 focus:bg-white"
-            >
-
-              <option value="All">
-                All Trainings
-              </option>
-
-              <option value="Active">
-                Active
-              </option>
-
-              <option value="Upcoming">
-                Upcoming
-              </option>
-
-              <option value="Completed">
-                Completed
-              </option>
-
-            </select>
-
           </div>
-
         </div>
 
-      </section>
+        {/* =================================================
+            LOADING
+        ================================================= */}
 
-      {/* =====================================================
-          TRAINING CARDS
-      ===================================================== */}
-
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-
-        {filteredTrainings.map(
-          (training) => {
-            const capacityPercent =
-              Math.round(
-                (training.participants /
-                  training.capacity) *
-                  100,
-              );
-
-            return (
-              <TrainingCard
-                key={training.id}
-                training={training}
-                capacityPercent={
-                  capacityPercent
-                }
-                onView={() =>
-                  openTraining(training)
-                }
-              />
-            );
-          },
+        {isLoading && (
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {[1, 2, 3].map(
+              (item) => (
+                <div
+                  key={item}
+                  className="h-72 animate-pulse rounded-2xl border border-slate-200 bg-white"
+                />
+              ),
+            )}
+          </div>
         )}
 
-      </div>
+        {/* =================================================
+            EMPTY
+        ================================================= */}
 
-      {filteredTrainings.length === 0 && (
-        <EmptyState />
-      )}
+        {!isLoading &&
+          filteredTrainings.length ===
+            0 && (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
+                <BookOpen className="h-7 w-7 text-slate-400" />
+              </div>
 
-      {/* =====================================================
-          TRAINING DETAILS MODAL
-      ===================================================== */}
-
-      {showDetails && selected && (
-        <TrainingDetailsModal
-          training={selected}
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          onClose={closeTraining}
-        />
-      )}
-
-    </div>
-  );
-}
-
-/* ==========================================================
-   TRAINING CARD
-========================================================== */
-
-function TrainingCard({
-  training,
-  capacityPercent,
-  onView,
-}: {
-  training: Training;
-  capacityPercent: number;
-  onView: () => void;
-}) {
-  return (
-    <div className="overflow-hidden rounded-2xl border border-[#e7e9ec] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition hover:border-gray-300 hover:shadow-sm">
-
-      {/* TOP */}
-
-      <div className="p-5">
-
-        <div className="flex items-start justify-between gap-4">
-
-          <div className="flex min-w-0 items-center gap-3">
-
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#191c1e] text-xs font-bold text-white">
-              {training.code
-                .slice(0, 3)
-                .toUpperCase()}
-            </div>
-
-            <div className="min-w-0">
-
-              <p className="font-mono text-[10px] font-medium text-gray-400">
-                {training.code}
-              </p>
-
-              <h3 className="mt-1 truncate text-base font-bold tracking-tight">
-                {training.title}
+              <h3 className="mt-4 text-lg font-semibold text-slate-900">
+                No assigned trainings
               </h3>
 
-              <p className="mt-1 text-xs text-gray-500">
-                {training.category}
+              <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
+                You currently don't have any active training batches assigned
+                to you. Trainings assigned by an administrator will appear
+                here.
               </p>
-
             </div>
-
-          </div>
-
-          <span
-            className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold ${statusStyles[training.status]}`}
-          >
-            {training.status}
-          </span>
-
-        </div>
-
-        {/* DESCRIPTION */}
-
-        <p className="mt-5 line-clamp-2 text-xs leading-5 text-gray-500">
-          {training.description}
-        </p>
-
-        {/* DETAILS */}
-
-        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-
-          <DetailItem
-            icon="▣"
-            label="Training Period"
-            value={`${training.startDate} – ${training.endDate}`}
-          />
-
-          <DetailItem
-            icon="◷"
-            label="Schedule"
-            value={training.schedule}
-          />
-
-          <DetailItem
-            icon="⌖"
-            label="Location"
-            value={training.location}
-          />
-
-          <DetailItem
-            icon="♙"
-            label="Participants"
-            value={`${training.participants} / ${training.capacity}`}
-          />
-
-        </div>
-
-      </div>
-
-      {/* CAPACITY */}
-
-      <div className="border-t border-[#eef0f2] px-5 py-4">
-
-        <div className="flex items-center justify-between">
-
-          <div>
-
-            <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-              Enrollment Capacity
-            </p>
-
-            <p className="mt-1 text-xs font-semibold">
-              {training.participants} participants
-            </p>
-
-          </div>
-
-          <span className="text-[10px] font-bold text-gray-500">
-            {capacityPercent}%
-          </span>
-
-        </div>
-
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100">
-
-          <div
-            className={`h-full rounded-full ${
-              capacityPercent >= 100
-                ? "bg-red-500"
-                : capacityPercent >= 80
-                  ? "bg-amber-500"
-                  : "bg-[#191c1e]"
-            }`}
-            style={{
-              width: `${Math.min(
-                capacityPercent,
-                100,
-              )}%`,
-            }}
-          />
-
-        </div>
-
-      </div>
-
-      {/* FOOTER */}
-
-      <div className="flex items-center justify-between border-t border-[#eef0f2] bg-[#fafbfc] px-5 py-4">
-
-        <p className="text-[10px] text-gray-400">
-          Assigned{" "}
-          <span className="font-semibold text-gray-600">
-            {training.assignedDate}
-          </span>
-        </p>
-
-        <button
-          type="button"
-          onClick={onView}
-          className="rounded-xl bg-[#191c1e] px-4 py-2.5 text-[11px] font-semibold text-white transition hover:opacity-90"
-        >
-          View Training
-        </button>
-
-      </div>
-
-    </div>
-  );
-}
-
-/* ==========================================================
-   TRAINING DETAILS MODAL
-========================================================== */
-
-function TrainingDetailsModal({
-  training,
-  activeTab,
-  setActiveTab,
-  onClose,
-}: {
-  training: Training;
-  activeTab: string;
-  setActiveTab: (
-    tab: string,
-  ) => void;
-  onClose: () => void;
-}) {
-  const tabs = [
-    "Overview",
-    "Participants",
-    "Schedule",
-    "Learning Materials",
-    "Attendance",
-    "Assessment",
-    "Completion",
-  ];
-
-  return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-3 backdrop-blur-[2px] sm:p-5"
-      onMouseDown={(event) => {
-        if (
-          event.target ===
-          event.currentTarget
-        ) {
-          onClose();
-        }
-      }}
-    >
-
-      <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/50 bg-white shadow-2xl">
+          )}
 
         {/* =================================================
-            HEADER
+            TRAINING CARDS
         ================================================= */}
 
-        <div className="flex shrink-0 items-start justify-between border-b border-[#eef0f2] bg-white px-6 py-5">
+        {!isLoading &&
+          filteredTrainings.length >
+            0 && (
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {filteredTrainings.map(
+                ({
+                  batch,
+                  assignment,
+                }) => {
+                  const status =
+                    getStatusConfig(
+                      batch.status,
+                    );
 
-          <div className="flex min-w-0 items-center gap-3 pr-6">
+                  const StatusIcon =
+                    status.icon;
 
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#191c1e] text-[10px] font-bold text-white">
-              {training.code
-                .slice(0, 3)
-                .toUpperCase()}
+                  return (
+                    <div
+                      key={batch.id}
+                      className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+                    >
+                      <div className="border-b border-slate-100 p-5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                              Training Program
+                            </p>
+
+                            <h3 className="mt-1 line-clamp-2 text-lg font-bold text-slate-900">
+                              {
+                                batch.programName
+                              }
+                            </h3>
+                          </div>
+
+                          <span
+                            className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${status.className}`}
+                          >
+                            <StatusIcon className="h-3.5 w-3.5" />
+
+                            {status.label}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 inline-flex items-center rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                          Batch{" "}
+                          {
+                            batch.batchCode
+                          }
+                        </div>
+                      </div>
+
+                      <div className="flex-1 space-y-4 p-5">
+                        <InfoRow
+                          icon={
+                            <CalendarDays className="h-4 w-4" />
+                          }
+                          label="Training Period"
+                          value={formatDateRange(
+                            batch.startDate,
+                            batch.endDate,
+                          )}
+                        />
+
+                        <InfoRow
+                          icon={
+                            <MapPin className="h-4 w-4" />
+                          }
+                          label="Location"
+                          value={
+                            batch.location ||
+                            "Location not set"
+                          }
+                        />
+
+                        <InfoRow
+                          icon={
+                            <Users className="h-4 w-4" />
+                          }
+                          label="Participants"
+                          value={`${batch.enrolledCount} / ${batch.capacity}`}
+                        />
+
+                        <div className="rounded-xl bg-slate-50 p-3">
+                          <p className="text-xs font-medium text-slate-400">
+                            Assigned
+                          </p>
+
+                          <p className="mt-1 text-sm font-medium text-slate-700">
+                            {formatDate(
+                              assignment.assignedAt,
+                            )}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="border-t border-slate-100 p-4">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void openTraining(
+                              batch,
+                              assignment,
+                            )
+                          }
+                          className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                        >
+                          View Training
+
+                          <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                },
+              )}
             </div>
-
-            <div className="min-w-0">
-
-              <p className="font-mono text-[10px] text-gray-400">
-                {training.code}
-              </p>
-
-              <h2 className="mt-1 truncate text-lg font-bold tracking-tight">
-                {training.title}
-              </h2>
-
-              <p className="mt-1 text-xs text-gray-500">
-                {training.category}
-              </p>
-
-            </div>
-
-          </div>
-
-          {/* FIXED X */}
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-lg text-gray-500 transition hover:bg-gray-200 hover:text-gray-800"
-            aria-label="Close"
-          >
-            ×
-          </button>
-
-        </div>
-
-        {/* =================================================
-            TABS
-        ================================================= */}
-
-        <div className="shrink-0 overflow-x-auto border-b border-[#eef0f2] bg-white px-4">
-
-          <div className="flex min-w-max">
-
-            {tabs.map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                onClick={() =>
-                  setActiveTab(tab)
-                }
-                className={`relative px-4 py-3 text-[11px] font-semibold transition ${
-                  activeTab === tab
-                    ? "text-[#191c1e]"
-                    : "text-gray-400 hover:text-gray-700"
-                }`}
-              >
-                {tab}
-
-                {activeTab === tab && (
-                  <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-[#191c1e]" />
-                )}
-              </button>
-            ))}
-
-          </div>
-
-        </div>
-
-        {/* =================================================
-            SCROLLABLE BODY
-        ================================================= */}
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-
-          {activeTab === "Overview" && (
-            <OverviewTab
-              training={training}
-            />
           )}
-
-          {activeTab === "Participants" && (
-            <ParticipantsTab
-              training={training}
-            />
-          )}
-
-          {activeTab === "Schedule" && (
-            <ScheduleTab
-              training={training}
-            />
-          )}
-
-          {activeTab ===
-            "Learning Materials" && (
-            <MaterialsTab
-              training={training}
-            />
-          )}
-
-          {activeTab === "Attendance" && (
-            <AttendanceTab
-              training={training}
-            />
-          )}
-
-          {activeTab === "Assessment" && (
-            <AssessmentTab
-              training={training}
-            />
-          )}
-
-          {activeTab === "Completion" && (
-            <CompletionTab
-              training={training}
-            />
-          )}
-
-        </div>
-
-        {/* =================================================
-            FOOTER
-        ================================================= */}
-
-        <div className="flex shrink-0 items-center justify-between border-t border-[#eef0f2] bg-white px-6 py-4">
-
-          <p className="text-[10px] text-gray-400">
-            Assigned by Administrator
-          </p>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl border border-[#e7e9ec] px-5 py-2.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-50"
-          >
-            Close
-          </button>
-
-        </div>
-
       </div>
 
-    </div>
-  );
-}
+      {/* ===================================================
+          TRAINING DETAILS MODAL
+      =================================================== */}
 
-/* ==========================================================
-   OVERVIEW TAB
-========================================================== */
+      {selectedTraining && (
+        <div className="fixed inset-0 z-500 overflow-y-auto bg-slate-950/50 p-3 backdrop-blur-sm sm:p-4">
+          <div className="flex min-h-full items-center justify-center py-4 sm:py-6">
+            <div className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
 
-function OverviewTab({
-  training,
-}: {
-  training: Training;
-}) {
-  return (
-    <div className="space-y-5">
+              {/* MODAL HEADER */}
 
-      <div className="rounded-2xl bg-[#f7f8fa] p-5">
+              <div className="flex shrink-0 items-start justify-between border-b border-slate-200 p-4 sm:p-6">
+                <div className="min-w-0 pr-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                      Batch{" "}
+                      {
+                        selectedTraining
+                          .batch
+                          .batchCode
+                      }
+                    </span>
 
-        <div className="flex items-start justify-between gap-4">
+                    <span
+                      className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                        getStatusConfig(
+                          selectedTraining
+                            .batch
+                            .status,
+                        ).className
+                      }`}
+                    >
+                      {
+                        selectedTraining
+                          .batch
+                          .status
+                      }
+                    </span>
+                  </div>
 
-          <div>
+                  <h2 className="mt-3 text-xl font-bold text-slate-900 sm:text-2xl">
+                    {
+                      selectedTraining
+                        .batch
+                        .programName
+                    }
+                  </h2>
 
-            <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-              Training Overview
-            </p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Assigned on{" "}
+                    {formatDate(
+                      selectedTraining
+                        .assignment
+                        .assignedAt,
+                    )}
+                  </p>
+                </div>
 
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
-              {training.description}
-            </p>
+                <button
+                  type="button"
+                  onClick={
+                    closeDetails
+                  }
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                  aria-label="Close training details"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
 
-          </div>
+              {/* MODAL BODY */}
 
-          <span
-            className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold ${statusStyles[training.status]}`}
-          >
-            {training.status}
-          </span>
+              <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
 
-        </div>
+                {/* SUMMARY */}
 
-      </div>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <DetailCard
+                    icon={
+                      <CalendarDays className="h-5 w-5" />
+                    }
+                    label="Training Period"
+                    value={formatDateRange(
+                      selectedTraining
+                        .batch
+                        .startDate,
+                      selectedTraining
+                        .batch
+                        .endDate,
+                    )}
+                  />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <DetailCard
+                    icon={
+                      <MapPin className="h-5 w-5" />
+                    }
+                    label="Location"
+                    value={
+                      selectedTraining
+                        .batch
+                        .location ||
+                      "Not set"
+                    }
+                  />
 
-        <StatBox
-          label="Participants"
-          value={`${training.participants}/${training.capacity}`}
-        />
+                  <DetailCard
+                    icon={
+                      <Users className="h-5 w-5" />
+                    }
+                    label="Participants"
+                    value={`${selectedTraining.batch.enrolledCount} / ${selectedTraining.batch.capacity}`}
+                  />
 
-        <StatBox
-          label="Attendance"
-          value={`${training.attendanceRate}%`}
-        />
+                  <DetailCard
+                    icon={
+                      <BookOpen className="h-5 w-5" />
+                    }
+                    label="Assignment"
+                    value="Active"
+                  />
+                </div>
 
-        <StatBox
-          label="Materials"
-          value={String(
-            training.materials.length,
-          )}
-        />
+                {/* =================================================
+                    TRAINING SCHEDULE
+                ================================================= */}
 
-        <StatBox
-          label="Location"
-          value={training.location}
-        />
+                <div className="mt-6">
+                  <div className="mb-4">
+                    <h3 className="text-lg font-bold text-slate-900">
+                      Training Schedule
+                    </h3>
 
-      </div>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Calendar view of the approved training sessions.
+                    </p>
+                  </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  {isLoadingDetails && (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map(
+                        (item) => (
+                          <div
+                            key={item}
+                            className="h-20 animate-pulse rounded-xl bg-slate-100"
+                          />
+                        ),
+                      )}
+                    </div>
+                  )}
 
-        <InfoCard
-          title="Training Period"
-          value={`${training.startDate} – ${training.endDate}`}
-        />
+                  {!isLoadingDetails &&
+                    detailsError && (
+                      <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                        {detailsError}
+                      </div>
+                    )}
 
-        <InfoCard
-          title="Schedule"
-          value={training.schedule}
-        />
+                  {!isLoadingDetails &&
+                    !detailsError && (
+                      <>
+                        {/* CALENDAR */}
 
-        <InfoCard
-          title="Training Location"
-          value={training.location}
-        />
+                        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
 
-        <InfoCard
-          title="Assigned Date"
-          value={training.assignedDate}
-        />
+                          {/* CALENDAR HEADER */}
 
-      </div>
+                          <div className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <h4 className="text-lg font-bold text-slate-900">
+                                {formatMonthYear(
+                                  currentMonth,
+                                )}
+                              </h4>
 
-      <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-5">
+                              <p className="mt-0.5 text-xs text-slate-500">
+                                Click a date to view its training session.
+                              </p>
+                            </div>
 
-        <p className="text-xs font-bold text-blue-900">
-          Trainer responsibility
-        </p>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={
+                                  goToPreviousMonth
+                                }
+                                className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50"
+                                aria-label="Previous month"
+                              >
+                                <ChevronLeft className="h-4 w-4" />
+                              </button>
 
-        <p className="mt-1 text-xs leading-5 text-blue-700">
-          Manage attendance, learning materials,
-          assessments, and participant completion
-          for this assigned training.
-        </p>
+                              <button
+                                type="button"
+                                onClick={
+                                  goToToday
+                                }
+                                className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                              >
+                                Today
+                              </button>
 
-      </div>
+                              <button
+                                type="button"
+                                onClick={
+                                  goToNextMonth
+                                }
+                                className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50"
+                                aria-label="Next month"
+                              >
+                                <ChevronRight className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
 
-    </div>
-  );
-}
+                          {/* CALENDAR GRID */}
 
-/* ==========================================================
-   PARTICIPANTS TAB
-========================================================== */
+                          <div className="overflow-x-auto">
+                            <div className="min-w-[680px]">
 
-function ParticipantsTab({
-  training,
-}: {
-  training: Training;
-}) {
-  return (
-    <div className="space-y-5">
+                              {/* WEEKDAYS */}
 
-      <div className="flex items-center justify-between">
+                              <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
+                                {[
+                                  "Sun",
+                                  "Mon",
+                                  "Tue",
+                                  "Wed",
+                                  "Thu",
+                                  "Fri",
+                                  "Sat",
+                                ].map(
+                                  (
+                                    day,
+                                  ) => (
+                                    <div
+                                      key={
+                                        day
+                                      }
+                                      className="px-2 py-3 text-center text-xs font-bold uppercase tracking-wide text-slate-500"
+                                    >
+                                      {
+                                        day
+                                      }
+                                    </div>
+                                  ),
+                                )}
+                              </div>
 
-        <div>
+                              {/* DAYS */}
 
-          <h3 className="text-sm font-bold">
-            Training Participants
-          </h3>
+                              <div className="grid grid-cols-7">
+                                {calendarDays.map(
+                                  ({
+                                    date,
+                                    isCurrentMonth,
+                                  }) => {
+                                    const key =
+                                      toDateKey(
+                                        date,
+                                      );
 
-          <p className="mt-1 text-xs text-gray-500">
-            Participants enrolled in this assigned
-            training.
-          </p>
+                                    const daySessions =
+                                      sessionsByDate.get(
+                                        key,
+                                      ) ??
+                                      [];
 
-        </div>
+                                    const hasSessions =
+                                      daySessions.length >
+                                      0;
 
-        <span className="rounded-full bg-gray-100 px-3 py-1.5 text-[10px] font-bold text-gray-600">
-          {training.participants} Participants
-        </span>
+                                    const isSelected =
+                                      isSameDate(
+                                        date,
+                                        selectedDate,
+                                      );
 
-      </div>
+                                    const isToday =
+                                      isSameDate(
+                                        date,
+                                        new Date(),
+                                      );
 
-      <div className="overflow-hidden rounded-2xl border border-[#e7e9ec]">
+                                    return (
+                                      <button
+                                        key={
+                                          key
+                                        }
+                                        type="button"
+                                        onClick={() =>
+                                          setSelectedDate(
+                                            date,
+                                          )
+                                        }
+                                        className={`relative min-h-[92px] border-b border-r border-slate-200 p-2 text-left transition sm:min-h-[105px] ${
+                                          isCurrentMonth
+                                            ? "bg-white"
+                                            : "bg-slate-50/70"
+                                        } ${
+                                          isSelected
+                                            ? "bg-slate-100"
+                                            : "hover:bg-slate-50"
+                                        }`}
+                                      >
+                                        <div className="flex items-center justify-between">
+                                          <span
+                                            className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
+                                              isToday
+                                                ? "bg-slate-900 text-white"
+                                                : isCurrentMonth
+                                                  ? "text-slate-700"
+                                                  : "text-slate-400"
+                                            }`}
+                                          >
+                                            {
+                                              date.getDate()
+                                            }
+                                          </span>
 
-        <div className="overflow-x-auto">
+                                          {hasSessions && (
+                                            <span className="hidden text-[10px] font-semibold text-slate-400 sm:block">
+                                              {
+                                                daySessions.length
+                                              }{" "}
+                                              {daySessions.length ===
+                                              1
+                                                ? "session"
+                                                : "sessions"}
+                                            </span>
+                                          )}
+                                        </div>
 
-          <table className="w-full min-w-[800px]">
+                                        {hasSessions && (
+                                          <div className="mt-2 space-y-1">
+                                            {daySessions
+                                              .slice(
+                                                0,
+                                                2,
+                                              )
+                                              .map(
+                                                (
+                                                  session,
+                                                ) => (
+                                                  <div
+                                                    key={
+                                                      session.id
+                                                    }
+                                                    className={`rounded-md px-2 py-1 ${
+                                                      isSelected
+                                                        ? "bg-slate-900 text-white"
+                                                        : "bg-blue-50 text-blue-700"
+                                                    }`}
+                                                  >
+                                                    <p className="truncate text-[10px] font-bold sm:text-xs">
+                                                      Session{" "}
+                                                      {
+                                                        session.sessionNumber
+                                                      }
+                                                    </p>
 
-            <thead>
+                                                    <p
+                                                      className={`truncate text-[9px] sm:text-[10px] ${
+                                                        isSelected
+                                                          ? "text-slate-300"
+                                                          : "text-blue-600"
+                                                      }`}
+                                                    >
+                                                      {
+                                                        session.startTime
+                                                      }{" "}
+                                                      –
+                                                      {
+                                                        session.endTime
+                                                      }
+                                                    </p>
+                                                  </div>
+                                                ),
+                                              )}
 
-              <tr className="border-b border-[#eef0f2] bg-[#fafbfc]">
+                                            {daySessions.length >
+                                              2 && (
+                                              <p className="px-1 text-[9px] font-semibold text-slate-400">
+                                                +
+                                                {daySessions.length -
+                                                  2}{" "}
+                                                more
+                                              </p>
+                                            )}
+                                          </div>
+                                        )}
+                                      </button>
+                                    );
+                                  },
+                                )}
+                              </div>
+                            </div>
+                          </div>
 
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Participant
-                </th>
+                          {/* LEGEND */}
 
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Status
-                </th>
+                          <div className="flex flex-wrap items-center gap-4 border-t border-slate-200 px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <span className="h-3 w-3 rounded-full bg-blue-500" />
 
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Attendance
-                </th>
+                              <span className="text-xs text-slate-500">
+                                Training session
+                              </span>
+                            </div>
 
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Assessment
-                </th>
+                            <div className="flex items-center gap-2">
+                              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-900 text-[9px] font-bold text-white">
+                                {
+                                  new Date().getDate()
+                                }
+                              </span>
 
-              </tr>
+                              <span className="text-xs text-slate-500">
+                                Today
+                              </span>
+                            </div>
+                          </div>
+                        </div>
 
-            </thead>
+                        {/* SELECTED DATE */}
 
-            <tbody className="divide-y divide-[#eef0f2]">
+                        <div className="mt-5">
+                          <div className="mb-3">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                              Selected Date
+                            </p>
 
-              {training.participantsList.map(
-                (participant) => (
-                  <tr
-                    key={participant.id}
-                    className="hover:bg-[#fafbfc]"
-                  >
+                            <h4 className="mt-1 text-lg font-bold text-slate-900">
+                              {formatSelectedDate(
+                                selectedDate,
+                              )}
+                            </h4>
+                          </div>
 
-                    <td className="px-4 py-4">
+                          {selectedDaySessions.length ===
+                            0 && (
+                            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
+                              <CalendarDays className="mx-auto h-7 w-7 text-slate-400" />
 
-                      <div className="flex items-center gap-3">
+                              <p className="mt-2 text-sm font-semibold text-slate-700">
+                                No training session
+                              </p>
 
-                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#191c1e] text-[10px] font-bold text-white">
-                          {getInitials(
-                            participant.name,
+                              <p className="mt-1 text-xs text-slate-500">
+                                There is no scheduled training on this date.
+                              </p>
+                            </div>
+                          )}
+
+                          {selectedDaySessions.length >
+                            0 && (
+                            <div className="space-y-3">
+                              {selectedDaySessions.map(
+                                (
+                                  session,
+                                ) => (
+                                  <div
+                                    key={
+                                      session.id
+                                    }
+                                    className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                                  >
+                                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                      <div className="flex items-start gap-3">
+                                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-sm font-bold text-white">
+                                          {
+                                            session.sessionNumber
+                                          }
+                                        </div>
+
+                                        <div className="min-w-0">
+                                          <p className="font-bold text-slate-900">
+                                            Session{" "}
+                                            {
+                                              session.sessionNumber
+                                            }
+                                          </p>
+
+                                          <p className="mt-1 text-sm text-slate-500">
+                                            {formatDate(
+                                              String(
+                                                session.sessionDate,
+                                              ),
+                                            )}
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex flex-wrap gap-2">
+                                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium text-slate-600">
+                                          <Clock3 className="h-3.5 w-3.5" />
+
+                                          {getSessionTime(
+                                            session.startTime,
+                                            session.endTime,
+                                          )}
+                                        </span>
+
+                                        <span className="rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700">
+                                          {
+                                            session.durationHours
+                                          }{" "}
+                                          hrs
+                                        </span>
+
+                                        <span className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
+                                          {
+                                            session.status
+                                          }
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ),
+                              )}
+                            </div>
                           )}
                         </div>
 
-                        <div>
-
-                          <p className="text-xs font-semibold">
-                            {participant.name}
-                          </p>
-
-                          <p className="mt-0.5 text-[10px] text-gray-400">
-                            {participant.email}
-                          </p>
-
-                        </div>
-
-                      </div>
-
-                    </td>
-
-                    <td className="px-4 py-4">
-
-                      <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-semibold text-gray-600">
-                        {participant.status}
-                      </span>
-
-                    </td>
-
-                    <td className="px-4 py-4">
-
-                      {participant.attendance ===
-                      0 ? (
-                        <span className="text-[10px] text-gray-400">
-                          Not started
-                        </span>
-                      ) : (
-                        <span
-                          className={`text-xs font-bold ${
-                            participant.attendance >=
-                            90
-                              ? "text-emerald-600"
-                              : participant.attendance >=
-                                  80
-                                ? "text-amber-600"
-                                : "text-red-600"
-                          }`}
-                        >
-                          {
-                            participant.attendance
-                          }
-                          %
-                        </span>
-                      )}
-
-                    </td>
-
-                    <td className="px-4 py-4">
-
-                      <AssessmentBadge
-                        value={
-                          participant.assessment
-                        }
-                      />
-
-                    </td>
-
-                  </tr>
-                ),
-              )}
-
-            </tbody>
-
-          </table>
-
-        </div>
-
-      </div>
-
-    </div>
-  );
-}
-
-/* ==========================================================
-   SCHEDULE TAB
-========================================================== */
-
-function ScheduleTab({
-  training,
-}: {
-  training: Training;
-}) {
-  const schedule = [
-    {
-      date: "August 20, 2026",
-      topic: "Introduction to Computer Systems",
-      time: "8:00 AM – 5:00 PM",
-      type: "Lecture",
-    },
-    {
-      date: "August 21, 2026",
-      topic: "Computer Hardware Components",
-      time: "8:00 AM – 5:00 PM",
-      type: "Lecture + Activity",
-    },
-    {
-      date: "August 24, 2026",
-      topic: "Computer Assembly",
-      time: "8:00 AM – 5:00 PM",
-      type: "Laboratory",
-    },
-    {
-      date: "August 25, 2026",
-      topic: "Operating System Installation",
-      time: "8:00 AM – 5:00 PM",
-      type: "Laboratory",
-    },
-  ];
-
-  return (
-    <div className="space-y-5">
-
-      <div>
-
-        <h3 className="text-sm font-bold">
-          Training Schedule
-        </h3>
-
-        <p className="mt-1 text-xs text-gray-500">
-          Schedule for {training.title}.
-        </p>
-
-      </div>
-
-      <div className="rounded-2xl border border-[#e7e9ec]">
-
-        {schedule.map(
-          (item, index) => (
-            <div
-              key={`${item.date}-${index}`}
-              className="flex flex-col gap-3 border-b border-[#eef0f2] p-5 last:border-b-0 sm:flex-row sm:items-center"
-            >
-
-              <div className="w-36 shrink-0">
-
-                <p className="text-xs font-bold">
-                  {item.date}
-                </p>
-
-                <p className="mt-1 text-[10px] text-gray-400">
-                  {item.time}
-                </p>
-
-              </div>
-
-              <div className="h-px flex-1 bg-gray-100 sm:h-10 sm:w-px" />
-
-              <div className="min-w-0 flex-1">
-
-                <p className="text-xs font-semibold">
-                  {item.topic}
-                </p>
-
-                <p className="mt-1 text-[10px] text-gray-400">
-                  {item.type}
-                </p>
-
-              </div>
-
-              <div className="rounded-lg bg-gray-100 px-2.5 py-1.5 text-[10px] font-semibold text-gray-600">
-                {training.location}
-              </div>
-
-            </div>
-          ),
-        )}
-
-      </div>
-
-    </div>
-  );
-}
-
-/* ==========================================================
-   MATERIALS TAB
-========================================================== */
-
-function MaterialsTab({
-  training,
-}: {
-  training: Training;
-}) {
-  return (
-    <div className="space-y-5">
-
-      <div className="flex items-center justify-between">
-
-        <div>
-
-          <h3 className="text-sm font-bold">
-            Learning Materials
-          </h3>
-
-          <p className="mt-1 text-xs text-gray-500">
-            Materials prepared for this training.
-          </p>
-
-        </div>
-
-        <button
-          type="button"
-          onClick={() =>
-            alert(
-              "Mock upload action. In the actual system, the trainer can upload a learning material here.",
-            )
-          }
-          className="rounded-xl bg-[#191c1e] px-4 py-2.5 text-[11px] font-semibold text-white"
-        >
-          + Upload Material
-        </button>
-
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-
-        {training.materials.map(
-          (material) => (
-            <div
-              key={material.id}
-              className="flex items-center gap-3 rounded-2xl border border-[#e7e9ec] bg-white p-4"
-            >
-
-              <div
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[9px] font-bold ${
-                  materialStyles[
-                    material.type
-                  ]
-                }`}
-              >
-                {material.type ===
-                "Presentation"
-                  ? "PPT"
-                  : material.type ===
-                      "Activity"
-                    ? "ACT"
-                    : material.type ===
-                        "Video"
-                      ? "VID"
-                      : "PDF"}
-              </div>
-
-              <div className="min-w-0 flex-1">
-
-                <p className="truncate text-xs font-semibold">
-                  {material.title}
-                </p>
-
-                <p className="mt-1 text-[10px] text-gray-400">
-                  {material.type}
-                </p>
-
-              </div>
-
-              <button
-                type="button"
-                onClick={() =>
-                  alert(
-                    `Mock view:\n${material.title}`,
-                  )
-                }
-                className="rounded-lg border border-[#e7e9ec] px-3 py-2 text-[10px] font-semibold text-gray-600"
-              >
-                View
-              </button>
-
-            </div>
-          ),
-        )}
-
-      </div>
-
-    </div>
-  );
-}
-
-/* ==========================================================
-   ATTENDANCE TAB
-========================================================== */
-
-function AttendanceTab({
-  training,
-}: {
-  training: Training;
-}) {
-  return (
-    <div className="space-y-5">
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-
-        <div>
-
-          <h3 className="text-sm font-bold">
-            Attendance
-          </h3>
-
-          <p className="mt-1 text-xs text-gray-500">
-            Manage attendance for your assigned
-            participants.
-          </p>
-
-        </div>
-
-        <button
-          type="button"
-          onClick={() =>
-            alert(
-              "Mock attendance management screen.",
-            )
-          }
-          className="rounded-xl bg-[#191c1e] px-4 py-2.5 text-[11px] font-semibold text-white"
-        >
-          Manage Attendance
-        </button>
-
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-
-        <StatBox
-          label="Attendance Rate"
-          value={`${training.attendanceRate}%`}
-        />
-
-        <StatBox
-          label="Present Today"
-          value={`${Math.max(
-            training.participants - 2,
-            0,
-          )}`}
-        />
-
-        <StatBox
-          label="Needs Attention"
-          value="2"
-        />
-
-      </div>
-
-      <div className="rounded-2xl border border-[#e7e9ec] p-5">
-
-        <p className="text-xs font-bold">
-          Recent Attendance
-        </p>
-
-        <div className="mt-4 space-y-2">
-
-          {training.participantsList
-            .slice(0, 5)
-            .map((participant) => (
-              <div
-                key={participant.id}
-                className="flex items-center justify-between rounded-xl bg-[#f8f9fa] px-4 py-3"
-              >
-
-                <div>
-
-                  <p className="text-xs font-semibold">
-                    {participant.name}
-                  </p>
-
-                  <p className="mt-0.5 text-[10px] text-gray-400">
-                    Attendance rate
-                  </p>
-
+                        {/* SUMMARY */}
+
+                        {selectedTraining
+                          .sessions
+                          .length > 0 && (
+                          <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                  Schedule Summary
+                                </p>
+
+                                <p className="mt-1 text-sm font-semibold text-slate-800">
+                                  {
+                                    selectedTraining
+                                      .sessions
+                                      .length
+                                  }{" "}
+                                  training{" "}
+                                  {selectedTraining
+                                    .sessions
+                                    .length ===
+                                  1
+                                    ? "session"
+                                    : "sessions"}{" "}
+                                  approved
+                                </p>
+                              </div>
+
+                              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-600 shadow-sm">
+                                <CalendarDays className="h-5 w-5" />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
                 </div>
-
-                <span className="text-xs font-bold">
-                  {participant.attendance}%
-                </span>
-
               </div>
-            ))}
-
+            </div>
+          </div>
         </div>
-
-      </div>
-
+      )}
     </div>
   );
 }
 
-/* ==========================================================
-   ASSESSMENT TAB
-========================================================== */
+/* =========================================================
+   STAT CARD
+========================================================= */
 
-function AssessmentTab({
-  training,
+function StatCard({
+  label,
+  value,
+  icon,
 }: {
-  training: Training;
+  label: string;
+  value: number;
+  icon: React.ReactNode;
 }) {
-  const passed =
-    training.participantsList.filter(
-      (participant) =>
-        participant.assessment ===
-        "Passed",
-    ).length;
-
-  const pending =
-    training.participantsList.filter(
-      (participant) =>
-        participant.assessment ===
-        "Pending",
-    ).length;
-
-  const failed =
-    training.participantsList.filter(
-      (participant) =>
-        participant.assessment ===
-        "Failed",
-    ).length;
-
   return (
-    <div className="space-y-5">
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="flex items-center justify-between gap-3">
         <div>
-
-          <h3 className="text-sm font-bold">
-            Assessment / Exam Results
-          </h3>
-
-          <p className="mt-1 text-xs text-gray-500">
-            Manage assessments and participant
-            results for this training.
+          <p className="text-sm font-medium text-slate-500">
+            {label}
           </p>
 
+          <p className="mt-1 text-2xl font-bold text-slate-900">
+            {value}
+          </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() =>
-            alert(
-              "Mock assessment management screen.",
-            )
-          }
-          className="rounded-xl bg-[#191c1e] px-4 py-2.5 text-[11px] font-semibold text-white"
-        >
-          Manage Assessment
-        </button>
-
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+          {icon}
+        </div>
       </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-
-        <StatBox
-          label="Passed"
-          value={String(passed)}
-        />
-
-        <StatBox
-          label="Pending"
-          value={String(pending)}
-        />
-
-        <StatBox
-          label="Failed"
-          value={String(failed)}
-        />
-
-      </div>
-
-      <div className="rounded-2xl border border-[#e7e9ec]">
-
-        {training.participantsList.map(
-          (participant) => (
-            <div
-              key={participant.id}
-              className="flex items-center justify-between border-b border-[#eef0f2] p-4 last:border-b-0"
-            >
-
-              <div>
-
-                <p className="text-xs font-semibold">
-                  {participant.name}
-                </p>
-
-                <p className="mt-1 text-[10px] text-gray-400">
-                  {participant.email}
-                </p>
-
-              </div>
-
-              <AssessmentBadge
-                value={
-                  participant.assessment
-                }
-              />
-
-            </div>
-          ),
-        )}
-
-      </div>
-
     </div>
   );
 }
 
-/* ==========================================================
-   COMPLETION TAB
-========================================================== */
+/* =========================================================
+   INFO ROW
+========================================================= */
 
-function CompletionTab({
-  training,
-}: {
-  training: Training;
-}) {
-  const completed =
-    training.participantsList.filter(
-      (participant) =>
-        participant.status ===
-        "Completed",
-    ).length;
-
-  const eligible =
-    training.participantsList.filter(
-      (participant) =>
-        participant.attendance >= 90 &&
-        participant.assessment ===
-          "Passed",
-    ).length;
-
-  return (
-    <div className="space-y-5">
-
-      <div>
-
-        <h3 className="text-sm font-bold">
-          Completion
-        </h3>
-
-        <p className="mt-1 text-xs text-gray-500">
-          Review participant completion and
-          certificate eligibility.
-        </p>
-
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-
-        <StatBox
-          label="Completed"
-          value={String(completed)}
-        />
-
-        <StatBox
-          label="Eligible"
-          value={String(eligible)}
-        />
-
-        <StatBox
-          label="Total Participants"
-          value={String(
-            training.participants,
-          )}
-        />
-
-      </div>
-
-      <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-5">
-
-        <p className="text-xs font-bold text-blue-900">
-          Certificate workflow
-        </p>
-
-        <p className="mt-1 text-[11px] leading-5 text-blue-700">
-          Trainer verifies attendance and assessment
-          completion. Final certificate generation
-          and release will be handled by the
-          administrator.
-        </p>
-
-      </div>
-
-      <div className="rounded-2xl border border-[#e7e9ec]">
-
-        {training.participantsList.map(
-          (participant) => {
-            const isEligible =
-              participant.attendance >=
-                90 &&
-              participant.assessment ===
-                "Passed";
-
-            return (
-              <div
-                key={participant.id}
-                className="flex flex-col gap-3 border-b border-[#eef0f2] p-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
-              >
-
-                <div>
-
-                  <p className="text-xs font-semibold">
-                    {participant.name}
-                  </p>
-
-                  <p className="mt-1 text-[10px] text-gray-400">
-                    Attendance{" "}
-                    {participant.attendance}%
-                    {" • "}
-                    Assessment{" "}
-                    {participant.assessment}
-                  </p>
-
-                </div>
-
-                <span
-                  className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${
-                    isEligible
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                      : "border-amber-200 bg-amber-50 text-amber-700"
-                  }`}
-                >
-                  {isEligible
-                    ? "Certificate Eligible"
-                    : "For Completion"}
-                </span>
-
-              </div>
-            );
-          },
-        )}
-
-      </div>
-
-    </div>
-  );
-}
-
-/* ==========================================================
-   DETAIL ITEM
-========================================================== */
-
-function DetailItem({
+function InfoRow({
   icon,
   label,
   value,
 }: {
-  icon: string;
+  icon: React.ReactNode;
   label: string;
   value: string;
 }) {
   return (
-    <div className="flex items-start gap-3 rounded-xl bg-[#f8f9fa] p-3">
-
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-xs text-gray-500 shadow-sm">
+    <div className="flex items-start gap-3">
+      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
         {icon}
       </div>
 
       <div className="min-w-0">
-
-        <p className="text-[9px] font-bold uppercase tracking-[0.08em] text-gray-400">
+        <p className="text-xs font-medium text-slate-400">
           {label}
         </p>
 
-        <p className="mt-1 text-xs font-semibold leading-5">
+        <p className="mt-0.5 truncate text-sm font-medium text-slate-700">
           {value}
         </p>
-
       </div>
-
     </div>
   );
 }
 
-/* ==========================================================
-   STAT BOX
-========================================================== */
+/* =========================================================
+   DETAIL CARD
+========================================================= */
 
-function StatBox({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-[#e7e9ec] bg-white p-4">
-
-      <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-        {label}
-      </p>
-
-      <p className="mt-2 truncate text-xl font-bold tracking-tight">
-        {value}
-      </p>
-
-    </div>
-  );
-}
-
-/* ==========================================================
-   INFO CARD
-========================================================== */
-
-function InfoCard({
-  title,
-  value,
-}: {
-  title: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-[#e7e9ec] p-5">
-
-      <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-        {title}
-      </p>
-
-      <p className="mt-2 text-xs font-semibold leading-5">
-        {value}
-      </p>
-
-    </div>
-  );
-}
-
-/* ==========================================================
-   ASSESSMENT BADGE
-========================================================== */
-
-function AssessmentBadge({
-  value,
-}: {
-  value: Participant["assessment"];
-}) {
-  const styles = {
-    Passed:
-      "border-emerald-200 bg-emerald-50 text-emerald-700",
-    Pending:
-      "border-amber-200 bg-amber-50 text-amber-700",
-    Failed:
-      "border-red-200 bg-red-50 text-red-700",
-  };
-
-  return (
-    <span
-      className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${styles[value]}`}
-    >
-      {value}
-    </span>
-  );
-}
-
-/* ==========================================================
-   SUMMARY CARD
-========================================================== */
-
-function SummaryCard({
-  label,
-  value,
-  description,
+function DetailCard({
   icon,
-  type,
+  label,
+  value,
 }: {
+  icon: React.ReactNode;
   label: string;
-  value: number;
-  description: string;
-  icon: string;
-  type?: "success" | "warning" | "info";
+  value: string;
 }) {
-  const styles = {
-    success:
-      "bg-emerald-50 text-emerald-700",
-    warning:
-      "bg-amber-50 text-amber-700",
-    info:
-      "bg-blue-50 text-blue-700",
-  };
-
   return (
-    <div className="rounded-2xl border border-[#e7e9ec] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <div className="flex items-center gap-2 text-slate-500">
+        {icon}
 
-      <div className="flex items-start justify-between">
-
-        <div>
-
-          <p className="text-xs font-medium text-gray-500">
-            {label}
-          </p>
-
-          <p className="mt-2 text-2xl font-bold tracking-tight">
-            {value}
-          </p>
-
-        </div>
-
-        <div
-          className={`flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold ${
-            type
-              ? styles[type]
-              : "bg-[#f4f5f6] text-gray-600"
-          }`}
-        >
-          {icon}
-        </div>
-
+        <span className="text-xs font-medium">
+          {label}
+        </span>
       </div>
 
-      <p className="mt-4 text-[11px] text-gray-400">
-        {description}
+      <p className="mt-2 text-sm font-semibold text-slate-900">
+        {value}
       </p>
-
     </div>
   );
-}
-
-/* ==========================================================
-   EMPTY STATE
-========================================================== */
-
-function EmptyState() {
-  return (
-    <div className="rounded-2xl border border-dashed border-[#dfe2e5] bg-white px-6 py-16 text-center">
-
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-lg text-gray-400">
-        ⌕
-      </div>
-
-      <h3 className="mt-4 text-sm font-bold">
-        No trainings found
-      </h3>
-
-      <p className="mt-1 text-xs text-gray-500">
-        No assigned training matches your current
-        search or filter.
-      </p>
-
-    </div>
-  );
-}
-
-/* ==========================================================
-   INITIALS
-========================================================== */
-
-function getInitials(
-  name: string,
-) {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 }

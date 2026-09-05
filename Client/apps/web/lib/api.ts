@@ -6,6 +6,8 @@ import {
   TrainerApplicationApi,
   AttendanceApi,
   TrainingBatchApi,
+  TrainerAssignmentApi,
+  
 } from "@repo/api";
 import { auth } from "./auth";
 
@@ -31,3 +33,7 @@ export const trainerApplicationApi =
 
   export const trainingBatchApi =
   new TrainingBatchApi(apiClient);
+
+  
+  export const trainerAssignmentApi =
+  new TrainerAssignmentApi(apiClient);

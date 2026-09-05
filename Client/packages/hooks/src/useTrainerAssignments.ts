@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -16,8 +17,28 @@ import type {
 } from "@repo/api";
 
 export function useTrainerAssignments(
-  trainerAssignmentApi: TrainerAssignmentApi
+  trainerAssignmentApi: TrainerAssignmentApi,
+  options?: {
+    loadAll?: boolean;
+  },
 ) {
+  // =========================================================
+  // OPTIONS
+  // =========================================================
+
+  /**
+   * Admin:
+   *   useTrainerAssignments(api)
+   *
+   * Trainer:
+   *   useTrainerAssignments(api, {
+   *     loadAll: false,
+   *   })
+   *
+   * Default is true so existing Admin behavior
+   * remains unchanged.
+   */
+  const loadAll = options?.loadAll ?? true;
 
   // =========================================================
   // DATA
@@ -29,10 +50,16 @@ export function useTrainerAssignments(
   ] = useState<TrainerAssignment[]>([]);
 
   const [
+    myAssignments,
+    setMyAssignments,
+  ] = useState<TrainerAssignment[]>([]);
+
+  const [
     selectedAssignment,
     setSelectedAssignment,
-  ] = useState<TrainerAssignment | null>(null);
-
+  ] = useState<TrainerAssignment | null>(
+    null,
+  );
 
   // =========================================================
   // LOADING
@@ -41,6 +68,11 @@ export function useTrainerAssignments(
   const [
     isLoading,
     setIsLoading,
+  ] = useState(false);
+
+  const [
+    isLoadingMyAssignments,
+    setIsLoadingMyAssignments,
   ] = useState(false);
 
   const [
@@ -53,7 +85,6 @@ export function useTrainerAssignments(
     setIsDeleting,
   ] = useState(false);
 
-
   // =========================================================
   // ERROR
   // =========================================================
@@ -63,263 +94,277 @@ export function useTrainerAssignments(
     setError,
   ] = useState<string | null>(null);
 
-
   // =========================================================
   // GET ALL ASSIGNMENTS
+  // ADMIN ONLY
   // =========================================================
 
   const loadAssignments = useCallback(
     async () => {
-
       try {
-
         setIsLoading(true);
         setError(null);
 
         const result =
           await trainerAssignmentApi.getAll();
 
-        setAssignments(
+        const normalized =
           Array.isArray(result)
             ? result
-            : []
-        );
+            : [];
 
+        setAssignments(normalized);
+
+        return normalized;
       } catch (error) {
-
         console.error(
           "LOAD TRAINER ASSIGNMENTS ERROR:",
-          error
+          error,
         );
 
         setError(
           error instanceof Error
             ? error.message
-            : "Unable to load trainer assignments."
+            : "Unable to load trainer assignments.",
         );
 
         setAssignments([]);
 
+        return [];
       } finally {
-
         setIsLoading(false);
-
       }
-
     },
-    [
-      trainerAssignmentApi,
-    ]
+    [trainerAssignmentApi],
   );
-
 
   // =========================================================
   // GET MY ASSIGNMENTS
+  // TRAINER ONLY
   // =========================================================
 
   const loadMyAssignments = useCallback(
     async () => {
-
       try {
-
-        setIsLoading(true);
+        setIsLoadingMyAssignments(true);
         setError(null);
 
         const result =
-          await trainerAssignmentApi
-            .getMyAssignments();
+          await trainerAssignmentApi.getMyAssignments();
 
-        return result;
+        const normalized =
+          Array.isArray(result)
+            ? result.filter(
+                (assignment) =>
+                  assignment.isActive,
+              )
+            : [];
 
+        setMyAssignments(normalized);
+
+        return normalized;
       } catch (error) {
-
         console.error(
           "LOAD MY TRAINER ASSIGNMENTS ERROR:",
-          error
+          error,
         );
 
         setError(
           error instanceof Error
             ? error.message
-            : "Unable to load your trainer assignments."
+            : "Unable to load your training assignments.",
         );
 
+        setMyAssignments([]);
+
         return [];
-
       } finally {
-
-        setIsLoading(false);
-
+        setIsLoadingMyAssignments(false);
       }
-
     },
-    [
-      trainerAssignmentApi,
-    ]
+    [trainerAssignmentApi],
   );
-
 
   // =========================================================
   // ASSIGN TRAINER
+  // ADMIN ONLY
   // =========================================================
 
   const assignTrainer = useCallback(
     async (
-      request: AssignTrainerRequest
+      request: AssignTrainerRequest,
     ) => {
-
       try {
-
         setIsCreating(true);
         setError(null);
 
         const result =
           await trainerAssignmentApi.create(
-            request
+            request,
           );
 
         await loadAssignments();
 
-        setSelectedAssignment(
-          result
-        );
+        setSelectedAssignment(result);
 
         return result;
-
       } catch (error) {
-
         console.error(
           "ASSIGN TRAINER ERROR:",
-          error
+          error,
         );
 
         setError(
           error instanceof Error
             ? error.message
-            : "Unable to assign trainer."
+            : "Unable to assign trainer.",
         );
 
         return null;
-
       } finally {
-
         setIsCreating(false);
-
       }
-
     },
     [
       trainerAssignmentApi,
       loadAssignments,
-    ]
+    ],
   );
-
 
   // =========================================================
   // REMOVE ASSIGNMENT
+  // ADMIN ONLY
   // =========================================================
 
   const removeAssignment = useCallback(
     async (
-      id: string
+      id: string,
     ) => {
-
       try {
-
         setIsDeleting(true);
         setError(null);
 
         await trainerAssignmentApi.delete(
-          id
+          id,
         );
 
         setAssignments(
-          current =>
+          (current) =>
             current.filter(
-              assignment =>
-                assignment.id !== id
-            )
+              (assignment) =>
+                assignment.id !== id,
+            ),
+        );
+
+        setMyAssignments(
+          (current) =>
+            current.filter(
+              (assignment) =>
+                assignment.id !== id,
+            ),
         );
 
         if (
           selectedAssignment?.id === id
         ) {
-
-          setSelectedAssignment(
-            null
-          );
-
+          setSelectedAssignment(null);
         }
 
         return true;
-
       } catch (error) {
-
         console.error(
           "REMOVE TRAINER ASSIGNMENT ERROR:",
-          error
+          error,
         );
 
         setError(
           error instanceof Error
             ? error.message
-            : "Unable to remove trainer assignment."
+            : "Unable to remove trainer assignment.",
         );
 
         return false;
-
       } finally {
-
         setIsDeleting(false);
-
       }
-
     },
     [
       trainerAssignmentApi,
       selectedAssignment?.id,
-    ]
+    ],
   );
-
 
   // =========================================================
   // FIND ASSIGNMENT BY BATCH
+  // ADMIN
   // =========================================================
 
   const getAssignmentByBatch =
     useCallback(
       (
-        trainingBatchId: string
+        trainingBatchId: string,
       ) => {
-
         return (
           assignments.find(
-            assignment =>
+            (assignment) =>
               assignment.trainingBatchId ===
                 trainingBatchId &&
-              assignment.isActive
+              assignment.isActive,
           ) ?? null
         );
-
       },
-      [
-        assignments,
-      ]
+      [assignments],
     );
 
+  // =========================================================
+  // FIND MY ASSIGNMENT BY BATCH
+  // TRAINER
+  // =========================================================
+
+  const getMyAssignmentByBatch =
+    useCallback(
+      (
+        trainingBatchId: string,
+      ) => {
+        return (
+          myAssignments.find(
+            (assignment) =>
+              assignment.trainingBatchId ===
+                trainingBatchId &&
+              assignment.isActive,
+          ) ?? null
+        );
+      },
+      [myAssignments],
+    );
 
   // =========================================================
   // INITIAL LOAD
   // =========================================================
+  //
+  // ADMIN:
+  //   loadAll = true
+  //   → GET /api/trainer-assignments
+  //
+  // TRAINER:
+  //   loadAll = false
+  //   → DO NOT call GET /api/trainer-assignments
+  //
+  // Trainer page will explicitly call:
+  //   loadMyAssignments()
+  //
+  // =========================================================
 
   useEffect(() => {
+    if (!loadAll) {
+      return;
+    }
 
     loadAssignments();
-
   }, [
+    loadAll,
     loadAssignments,
   ]);
-
 
   // =========================================================
   // RESET
@@ -327,43 +372,69 @@ export function useTrainerAssignments(
 
   const reset = useCallback(
     () => {
-
       setAssignments([]);
+      setMyAssignments([]);
       setSelectedAssignment(null);
 
       setIsLoading(false);
+      setIsLoadingMyAssignments(false);
       setIsCreating(false);
       setIsDeleting(false);
 
       setError(null);
-
     },
-    []
+    [],
   );
-
 
   // =========================================================
   // RETURN
   // =========================================================
 
   return {
+    // =======================================================
+    // DATA
+    // =======================================================
 
     assignments,
+    myAssignments,
     selectedAssignment,
 
     setSelectedAssignment,
 
+    // =======================================================
+    // LOADING
+    // =======================================================
+
     isLoading,
+    isLoadingMyAssignments,
     isCreating,
     isDeleting,
 
+    // =======================================================
+    // ERROR
+    // =======================================================
+
     error,
 
+    // =======================================================
+    // ADMIN
+    // =======================================================
+
     loadAssignments,
-    loadMyAssignments,
     assignTrainer,
     removeAssignment,
     getAssignmentByBatch,
+
+    // =======================================================
+    // TRAINER
+    // =======================================================
+
+    loadMyAssignments,
+    getMyAssignmentByBatch,
+
+    // =======================================================
+    // RESET
+    // =======================================================
 
     reset,
   };

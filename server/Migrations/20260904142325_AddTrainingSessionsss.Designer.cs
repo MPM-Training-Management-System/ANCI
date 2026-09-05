@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using server.Data;
@@ -11,9 +12,11 @@ using server.Data;
 namespace server.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260904142325_AddTrainingSessionsss")]
+    partial class AddTrainingSessionsss
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -121,16 +124,11 @@ namespace server.Migrations
                     b.Property<Guid>("TrainingBatchId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("TrainingSessionId")
-                        .HasColumnType("uuid");
-
                     b.HasKey("Id");
 
                     b.HasIndex("Status");
 
                     b.HasIndex("TrainingBatchId");
-
-                    b.HasIndex("TrainingSessionId");
 
                     b.ToTable("AttendanceSessions");
                 });
@@ -767,15 +765,7 @@ namespace server.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("server.Models.Training.TrainingSession", "TrainingSession")
-                        .WithMany("AttendanceSessions")
-                        .HasForeignKey("TrainingSessionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.Navigation("TrainingBatch");
-
-                    b.Navigation("TrainingSession");
                 });
 
             modelBuilder.Entity("server.Models.Otp.OtpVerification", b =>
@@ -969,11 +959,6 @@ namespace server.Migrations
                     b.Navigation("Documents");
 
                     b.Navigation("Requirements");
-                });
-
-            modelBuilder.Entity("server.Models.Training.TrainingSession", b =>
-                {
-                    b.Navigation("AttendanceSessions");
                 });
 #pragma warning restore 612, 618
         }

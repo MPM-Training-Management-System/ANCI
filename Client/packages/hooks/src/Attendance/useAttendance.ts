@@ -8,6 +8,7 @@ import type {
   AttendanceQrDto,
   ManualAttendanceRequest,
   OpenAttendanceRequest,
+  OpenAttendanceSessionDto,
   ScanAttendanceRequest,
 } from "@repo/types";
 
@@ -25,8 +26,16 @@ import type {
 // - Admin Web
 //
 // IMPORTANT:
-// AttendanceSession status comes from backend.
-// We DO NOT infer OPEN/CLOSED from QR.
+// Session status and Manual Attendance status
+// are two DIFFERENT states.
+//
+// Session OPEN
+//     ↓
+// QR scanning is allowed
+//
+// Manual Attendance OPEN
+//     ↓
+// Participant manual Time In / Time Out is allowed
 // ============================================================
 
 export function useAttendance(
@@ -64,16 +73,35 @@ export function useAttendance(
 
 
   // ==========================================================
-  // ACTIVE OPEN SESSION
+  // ACTIVE SESSION
   //
-  // null = no open session
+  // null = no active session
   // value = actual AttendanceSession ID
+  //
+  // IMPORTANT:
+  // This controls SESSION / QR availability only.
   // ==========================================================
 
   const [
     openSessionId,
     setOpenSessionId,
   ] = useState<string | null>(null);
+
+
+  // ==========================================================
+  // MANUAL ATTENDANCE STATUS
+  //
+  // true  = participant manual attendance is enabled
+  // false = participant manual attendance is disabled
+  //
+  // IMPORTANT:
+  // This is NOT the same as openSessionId.
+  // ==========================================================
+
+  const [
+    manualAttendanceOpen,
+    setManualAttendanceOpen,
+  ] = useState(false);
 
 
   // ==========================================================
@@ -147,89 +175,91 @@ export function useAttendance(
 
 
   // ==========================================================
-  // GET CURRENT OPEN SESSION
+  // GET CURRENT SESSION STATE
   //
-  // GET
+  // GET:
   // /api/attendance/batch/{batchId}/open
   //
-  // 200:
+  // Backend returns:
+  //
   // {
-  //   attendanceSessionId: "..."
+  //   isOpen: boolean,
+  //   attendanceSessionId: string | null,
+  //   manualAttendanceOpen: boolean
   // }
   //
-  // 404:
-  // No active session
+  // IMPORTANT:
+  // We do NOT use QR to determine session state.
   // ==========================================================
+const loadOpenAttendanceSession =
+  useCallback(
+    async (
+      batchId: string,
+      trainingSessionId: string
+    ): Promise<
+      OpenAttendanceSessionDto | null
+    > => {
 
-  const loadOpenAttendanceSession =
-    useCallback(
-      async (
-        batchId: string
-      ) => {
+      if (!batchId || !trainingSessionId) {
+        setOpenSessionId(null);
+        setManualAttendanceOpen(false);
 
-        if (!batchId) {
-          setOpenSessionId(null);
-          return null;
-        }
+        return null;
+      }
 
-        try {
+      try {
 
-          setIsLoadingOpenSession(true);
-          setOpenSessionError(null);
+        setIsLoadingOpenSession(true);
+        setOpenSessionError(null);
 
-          const result =
-            await api.getOpenSession(
-              batchId
-            );
+        const result =
+          await api.getOpenSession(
+            batchId,
+            trainingSessionId
+          );
 
-          const sessionId =
-            result.attendanceSessionId;
-
+        if (result.isOpen) {
           setOpenSessionId(
-            sessionId
+            result.attendanceSessionId
           );
-
-          return sessionId;
-
-        } catch (err) {
-
-          /*
-           * IMPORTANT
-           *
-           * 404 means there is no open
-           * attendance session.
-           *
-           * This is NOT treated as a
-           * fatal application error.
-           */
-
+        } else {
           setOpenSessionId(null);
-
-          const normalizedError =
-            err instanceof Error
-              ? err
-              : new Error(
-                  "No open attendance session."
-                );
-
-          setOpenSessionError(
-            normalizedError
-          );
-
-          return null;
-
-        } finally {
-
-          setIsLoadingOpenSession(
-            false
-          );
-
         }
 
-      },
-      [api]
-    );
+        setManualAttendanceOpen(
+          result.isOpen &&
+          result.manualAttendanceOpen
+        );
 
+        return result;
+
+      } catch (err) {
+
+        setOpenSessionId(null);
+        setManualAttendanceOpen(false);
+
+        const normalizedError =
+          err instanceof Error
+            ? err
+            : new Error(
+                "Failed to load attendance session status."
+              );
+
+        setOpenSessionError(
+          normalizedError
+        );
+
+        return null;
+
+      } finally {
+
+        setIsLoadingOpenSession(false);
+
+      }
+
+    },
+    [api]
+  );
 
   // ==========================================================
   // GET ATTENDANCE SESSION RECORDS
@@ -336,7 +366,11 @@ export function useAttendance(
 
 
   // ==========================================================
-  // OPEN ATTENDANCE
+  // START / OPEN SESSION
+  //
+  // Session becomes OPEN.
+  //
+  // Manual Attendance remains CLOSED.
   // ==========================================================
 
   const openAttendance =
@@ -354,19 +388,30 @@ export function useAttendance(
             request
           );
 
-          /*
-           * Immediately ask backend for
-           * the real active session.
-           */
+          // ================================================
+          // Get the actual session state from backend.
+          // ================================================
 
-          const sessionId =
-            await api.getOpenSession(
-              request.trainingBatchId
+         const result =
+  await api.getOpenSession(
+    request.trainingBatchId,
+    request.trainingSessionId
+  );
+
+          if (result.isOpen) {
+            setOpenSessionId(
+              result.attendanceSessionId
             );
 
-          setOpenSessionId(
-            sessionId.attendanceSessionId
-          );
+            setManualAttendanceOpen(
+              result.manualAttendanceOpen
+            );
+          } else {
+            setOpenSessionId(null);
+            setManualAttendanceOpen(false);
+          }
+
+          return result;
 
         } catch (err) {
 
@@ -395,7 +440,10 @@ export function useAttendance(
 
 
   // ==========================================================
-  // CLOSE ATTENDANCE
+  // END / CLOSE SESSION
+  //
+  // Session CLOSED
+  // Manual Attendance automatically CLOSED.
   // ==========================================================
 
   const closeAttendance =
@@ -413,13 +461,18 @@ export function useAttendance(
             sessionId
           );
 
-          /*
-           * Backend is now closed.
-           */
+          // ================================================
+          // Session is now closed.
+          // ================================================
 
-          setOpenSessionId(
-            null
-          );
+          setOpenSessionId(null);
+
+          // ================================================
+          // Manual attendance is automatically closed
+          // by backend when session ends.
+          // ================================================
+
+          setManualAttendanceOpen(false);
 
         } catch (err) {
 
@@ -448,14 +501,124 @@ export function useAttendance(
 
 
   // ==========================================================
+  // OPEN MANUAL ATTENDANCE
+  //
+  // Session must already be OPEN.
+  //
+  // Result:
+  // Session = OPEN
+  // Manual = OPEN
+  // QR = ENABLED
+  // ==========================================================
+
+  const openManualAttendance =
+    useCallback(
+      async (
+        sessionId: string
+      ) => {
+
+        try {
+
+          setIsSubmitting(true);
+          setError(null);
+
+          await api.openManualAttendance(
+            sessionId
+          );
+
+          setManualAttendanceOpen(
+            true
+          );
+
+        } catch (err) {
+
+          const normalizedError =
+            err instanceof Error
+              ? err
+              : new Error(
+                  "Failed to open manual attendance."
+                );
+
+          setError(
+            normalizedError
+          );
+
+          throw normalizedError;
+
+        } finally {
+
+          setIsSubmitting(false);
+
+        }
+
+      },
+      [api]
+    );
+
+
+  // ==========================================================
+  // CLOSE MANUAL ATTENDANCE
+  //
+  // Session remains OPEN.
+  //
+  // Result:
+  // Session = OPEN
+  // Manual = CLOSED
+  // QR = ENABLED
+  // ==========================================================
+
+  const closeManualAttendance =
+    useCallback(
+      async (
+        sessionId: string
+      ) => {
+
+        try {
+
+          setIsSubmitting(true);
+          setError(null);
+
+          await api.closeManualAttendance(
+            sessionId
+          );
+
+          setManualAttendanceOpen(
+            false
+          );
+
+        } catch (err) {
+
+          const normalizedError =
+            err instanceof Error
+              ? err
+              : new Error(
+                  "Failed to close manual attendance."
+                );
+
+          setError(
+            normalizedError
+          );
+
+          throw normalizedError;
+
+        } finally {
+
+          setIsSubmitting(false);
+
+        }
+
+      },
+      [api]
+    );
+
+
+  // ==========================================================
   // LOAD PARTICIPANT QR
   //
-  // NOTE:
-  // This endpoint is session-based in the
-  // current API.
+  // QR is permanent.
   //
-  // The UI should not use QR availability
-  // to determine OPEN/CLOSED.
+  // The QR itself does NOT determine whether
+  // attendance is currently open.
   // ==========================================================
 
   const loadAttendanceQr =
@@ -510,6 +673,13 @@ export function useAttendance(
 
   // ==========================================================
   // SCAN ATTENDANCE QR
+  //
+  // Trainer only.
+  //
+  // Backend checks:
+  // Session OPEN.
+  //
+  // Manual Attendance status does NOT matter.
   // ==========================================================
 
   const scanAttendance =
@@ -555,6 +725,12 @@ export function useAttendance(
 
   // ==========================================================
   // MANUAL TIME IN / TIME OUT
+  //
+  // Participant only.
+  //
+  // Backend checks:
+  // Session OPEN
+  // Manual Attendance OPEN
   // ==========================================================
 
   const manualAttendance =
@@ -601,23 +777,22 @@ export function useAttendance(
   // ==========================================================
   // REFRESH OPEN SESSION
   // ==========================================================
+const refreshOpenAttendanceSession =
+  useCallback(
+    async (
+      batchId: string,
+      trainingSessionId: string
+    ) => {
 
-  const refreshOpenAttendanceSession =
-    useCallback(
-      async (
-        batchId: string
-      ) => {
-
-        return loadOpenAttendanceSession(
-          batchId
-        );
-
-      },
-      [
-        loadOpenAttendanceSession,
-      ]
-    );
-
+      return loadOpenAttendanceSession(
+        batchId,
+        trainingSessionId
+      );
+    },
+    [
+      loadOpenAttendanceSession,
+    ]
+  );
 
   // ==========================================================
   // REFRESH SESSION RECORDS
@@ -689,6 +864,8 @@ export function useAttendance(
 
       setOpenSessionId(null);
 
+      setManualAttendanceOpen(false);
+
       setOpenSessionError(null);
 
       setError(null);
@@ -719,6 +896,8 @@ export function useAttendance(
 
     openSessionId,
 
+    manualAttendanceOpen,
+
     isLoadingOpenSession,
 
     openSessionError,
@@ -729,16 +908,25 @@ export function useAttendance(
 
 
     // --------------------------------------------------------
+    // Session controls
+    // --------------------------------------------------------
+
+    openAttendance,
+
+    closeAttendance,
+
+    openManualAttendance,
+
+    closeManualAttendance,
+
+
+    // --------------------------------------------------------
     // Attendance session
     // --------------------------------------------------------
 
     loadAttendanceSession,
 
     refreshAttendanceSession,
-
-    openAttendance,
-
-    closeAttendance,
 
 
     // --------------------------------------------------------

@@ -97,30 +97,33 @@ public class TrainerAssignmentService
         x.IsActive
     ));
 }
-    public async Task<IEnumerable<TrainerAssignmentDto>>
-        GetMyAssignmentsAsync(
-            Guid trainerUserId)
-    {
-        return await _context.TrainerAssignments
-            .AsNoTracking()
-            .Include(x => x.TrainerProfile)
-                .ThenInclude(x => x.User)
-            .Include(x => x.TrainingBatch)
-            .Where(x =>
-                x.TrainerProfile.UserId == trainerUserId &&
-                x.IsActive)
-            .Select(x => new TrainerAssignmentDto(
-                x.Id,
-                x.TrainerProfileId,
-                x.TrainingBatchId,
-                x.TrainerProfile.User.FullName,
-                x.TrainingBatch.BatchCode,
-                x.AssignedAt,
-                x.IsActive
-            ))
-            .OrderByDescending(x => x.AssignedAt)
-            .ToListAsync();
-    }
+
+public async Task<IEnumerable<TrainerAssignmentDto>> GetMyAssignmentsAsync(
+    Guid trainerUserId)
+{
+    var assignments = await _context.TrainerAssignments
+        .AsNoTracking()
+        .Include(x => x.TrainerProfile)
+            .ThenInclude(x => x.User)
+        .Include(x => x.TrainingBatch)
+        .Where(x =>
+            x.TrainerProfile.UserId == trainerUserId &&
+            x.IsActive)
+        .OrderByDescending(x => x.AssignedAt)
+        .ToListAsync();
+
+    return assignments.Select(x => new TrainerAssignmentDto(
+        x.Id,
+        x.TrainerProfileId,
+        x.TrainingBatchId,
+        x.TrainerProfile.User.FullName,
+        x.TrainingBatch.BatchCode,
+        x.AssignedAt,
+        x.IsActive
+    ));
+}
+
+
 
    public async Task DeleteAsync(Guid id)
 {

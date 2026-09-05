@@ -10,10 +10,19 @@ import { ApiClient } from "../api/client";
 import { AttendanceEndpoints } from "./AttendanceEndpoint";
 
 export class AttendanceApi {
-  constructor(private readonly api: ApiClient) {}
+  constructor(
+    private readonly api: ApiClient
+  ) {}
 
   // ============================================================
-  // OPEN SESSION
+  // START / OPEN SESSION
+  //
+  // Trainer starts the training session.
+  //
+  // Result:
+  // Session = OPEN
+  // Manual Attendance = CLOSED
+  // QR Scanning = ENABLED
   // ============================================================
 
   async openSession(
@@ -29,7 +38,14 @@ export class AttendanceApi {
   }
 
   // ============================================================
-  // CLOSE SESSION
+  // END / CLOSE SESSION
+  //
+  // Trainer ends the training session.
+  //
+  // Result:
+  // Session = CLOSED
+  // Manual Attendance = CLOSED
+  // QR Scanning = DISABLED
   // ============================================================
 
   async closeSession(
@@ -37,6 +53,47 @@ export class AttendanceApi {
   ): Promise<void> {
     await this.api.request(
       AttendanceEndpoints.closeSession(id),
+      {
+        method: "POST",
+      }
+    );
+  }
+
+  // ============================================================
+  // OPEN MANUAL ATTENDANCE
+  //
+  // Trainer allows participants to manually
+  // Time In / Time Out.
+  //
+  // Session must already be OPEN.
+  // ============================================================
+
+  async openManualAttendance(
+    id: string
+  ): Promise<void> {
+    await this.api.request(
+      AttendanceEndpoints.openManualAttendance(id),
+      {
+        method: "POST",
+      }
+    );
+  }
+
+  // ============================================================
+  // CLOSE MANUAL ATTENDANCE
+  //
+  // Trainer disables participant manual
+  // Time In / Time Out.
+  //
+  // The training session remains OPEN.
+  // QR scanning remains ENABLED.
+  // ============================================================
+
+  async closeManualAttendance(
+    id: string
+  ): Promise<void> {
+    await this.api.request(
+      AttendanceEndpoints.closeManualAttendance(id),
       {
         method: "POST",
       }
@@ -60,6 +117,8 @@ export class AttendanceApi {
 
   // ============================================================
   // GET SESSION QR
+  //
+  // Gets the participant's permanent QR token.
   // ============================================================
 
   async getQr(
@@ -78,7 +137,14 @@ export class AttendanceApi {
   }
 
   // ============================================================
-  // SCAN
+  // SCAN ATTENDANCE
+  //
+  // Trainer scans participant permanent QR.
+  //
+  // Only requires:
+  // Session = OPEN
+  //
+  // Manual Attendance status does NOT matter.
   // ============================================================
 
   async scan(
@@ -94,7 +160,14 @@ export class AttendanceApi {
   }
 
   // ============================================================
-  // MANUAL
+  // MANUAL ATTENDANCE
+  //
+  // Participant:
+  // Time In / Time Out
+  //
+  // Backend checks:
+  // Session OPEN
+  // Manual Attendance OPEN
   // ============================================================
 
   async manual(
@@ -125,26 +198,47 @@ export class AttendanceApi {
   }
 
   // ============================================================
-  // GET CURRENT OPEN SESSION
+  // GET CURRENT SESSION STATE
   //
-  // Participant:
-  // GET /api/attendance/batch/{batchId}/open
+  // GET:
+  // /api/attendance/batch/{batchId}/open
   //
-  // 200 = OPEN
-  // 404 = CLOSED
+  // Response:
+  //
+  // {
+  //   isOpen: true,
+  //   attendanceSessionId: "...",
+  //   manualAttendanceOpen: true
+  // }
+  //
+  // OR:
+  //
+  // {
+  //   isOpen: false,
+  //   attendanceSessionId: null,
+  //   manualAttendanceOpen: false
+  // }
+  //
+  // IMPORTANT:
+  // isOpen and manualAttendanceOpen are DIFFERENT states.
   // ============================================================
-
- async getOpenSession(
-  batchId: string
+async getOpenSession(
+  batchId: string,
+  trainingSessionId: string
 ): Promise<{
   isOpen: boolean;
   attendanceSessionId: string | null;
+  manualAttendanceOpen: boolean;
 }> {
   return this.api.request<{
     isOpen: boolean;
     attendanceSessionId: string | null;
+    manualAttendanceOpen: boolean;
   }>(
-    `/api/attendance/batch/${batchId}/open`,
+    AttendanceEndpoints.getOpenSession(
+      batchId,
+      trainingSessionId
+    ),
     {
       method: "GET",
     }

@@ -33,6 +33,11 @@ builder.Services.AddScoped<
     IParticipantProfileService,
     ParticipantProfileService
 >();
+
+builder.Services.AddScoped<
+    ITrainingScheduleService,
+    TrainingScheduleService
+>();
 builder.Services.AddScoped<
     IAdminProfileService,
     AdminProfileService
