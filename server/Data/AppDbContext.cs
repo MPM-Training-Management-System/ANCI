@@ -738,12 +738,11 @@ modelBuilder.Entity<AttendanceRecord>(entity =>
     // Enrollment A + Sept 5 = allowed
     //
     entity.HasIndex(x => new
-    {
-        x.EnrollmentId,
-        x.AttendanceDate
-    })
-    .IsUnique();
-
+{
+    x.EnrollmentId,
+    x.AttendanceSessionId
+})
+.IsUnique();
     entity.HasOne(x => x.AttendanceSession)
         .WithMany(x => x.Records)
         .HasForeignKey(x => x.AttendanceSessionId)

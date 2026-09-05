@@ -340,4 +340,31 @@ public async Task<ActionResult<OpenAttendanceSessionDto>>
 
         return userId;
     }
+
+    // ============================================================
+// GET TRAINER ATTENDANCE PROGRESS
+//
+// GET:
+// /api/attendance/trainer/progress
+//
+// Returns only participants from training batches
+// assigned to the logged-in trainer.
+// ============================================================
+
+[HttpGet("trainer/progress")]
+[Authorize(Roles = "Trainer")]
+public async Task<
+    ActionResult<IEnumerable<AttendanceProgressDto>>>
+    GetTrainerAttendanceProgress()
+{
+    var trainerUserId =
+        GetCurrentUserId();
+
+    var result =
+        await _service
+            .GetTrainerAttendanceProgressAsync(
+                trainerUserId);
+
+    return Ok(result);
+}
 }

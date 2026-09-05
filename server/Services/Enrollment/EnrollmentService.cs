@@ -420,6 +420,92 @@ public class EnrollmentService : IEnrollmentService
     );
 }
 
+
+// =========================================================
+// GET TRAINER'S ENROLLMENTS
+//
+// TRAINER
+//
+// Returns only enrollments from training batches
+// assigned to the currently logged-in trainer.
+// =========================================================
+
+public async Task<IEnumerable<EnrollmentDto>>
+    GetMyEnrollmentsForTrainerAsync(
+        Guid trainerUserId)
+{
+    var enrollments =
+        await _context.Enrollments
+            .AsNoTracking()
+
+            // -------------------------------------------------
+            // PARTICIPANT
+            // -------------------------------------------------
+
+            .Include(x =>
+                x.ParticipantProfile)
+                .ThenInclude(x =>
+                    x.User)
+
+            // -------------------------------------------------
+            // TRAINING BATCH
+            // -------------------------------------------------
+
+            .Include(x =>
+                x.TrainingBatch)
+                .ThenInclude(x =>
+                    x.TrainingProgram)
+
+            // -------------------------------------------------
+            // DOCUMENTS
+            // -------------------------------------------------
+
+            .Include(x =>
+                x.Documents)
+                .ThenInclude(x =>
+                    x.Requirement)
+
+            // -------------------------------------------------
+            // ONLY BATCHES ASSIGNED TO THIS TRAINER
+            // -------------------------------------------------
+
+            .Where(x =>
+                x.TrainingBatch
+                    .TrainerAssignments
+                    .Any(assignment =>
+                        assignment.IsActive &&
+                        assignment.TrainerProfile.UserId ==
+                            trainerUserId
+                    )
+
+                // -------------------------------------------------
+                // EXCLUDE INVALID/INACTIVE ENROLLMENTS
+                // -------------------------------------------------
+
+                && x.Status != EnrollmentStatus.Rejected
+                && x.Status != EnrollmentStatus.Cancelled
+            )
+
+            .OrderByDescending(x =>
+                x.EnrolledAt)
+
+            .ToListAsync();
+
+
+    // ---------------------------------------------------------
+    // MAP TO EXISTING ENROLLMENT DTO
+    // ---------------------------------------------------------
+
+    return enrollments.Select(
+        x =>
+            MapToDto(
+                x,
+                x.ParticipantProfile,
+                x.TrainingBatch,
+                x.Documents
+            )
+    );
+}
     // =========================================================
     // REVIEW ENROLLMENT
     //

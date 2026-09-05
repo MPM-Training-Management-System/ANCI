@@ -659,13 +659,13 @@ var attendanceStatus =
         // =====================================================
 
         var existingRecord =
-            await _context.AttendanceRecords
-                .FirstOrDefaultAsync(
-                    x =>
-                        x.EnrollmentId ==
-                            enrollment.Id &&
-                        x.AttendanceDate ==
-                            today);
+    await _context.AttendanceRecords
+        .FirstOrDefaultAsync(
+            x =>
+                x.EnrollmentId ==
+                    enrollment.Id &&
+                x.AttendanceSessionId ==
+                    session.Id);
 
         // =====================================================
         // FIRST SCAN = TIME IN
@@ -740,7 +740,7 @@ var attendanceStatus =
         if (existingRecord.TimeOut.HasValue)
         {
             throw new InvalidOperationException(
-                "Participant has already completed attendance for today.");
+               "Participant has already completed attendance for this training session.");
         }
     }
 
@@ -897,13 +897,13 @@ var attendanceStatus =
         // =====================================================
 
         var record =
-            await _context.AttendanceRecords
-                .FirstOrDefaultAsync(
-                    x =>
-                        x.EnrollmentId ==
-                            enrollment.Id &&
-                        x.AttendanceDate ==
-                            today);
+    await _context.AttendanceRecords
+        .FirstOrDefaultAsync(
+            x =>
+                x.EnrollmentId ==
+                    enrollment.Id &&
+                x.AttendanceSessionId ==
+                    session.Id);
 
         // =====================================================
         // TIME IN
@@ -994,7 +994,7 @@ var attendanceStatus =
             if (record.TimeOut.HasValue)
             {
                 throw new InvalidOperationException(
-                    "You have already completed attendance for today.");
+                   "You have already completed attendance for this training session.");
             }
 
             record.TimeOut =
@@ -1362,4 +1362,207 @@ public async Task<Guid?> GetOpenSessionIdAsync(
 
         return session;
     }
+
+    // =========================================================
+// GET TRAINER ATTENDANCE PROGRESS
+//
+// Returns attendance progress for participants enrolled
+// in training batches assigned to the logged-in trainer.
+//
+// Trainer scope:
+// TrainerAssignments.IsActive == true
+//
+// Attendance:
+// Present / Late = Attended
+// Absent         = Absent
+// =========================================================
+
+public async Task<IEnumerable<AttendanceProgressDto>>
+    GetTrainerAttendanceProgressAsync(
+        Guid trainerUserId)
+{
+    // =====================================================
+    // GET TRAINING BATCHES ASSIGNED TO THIS TRAINER
+    // =====================================================
+
+    var trainerBatchIds =
+        await _context.TrainingBatches
+            .AsNoTracking()
+            .Where(batch =>
+                batch.TrainerAssignments.Any(assignment =>
+                    assignment.IsActive &&
+                    assignment.TrainerProfile.UserId ==
+                        trainerUserId))
+            .Select(batch => batch.Id)
+            .ToListAsync();
+
+    if (trainerBatchIds.Count == 0)
+    {
+        return [];
+    }
+
+    // =====================================================
+    // GET APPROVED ENROLLMENTS
+    // =====================================================
+
+    var enrollments =
+        await _context.Enrollments
+            .AsNoTracking()
+            .Where(enrollment =>
+                trainerBatchIds.Contains(
+                    enrollment.TrainingBatchId) &&
+                enrollment.Status ==
+                    EnrollmentStatus.Approved)
+            .Include(enrollment =>
+                enrollment.ParticipantProfile)
+                .ThenInclude(profile =>
+                    profile.User)
+            .ToListAsync();
+
+    if (enrollments.Count == 0)
+    {
+        return [];
+    }
+
+    // =====================================================
+    // GET TOTAL SCHEDULED SESSIONS PER BATCH
+    //
+    // Training sessions are the actual approved schedule.
+    // =====================================================
+
+    var sessionCounts =
+        await _context.TrainingSessions
+            .AsNoTracking()
+            .Where(session =>
+                trainerBatchIds.Contains(
+                    session.TrainingBatchId))
+            .GroupBy(session =>
+                session.TrainingBatchId)
+            .Select(group => new
+            {
+                TrainingBatchId =
+                    group.Key,
+
+                TotalSessions =
+                    group.Count()
+            })
+            .ToDictionaryAsync(
+                x => x.TrainingBatchId,
+                x => x.TotalSessions);
+
+    // =====================================================
+    // GET ATTENDANCE RECORDS
+    //
+    // We query by EnrollmentId directly here.
+    // This is more reliable than matching ParticipantName.
+    // =====================================================
+
+    var enrollmentIds =
+        enrollments
+            .Select(x => x.Id)
+            .ToList();
+
+    var attendanceRecords =
+        await _context.AttendanceRecords
+            .AsNoTracking()
+            .Where(record =>
+                enrollmentIds.Contains(
+                    record.EnrollmentId))
+            .Select(record => new
+            {
+                record.EnrollmentId,
+                record.Status
+            })
+            .ToListAsync();
+
+    // =====================================================
+    // BUILD PROGRESS
+    // =====================================================
+
+    var result =
+        new List<AttendanceProgressDto>();
+
+    foreach (var enrollment in enrollments)
+    {
+        var records =
+            attendanceRecords
+                .Where(record =>
+                    record.EnrollmentId ==
+                        enrollment.Id)
+                .ToList();
+
+        var totalSessions =
+            sessionCounts.TryGetValue(
+                enrollment.TrainingBatchId,
+                out var count)
+                ? count
+                : 0;
+
+        var attendedSessions =
+            records.Count(record =>
+                record.Status ==
+                    AttendanceStatus.Present ||
+                record.Status ==
+                    AttendanceStatus.Late ||
+                record.Status ==
+                    AttendanceStatus.TimeInOnly ||
+                record.Status ==
+                    AttendanceStatus.TimeOutOnly);
+
+        var lateSessions =
+            records.Count(record =>
+                record.Status ==
+                    AttendanceStatus.Late);
+
+        var absentSessions =
+            records.Count(record =>
+                record.Status ==
+                    AttendanceStatus.Absent);
+
+        var attendancePercentage =
+            totalSessions > 0
+                ? decimal.Round(
+                    (decimal)attendedSessions /
+                    totalSessions *
+                    100m,
+                    2,
+                    MidpointRounding.AwayFromZero)
+                : 0m;
+
+        result.Add(
+            new AttendanceProgressDto(
+                EnrollmentId:
+                    enrollment.Id,
+
+                TrainingBatchId:
+                    enrollment.TrainingBatchId,
+
+                ParticipantName:
+                    enrollment
+                        .ParticipantProfile
+                        .User
+                        .FullName,
+
+                TotalSessions:
+                    totalSessions,
+
+                AttendedSessions:
+                    attendedSessions,
+
+                LateSessions:
+                    lateSessions,
+
+                AbsentSessions:
+                    absentSessions,
+
+                AttendancePercentage:
+                    attendancePercentage
+            )
+        );
+    }
+
+    return result
+        .OrderBy(x => x.ParticipantName)
+        .ToList();
+}
 }

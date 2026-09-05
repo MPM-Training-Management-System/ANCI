@@ -32,6 +32,11 @@ export const EnrollmentEndpoints = {
   review: (id: string) =>
     `/api/enrollments/${id}/review`,
 
+  //Trainer
+
+  getfortrainer:
+  "/api/enrollments/trainer"
+
 } as const;
 
 

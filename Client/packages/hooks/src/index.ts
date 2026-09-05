@@ -12,3 +12,4 @@ export * from "./useTrainerAssignments";
 export * from "./useEnrollments";
 export * from "./useAdminMe";
 export * from "./Attendance";
+export * from "./useAttendanceProgress";

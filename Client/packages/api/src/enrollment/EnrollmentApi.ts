@@ -142,6 +142,17 @@ async getRequirements(
     );
   }
 
+  async getparticipant():
+    Promise<Enrollment[]> {
+
+    return this.api.request<Enrollment[]>(
+      EnrollmentEndpoints.getfortrainer,
+      {
+        method: "GET",
+      }
+    );
+  }
+
   
 
   // =======================================================

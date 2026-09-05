@@ -244,4 +244,37 @@ async getOpenSession(
     }
   );
 }
+
+
+
+async getAttendanceProgress(): Promise<
+  {
+    enrollmentId: string;
+    trainingBatchId: string;
+    participantName: string;
+    totalSessions: number;
+    attendedSessions: number;
+    lateSessions: number;
+    absentSessions: number;
+    attendancePercentage: number;
+  }[]
+> {
+  return this.api.request<
+    {
+      enrollmentId: string;
+      trainingBatchId: string;
+      participantName: string;
+      totalSessions: number;
+      attendedSessions: number;
+      lateSessions: number;
+      absentSessions: number;
+      attendancePercentage: number;
+    }[]
+  >(
+    AttendanceEndpoints.getattendanceprogress,
+    {
+      method: "GET",
+    }
+  );
+}
 }

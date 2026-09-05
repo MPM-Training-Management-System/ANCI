@@ -990,4 +990,36 @@ public async Task ApproveScheduleAsync(
 
     await _context.SaveChangesAsync();
 }
+// ============================================================
+// GET PARTICIPANT TRAINING SCHEDULE
+// ============================================================
+
+public async Task<IReadOnlyList<TrainingSessionDto>>
+    GetParticipantScheduleAsync(
+        Guid trainingBatchId,
+        Guid participantUserId)
+{
+    var isEnrolled = await _context.Enrollments
+        .AnyAsync(x =>
+            x.TrainingBatchId == trainingBatchId &&
+            x.ParticipantProfile.UserId == participantUserId &&
+            x.Status == EnrollmentStatus.Approved);
+
+    if (!isEnrolled)
+    {
+        throw new UnauthorizedAccessException(
+            "You are not enrolled in this training batch."
+        );
+    }
+
+    var sessions = await _context.TrainingSessions
+        .Where(x =>
+            x.TrainingBatchId == trainingBatchId)
+        .OrderBy(x => x.SessionNumber)
+        .ToListAsync();
+
+    return sessions
+        .Select(MapToDto)
+        .ToList();
+}
 }

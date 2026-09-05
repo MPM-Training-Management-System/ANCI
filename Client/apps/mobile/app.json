@@ -63,9 +63,10 @@
     ],
 
     "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
-    },
+  "typedRoutes": true,
+  "reactCompiler": true,
+  "autolinkingModuleResolution": true
+},
 
     "extra": {
       "router": {},

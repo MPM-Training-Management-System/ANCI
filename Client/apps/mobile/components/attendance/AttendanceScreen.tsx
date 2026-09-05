@@ -26,11 +26,13 @@ import { useEnrollments } from "@repo/hooks";
 import {
   attendanceApi,
   enrollmentApi,
+  trainingBatchApi,
 } from "@/api/api";
 
 import type {
   Enrollment,
   AttendanceRecordDto,
+  TrainingSession,
 } from "@repo/types";
 
 // ============================================================
@@ -178,13 +180,22 @@ export default function AttendanceScreen() {
     currentEnrollment?.attendanceToken ??
     null;
 
+  const [trainingSessions, setTrainingSessions] =
+    useState<TrainingSession[]>([]);
+
+  const [trainingSessionId, setTrainingSessionId] =
+    useState<string | null>(null);
+
+  const [isLoadingTrainingSession, setIsLoadingTrainingSession] =
+    useState(false);
+
   const participantName =
     currentEnrollment?.participant
       ?.fullName ??
     "Participant";
 
   // ============================================================
-  // PERMANENT QR AVAILABLE
+  // ATTENDANCE QR AVAILABLE
   //
   // IMPORTANT:
   // QR display does NOT depend on an open session.
@@ -202,6 +213,97 @@ export default function AttendanceScreen() {
         ).toLowerCase() ===
           "approved"
     );
+
+  // ============================================================
+  // LOAD TRAINING SCHEDULE / CURRENT SESSION
+  //
+  // Attendance requires both batchId and trainingSessionId.
+  // Resolve today's session first, then the next upcoming session,
+  // and finally the latest session if all sessions are past.
+  // ============================================================
+
+  const loadTrainingSession = useCallback(
+    async () => {
+      if (!batchId) {
+        setTrainingSessions([]);
+        setTrainingSessionId(null);
+        return null;
+      }
+
+      try {
+        setIsLoadingTrainingSession(true);
+
+        const result = await trainingBatchApi.getParticipantSchedule(batchId);
+        const sessions = Array.isArray(result) ? result : [];
+
+        setTrainingSessions(sessions);
+
+        const validSessions = sessions.filter(
+          session => Boolean(session?.id) && Boolean(session?.sessionDate),
+        );
+
+        if (validSessions.length === 0) {
+          setTrainingSessionId(null);
+          return null;
+        }
+
+        const now = new Date();
+        const todayKey = `${now.getFullYear()}-${String(
+          now.getMonth() + 1,
+        ).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+        const sessionDate = (session: TrainingSession) =>
+          new Date(session.sessionDate);
+
+        const dateKey = (session: TrainingSession) => {
+          const date = sessionDate(session);
+          if (Number.isNaN(date.getTime())) return null;
+          return `${date.getFullYear()}-${String(
+            date.getMonth() + 1,
+          ).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+        };
+
+        const sorted = [...validSessions].sort(
+          (a, b) => sessionDate(a).getTime() - sessionDate(b).getTime(),
+        );
+
+        const todaySessions = sorted.filter(
+          session => dateKey(session) === todayKey,
+        );
+
+        if (todaySessions.length > 0) {
+          const current =
+            todaySessions.find(
+              session => sessionDate(session).getTime() >= now.getTime(),
+            ) ?? todaySessions[0];
+
+          setTrainingSessionId(current.id);
+          return current.id;
+        }
+
+        const upcoming = sorted.find(
+          session => sessionDate(session).getTime() > now.getTime(),
+        );
+
+        if (upcoming) {
+          setTrainingSessionId(upcoming.id);
+          return upcoming.id;
+        }
+
+        const latest = sorted[sorted.length - 1];
+        setTrainingSessionId(latest?.id ?? null);
+        return latest?.id ?? null;
+      } catch (error) {
+        console.error("Failed to load training schedule:", error);
+        setTrainingSessions([]);
+        setTrainingSessionId(null);
+        return null;
+      } finally {
+        setIsLoadingTrainingSession(false);
+      }
+    },
+    [batchId],
+  );
 
   // ============================================================
   // LOAD OPEN SESSION
@@ -229,9 +331,20 @@ export default function AttendanceScreen() {
         try {
           setIsLoadingOpenSession(true);
 
+          const resolvedSessionId =
+            trainingSessionId ??
+            await loadTrainingSession();
+
+          if (!resolvedSessionId) {
+            setOpenSessionId(null);
+            setManualAttendanceOpen(false);
+            return null;
+          }
+
           const result =
             await attendanceApi.getOpenSession(
-              batchId
+              batchId,
+              resolvedSessionId,
             );
 
           // ======================================================
@@ -287,6 +400,8 @@ export default function AttendanceScreen() {
       },
       [
         batchId,
+        trainingSessionId,
+        loadTrainingSession,
       ]
     );
 
@@ -427,10 +542,24 @@ export default function AttendanceScreen() {
     }
 
     void loadAttendance();
-    void loadOpenAttendanceSession();
+    void loadTrainingSession();
   }, [
     batchId,
     loadAttendance,
+    loadTrainingSession,
+  ]);
+
+  useEffect(() => {
+    if (!batchId || !trainingSessionId) {
+      setOpenSessionId(null);
+      setManualAttendanceOpen(false);
+      return;
+    }
+
+    void loadOpenAttendanceSession();
+  }, [
+    batchId,
+    trainingSessionId,
     loadOpenAttendanceSession,
   ]);
 
@@ -448,10 +577,12 @@ export default function AttendanceScreen() {
         try {
           setIsRefreshing(true);
 
+          await loadMyEnrollments();
+          await loadTrainingSession();
+
           await Promise.all([
             loadAttendance(),
             loadOpenAttendanceSession(),
-            loadMyEnrollments(),
           ]);
         } catch (error) {
           console.error(
@@ -466,6 +597,7 @@ export default function AttendanceScreen() {
         loadAttendance,
         loadOpenAttendanceSession,
         loadMyEnrollments,
+        loadTrainingSession,
       ]
     );
 
@@ -785,14 +917,6 @@ export default function AttendanceScreen() {
   // QR INFORMATION
   // ============================================================
 
-  const handleQrInfo =
-    () => {
-      Alert.alert(
-        "Participant QR",
-        "This is your permanent attendance QR. Your trainer scans it during face-to-face training."
-      );
-    };
-
   // ============================================================
   // STATUS
   // ============================================================
@@ -814,7 +938,8 @@ export default function AttendanceScreen() {
 
   if (
     isLoadingEnrollments ||
-    isLoadingAttendance
+    isLoadingAttendance ||
+    isLoadingTrainingSession
   ) {
     return (
       <ScrollView
@@ -1035,6 +1160,7 @@ export default function AttendanceScreen() {
           disabled={
             isRefreshing ||
             isLoadingOpenSession ||
+            isLoadingTrainingSession ||
             isSubmittingAttendance
           }
           style={[
@@ -1108,94 +1234,79 @@ export default function AttendanceScreen() {
           </Text>
         </View>
       </View>
-
-      {/* ======================================================
-          SESSION STATUS
-      ====================================================== */}
+            
+     
+            {/* ======================================================
+          ATTENDANCE QR
+          ====================================================== */}
 
       <View
         style={
-          styles.sessionStatusCard
+          styles.section
         }
       >
-        <View
-          style={[
-            styles.sessionStatusIcon,
-            isSessionOpen
-              ? styles.openIcon
-              : styles.closedIcon,
-          ]}
-        >
-          <Ionicons
-            name={
-              isSessionOpen
-                ? "radio-outline"
-                : "lock-closed-outline"
-            }
-            size={20}
-            color={
-              isSessionOpen
-                ? "#16A34A"
-                : "#64748B"
-            }
-          />
-        </View>
-
-        <View
-          style={
-            styles.sessionStatusContent
-          }
-        >
-          <Text
+        {hasAttendanceQr ? (
+          <>
+            <ParticipantQrCard
+              participantCode={
+                attendanceToken!
+              }
+              participantName={
+                participantName
+              }
+              sessionOpen={
+                isSessionOpen
+              }
+            />
+            <View style={styles.howToUseCard}>
+              <View style={styles.howToUseIcon}>
+                <Ionicons name="scan-outline" size={18} color="#2563EB" />
+              </View>
+              <View style={styles.howToUseContent}>
+                <Text style={styles.howToUseTitle}>How to use</Text>
+                <Text style={styles.howToUseStep}>1. Show this QR code to your trainer.</Text>
+                <Text style={styles.howToUseStep}>2. Your trainer will scan it to record your attendance.</Text>
+                <Text style={styles.howToUseStep}>3. Make sure the attendance session is open.</Text>
+              </View>
+            </View>
+          </>
+        ) : (
+          <View
             style={
-              styles.sessionStatusLabel
+              styles.qrUnavailable
             }
           >
-            TRAINER ATTENDANCE
-          </Text>
+            <View
+              style={
+                styles.qrUnavailableIcon
+              }
+            >
+              <Ionicons
+                name="qr-code-outline"
+                size={25}
+                color="#94A3B8"
+              />
+            </View>
 
-          <Text
-            style={
-              styles.sessionStatusTitle
-            }
-          >
-            {isSessionOpen
-              ? "Attendance Session is Open"
-              : "Attendance Session is Closed"}
-          </Text>
+            <Text
+              style={
+                styles.qrUnavailableTitle
+              }
+            >
+              Attendance QR Unavailable
+            </Text>
 
-          <Text
-            style={
-              styles.sessionStatusText
-            }
-          >
-            {isSessionOpen
-              ? "Your trainer has started the training attendance session."
-              : "Wait for your trainer to start the attendance session."}
-          </Text>
-        </View>
-
-        <View
-          style={[
-            styles.openBadge,
-            isSessionOpen
-              ? styles.openBadgeActive
-              : styles.openBadgeClosed,
-          ]}
-        >
-          <Text
-            style={[
-              styles.openBadgeText,
-              isSessionOpen
-                ? styles.openBadgeTextActive
-                : styles.openBadgeTextClosed,
-            ]}
-          >
-            {isSessionOpen
-              ? "OPEN"
-              : "CLOSED"}
-          </Text>
-        </View>
+            <Text
+              style={
+                styles.qrUnavailableText
+              }
+            >
+              Your permanent attendance QR will
+              appear once your approved enrollment
+              has an attendance token.
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* ======================================================
@@ -1325,7 +1436,7 @@ export default function AttendanceScreen() {
             <Ionicons
               name="log-in-outline"
               size={19}
-              color="#FFFFFF"
+              color="#FFFFFFF"
             />
 
             <Text
@@ -1367,7 +1478,7 @@ export default function AttendanceScreen() {
             <Ionicons
               name="log-out-outline"
               size={19}
-              color="#FFFFFF"
+              color="#FFFFFFF"
             />
 
             <Text
@@ -1464,114 +1575,7 @@ export default function AttendanceScreen() {
         </View>
       )}
 
-      {/* ======================================================
-          PERMANENT QR
-          ====================================================== */}
-
-      <View
-        style={
-          styles.section
-        }
-      >
-        {hasAttendanceQr ? (
-          <>
-            <ParticipantQrCard
-              participantCode={
-                attendanceToken!
-              }
-              participantName={
-                participantName
-              }
-              sessionOpen={
-                isSessionOpen
-              }
-            />
-
-            <Pressable
-              onPress={
-                handleQrInfo
-              }
-              style={
-                styles.qrNotice
-              }
-            >
-              <View
-                style={
-                  styles.qrNoticeIcon
-                }
-              >
-                <Ionicons
-                  name="scan-outline"
-                  size={15}
-                  color="#7C3AED"
-                />
-              </View>
-
-              <View
-                style={
-                  styles.qrNoticeContent
-                }
-              >
-                <Text
-                  style={
-                    styles.qrNoticeTitle
-                  }
-                >
-                  Permanent Participant QR
-                </Text>
-
-                <Text
-                  style={
-                    styles.qrNoticeText
-                  }
-                >
-                  This QR code does not expire.
-                  Show it to your trainer during
-                  face-to-face training. Your trainer
-                  will scan it to record your attendance.
-                </Text>
-              </View>
-            </Pressable>
-          </>
-        ) : (
-          <View
-            style={
-              styles.qrUnavailable
-            }
-          >
-            <View
-              style={
-                styles.qrUnavailableIcon
-              }
-            >
-              <Ionicons
-                name="qr-code-outline"
-                size={25}
-                color="#94A3B8"
-              />
-            </View>
-
-            <Text
-              style={
-                styles.qrUnavailableTitle
-              }
-            >
-              Attendance QR Unavailable
-            </Text>
-
-            <Text
-              style={
-                styles.qrUnavailableText
-              }
-            >
-              Your permanent attendance QR will
-              appear once your approved enrollment
-              has an attendance token.
-            </Text>
-          </View>
-        )}
-      </View>
-
+      
       {/* ======================================================
           ONLINE
       ====================================================== */}
@@ -1749,10 +1753,6 @@ function formatTime(
   );
 }
 
-// ============================================================
-// STYLES
-// ============================================================
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -1760,8 +1760,8 @@ const styles = StyleSheet.create({
   },
 
   content: {
-    paddingTop: 20,
-    paddingBottom: 40,
+    paddingTop: 22,
+    paddingBottom: 48,
   },
 
   // ==========================================================
@@ -1822,12 +1822,20 @@ const styles = StyleSheet.create({
 
   trainingCard: {
     marginHorizontal: 20,
-    marginBottom: 14,
-    padding: 13,
-    borderRadius: 17,
+    marginBottom: 18,
+
+    paddingHorizontal: 15,
+    paddingVertical: 14,
+
+    minHeight: 70,
+
+    borderRadius: 18,
+
     backgroundColor: "#FFFFFF",
+
     borderWidth: 1,
     borderColor: "#E2E8F0",
+
     flexDirection: "row",
     alignItems: "center",
   },
@@ -1843,7 +1851,8 @@ const styles = StyleSheet.create({
 
   trainingContent: {
     flex: 1,
-    marginLeft: 10,
+    marginLeft: 12,
+    paddingRight: 4,
   },
 
   trainingLabel: {
@@ -1854,14 +1863,14 @@ const styles = StyleSheet.create({
   },
 
   trainingName: {
-    marginTop: 2,
+    marginTop: 3,
     fontSize: 10,
     fontWeight: "800",
     color: "#334155",
   },
 
   trainingBatch: {
-    marginTop: 2,
+    marginTop: 3,
     fontSize: 7,
     color: "#64748B",
   },
@@ -1872,12 +1881,20 @@ const styles = StyleSheet.create({
 
   sessionStatusCard: {
     marginHorizontal: 20,
-    marginBottom: 14,
-    padding: 13,
-    borderRadius: 17,
+    marginBottom: 18,
+
+    paddingHorizontal: 15,
+    paddingVertical: 14,
+
+    minHeight: 68,
+
+    borderRadius: 18,
+
     backgroundColor: "#FFFFFF",
+
     borderWidth: 1,
     borderColor: "#E2E8F0",
+
     flexDirection: "row",
     alignItems: "center",
   },
@@ -1900,8 +1917,8 @@ const styles = StyleSheet.create({
 
   sessionStatusContent: {
     flex: 1,
-    marginLeft: 9,
-    paddingRight: 5,
+    marginLeft: 10,
+    paddingRight: 6,
   },
 
   sessionStatusLabel: {
@@ -1912,21 +1929,21 @@ const styles = StyleSheet.create({
   },
 
   sessionStatusTitle: {
-    marginTop: 2,
+    marginTop: 3,
     fontSize: 9,
     fontWeight: "800",
     color: "#334155",
   },
 
   sessionStatusText: {
-    marginTop: 2,
+    marginTop: 3,
     fontSize: 6.5,
     lineHeight: 10,
     color: "#94A3B8",
   },
 
   openBadge: {
-    paddingHorizontal: 7,
+    paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 999,
   },
@@ -1958,10 +1975,15 @@ const styles = StyleSheet.create({
 
   manualAttendanceCard: {
     marginHorizontal: 20,
-    marginBottom: 14,
-    padding: 14,
-    borderRadius: 17,
+    marginTop: 2,
+    marginBottom: 18,
+
+    padding: 16,
+
+    borderRadius: 18,
+
     backgroundColor: "#FFFFFF",
+
     borderWidth: 1,
     borderColor: "#E2E8F0",
   },
@@ -1989,8 +2011,8 @@ const styles = StyleSheet.create({
 
   manualAttendanceHeaderText: {
     flex: 1,
-    marginLeft: 10,
-    paddingRight: 4,
+    marginLeft: 11,
+    paddingRight: 5,
   },
 
   manualAttendanceLabel: {
@@ -2001,21 +2023,21 @@ const styles = StyleSheet.create({
   },
 
   manualAttendanceTitle: {
-    marginTop: 2,
+    marginTop: 3,
     fontSize: 10,
     fontWeight: "800",
     color: "#334155",
   },
 
   manualAttendanceDescription: {
-    marginTop: 2,
+    marginTop: 3,
     fontSize: 7,
     lineHeight: 11,
     color: "#64748B",
   },
 
   manualBadge: {
-    paddingHorizontal: 7,
+    paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 999,
   },
@@ -2042,7 +2064,8 @@ const styles = StyleSheet.create({
   },
 
   manualAttendanceActions: {
-    marginTop: 14,
+    marginTop: 16,
+
     flexDirection: "row",
     gap: 10,
   },
@@ -2050,9 +2073,12 @@ const styles = StyleSheet.create({
   manualButton: {
     flex: 1,
     minHeight: 46,
+
     borderRadius: 12,
+
     alignItems: "center",
     justifyContent: "center",
+
     flexDirection: "row",
     gap: 7,
   },
@@ -2081,12 +2107,22 @@ const styles = StyleSheet.create({
 
   currentStatusCard: {
     marginHorizontal: 20,
-    marginTop: 12,
-    padding: 12,
-    borderRadius: 15,
+
+    marginTop: 2,
+    marginBottom: 18,
+
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+
+    minHeight: 64,
+
+    borderRadius: 16,
+
     backgroundColor: "#FFFFFF",
+
     borderWidth: 1,
     borderColor: "#E2E8F0",
+
     flexDirection: "row",
     alignItems: "center",
   },
@@ -2108,7 +2144,8 @@ const styles = StyleSheet.create({
   },
 
   currentStatusContent: {
-    marginLeft: 8,
+    marginLeft: 9,
+    flex: 1,
   },
 
   currentStatusLabel: {
@@ -2119,57 +2156,71 @@ const styles = StyleSheet.create({
   },
 
   currentStatusValue: {
-    marginTop: 2,
+    marginTop: 3,
     fontSize: 8,
     fontWeight: "800",
     color: "#334155",
   },
 
+  // ==========================================================
+  // SECTION
+  // ==========================================================
+
   section: {
-    marginTop: 20,
+    marginTop: 18,
+    width: "100%",
   },
 
   // ==========================================================
   // QR NOTICE
   // ==========================================================
 
-  qrNotice: {
+  howToUseCard: {
     marginHorizontal: 20,
-    marginTop: 8,
-    padding: 10,
-    borderRadius: 14,
-    backgroundColor: "#FAF5FF",
+    marginTop: 14,
+
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+
+    borderRadius: 16,
+
+    backgroundColor: "#EFF6FF",
+
     borderWidth: 1,
-    borderColor: "#E9D5FF",
+    borderColor: "#BFDBFE",
+
     flexDirection: "row",
     alignItems: "flex-start",
   },
 
-  qrNoticeIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 9,
-    backgroundColor: "#F3E8FF",
+  howToUseIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+
+    backgroundColor: "#DBEAFE",
+
     alignItems: "center",
     justifyContent: "center",
   },
 
-  qrNoticeContent: {
+  howToUseContent: {
     flex: 1,
-    marginLeft: 8,
+    marginLeft: 10,
+    paddingRight: 2,
   },
 
-  qrNoticeTitle: {
-    fontSize: 8,
+  howToUseTitle: {
+    fontSize: 9,
     fontWeight: "800",
-    color: "#6B21A8",
+    color: "#1D4ED8",
   },
 
-  qrNoticeText: {
-    marginTop: 2,
-    fontSize: 6.5,
-    lineHeight: 10,
-    color: "#9333EA",
+  howToUseStep: {
+    marginTop: 4,
+    fontSize: 7,
+    lineHeight: 11,
+    color: "#475569",
   },
 
   // ==========================================================
@@ -2178,11 +2229,17 @@ const styles = StyleSheet.create({
 
   qrUnavailable: {
     marginHorizontal: 20,
-    padding: 20,
-    borderRadius: 17,
+
+    paddingHorizontal: 20,
+    paddingVertical: 22,
+
+    borderRadius: 18,
+
     backgroundColor: "#FFFFFF",
+
     borderWidth: 1,
     borderColor: "#E2E8F0",
+
     alignItems: "center",
   },
 
@@ -2190,13 +2247,15 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 16,
+
     backgroundColor: "#F1F5F9",
+
     alignItems: "center",
     justifyContent: "center",
   },
 
   qrUnavailableTitle: {
-    marginTop: 10,
+    marginTop: 11,
     fontSize: 12,
     fontWeight: "800",
     color: "#334155",
@@ -2204,7 +2263,7 @@ const styles = StyleSheet.create({
   },
 
   qrUnavailableText: {
-    marginTop: 5,
+    marginTop: 6,
     textAlign: "center",
     fontSize: 8,
     lineHeight: 13,
@@ -2217,26 +2276,35 @@ const styles = StyleSheet.create({
 
   onlineInfo: {
     marginHorizontal: 20,
-    padding: 14,
-    borderRadius: 17,
+
+    paddingHorizontal: 15,
+    paddingVertical: 14,
+
+    borderRadius: 18,
+
     backgroundColor: "#EEF4FF",
+
     borderWidth: 1,
     borderColor: "#DBEAFE",
+
     flexDirection: "row",
-    gap: 10,
+    gap: 11,
   },
 
   onlineIcon: {
     width: 40,
     height: 40,
     borderRadius: 12,
+
     backgroundColor: "#DBEAFE",
+
     alignItems: "center",
     justifyContent: "center",
   },
 
   onlineContent: {
     flex: 1,
+    paddingRight: 2,
   },
 
   onlineTitle: {
@@ -2246,7 +2314,7 @@ const styles = StyleSheet.create({
   },
 
   onlineText: {
-    marginTop: 4,
+    marginTop: 5,
     fontSize: 8,
     lineHeight: 14,
     color: "#475569",
@@ -2259,14 +2327,21 @@ const styles = StyleSheet.create({
   info: {
     marginHorizontal: 20,
     marginTop: 20,
-    padding: 13,
-    borderRadius: 15,
+
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+
+    borderRadius: 16,
+
     backgroundColor: "#F8FAFC",
+
     borderWidth: 1,
     borderColor: "#E2E8F0",
+
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 8,
+
+    gap: 9,
   },
 
   infoText: {
@@ -2282,9 +2357,12 @@ const styles = StyleSheet.create({
 
   retryButton: {
     marginTop: 15,
+
     paddingHorizontal: 20,
     paddingVertical: 10,
+
     borderRadius: 10,
+
     backgroundColor: "#2563EB",
   },
 
@@ -2300,33 +2378,44 @@ const styles = StyleSheet.create({
 
   emptyContainer: {
     flexGrow: 1,
+
     alignItems: "center",
     justifyContent: "center",
+
     paddingHorizontal: 30,
+    paddingVertical: 30,
   },
 
   emptyIcon: {
     width: 60,
     height: 60,
     borderRadius: 20,
+
     backgroundColor: "#E2E8F0",
+
     alignItems: "center",
     justifyContent: "center",
   },
 
   emptyTitle: {
-    marginTop: 13,
+    marginTop: 14,
+
     fontSize: 15,
     fontWeight: "800",
+
     color: "#334155",
+
     textAlign: "center",
   },
 
   emptyText: {
-    marginTop: 5,
+    marginTop: 6,
+
     textAlign: "center",
+
     fontSize: 9,
     lineHeight: 14,
+
     color: "#94A3B8",
   },
 });

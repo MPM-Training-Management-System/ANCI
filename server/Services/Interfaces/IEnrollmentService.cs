@@ -15,7 +15,9 @@
             Guid enrollmentId,
             Guid userId);
 
-        // Task<IEnumerable<EnrollmentDto>> GetPendingAsync();
+        Task<IEnumerable<EnrollmentDto>> GetMyEnrollmentsForTrainerAsync(
+        Guid trainerUserId);
+
 
         Task ReviewAsync(
             Guid enrollmentId,

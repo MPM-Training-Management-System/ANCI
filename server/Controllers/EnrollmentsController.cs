@@ -83,20 +83,33 @@ public class EnrollmentsController : ControllerBase
     // =========================================================
 
     [HttpGet("me")]
-    [Authorize(Roles = "Participant")]
-    public async Task<
-        ActionResult<IEnumerable<EnrollmentDto>>
-    > GetMyEnrollments()
+[Authorize(Roles = "Participant")]
+public async Task<
+    ActionResult<IEnumerable<EnrollmentDto>>
+> GetMyEnrollments()
+{
+    var userId = GetCurrentUserId();
+
+    Console.WriteLine("========== CURRENT USER ==========");
+    Console.WriteLine($"User ID: {userId}");
+    Console.WriteLine($"IsAuthenticated: {User.Identity?.IsAuthenticated}");
+
+    foreach (var claim in User.Claims)
     {
-        var userId = GetCurrentUserId();
-
-        var result =
-            await _service.GetMyEnrollmentsAsync(
-                userId
-            );
-
-        return Ok(result);
+        Console.WriteLine(
+            $"CLAIM: {claim.Type} = {claim.Value}"
+        );
     }
+
+    Console.WriteLine("=================================");
+
+    var result =
+        await _service.GetMyEnrollmentsAsync(
+            userId
+        );
+
+    return Ok(result);
+}
 
 
     // =========================================================
@@ -269,5 +282,23 @@ public class EnrollmentsController : ControllerBase
         return Guid.Parse(
             claim.Value
         );
+    }
+
+
+
+    [HttpGet("trainer")]
+    [Authorize(Roles = "Trainer")]
+    public async Task<
+        ActionResult<IEnumerable<EnrollmentDto>>
+    > GetMyTrainerEnrollments()
+    {
+        var trainerUserId = GetCurrentUserId();
+
+        var result =
+            await _service.GetMyEnrollmentsForTrainerAsync(
+                trainerUserId
+            );
+
+        return Ok(result);
     }
 }

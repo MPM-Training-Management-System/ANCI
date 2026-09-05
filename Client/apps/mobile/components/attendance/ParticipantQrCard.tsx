@@ -1,3 +1,4 @@
+
 import React from "react";
 
 import {
@@ -9,7 +10,6 @@ import {
 import Ionicons from "@expo/vector-icons/Ionicons";
 import QRCode from "react-native-qrcode-svg";
 
-
 // ============================================================
 // TYPES
 // ============================================================
@@ -17,9 +17,13 @@ import QRCode from "react-native-qrcode-svg";
 type ParticipantQrCardProps = {
   participantCode: string;
   participantName: string;
+
+  /**
+   * Kept for compatibility with AttendanceScreen.
+   * The QR card does not display session status anymore.
+   */
   sessionOpen?: boolean;
 };
-
 
 // ============================================================
 // COMPONENT
@@ -28,152 +32,46 @@ type ParticipantQrCardProps = {
 export default function ParticipantQrCard({
   participantCode,
   participantName,
-  sessionOpen = false,
+  sessionOpen: _sessionOpen,
 }: ParticipantQrCardProps) {
   return (
     <View style={styles.card}>
 
       {/* ======================================================
-          HEADER
-      ====================================================== */}
-
-      <View style={styles.header}>
-
-        <View style={styles.iconContainer}>
-          <Ionicons
-            name="qr-code-outline"
-            size={22}
-            color="#2563EB"
-          />
-        </View>
-
-        <View style={styles.headerContent}>
-
-          <Text style={styles.title}>
-            Attendance QR
-          </Text>
-
-          <Text style={styles.subtitle}>
-            Your permanent attendance QR
-          </Text>
-
-        </View>
-
-      </View>
-
-
-      {/* ======================================================
           QR CODE
       ====================================================== */}
 
-      <View style={styles.qrContainer}>
-
-        <QRCode
-          value={participantCode}
-          size={230}
-          backgroundColor="#FFFFFF"
-          color="#000000"
-        />
-
+      <View style={styles.qrGlow}>
+        <View style={styles.qrContainer}>
+          <QRCode
+            value={participantCode}
+            size={230}
+            backgroundColor="#FFFFFF"
+            color="#000000"
+          />
+        </View>
       </View>
 
-
       {/* ======================================================
-          PARTICIPANT
+          PARTICIPANT NAME
       ====================================================== */}
 
       <View style={styles.participantInfo}>
-
         <Text style={styles.label}>
           PARTICIPANT
         </Text>
 
-        <Text style={styles.name}>
+        <Text
+          style={styles.name}
+          numberOfLines={2}
+        >
           {participantName}
         </Text>
-
-      </View>
-
-
-      {/* ======================================================
-          STATUS
-      ====================================================== */}
-
-      <View
-        style={[
-          styles.statusContainer,
-          sessionOpen
-            ? styles.statusOpen
-            : styles.statusClosed,
-        ]}
-      >
-
-        <View
-          style={[
-            styles.statusIcon,
-            sessionOpen
-              ? styles.statusIconOpen
-              : styles.statusIconClosed,
-          ]}
-        >
-          <Ionicons
-            name={
-              sessionOpen
-                ? "checkmark-circle"
-                : "lock-closed"
-            }
-            size={17}
-            color={
-              sessionOpen
-                ? "#15803D"
-                : "#64748B"
-            }
-          />
-        </View>
-
-        <View style={styles.statusContent}>
-
-          <Text style={styles.statusTitle}>
-            {sessionOpen
-              ? "Attendance is Open"
-              : "Permanent QR Code"}
-          </Text>
-
-          <Text style={styles.statusText}>
-            {sessionOpen
-              ? "Show this QR to your trainer."
-              : "This QR does not expire. It can be used when your trainer opens attendance."}
-          </Text>
-
-        </View>
-
-      </View>
-
-
-      {/* ======================================================
-          INSTRUCTION
-      ====================================================== */}
-
-      <View style={styles.instruction}>
-
-        <Ionicons
-          name="scan-outline"
-          size={17}
-          color="#7C3AED"
-        />
-
-        <Text style={styles.instructionText}>
-          Show this QR code to your trainer.
-          Your trainer will scan it to record
-          your attendance.
-        </Text>
-
       </View>
 
     </View>
   );
 }
-
 
 // ============================================================
 // STYLES
@@ -181,166 +79,149 @@ export default function ParticipantQrCard({
 
 const styles = StyleSheet.create({
 
-  card: {
-    width: "100%",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 20,
+  // ==========================================================
+  // MAIN CARD
+  // ==========================================================
 
-    shadowColor: "#000",
+  card: {
+    width: "90%",
+
+    backgroundColor: "#FFFFFF",
+
+    borderRadius: 24,
+
+    // FIXED SPACING
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 20,
+
+    marginHorizontal: 15,
+
+    borderWidth: 1,
+    borderColor: "#E8E3F8",
+
+    shadowColor: "#64748B",
     shadowOffset: {
       width: 0,
-      height: 3,
+      height: 4,
     },
     shadowOpacity: 0.08,
-    shadowRadius: 8,
+    shadowRadius: 12,
+
     elevation: 4,
   },
+
+  // ==========================================================
+  // HEADER
+  // ==========================================================
 
   header: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 20,
+
+    marginBottom: 18,
   },
 
   iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 48,
+    height: 48,
+
+    borderRadius: 15,
+
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#EFF6FF",
-  },
 
-  headerContent: {
-    flex: 1,
-    marginLeft: 12,
+    backgroundColor: "#F3E8FF",
   },
 
   title: {
     fontSize: 18,
-    fontWeight: "700",
+    lineHeight: 23,
+
+    fontWeight: "900",
+
     color: "#0F172A",
+
+    letterSpacing: -0.2,
   },
 
   subtitle: {
     marginTop: 3,
-    fontSize: 12,
+
+    fontSize: 11,
+    lineHeight: 16,
+
     color: "#64748B",
   },
 
-  qrContainer: {
+  // ==========================================================
+  // QR
+  // ==========================================================
+
+  qrGlow: {
     alignSelf: "center",
+
+    // Balanced outer spacing
+    padding: 8,
+
+    borderRadius: 24,
+
+    backgroundColor: "#FFFFFF",
+  },
+
+  qrContainer: {
+    width: 266,
+    height: 266,
+
     alignItems: "center",
     justifyContent: "center",
-
-    width: 270,
-    height: 270,
 
     backgroundColor: "#FFFFFF",
 
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "#E8E3F8",
 
-    borderRadius: 18,
+    borderRadius: 20,
 
-    padding: 18,
+    // QR breathing room
+    padding: 17,
   },
+
+  // ==========================================================
+  // PARTICIPANT
+  // ==========================================================
 
   participantInfo: {
     alignItems: "center",
-    marginTop: 20,
+
+    // Space between QR and participant label
+    marginTop: 14,
+
+    paddingHorizontal: 8,
   },
 
   label: {
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 1,
-    color: "#64748B",
+    fontSize: 9,
+
+    fontWeight: "900",
+
+    letterSpacing: 1.6,
+
+    color: "#94A3B8",
   },
 
   name: {
     marginTop: 5,
+
     fontSize: 17,
-    fontWeight: "700",
+    lineHeight: 22,
+
+    fontWeight: "900",
+
     color: "#0F172A",
+
     textAlign: "center",
   },
 
-  statusContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-
-    marginTop: 18,
-
-    padding: 12,
-
-    borderRadius: 12,
-  },
-
-  statusOpen: {
-    backgroundColor: "#F0FDF4",
-  },
-
-  statusClosed: {
-    backgroundColor: "#F8FAFC",
-  },
-
-  statusIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 9,
-
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  statusIconOpen: {
-    backgroundColor: "#DCFCE7",
-  },
-
-  statusIconClosed: {
-    backgroundColor: "#E2E8F0",
-  },
-
-  statusContent: {
-    flex: 1,
-    marginLeft: 10,
-  },
-
-  statusTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#0F172A",
-  },
-
-  statusText: {
-    marginTop: 3,
-    fontSize: 11,
-    lineHeight: 16,
-    color: "#64748B",
-  },
-
-  instruction: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-
-    marginTop: 16,
-    paddingTop: 14,
-
-    borderTopWidth: 1,
-    borderTopColor: "#E2E8F0",
-  },
-
-  instructionText: {
-    flex: 1,
-
-    marginLeft: 8,
-
-    fontSize: 12,
-    lineHeight: 18,
-
-    color: "#64748B",
-  },
-
 });
+

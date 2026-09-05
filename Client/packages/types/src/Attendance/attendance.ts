@@ -93,3 +93,15 @@ export type OpenAttendanceSessionDto = {
   attendanceSessionId: string | null;
   manualAttendanceOpen: boolean;
 };
+
+
+export type AttendanceProgressDto = {
+  enrollmentId: string;
+  trainingBatchId: string;
+  participantName: string;
+  totalSessions: number;
+  attendedSessions: number;
+  lateSessions: number;
+  absentSessions: number;
+  attendancePercentage: number;
+};
