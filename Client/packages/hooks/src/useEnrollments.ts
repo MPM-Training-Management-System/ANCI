@@ -42,6 +42,9 @@ export function useEnrollments(
   // STATE
   // =======================================================
 
+  const [trainerEnrollments, setTrainerEnrollments] =
+  useState<Enrollment[]>([]);
+
   const [enrollments, setEnrollments] =
     useState<Enrollment[]>([]);
 
@@ -200,6 +203,34 @@ export function useEnrollments(
       },
       [api]
     );
+
+    const loadTrainerEnrollments =
+  useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const result =
+        await api.getparticipant();
+
+      setTrainerEnrollments(result);
+
+      return result;
+    } catch (err) {
+      const normalizedError =
+        err instanceof Error
+          ? err
+          : new Error(
+              "Failed to load trainer enrollments."
+            );
+
+      setError(normalizedError);
+
+      throw normalizedError;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [api]);
 
 
   // =========================================================
@@ -668,7 +699,7 @@ export function useEnrollments(
     useCallback(() => {
 
       setEnrollments([]);
-
+      setTrainerEnrollments([]);
       setPendingEnrollments([]);
 
       setRequirements([]);
@@ -750,7 +781,8 @@ export function useEnrollments(
 
     reviewEnrollmentDocument,
 
-
+    trainerEnrollments,
+loadTrainerEnrollments,
     // -------------------------------------------------------
     // Document State
     // -------------------------------------------------------

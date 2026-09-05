@@ -16,4 +16,8 @@ export const TrainingBatchEndpoints = {
 
   delete: (id: string) =>
     `/api/training-batches/${id}`,
+
+    getParticipantSchedule: (trainingBatchId: string) =>
+    `/api/training-batches/${trainingBatchId}/schedule/participant`,
+
 };

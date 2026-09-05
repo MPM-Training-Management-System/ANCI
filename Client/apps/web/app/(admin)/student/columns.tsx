@@ -1,330 +1,587 @@
 "use client";
 
+import * as React from "react";
+
 import type { ColumnDef } from "@tanstack/react-table";
 
-import type {
-  Participant,
-  ParticipantStatus,
-  AssessmentStatus,
-  CompletionStatus,
-} from "./types";
+import type { Enrollment } from "@repo/types";
+
+import {
+  Eye,
+  CheckCircle2,
+  Clock3,
+  XCircle,
+  MinusCircle,
+} from "lucide-react";
 
 /* =========================================================
-   COLUMN DEFINITIONS
+   TYPES
 ========================================================= */
 
-export const columns: ColumnDef<Participant>[] = [
-  /* =======================================================
-     PARTICIPANT
-  ======================================================= */
+export type TrainerParticipant = Enrollment & {
+  participant?: {
+    id?: string;
+    userId?: string;
+    userCode?: string;
+    fullName?: string;
+    email?: string;
+    mobileNumber?: string | null;
+    profileImageUrl?: string | null;
+  } | null;
+};
 
-  {
-    accessorKey: "name",
-    header: "Participant",
+export type AttendanceProgress = {
+  enrollmentId: string;
+  totalSessions?: number;
+  attendedSessions?: number;
+  presentSessions?: number;
+  lateSessions?: number;
+  absentSessions?: number;
+  attendanceRate?: number;
+};
 
-    cell: ({ row }) => {
-      const participant = row.original;
+export type TrainerStudentTableMeta = {
+  onView: (participant: TrainerParticipant) => void;
 
-      return (
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#191c1e] text-[10px] font-bold text-white">
-            {getInitials(participant.name)}
-          </div>
-
-          <div className="min-w-0">
-            <p className="truncate text-xs font-semibold">
-              {participant.name}
-            </p>
-
-            <p className="mt-0.5 font-mono text-[10px] text-gray-400">
-              {participant.participantId}
-            </p>
-          </div>
-        </div>
-      );
-    },
-  },
-
-  /* =======================================================
-     TRAINING
-  ======================================================= */
-
-  {
-    accessorKey: "training",
-    header: "Training",
-
-    cell: ({ row }) => {
-      const participant = row.original;
-
-      return (
-        <div className="max-w-[220px]">
-          <p className="text-xs font-semibold leading-5">
-            {participant.training}
-          </p>
-
-          <p className="mt-0.5 font-mono text-[10px] text-gray-400">
-            {participant.trainingCode}
-          </p>
-        </div>
-      );
-    },
-  },
-
-  /* =======================================================
-     STATUS
-  ======================================================= */
-
-  {
-    accessorKey: "status",
-    header: "Status",
-
-    cell: ({ row }) => {
-      const status = row.original.status;
-
-      return (
-        <StatusBadge status={status} />
-      );
-    },
-  },
-
-  /* =======================================================
-     ATTENDANCE
-  ======================================================= */
-
-  {
-    accessorKey: "attendance",
-    header: "Attendance",
-
-    cell: ({ row }) => {
-      const attendance =
-        row.original.attendance;
-
-      const progressColor =
-        attendance >= 90
-          ? "bg-emerald-500"
-          : attendance >= 80
-            ? "bg-amber-500"
-            : "bg-red-500";
-
-      const textColor =
-        attendance >= 90
-          ? "text-emerald-600"
-          : attendance >= 80
-            ? "text-amber-600"
-            : "text-red-600";
-
-      return (
-        <div className="w-24">
-          <span
-            className={`text-xs font-bold ${textColor}`}
-          >
-            {attendance}%
-          </span>
-
-          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-100">
-            <div
-              className={`h-full rounded-full ${progressColor}`}
-              style={{
-                width: `${attendance}%`,
-              }}
-            />
-          </div>
-        </div>
-      );
-    },
-  },
-
-  /* =======================================================
-     ASSESSMENT
-  ======================================================= */
-
-  {
-    accessorKey: "assessment",
-    header: "Assessment",
-
-    cell: ({ row }) => {
-      const assessment =
-        row.original.assessment;
-
-      return (
-        <AssessmentBadge
-          status={assessment}
-        />
-      );
-    },
-  },
-
-  /* =======================================================
-     COMPLETION
-  ======================================================= */
-
-  {
-    accessorKey: "completion",
-    header: "Completion",
-
-    cell: ({ row }) => {
-      const completion =
-        row.original.completion;
-
-      return (
-        <CompletionBadge
-          status={completion}
-        />
-      );
-    },
-  },
-
-  /* =======================================================
-     ACTION
-  ======================================================= */
-
-  {
-    id: "actions",
-    header: "Action",
-
-    cell: ({ row, table }) => {
-      const participant = row.original;
-
-      const meta = table.options.meta as
-        | ParticipantTableMeta
-        | undefined;
-
-      return (
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={() =>
-              meta?.onView(participant)
-            }
-            className="rounded-lg border border-[#e7e9ec] px-3 py-2 text-[11px] font-semibold text-gray-600 transition hover:bg-gray-50"
-          >
-            View
-          </button>
-        </div>
-      );
-    },
-  },
-];
+  attendanceByEnrollmentId: Map<
+    string,
+    AttendanceProgress
+  >;
+};
 
 /* =========================================================
-   TABLE META
+   HELPERS
 ========================================================= */
 
-export interface ParticipantTableMeta {
-  onView: (participant: Participant) => void;
+function normalizeStatus(
+  status?: string | null,
+): string {
+  return (
+    status
+      ?.trim()
+      .toLowerCase()
+      .replace(/[\s_-]+/g, "") ?? ""
+  );
+}
+
+function getParticipantName(
+  participant: TrainerParticipant,
+): string {
+  return (
+    participant.participant?.fullName?.trim() ||
+    "Unknown Participant"
+  );
+}
+
+function getParticipantCode(
+  participant: TrainerParticipant,
+): string {
+  return (
+    participant.participant?.userCode?.trim() ||
+    "—"
+  );
+}
+
+function getParticipantEmail(
+  participant: TrainerParticipant,
+): string {
+  return (
+    participant.participant?.email?.trim() ||
+    "—"
+  );
+}
+
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("");
+}
+
+function formatDate(
+  value?: string | null,
+): string {
+  if (!value) {
+    return "—";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return date.toLocaleDateString(
+    "en-US",
+    {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    },
+  );
 }
 
 /* =========================================================
    STATUS BADGE
 ========================================================= */
 
-function StatusBadge({
+export function StatusBadge({
   status,
 }: {
-  status: ParticipantStatus;
+  status?: string | null;
 }) {
-  const styles: Record<
-    ParticipantStatus,
-    string
-  > = {
-    Active:
-      "border-emerald-200 bg-emerald-50 text-emerald-700",
+  const normalized = normalizeStatus(status);
 
-    Completed:
-      "border-blue-200 bg-blue-50 text-blue-700",
+  if (
+    normalized === "approved" ||
+    normalized === "active" ||
+    normalized === "completed"
+  ) {
+    return (
+      <span
+        className="
+          inline-flex
+          items-center
+          gap-1.5
+          rounded-full
+          bg-emerald-50
+          px-2.5
+          py-1
+          text-xs
+          font-semibold
+          text-emerald-700
+        "
+      >
+        <CheckCircle2 className="h-3.5 w-3.5" />
+        {status || "Active"}
+      </span>
+    );
+  }
 
-    Dropped:
-      "border-red-200 bg-red-50 text-red-700",
-  };
+  if (
+    normalized === "pending" ||
+    normalized === "forreview"
+  ) {
+    return (
+      <span
+        className="
+          inline-flex
+          items-center
+          gap-1.5
+          rounded-full
+          bg-amber-50
+          px-2.5
+          py-1
+          text-xs
+          font-semibold
+          text-amber-700
+        "
+      >
+        <Clock3 className="h-3.5 w-3.5" />
+        {status || "Pending"}
+      </span>
+    );
+  }
+
+  if (
+    normalized === "rejected" ||
+    normalized === "cancelled" ||
+    normalized === "canceled"
+  ) {
+    return (
+      <span
+        className="
+          inline-flex
+          items-center
+          gap-1.5
+          rounded-full
+          bg-red-50
+          px-2.5
+          py-1
+          text-xs
+          font-semibold
+          text-red-700
+        "
+      >
+        <XCircle className="h-3.5 w-3.5" />
+        {status || "Rejected"}
+      </span>
+    );
+  }
 
   return (
     <span
-      className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold ${styles[status]}`}
+      className="
+        inline-flex
+        items-center
+        gap-1.5
+        rounded-full
+        bg-gray-100
+        px-2.5
+        py-1
+        text-xs
+        font-semibold
+        text-gray-600
+      "
     >
-      {status}
+      <MinusCircle className="h-3.5 w-3.5" />
+      {status || "Unknown"}
     </span>
   );
 }
 
 /* =========================================================
-   ASSESSMENT BADGE
+   ATTENDANCE DISPLAY
 ========================================================= */
 
-function AssessmentBadge({
-  status,
+function AttendanceCell({
+  attendance,
 }: {
-  status: AssessmentStatus;
+  attendance?: AttendanceProgress;
 }) {
-  const styles: Record<
-    AssessmentStatus,
-    string
-  > = {
-    Passed:
-      "border-emerald-200 bg-emerald-50 text-emerald-700",
+  if (!attendance) {
+    return (
+      <div className="text-sm text-gray-400">
+        No attendance
+      </div>
+    );
+  }
 
-    Pending:
-      "border-amber-200 bg-amber-50 text-amber-700",
+  const attended =
+    attendance.attendedSessions ??
+    attendance.presentSessions ??
+    0;
 
-    Failed:
-      "border-red-200 bg-red-50 text-red-700",
+  const total =
+    attendance.totalSessions ??
+    0;
 
-    "Not Started":
-      "border-gray-200 bg-gray-100 text-gray-600",
-  };
+  const late =
+    attendance.lateSessions ??
+    0;
+
+  const absent =
+    attendance.absentSessions ??
+    0;
+
+  let rate = attendance.attendanceRate;
+
+  if (
+    rate === undefined &&
+    total > 0
+  ) {
+    rate = (attended / total) * 100;
+  }
 
   return (
-    <span
-      className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold ${styles[status]}`}
-    >
-      {status}
-    </span>
+    <div className="min-w-[150px]">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm font-semibold text-gray-800">
+          {attended}/{total}
+        </span>
+
+        <span className="text-xs font-medium text-gray-500">
+          {rate !== undefined
+            ? `${Math.round(rate)}%`
+            : "—"}
+        </span>
+      </div>
+
+      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-100">
+        <div
+          className="h-full rounded-full bg-[#191c1e] transition-all"
+          style={{
+            width: `${Math.min(
+              Math.max(rate ?? 0, 0),
+              100,
+            )}%`,
+          }}
+        />
+      </div>
+
+      <div className="mt-1.5 flex gap-3 text-[11px] text-gray-400">
+        {late > 0 && (
+          <span>
+            {late} late
+          </span>
+        )}
+
+        {absent > 0 && (
+          <span>
+            {absent} absent
+          </span>
+        )}
+
+        {late === 0 &&
+          absent === 0 && (
+            <span>
+              Good attendance
+            </span>
+          )}
+      </div>
+    </div>
   );
 }
 
 /* =========================================================
-   COMPLETION BADGE
+   COLUMNS
 ========================================================= */
 
-function CompletionBadge({
-  status,
-}: {
-  status: CompletionStatus;
-}) {
-  const styles: Record<
-    CompletionStatus,
-    string
-  > = {
-    "In Progress":
-      "border-amber-200 bg-amber-50 text-amber-700",
+export const columns: ColumnDef<TrainerParticipant>[] =
+  [
+    /* -----------------------------------------------------
+       PARTICIPANT
+    ----------------------------------------------------- */
+    {
+      accessorKey: "participant.fullName",
+      id: "participant",
+      header: "Participant",
 
-    Completed:
-      "border-emerald-200 bg-emerald-50 text-emerald-700",
+      cell: ({ row }) => {
+        const participant =
+          row.original;
 
-    Eligible:
-      "border-blue-200 bg-blue-50 text-blue-700",
+        const name =
+          getParticipantName(
+            participant,
+          );
 
-    Dropped:
-      "border-red-200 bg-red-50 text-red-700",
-  };
+        const code =
+          getParticipantCode(
+            participant,
+          );
 
-  return (
-    <span
-      className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold ${styles[status]}`}
-    >
-      {status}
-    </span>
-  );
-}
+        const email =
+          getParticipantEmail(
+            participant,
+          );
 
-/* =========================================================
-   INITIALS
-========================================================= */
+        const profileImage =
+          participant.participant
+            ?.profileImageUrl ??
+          null;
 
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
+        return (
+          <div className="flex min-w-[230px] items-center gap-3">
+            {profileImage ? (
+              <img
+                src={profileImage}
+                alt={name}
+                className="
+                  h-11
+                  w-11
+                  shrink-0
+                  rounded-xl
+                  object-cover
+                "
+              />
+            ) : (
+              <div
+                className="
+                  flex
+                  h-11
+                  w-11
+                  shrink-0
+                  items-center
+                  justify-center
+                  rounded-xl
+                  bg-[#191c1e]
+                  text-xs
+                  font-bold
+                  text-white
+                "
+              >
+                {getInitials(name)}
+              </div>
+            )}
+
+            <div className="min-w-0">
+              <p
+                className="
+                  truncate
+                  text-sm
+                  font-semibold
+                  text-gray-900
+                "
+              >
+                {name}
+              </p>
+
+              <p
+                className="
+                  truncate
+                  text-xs
+                  text-gray-500
+                "
+              >
+                {code}
+              </p>
+
+              {email !== "—" && (
+                <p
+                  className="
+                    max-w-[220px]
+                    truncate
+                    text-xs
+                    text-gray-400
+                  "
+                >
+                  {email}
+                </p>
+              )}
+            </div>
+          </div>
+        );
+      },
+    },
+
+    /* -----------------------------------------------------
+       TRAINING
+    ----------------------------------------------------- */
+    {
+      accessorKey: "programName",
+      id: "training",
+      header: "Training",
+
+      cell: ({ row }) => {
+        const participant =
+          row.original;
+
+        return (
+          <div className="min-w-[180px]">
+            <p className="text-sm font-semibold text-gray-800">
+              {participant.programName ||
+                "—"}
+            </p>
+
+            <p className="mt-0.5 text-xs text-gray-400">
+              {participant.batchCode ||
+                "No batch"}
+            </p>
+          </div>
+        );
+      },
+    },
+
+    /* -----------------------------------------------------
+       STATUS
+    ----------------------------------------------------- */
+    {
+      accessorKey: "status",
+      id: "status",
+      header: "Status",
+
+      cell: ({ row }) => {
+        return (
+          <StatusBadge
+            status={
+              row.original.status
+            }
+          />
+        );
+      },
+    },
+
+    /* -----------------------------------------------------
+       ATTENDANCE
+    ----------------------------------------------------- */
+    {
+      id: "attendance",
+      header: "Attendance",
+
+      cell: ({
+        row,
+        table,
+      }) => {
+        const meta =
+          table.options.meta as
+            | TrainerStudentTableMeta
+            | undefined;
+
+        const attendance =
+          meta?.attendanceByEnrollmentId.get(
+            row.original.id,
+          );
+
+        return (
+          <AttendanceCell
+            attendance={attendance}
+          />
+        );
+      },
+    },
+
+    /* -----------------------------------------------------
+       ENROLLED
+    ----------------------------------------------------- */
+    {
+      accessorKey: "enrolledAt",
+      id: "enrolledAt",
+      header: "Enrolled",
+
+      cell: ({ row }) => {
+        return (
+          <span className="whitespace-nowrap text-sm text-gray-600">
+            {formatDate(
+              row.original.enrolledAt,
+            )}
+          </span>
+        );
+      },
+    },
+
+    /* -----------------------------------------------------
+       ACTION
+    ----------------------------------------------------- */
+    {
+      id: "action",
+      header: "Action",
+
+      enableSorting: false,
+
+      cell: ({
+        row,
+        table,
+      }) => {
+        const meta =
+          table.options.meta as
+            | TrainerStudentTableMeta
+            | undefined;
+
+        return (
+          <button
+            type="button"
+            onClick={() =>
+              meta?.onView(
+                row.original,
+              )
+            }
+            className="
+              inline-flex
+              items-center
+              gap-2
+              rounded-lg
+              border
+              border-gray-200
+              bg-white
+              px-3
+              py-2
+              text-xs
+              font-semibold
+              text-gray-700
+              transition
+              hover:border-gray-300
+              hover:bg-gray-50
+              hover:text-gray-900
+            "
+          >
+            <Eye className="h-4 w-4" />
+
+            View
+          </button>
+        );
+      },
+    },
+  ];

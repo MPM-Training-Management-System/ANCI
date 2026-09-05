@@ -79,4 +79,8 @@ public interface IAttendanceService
         Guid sessionId,
         Guid enrollmentId,
         Guid userId);
+
+        Task<IEnumerable<AttendanceProgressDto>>
+    GetTrainerAttendanceProgressAsync(
+        Guid trainerUserId);
 }

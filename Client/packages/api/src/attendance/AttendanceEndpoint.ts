@@ -51,6 +51,10 @@ export const AttendanceEndpoints = {
   getBatch: (batchId: string) =>
     `/api/attendance/batch/${batchId}`,
 
+
+  getattendanceprogress: 
+  "/api/attendance/trainer/progress",
+
   // GET CURRENT SESSION STATE
   //
   // Returns:

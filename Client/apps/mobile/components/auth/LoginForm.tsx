@@ -2,6 +2,7 @@ import React, { useState } from "react";
 
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -20,6 +21,7 @@ import { useRouter } from "expo-router";
 
 import {
   useLogin,
+  useMe,
   type LoginFormValues,
 } from "@repo/hooks";
 
@@ -42,44 +44,117 @@ export default function LoginForm() {
   } = useLogin(authApi);
 
 
+ 
   // =========================================================
   // LOGIN
   // =========================================================
 
-  const handleLogin = async () => {
+ const handleLogin = async () => {
+  // ============================================
+  // VALIDATE EMAIL
+  // ============================================
 
-    if (!email.trim()) {
-      return;
-    }
+  if (!email.trim()) {
+    Alert.alert(
+      "Login Required",
+      "Please enter your email address."
+    );
 
-    if (!password) {
-      return;
-    }
+    return;
+  }
 
+  // ============================================
+  // VALIDATE PASSWORD
+  // ============================================
+
+  if (!password) {
+    Alert.alert(
+      "Login Required",
+      "Please enter your password."
+    );
+
+    return;
+  }
+
+  try {
+    // ============================================
+    // LOGIN
+    // ============================================
 
     const values: LoginFormValues = {
-      email:
-        email
-          .trim()
-          .toLowerCase(),
+      email: email
+        .trim()
+        .toLowerCase(),
 
       password,
     };
 
-
     const response =
       await login(values);
-    
+
+    // ============================================
+    // LOGIN FAILED
+    // ============================================
 
     if (!response) {
       return;
     }
-await auth.saveToken(response.token);
-await auth.saveUser(response.user);
 
-    router.replace("/(tabs)");
-  };
+    // ============================================
+    // CHECK ROLE
+    // ============================================
 
+    const role =
+      String(
+        response.user?.role ?? ""
+      ).toLowerCase();
+
+    // ============================================
+    // PARTICIPANT ONLY
+    // ============================================
+
+    if (role !== "participant") {
+      Alert.alert(
+        "Access Denied",
+        "This mobile application is only available for Participants."
+      );
+
+      return;
+    }
+
+    // ============================================
+    // SAVE AUTH ONLY AFTER ROLE CHECK
+    // ============================================
+
+    await auth.saveToken(
+      response.token
+    );
+
+    await auth.saveUser(
+      response.user
+    );
+
+    // ============================================
+    // GO TO PARTICIPANT APP
+    // ============================================
+
+    router.replace(
+      "/(tabs)"
+    );
+  } catch (error) {
+    console.error(
+      "LOGIN ERROR:",
+      error
+    );
+
+    Alert.alert(
+      "Login Failed",
+      error instanceof Error
+        ? error.message
+        : "Unable to login. Please try again."
+    );
+  }
+};
 
   return (
     <SafeAreaView

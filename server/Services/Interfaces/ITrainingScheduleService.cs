@@ -20,6 +20,12 @@ public interface ITrainingScheduleService
             Guid trainingBatchId
         );
 
+          Task<IReadOnlyList<TrainingSessionDto>>
+        GetParticipantScheduleAsync(
+            Guid trainingBatchId,
+            Guid participantUserId
+        );
+
     Task ApproveScheduleAsync(
         Guid trainingBatchId,
         IReadOnlyList<TrainingSessionDto> sessions

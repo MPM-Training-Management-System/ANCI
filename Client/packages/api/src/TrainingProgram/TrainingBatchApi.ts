@@ -291,6 +291,16 @@ export class TrainingBatchApi {
     );
   }
 
+  async getParticipantSchedule(
+  trainingBatchId: string,
+): Promise<TrainingSession[]> {
+  return this.api.request<TrainingSession[]>(
+    TrainingBatchEndpoints.getParticipantSchedule(trainingBatchId),
+    {
+      method: "GET",
+    },
+  );
+}
 
   // =========================================================
   // APPROVE TRAINING SCHEDULE

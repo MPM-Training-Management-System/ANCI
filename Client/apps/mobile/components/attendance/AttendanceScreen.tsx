@@ -26,11 +26,13 @@ import { useEnrollments } from "@repo/hooks";
 import {
   attendanceApi,
   enrollmentApi,
+  trainingBatchApi,
 } from "@/api/api";
 
 import type {
   Enrollment,
   AttendanceRecordDto,
+  TrainingSession,
 } from "@repo/types";
 
 // ============================================================
@@ -178,6 +180,15 @@ export default function AttendanceScreen() {
     currentEnrollment?.attendanceToken ??
     null;
 
+  const [trainingSessions, setTrainingSessions] =
+    useState<TrainingSession[]>([]);
+
+  const [trainingSessionId, setTrainingSessionId] =
+    useState<string | null>(null);
+
+  const [isLoadingTrainingSession, setIsLoadingTrainingSession] =
+    useState(false);
+
   const participantName =
     currentEnrollment?.participant
       ?.fullName ??
@@ -202,6 +213,97 @@ export default function AttendanceScreen() {
         ).toLowerCase() ===
           "approved"
     );
+
+  // ============================================================
+  // LOAD TRAINING SCHEDULE / CURRENT SESSION
+  //
+  // Attendance requires both batchId and trainingSessionId.
+  // Resolve today's session first, then the next upcoming session,
+  // and finally the latest session if all sessions are past.
+  // ============================================================
+
+  const loadTrainingSession = useCallback(
+    async () => {
+      if (!batchId) {
+        setTrainingSessions([]);
+        setTrainingSessionId(null);
+        return null;
+      }
+
+      try {
+        setIsLoadingTrainingSession(true);
+
+        const result = await trainingBatchApi.getParticipantSchedule(batchId);
+        const sessions = Array.isArray(result) ? result : [];
+
+        setTrainingSessions(sessions);
+
+        const validSessions = sessions.filter(
+          session => Boolean(session?.id) && Boolean(session?.sessionDate),
+        );
+
+        if (validSessions.length === 0) {
+          setTrainingSessionId(null);
+          return null;
+        }
+
+        const now = new Date();
+        const todayKey = `${now.getFullYear()}-${String(
+          now.getMonth() + 1,
+        ).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+        const sessionDate = (session: TrainingSession) =>
+          new Date(session.sessionDate);
+
+        const dateKey = (session: TrainingSession) => {
+          const date = sessionDate(session);
+          if (Number.isNaN(date.getTime())) return null;
+          return `${date.getFullYear()}-${String(
+            date.getMonth() + 1,
+          ).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+        };
+
+        const sorted = [...validSessions].sort(
+          (a, b) => sessionDate(a).getTime() - sessionDate(b).getTime(),
+        );
+
+        const todaySessions = sorted.filter(
+          session => dateKey(session) === todayKey,
+        );
+
+        if (todaySessions.length > 0) {
+          const current =
+            todaySessions.find(
+              session => sessionDate(session).getTime() >= now.getTime(),
+            ) ?? todaySessions[0];
+
+          setTrainingSessionId(current.id);
+          return current.id;
+        }
+
+        const upcoming = sorted.find(
+          session => sessionDate(session).getTime() > now.getTime(),
+        );
+
+        if (upcoming) {
+          setTrainingSessionId(upcoming.id);
+          return upcoming.id;
+        }
+
+        const latest = sorted[sorted.length - 1];
+        setTrainingSessionId(latest?.id ?? null);
+        return latest?.id ?? null;
+      } catch (error) {
+        console.error("Failed to load training schedule:", error);
+        setTrainingSessions([]);
+        setTrainingSessionId(null);
+        return null;
+      } finally {
+        setIsLoadingTrainingSession(false);
+      }
+    },
+    [batchId],
+  );
 
   // ============================================================
   // LOAD OPEN SESSION
@@ -229,9 +331,20 @@ export default function AttendanceScreen() {
         try {
           setIsLoadingOpenSession(true);
 
+          const resolvedSessionId =
+            trainingSessionId ??
+            await loadTrainingSession();
+
+          if (!resolvedSessionId) {
+            setOpenSessionId(null);
+            setManualAttendanceOpen(false);
+            return null;
+          }
+
           const result =
             await attendanceApi.getOpenSession(
-              batchId
+              batchId,
+              resolvedSessionId,
             );
 
           // ======================================================
@@ -287,6 +400,8 @@ export default function AttendanceScreen() {
       },
       [
         batchId,
+        trainingSessionId,
+        loadTrainingSession,
       ]
     );
 
@@ -427,10 +542,24 @@ export default function AttendanceScreen() {
     }
 
     void loadAttendance();
-    void loadOpenAttendanceSession();
+    void loadTrainingSession();
   }, [
     batchId,
     loadAttendance,
+    loadTrainingSession,
+  ]);
+
+  useEffect(() => {
+    if (!batchId || !trainingSessionId) {
+      setOpenSessionId(null);
+      setManualAttendanceOpen(false);
+      return;
+    }
+
+    void loadOpenAttendanceSession();
+  }, [
+    batchId,
+    trainingSessionId,
     loadOpenAttendanceSession,
   ]);
 
@@ -448,10 +577,12 @@ export default function AttendanceScreen() {
         try {
           setIsRefreshing(true);
 
+          await loadMyEnrollments();
+          await loadTrainingSession();
+
           await Promise.all([
             loadAttendance(),
             loadOpenAttendanceSession(),
-            loadMyEnrollments(),
           ]);
         } catch (error) {
           console.error(
@@ -466,6 +597,7 @@ export default function AttendanceScreen() {
         loadAttendance,
         loadOpenAttendanceSession,
         loadMyEnrollments,
+        loadTrainingSession,
       ]
     );
 
@@ -814,7 +946,8 @@ export default function AttendanceScreen() {
 
   if (
     isLoadingEnrollments ||
-    isLoadingAttendance
+    isLoadingAttendance ||
+    isLoadingTrainingSession
   ) {
     return (
       <ScrollView
@@ -1035,6 +1168,7 @@ export default function AttendanceScreen() {
           disabled={
             isRefreshing ||
             isLoadingOpenSession ||
+            isLoadingTrainingSession ||
             isSubmittingAttendance
           }
           style={[
@@ -1055,6 +1189,150 @@ export default function AttendanceScreen() {
           />
         </Pressable>
       </View>
+
+      {/* ======================================================
+          ATTENDANCE QR — PRIMARY ACTION
+      ====================================================== */}
+
+      <View style={styles.qrSectionHeader}>
+        <View style={styles.qrSectionHeaderIcon}>
+          <Ionicons
+            name="qr-code-outline"
+            size={17}
+            color="#7C3AED"
+          />
+        </View>
+
+        <View style={styles.qrSectionHeaderContent}>
+          <Text style={styles.qrSectionTitle}>
+            Attendance QR
+          </Text>
+
+          <Text style={styles.qrSectionSubtitle}>
+            Show this QR to your trainer for attendance.
+          </Text>
+        </View>
+
+        <View style={styles.qrPermanentBadge}>
+          <Ionicons
+            name="shield-checkmark-outline"
+            size={11}
+            color="#7C3AED"
+          />
+          <Text style={styles.qrPermanentBadgeText}>
+            PERMANENT
+          </Text>
+        </View>
+      </View>
+
+      {/* ======================================================
+          PERMANENT QR
+          ====================================================== */}
+
+      <View
+        style={
+          styles.section
+        }
+      >
+        {hasAttendanceQr ? (
+          <>
+            <ParticipantQrCard
+              participantCode={
+                attendanceToken!
+              }
+              participantName={
+                participantName
+              }
+              sessionOpen={
+                isSessionOpen
+              }
+            />
+
+            <Pressable
+              onPress={
+                handleQrInfo
+              }
+              style={
+                styles.qrNotice
+              }
+            >
+              <View
+                style={
+                  styles.qrNoticeIcon
+                }
+              >
+                <Ionicons
+                  name="scan-outline"
+                  size={15}
+                  color="#7C3AED"
+                />
+              </View>
+
+              <View
+                style={
+                  styles.qrNoticeContent
+                }
+              >
+                <Text
+                  style={
+                    styles.qrNoticeTitle
+                  }
+                >
+                  Permanent Participant QR
+                </Text>
+
+                <Text
+                  style={
+                    styles.qrNoticeText
+                  }
+                >
+                  This QR code does not expire.
+                  Show it to your trainer during
+                  face-to-face training. Your trainer
+                  will scan it to record your attendance.
+                </Text>
+              </View>
+            </Pressable>
+          </>
+        ) : (
+          <View
+            style={
+              styles.qrUnavailable
+            }
+          >
+            <View
+              style={
+                styles.qrUnavailableIcon
+              }
+            >
+              <Ionicons
+                name="qr-code-outline"
+                size={25}
+                color="#94A3B8"
+              />
+            </View>
+
+            <Text
+              style={
+                styles.qrUnavailableTitle
+              }
+            >
+              Attendance QR Unavailable
+            </Text>
+
+            <Text
+              style={
+                styles.qrUnavailableText
+              }
+            >
+              Your permanent attendance QR will
+              appear once your approved enrollment
+              has an attendance token.
+            </Text>
+          </View>
+        )}
+      </View>
+
 
       {/* ======================================================
           TRAINING
@@ -1463,114 +1741,6 @@ export default function AttendanceScreen() {
           </View>
         </View>
       )}
-
-      {/* ======================================================
-          PERMANENT QR
-          ====================================================== */}
-
-      <View
-        style={
-          styles.section
-        }
-      >
-        {hasAttendanceQr ? (
-          <>
-            <ParticipantQrCard
-              participantCode={
-                attendanceToken!
-              }
-              participantName={
-                participantName
-              }
-              sessionOpen={
-                isSessionOpen
-              }
-            />
-
-            <Pressable
-              onPress={
-                handleQrInfo
-              }
-              style={
-                styles.qrNotice
-              }
-            >
-              <View
-                style={
-                  styles.qrNoticeIcon
-                }
-              >
-                <Ionicons
-                  name="scan-outline"
-                  size={15}
-                  color="#7C3AED"
-                />
-              </View>
-
-              <View
-                style={
-                  styles.qrNoticeContent
-                }
-              >
-                <Text
-                  style={
-                    styles.qrNoticeTitle
-                  }
-                >
-                  Permanent Participant QR
-                </Text>
-
-                <Text
-                  style={
-                    styles.qrNoticeText
-                  }
-                >
-                  This QR code does not expire.
-                  Show it to your trainer during
-                  face-to-face training. Your trainer
-                  will scan it to record your attendance.
-                </Text>
-              </View>
-            </Pressable>
-          </>
-        ) : (
-          <View
-            style={
-              styles.qrUnavailable
-            }
-          >
-            <View
-              style={
-                styles.qrUnavailableIcon
-              }
-            >
-              <Ionicons
-                name="qr-code-outline"
-                size={25}
-                color="#94A3B8"
-              />
-            </View>
-
-            <Text
-              style={
-                styles.qrUnavailableTitle
-              }
-            >
-              Attendance QR Unavailable
-            </Text>
-
-            <Text
-              style={
-                styles.qrUnavailableText
-              }
-            >
-              Your permanent attendance QR will
-              appear once your approved enrollment
-              has an attendance token.
-            </Text>
-          </View>
-        )}
-      </View>
 
       {/* ======================================================
           ONLINE
@@ -2127,6 +2297,62 @@ const styles = StyleSheet.create({
 
   section: {
     marginTop: 20,
+  },
+
+  // ==========================================================
+  // PRIMARY QR HEADER
+  // ==========================================================
+
+  qrSectionHeader: {
+    marginHorizontal: 20,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  qrSectionHeaderIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    backgroundColor: "#F3E8FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  qrSectionHeaderContent: {
+    flex: 1,
+    marginLeft: 9,
+  },
+
+  qrSectionTitle: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: "#0F172A",
+  },
+
+  qrSectionSubtitle: {
+    marginTop: 2,
+    fontSize: 7.5,
+    color: "#94A3B8",
+  },
+
+  qrPermanentBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: "#FAF5FF",
+    borderWidth: 1,
+    borderColor: "#E9D5FF",
+  },
+
+  qrPermanentBadgeText: {
+    fontSize: 5.5,
+    fontWeight: "900",
+    letterSpacing: 0.4,
+    color: "#7C3AED",
   },
 
   // ==========================================================

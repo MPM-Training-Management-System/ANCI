@@ -302,7 +302,47 @@ export function useTrainingBatches(
   // =========================================================
   // RETURN
   // =========================================================
+  // =========================================================
+  // GET PARTICIPANT TRAINING SCHEDULE
+  // GET /api/training-batches/{id}/schedule/participant
+  // =========================================================
 
+  const loadParticipantSchedule =
+    useCallback(
+      async (
+        trainingBatchId: string,
+      ) => {
+        try {
+          setError(null);
+
+          const result =
+            await trainingBatchApi.getParticipantSchedule(
+              trainingBatchId,
+            );
+
+          return Array.isArray(result)
+            ? result
+            : [];
+
+        } catch (error) {
+          console.error(
+            "LOAD PARTICIPANT TRAINING SCHEDULE ERROR:",
+            error,
+          );
+
+          setError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load participant training schedule.",
+          );
+
+          return [];
+        }
+      },
+      [
+        trainingBatchApi,
+      ],
+    );
   return {
 
     // -------------------------------------------------------
@@ -352,6 +392,8 @@ export function useTrainingBatches(
     refresh,
 
     clearSelectedBatch,
+
+    loadParticipantSchedule,
 
     // -------------------------------------------------------
     // RESET

@@ -5,12 +5,12 @@
   "types": "index.ts",
 
   "peerDependencies": {
-    "expo": "~54.0.36",
-    "react": "19.1.0",
-    "react-native": "0.81.5",
-    "react-native-safe-area-context": "~5.6.0",
-    "@expo/vector-icons": "^15.1.1"
-  },
+  "expo": "~54.0.37",
+  "react": "19.1.0",
+  "react-native": "0.81.5",
+  "react-native-safe-area-context": "~5.6.0",
+  "@expo/vector-icons": "^15.1.1"
+},
 
   "dependencies": {
     "@repo/lib": "workspace:*",
