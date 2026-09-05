@@ -1,3 +1,4 @@
+
 import React from "react";
 
 import {
@@ -35,10 +36,6 @@ export default function ParticipantQrCard({
 }: ParticipantQrCardProps) {
   return (
     <View style={styles.card}>
-
-   
-
-     
 
       {/* ======================================================
           QR CODE
@@ -93,10 +90,12 @@ const styles = StyleSheet.create({
 
     borderRadius: 24,
 
-    paddingHorizontal: 1,
-    paddingTop: 10,
-    paddingBottom: 10,
-    margin: 20,
+    // FIXED SPACING
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 20,
+
+    marginHorizontal: 15,
 
     borderWidth: 1,
     borderColor: "#E8E3F8",
@@ -135,7 +134,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#F3E8FF",
   },
 
-
   title: {
     fontSize: 18,
     lineHeight: 23,
@@ -163,16 +161,17 @@ const styles = StyleSheet.create({
   qrGlow: {
     alignSelf: "center",
 
+    // Balanced outer spacing
     padding: 8,
 
     borderRadius: 24,
 
-    backgroundColor: "#FAF5FF",
+    backgroundColor: "#FFFFFF",
   },
 
   qrContainer: {
-    width: 270,
-    height: 270,
+    width: 266,
+    height: 266,
 
     alignItems: "center",
     justifyContent: "center",
@@ -180,11 +179,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
 
     borderWidth: 1,
-    borderColor: "#E9D5FF",
+    borderColor: "#E8E3F8",
 
     borderRadius: 20,
 
-    padding: 18,
+    // QR breathing room
+    padding: 17,
   },
 
   // ==========================================================
@@ -194,7 +194,8 @@ const styles = StyleSheet.create({
   participantInfo: {
     alignItems: "center",
 
-    marginTop: 18,
+    // Space between QR and participant label
+    marginTop: 14,
 
     paddingHorizontal: 8,
   },
@@ -210,7 +211,7 @@ const styles = StyleSheet.create({
   },
 
   name: {
-    marginTop: 6,
+    marginTop: 5,
 
     fontSize: 17,
     lineHeight: 22,
@@ -223,3 +224,4 @@ const styles = StyleSheet.create({
   },
 
 });
+

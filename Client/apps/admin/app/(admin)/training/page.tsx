@@ -13,6 +13,8 @@ import {
   StatCard,
   StatGrid,
   Button,
+  Modal,
+  PageSection,
 } from "@repo/ui/index";
 
 import {
@@ -571,7 +573,7 @@ export default function TrainingProgramsPage() {
       code: "",
       title: "",
       category:
-        "Information Technology",
+        "",
       description: "",
       hours: "",
     });
@@ -1931,58 +1933,17 @@ export default function TrainingProgramsPage() {
   return (
     <div className="space-y-6">
 
-      {/* HEADER */}
-
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-
         <div>
-
-          <div className="mb-2 flex items-center gap-2 text-xs text-gray-400">
-            <span>
-              Training
-            </span>
-
-            <span>
-              /
-            </span>
-
-            <span className="font-medium text-gray-600">
-              Programs
-            </span>
-          </div>
-
-          <h1 className="text-2xl font-bold tracking-tight text-[#17191c] sm:text-3xl">
-            Training Programs
-          </h1>
-
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
-            Create and manage training
+        <PageSection
+        title="Training Program"
+       description="Create and manage training
             programs, schedules,
             capacity, batches,
             trainer assignments,
-            and enrollment requirements.
-          </p>
-
-        </div>
-
-        <div className="flex gap-2">
-
-          <Button
-            variant="primary"
-            onClick={
-              openCreate
-            }
+            and enrollment requirements."
           >
-            <span className="text-lg leading-none">
-              +
-            </span>
-
-            Create Training
-          </Button>
-
+         </PageSection>
         </div>
-
-      </div>
 
       {/* STATS */}
 
@@ -2677,11 +2638,20 @@ function ProgramDetailsModal({
 }) {
   return (
     <Modal
-      wide
+      open={true}
+      size="xl"
       onClose={
         onClose
       }
     >
+
+      <PageSection
+      title="Training Program"
+      
+      >
+
+
+      </PageSection>
 
       {/* HEADER */}
 
@@ -3391,6 +3361,8 @@ function TrainerAssignmentModal({
 
   return (
     <Modal
+      open={true}
+      size="lg"
       onClose={
         onClose
       }
@@ -3771,6 +3743,8 @@ function BatchFormModal({
 
   return (
     <Modal
+      open={true}
+      size="lg"
       onClose={
         onClose
       }
@@ -4170,7 +4144,8 @@ function ProgramFormModal({
 }) {
   return (
     <Modal
-      wide
+      open={true}
+      size="xl"
       onClose={
         onClose
       }
@@ -4263,12 +4238,9 @@ function ProgramFormModal({
                   form.category
                 }
                 options={[
-                  "Information Technology",
-                  "Electrical",
-                  "Digital Skills",
-                  "Construction",
-                  "Automotive",
-                  "Hospitality",
+                  "Mediation",
+                  "Sports Development",
+                  "Lead Government",
                   "Other",
                 ]}
                 onChange={(
@@ -4770,119 +4742,59 @@ function DeleteModal({
   onConfirm,
 }: {
   program: TrainingProgram;
-
   isDeleting: boolean;
-
   onCancel: () => void;
-
   onConfirm: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-
+    <Modal
+      open={true}
+      size="sm"
+      closeOnOverlayClick={!isDeleting}
+      onClose={() => {
+        if (!isDeleting) {
+          onCancel();
+        }
+      }}
+    >
+      <div>
         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-50 font-bold text-red-600">
           !
         </div>
 
-        <h2 className="mt-5 text-xl font-bold">
+        <h2 className="mt-5 text-xl font-bold tracking-tight text-[#17191c]">
           Delete Training Program?
         </h2>
 
         <p className="mt-2 text-sm leading-6 text-gray-500">
-
-          Are you sure you want to
-          delete{" "}
-
-          <strong>
-            {
-              program.title
-            }
+          Are you sure you want to delete {" "}
+          <strong className="font-semibold text-gray-700">
+            {program.title}
           </strong>
           ?
-
         </p>
 
         <div className="mt-6 flex gap-3">
-
           <button
             type="button"
-            onClick={
-              onCancel
-            }
-            disabled={
-              isDeleting
-            }
-            className="flex-1 rounded-xl border border-[#e7e9ec] py-3 text-xs font-semibold text-gray-600"
+            onClick={onCancel}
+            disabled={isDeleting}
+            className="flex-1 rounded-xl border border-[#e7e9ec] bg-white py-3 text-xs font-semibold text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Cancel
           </button>
 
           <button
             type="button"
-            onClick={
-              onConfirm
-            }
-            disabled={
-              isDeleting
-            }
-            className="flex-1 rounded-xl bg-red-600 py-3 text-xs font-semibold text-white disabled:opacity-50"
+            onClick={onConfirm}
+            disabled={isDeleting}
+            className="flex-1 rounded-xl bg-red-600 py-3 text-xs font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isDeleting
-              ? "Deleting..."
-              : "Delete Program"}
+            {isDeleting ? "Deleting..." : "Delete Program"}
           </button>
-
         </div>
-
       </div>
-
-    </div>
-  );
-}
-
-// ============================================================
-// GENERIC MODAL
-// ============================================================
-
-function Modal({
-  children,
-  onClose,
-  wide = false,
-}: {
-  children: React.ReactNode;
-  onClose: () => void;
-  wide?: boolean;
-}) {
-  return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-3 backdrop-blur-sm"
-      onMouseDown={(
-        event,
-      ) => {
-        if (
-          event.target ===
-          event.currentTarget
-        ) {
-          onClose();
-        }
-      }}
-    >
-
-      <div
-        className={`flex max-h-[92vh] w-full flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ${
-          wide
-            ? "max-w-5xl"
-            : "max-w-2xl"
-        }`}
-      >
-        {
-          children
-        }
-      </div>
-
-    </div>
+    </Modal>
   );
 }
 
