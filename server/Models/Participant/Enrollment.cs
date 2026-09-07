@@ -1,3 +1,4 @@
+using server.Models.Learning;
 using server.Models.Training;
 
 namespace server.Models.Participant;
@@ -33,6 +34,8 @@ public class Enrollment
     public ParticipantProfile ParticipantProfile { get; set; } = default!;
 
     public TrainingBatch TrainingBatch { get; set; } = default!;
+
+    public ICollection<LearningSectionProgress> LearningSectionProgresses { get; set; } = [];
 
     public ICollection<EnrollmentDocument> Documents { get; set; } = [];
 }

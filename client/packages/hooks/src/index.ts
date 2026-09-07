@@ -13,3 +13,5 @@ export * from "./useEnrollments";
 export * from "./useAdminMe";
 export * from "./Attendance";
 export * from "./useAttendanceProgress";
+export * from "./useLearningMaterials";
+export * from "./useLearningProgress";

@@ -1,6 +1,7 @@
 using server.Models.Participant;
 using server.Enums;
 using server.Models.Attendance;
+using server.Models.Learning;
 
 namespace server.Models.Training;
 
@@ -51,7 +52,7 @@ public class TrainingBatch
     // Attendance
     public ICollection<AttendanceSession> AttendanceSessions { get; set; } = [];
 
-    // public ICollection<LearningMaterial> LearningMaterials { get; set; } = [];
+    public ICollection<LearningMaterial> LearningMaterials { get; set; } = [];
 
     // public ICollection<Assessment> Assessments { get; set; } = [];
 

@@ -15,6 +15,7 @@ using server.Services.Enrollment;
 using server.Interfaces.Enrollment;
 using server.Services.Attendance;
 using server.Interfaces.Attendance;
+using server.Services.DocumentExtraction;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(options =>
@@ -35,6 +36,22 @@ builder.Services.AddScoped<
 >();
 
 builder.Services.AddScoped<
+    ILearningMaterialService,
+    LearningMaterialService
+>();
+builder.Services.AddScoped<
+    ILearningMaterialAiService,
+    LearningMaterialAiService
+>();
+builder.Services.AddScoped<
+    IOpenCodeService,
+    OpenCodeService
+>();
+builder.Services.AddScoped<
+    IDocumentTextExtractionService,
+    DocumentTextExtractionService>();
+
+builder.Services.AddScoped<
     ITrainingScheduleService,
     TrainingScheduleService
 >();
@@ -52,6 +69,10 @@ builder.Services.AddScoped<
     AttendanceService
 >();
 
+builder.Services.AddScoped<
+    ILearningProgressService,
+    LearningProgressService>();
+    
 builder.Services.AddScoped<
     ITrainingProgramService,
     TrainingProgramService>();
@@ -207,8 +228,9 @@ builder.Services.AddSwaggerGen(options =>
         }
     );
 });
-
+builder.Services.AddHttpClient();
 var app = builder.Build();
+
 app.UseCors("FrontendPolicy");
 
 app.UseSwagger();

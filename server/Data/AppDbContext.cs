@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using server.Models.Attendance;
 using server.Models.Auth;
+using server.Models.Learning;
 using server.Models.Otp;
 using server.Models.Participant;
 using server.Models.Trainer;
@@ -23,6 +24,18 @@ public DbSet<TrainingProgramRequirement>
     public DbSet<User> Users
         => Set<User>();
 
+    public DbSet<LearningMaterial> LearningMaterials
+    => Set<LearningMaterial>();
+
+public DbSet<LearningSectionProgress>
+    LearningSectionProgresses
+    => Set<LearningSectionProgress>();
+    public DbSet<LearningModule> LearningModules
+    => Set<LearningModule>();
+
+public DbSet<LearningSection> LearningSections
+    => Set<LearningSection>();
+    
     public DbSet<OtpVerification> OtpVerifications
         => Set<OtpVerification>();
 
@@ -395,7 +408,161 @@ public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
                 .HasForeignKey(x => x.TrainingProgramId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+        // ==========================================
+// LEARNING MATERIAL
+// ==========================================
 
+modelBuilder.Entity<LearningMaterial>(entity =>
+{
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.Title)
+        .IsRequired()
+        .HasMaxLength(255);
+
+    entity.Property(x => x.Description)
+        .HasMaxLength(2000);
+
+    entity.Property(x => x.MaterialType)
+        .IsRequired()
+        .HasMaxLength(50);
+
+    entity.Property(x => x.FileUrl)
+        .IsRequired()
+        .HasMaxLength(1000);
+
+    entity.Property(x => x.PublicId)
+        .HasMaxLength(500);
+
+    entity.Property(x => x.FileName)
+        .HasMaxLength(255);
+
+    entity.Property(x => x.ContentType)
+        .HasMaxLength(150);
+
+    entity.Property(x => x.FileSize)
+        .IsRequired(false);
+
+    entity.Property(x => x.IsPublished)
+        .IsRequired();
+
+    entity.Property(x => x.CreatedAt)
+        .IsRequired();
+
+    entity.Property(x => x.UpdatedAt)
+        .IsRequired(false);
+
+    entity.HasIndex(x => x.TrainingBatchId);
+
+    entity.HasIndex(x => new
+    {
+        x.TrainingBatchId,
+        x.Title
+    });
+
+    entity.HasOne(x => x.TrainingBatch)
+    .WithMany(x => x.LearningMaterials)
+    .HasForeignKey(x => x.TrainingBatchId)
+    .OnDelete(DeleteBehavior.Cascade);
+});
+
+// ==========================================
+// LEARNING MODULE
+// ==========================================
+
+modelBuilder.Entity<LearningModule>(entity =>
+{
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.ModuleNumber)
+        .IsRequired();
+
+    entity.Property(x => x.Title)
+        .IsRequired()
+        .HasMaxLength(255);
+
+    entity.Property(x => x.Description)
+        .HasMaxLength(2000);
+
+    entity.Property(x => x.DisplayOrder)
+        .IsRequired();
+
+    entity.Property(x => x.CreatedAt)
+        .IsRequired();
+
+    entity.Property(x => x.UpdatedAt)
+        .IsRequired(false);
+
+    entity.HasIndex(x => new
+    {
+        x.LearningMaterialId,
+        x.ModuleNumber
+    })
+    .IsUnique();
+
+    entity.HasIndex(x => new
+    {
+        x.LearningMaterialId,
+        x.DisplayOrder
+    });
+
+    entity.HasOne(x => x.LearningMaterial)
+        .WithMany(x => x.Modules)
+        .HasForeignKey(x => x.LearningMaterialId)
+        .OnDelete(DeleteBehavior.Cascade);
+});
+// ==========================================
+// LEARNING SECTION
+// ==========================================
+
+modelBuilder.Entity<LearningSection>(entity =>
+{
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.SectionNumber)
+        .IsRequired();
+
+    entity.Property(x => x.Title)
+        .IsRequired()
+        .HasMaxLength(255);
+
+    entity.Property(x => x.ContentType)
+        .IsRequired()
+        .HasMaxLength(50);
+
+    entity.Property(x => x.Content)
+        .HasMaxLength(10000);
+
+    entity.Property(x => x.MediaUrl)
+        .HasMaxLength(1000);
+
+    entity.Property(x => x.DisplayOrder)
+        .IsRequired();
+
+    entity.Property(x => x.CreatedAt)
+        .IsRequired();
+
+    entity.Property(x => x.UpdatedAt)
+        .IsRequired(false);
+
+    entity.HasIndex(x => new
+    {
+        x.LearningModuleId,
+        x.SectionNumber
+    })
+    .IsUnique();
+
+    entity.HasIndex(x => new
+    {
+        x.LearningModuleId,
+        x.DisplayOrder
+    });
+
+    entity.HasOne(x => x.LearningModule)
+        .WithMany(x => x.Sections)
+        .HasForeignKey(x => x.LearningModuleId)
+        .OnDelete(DeleteBehavior.Cascade);
+});
 
         // ==========================================
         // TRAINING PROGRAM DOCUMENT
@@ -428,6 +595,38 @@ public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+modelBuilder.Entity<LearningSectionProgress>(entity =>
+{
+    entity.ToTable("LearningSectionProgress");
+
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.IsRead)
+        .IsRequired();
+
+    entity.Property(x => x.ReadAt)
+        .IsRequired(false);
+
+    entity.Property(x => x.LastReadAt)
+        .IsRequired();
+
+    entity.HasIndex(x => new
+    {
+        x.EnrollmentId,
+        x.LearningSectionId
+    })
+    .IsUnique();
+
+    entity.HasOne(x => x.Enrollment)
+        .WithMany(x => x.LearningSectionProgresses)
+        .HasForeignKey(x => x.EnrollmentId)
+        .OnDelete(DeleteBehavior.Cascade);
+
+    entity.HasOne(x => x.LearningSection)
+        .WithMany(x => x.Progresses)
+        .HasForeignKey(x => x.LearningSectionId)
+        .OnDelete(DeleteBehavior.Cascade);
+});
 
       modelBuilder.Entity<TrainingBatch>(entity =>
 {
@@ -754,6 +953,8 @@ modelBuilder.Entity<AttendanceRecord>(entity =>
         .OnDelete(DeleteBehavior.Restrict);
 });
     }
+
+    
     
 
     

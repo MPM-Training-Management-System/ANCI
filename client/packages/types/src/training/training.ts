@@ -177,3 +177,285 @@ export interface UploadTrainingProgramDocumentRequest {
   file: File;
   documentType: string;
 }
+
+// ==========================================
+// TRAINING SCHEDULE STATUS
+// ==========================================
+
+export type TrainingScheduleStatus =
+  | "Draft"
+  | "Recommended"
+  | "Approved";
+
+// ==========================================
+// TRAINING SESSION STATUS
+// ==========================================
+
+export type TrainingSessionStatus =
+  | "Scheduled"
+  | "Completed"
+  | "Cancelled";
+
+// ==========================================
+// TRAINING SCHEDULE RECOMMENDATION
+// ==========================================
+
+export interface TrainingScheduleRecommendation {
+  trainingBatchId: string;
+
+  requiredHours: number;
+
+  startDate: string;
+
+  endDate: string;
+
+  availableWeeks: number;
+
+  recommendedSessionsPerWeek: number;
+
+  recommendedHoursPerSession: number;
+
+  estimatedWeeklyHours: number;
+
+  estimatedSessionCount: number;
+
+  includeWeekends: boolean;
+}
+
+// ==========================================
+// GENERATE TRAINING SCHEDULE REQUEST
+// ==========================================
+
+export interface GenerateTrainingScheduleRequest {
+  sessionsPerWeek: number;
+
+  startTime: string;
+
+  endTime: string;
+
+  includeWeekends: boolean;
+}
+
+// ==========================================
+// TRAINING SESSION
+// ==========================================
+
+export interface TrainingSession {
+  id: string;
+
+  trainingBatchId: string;
+
+  sessionNumber: number;
+
+  sessionDate: string;
+
+  startTime: string;
+
+  endTime: string;
+
+  durationHours: number;
+
+  status: TrainingSessionStatus;
+}
+
+// ==========================================
+// LEARNING MATERIAL TYPE
+// ==========================================
+
+export interface LearningMaterial {
+  id: string;
+
+  trainingBatchId: string;
+
+  batchCode: string;
+
+  title: string;
+
+  description: string | null;
+
+  materialType: string;
+
+  fileUrl: string;
+
+  fileName: string | null;
+
+  contentType: string | null;
+
+  fileSize: number | null;
+
+  isPublished: boolean;
+
+  createdAt: string;
+
+  updatedAt: string | null;
+}
+
+// ==========================================
+// CREATE LEARNING MATERIAL
+// ==========================================
+
+export interface CreateLearningMaterialRequest {
+  trainingBatchId: string;
+
+  title: string;
+
+  description?: string | null;
+
+  materialType: string;
+}
+
+// ==========================================
+// UPDATE LEARNING MATERIAL
+// ==========================================
+
+export interface UpdateLearningMaterialRequest {
+  title: string;
+
+  description?: string | null;
+
+  materialType: string;
+}
+
+// ==========================================
+// UPLOAD LEARNING MATERIAL
+// ==========================================
+
+export interface UploadLearningMaterialRequest {
+  file: File;
+}
+
+// ==========================================
+// LEARNING MATERIAL EXTRACTION
+// ==========================================
+
+export interface LearningMaterialExtraction {
+  learningMaterialId: string;
+
+  fileName: string;
+
+  contentType: string | null;
+
+  text: string;
+
+  characterCount: number;
+
+  pageCount: number;
+}
+
+// ==========================================
+// LEARNING MODULE
+// ==========================================
+
+export interface LearningModule {
+  id: string;
+
+  learningMaterialId: string;
+
+  moduleNumber: number;
+
+  title: string;
+
+  description: string | null;
+
+  displayOrder: number;
+
+  createdAt: string;
+
+  updatedAt: string | null;
+
+  sectionCount: number;
+}
+
+// ==========================================
+// CREATE LEARNING MODULE
+// ==========================================
+
+export interface CreateLearningModuleRequest {
+  learningMaterialId: string;
+
+  moduleNumber: number;
+
+  title: string;
+
+  description?: string | null;
+
+  displayOrder: number;
+}
+
+// ==========================================
+// UPDATE LEARNING MODULE
+// ==========================================
+
+export interface UpdateLearningModuleRequest {
+  moduleNumber: number;
+
+  title: string;
+
+  description?: string | null;
+
+  displayOrder: number;
+}
+
+// ==========================================
+// LEARNING SECTION
+// ==========================================
+
+export interface LearningSection {
+  id: string;
+
+  learningModuleId: string;
+
+  sectionNumber: number;
+
+  title: string;
+
+  contentType: string;
+
+  content: string | null;
+
+  mediaUrl: string | null;
+
+  displayOrder: number;
+
+  createdAt: string;
+
+  updatedAt: string | null;
+}
+
+// ==========================================
+// CREATE LEARNING SECTION
+// ==========================================
+
+export interface CreateLearningSectionRequest {
+  learningModuleId: string;
+
+  sectionNumber: number;
+
+  title: string;
+
+  contentType: string;
+
+  content?: string | null;
+
+  mediaUrl?: string | null;
+
+  displayOrder: number;
+}
+
+// ==========================================
+// UPDATE LEARNING SECTION
+// ==========================================
+
+export interface UpdateLearningSectionRequest {
+  sectionNumber: number;
+
+  title: string;
+
+  contentType: string;
+
+  content?: string | null;
+
+  mediaUrl?: string | null;
+
+  displayOrder: number;
+}

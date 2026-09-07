@@ -5,6 +5,8 @@ import {
   TrainingBatchApi,
   EnrollmentApi,
   AttendanceApi,
+  LearningMaterialApi,
+  LearningProgressApi
 } from "@repo/api";
 import { auth } from "./auth";
 const apiClient = new ApiClient({
@@ -18,7 +20,10 @@ export const participantApi = new ParticipantApi(apiClient);
 export const authApi =
   new AuthApi(apiClient);
 
-  export const trainingBatchApi =
+  export const   learningProgressApi =
+  new   LearningProgressApi(apiClient);
+
+   export const trainingBatchApi =
   new TrainingBatchApi(apiClient);
   
   export const enrollmentApi =
@@ -27,3 +32,6 @@ export const authApi =
 
    export const attendanceApi =
   new AttendanceApi(apiClient);
+
+     export const learningMaterialApi =
+  new LearningMaterialApi(apiClient);

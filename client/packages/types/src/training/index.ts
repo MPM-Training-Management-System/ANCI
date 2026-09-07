@@ -1,2 +1,2 @@
 export * from "./training";
-export * from "./TrainingScheduleTypes";
+export * from "./learning-progress";
