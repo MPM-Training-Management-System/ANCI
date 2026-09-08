@@ -6,32 +6,40 @@ import {
   EnrollmentApi,
   AttendanceApi,
   LearningMaterialApi,
-  LearningProgressApi
+  LearningProgressApi,
+  WrittenAssessmentApi,
 } from "@repo/api";
+
 import { auth } from "./auth";
-const apiClient = new ApiClient({
+
+export const apiClient = new ApiClient({
   baseUrl:
     process.env.EXPO_PUBLIC_API_URL ?? "",
-    getToken: async() =>{
-      return auth.getToken();
-    },
+  getToken: async () => {
+    return auth.getToken();
+  },
 });
-export const participantApi = new ParticipantApi(apiClient);
+
+export const participantApi =
+  new ParticipantApi(apiClient);
+
 export const authApi =
   new AuthApi(apiClient);
 
-  export const   learningProgressApi =
-  new   LearningProgressApi(apiClient);
+export const learningProgressApi =
+  new LearningProgressApi(apiClient);
 
-   export const trainingBatchApi =
+export const writtenAssessmentApi =
+  new WrittenAssessmentApi(apiClient);
+
+export const trainingBatchApi =
   new TrainingBatchApi(apiClient);
-  
-  export const enrollmentApi =
+
+export const enrollmentApi =
   new EnrollmentApi(apiClient);
 
-
-   export const attendanceApi =
+export const attendanceApi =
   new AttendanceApi(apiClient);
 
-     export const learningMaterialApi =
+export const learningMaterialApi =
   new LearningMaterialApi(apiClient);

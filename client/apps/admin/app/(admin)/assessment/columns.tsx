@@ -1,218 +1,80 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
+import type { WrittenAssessment } from "@repo/types";
 
-import {
-  Badge,
-  UserCell,
-} from "@repo/ui/index";
+export type AdminWrittenAssessment =
+  WrittenAssessment;
 
-import type {
-  Assessment,
-  AssessmentTableMeta,
-} from "./types";
-
-function formatDate(date: string) {
-  return new Date(
-    `${date}T00:00:00`
-  ).toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-export const columns: ColumnDef<Assessment>[] = [
+export const columns: ColumnDef<AdminWrittenAssessment>[] = [
   {
-    accessorKey: "participantName",
-
-    header: "Participant",
-
-    cell: ({ row }) => {
-      const participant = row.original;
-
-      return (
-        <UserCell
-          name={participant.participantName}
-          email={participant.participantId}
-        />
-      );
-    },
-  },
-
-  {
-    accessorKey: "training",
-
-    header: "Training",
-
-    cell: ({ row }) => {
-      const assessment = row.original;
-
-      return (
-        <div>
-          <p className="max-w-[220px] font-medium">
-            {assessment.training}
-          </p>
-
-          <p className="mt-1 text-xs text-gray-500">
-            {assessment.batch}
-          </p>
-        </div>
-      );
-    },
-  },
-
-  {
-    accessorKey: "assessment",
-
+    accessorKey: "title",
     header: "Assessment",
+    cell: ({ row }) => (
+      <div className="min-w-0">
+        <p className="truncate font-semibold text-[#17191c]">
+          {row.original.title}
+        </p>
 
-    cell: ({ row }) => {
-      const assessment = row.original;
-
-      return (
-        <div>
-          <p className="max-w-[240px] font-medium">
-            {assessment.assessment}
+        {row.original.description && (
+          <p className="mt-0.5 truncate text-xs text-gray-500">
+            {row.original.description}
           </p>
-
-          <p className="mt-1 text-xs text-gray-500">
-            {assessment.type}
-          </p>
-
-          <p className="mt-1 text-xs text-gray-400">
-            {formatDate(assessment.date)}
-          </p>
-        </div>
-      );
-    },
+        )}
+      </div>
+    ),
   },
 
   {
-    accessorKey: "score",
-
-    header: "Score",
-
-    cell: ({ row }) => {
-      const score = row.original.score;
-
-      if (score === null) {
-        return (
-          <span className="text-sm text-gray-400">
-            Pending
-          </span>
-        );
-      }
-
-      return (
-        <span className="text-lg font-bold">
-          {score}
-
-          <span className="ml-1 text-xs font-normal text-gray-400">
-            / 100
-          </span>
-        </span>
-      );
-    },
+    accessorKey: "batchCode",
+    header: "Batch",
+    cell: ({ row }) => (
+      <span className="font-medium text-[#17191c]">
+        {row.original.batchCode}
+      </span>
+    ),
   },
 
   {
-    accessorKey: "result",
-
-    header: "Result",
-
-    cell: ({ row }) => {
-      const result =
-        row.original.result;
-
-      return (
-        <Badge
-          variant={
-            result === "Passed"
-              ? "success"
-              : result === "Failed"
-                ? "error"
-                : "warning"
-          }
-        >
-          {result}
-        </Badge>
-      );
-    },
+    accessorKey: "questionCount",
+    header: "Questions",
+    cell: ({ row }) => (
+      <span className="text-sm text-gray-600">
+        {row.original.questionCount}
+      </span>
+    ),
   },
 
   {
-    accessorKey: "status",
+    accessorKey: "passingPercentage",
+    header: "Passing",
+    cell: ({ row }) => (
+      <span className="text-sm text-gray-600">
+        {row.original.passingPercentage}%
+      </span>
+    ),
+  },
 
+  {
+    accessorKey: "isPublished",
     header: "Status",
-
     cell: ({ row }) => {
-      const assessment = row.original;
+      const published =
+        row.original.isPublished;
 
       return (
-        <div className="space-y-1">
-          <Badge
-            variant={
-              assessment.status ===
-              "Completed"
-                ? "success"
-                : assessment.status ===
-                    "Pending"
-                  ? "warning"
-                  : assessment.status ===
-                      "Retake Required"
-                    ? "error"
-                    : "neutral"
-            }
-          >
-            {assessment.status}
-          </Badge>
-
-          {assessment.retakeDate && (
-            <p className="text-xs text-gray-500">
-              Retake:{" "}
-              {formatDate(
-                assessment.retakeDate
-              )}
-            </p>
-          )}
-        </div>
-      );
-    },
-  },
-
-  {
-    accessorKey: "trainer",
-
-    header: "Trainer",
-
-    cell: ({ row }) => {
-      return (
-        <span className="font-medium">
-          {row.original.trainer}
-        </span>
-      );
-    },
-  },
-
-  {
-    accessorKey: "attempts",
-
-    header: "Attempts",
-
-    cell: ({ row }) => {
-      const assessment = row.original;
-
-      return (
-        <span>
-          <strong>
-            {assessment.attempts}
-          </strong>
-
-          <span className="text-gray-400">
-            {" "}
-            / {assessment.maxAttempts}
-          </span>
+        <span
+          className={[
+            "inline-flex rounded-full px-2.5 py-1",
+            "text-[10px] font-semibold",
+            published
+              ? "bg-green-50 text-green-700"
+              : "bg-gray-100 text-gray-600",
+          ].join(" ")}
+        >
+          {published
+            ? "Published"
+            : "Draft"}
         </span>
       );
     },
@@ -220,54 +82,140 @@ export const columns: ColumnDef<Assessment>[] = [
 
   {
     id: "actions",
-
     header: "Actions",
-
     cell: ({ row, table }) => {
-      const assessment = row.original;
-
       const meta =
         table.options.meta as
-          | AssessmentTableMeta
+          | {
+              onQuestions?: (
+                assessment: AdminWrittenAssessment,
+              ) => void;
+              onEdit?: (
+                assessment: AdminWrittenAssessment,
+              ) => void;
+              onDelete?: (
+                assessment: AdminWrittenAssessment,
+              ) => void;
+              onPublish?: (
+                assessment: AdminWrittenAssessment,
+              ) => void;
+              deletingId?: string | null;
+              publishingId?: string | null;
+            }
           | undefined;
 
-      const canManage =
-        assessment.status ===
-          "Retake Required" ||
-        assessment.status ===
-          "Retake Scheduled" ||
-        assessment.status ===
-          "Pending";
+      const assessment =
+        row.original;
 
       return (
         <div className="flex items-center gap-2">
-
-          <button
-            type="button"
-            onClick={() =>
-              meta?.onView?.(
-                assessment
-              )
-            }
-            className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold transition hover:bg-gray-50"
-          >
-            View
-          </button>
-
-          {canManage && (
+          {meta?.onQuestions && (
             <button
               type="button"
               onClick={() =>
-                meta?.onManage?.(
-                  assessment
+                meta.onQuestions?.(
+                  assessment,
                 )
               }
-              className="rounded-lg bg-[#191c1e] px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90"
+              className="
+                rounded-lg
+                border border-[#dfe2e6]
+                px-3 py-1.5
+                text-[11px] font-semibold
+                text-gray-700
+                transition
+                hover:bg-gray-50
+              "
             >
-              Manage
+              Questions
             </button>
           )}
 
+          {meta?.onEdit && (
+            <button
+              type="button"
+              onClick={() =>
+                meta.onEdit?.(
+                  assessment,
+                )
+              }
+              className="
+                rounded-lg
+                border border-[#dfe2e6]
+                px-3 py-1.5
+                text-[11px] font-semibold
+                text-gray-700
+                transition
+                hover:bg-gray-50
+              "
+            >
+              Edit
+            </button>
+          )}
+
+          {meta?.onPublish && (
+            <button
+              type="button"
+              disabled={
+                meta.publishingId ===
+                assessment.id
+              }
+              onClick={() =>
+                meta.onPublish?.(
+                  assessment,
+                )
+              }
+              className="
+                rounded-lg
+                border border-[#dfe2e6]
+                px-3 py-1.5
+                text-[11px] font-semibold
+                text-gray-700
+                transition
+                hover:bg-gray-50
+                disabled:cursor-not-allowed
+                disabled:opacity-50
+              "
+            >
+              {meta.publishingId ===
+              assessment.id
+                ? "..."
+                : assessment.isPublished
+                  ? "Unpublish"
+                  : "Publish"}
+            </button>
+          )}
+
+          {meta?.onDelete && (
+            <button
+              type="button"
+              disabled={
+                meta.deletingId ===
+                assessment.id
+              }
+              onClick={() =>
+                meta.onDelete?.(
+                  assessment,
+                )
+              }
+              className="
+                rounded-lg
+                border border-red-200
+                px-3 py-1.5
+                text-[11px] font-semibold
+                text-red-600
+                transition
+                hover:bg-red-50
+                disabled:cursor-not-allowed
+                disabled:opacity-50
+              "
+            >
+              {meta.deletingId ===
+              assessment.id
+                ? "..."
+                : "Delete"}
+            </button>
+          )}
         </div>
       );
     },

@@ -7,3 +7,4 @@ export * from "./IdValidationResponse";
 export * from "./enrollment";
 export * from "./Admin";
 export * from "./Attendance";
+export * from "./Assessment";

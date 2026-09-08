@@ -18,7 +18,10 @@ import {
 
 import { router } from "expo-router";
 
+import type { ParticipantAssessment } from "@repo/types";
+
 import {
+  apiClient,
   learningMaterialApi,
   learningProgressApi,
 } from "@/api/api";
@@ -26,6 +29,7 @@ import {
 import {
   useLearningMaterials,
   useLearningProgress,
+  useWrittenAssessment,
 } from "@repo/hooks";
 
 type Props = {
@@ -64,6 +68,21 @@ export default function LearningMaterialModules({
   } = useLearningProgress(
     learningProgressApi,
   );
+
+  // ==========================================================
+  // WRITTEN ASSESSMENT
+  // ==========================================================
+
+  const {
+    isLoading: isAssessmentLoading,
+    error: assessmentError,
+    loadByBatchIdParticipantAssessment,
+  } = useWrittenAssessment(apiClient);
+
+  const [
+    participantAssessments,
+    setParticipantAssessments,
+  ] = useState<ParticipantAssessment[]>([]);
 
   // ==========================================================
   // REFRESH
@@ -129,6 +148,15 @@ export default function LearningMaterialModules({
             materialId,
           );
 
+        const assessmentData =
+  await loadByBatchIdParticipantAssessment(
+    material.trainingBatchId,
+  );
+
+setParticipantAssessments(
+  assessmentData as unknown as ParticipantAssessment[],
+);
+
         await Promise.all([
           loadModules(
             material.id,
@@ -143,6 +171,7 @@ export default function LearningMaterialModules({
         loadLearningMaterial,
         loadModules,
         getMaterialProgress,
+        loadByBatchIdParticipantAssessment,
       ],
     );
 
@@ -355,6 +384,36 @@ export default function LearningMaterialModules({
       ],
     );
 
+  // ==========================================================
+  // ALL MODULES COMPLETED
+  // ==========================================================
+
+  const allModulesCompleted =
+    modules.length > 0 &&
+    modules.every((module) =>
+      isModuleCompleted(module.id),
+    );
+
+  // ==========================================================
+  // OPEN WRITTEN ASSESSMENT
+  // ==========================================================
+const handleOpenAssessment =
+  useCallback(
+    (assessmentId: string) => {
+      if (!allModulesCompleted) {
+        return;
+      }
+
+      router.push({
+        pathname: "/assessment/[id]",
+        params: {
+          id: assessmentId,
+          assessmentId,
+        },
+      });
+    },
+    [allModulesCompleted],
+  );
   // ==========================================================
   // INITIAL LOADING
   // ==========================================================
@@ -742,6 +801,127 @@ export default function LearningMaterialModules({
         )}
 
       {/* ====================================================
+          WRITTEN ASSESSMENT
+      ==================================================== */}
+
+      {allModulesCompleted && (
+        <View style={styles.assessmentSection}>
+          <View style={styles.sectionHeader}>
+            <View>
+              <Text style={styles.sectionTitle}>
+                Written Assessment
+              </Text>
+              <Text style={styles.sectionSubtitle}>
+                Test what you learned
+              </Text>
+            </View>
+
+            <View style={styles.assessmentBadge}>
+              <Text style={styles.assessmentBadgeText}>
+                READY
+              </Text>
+            </View>
+          </View>
+
+          {isAssessmentLoading &&
+            participantAssessments.length === 0 && (
+              <View style={styles.assessmentLoading}>
+                <ActivityIndicator
+                  size="small"
+                  color="#64748B"
+                />
+                <Text style={styles.assessmentLoadingText}>
+                  Loading assessment...
+                </Text>
+              </View>
+            )}
+
+          {assessmentError &&
+            participantAssessments.length === 0 && (
+              <View style={styles.assessmentErrorCard}>
+                <Text style={styles.assessmentErrorText}>
+                  {assessmentError}
+                </Text>
+              </View>
+            )}
+
+          {!isAssessmentLoading &&
+            !assessmentError &&
+            participantAssessments.length === 0 && (
+              <View style={styles.assessmentEmptyCard}>
+                <Text style={styles.assessmentEmptyTitle}>
+                  No written assessment yet
+                </Text>
+                <Text style={styles.assessmentEmptyText}>
+                  Your written assessment will appear here once it is published.
+                </Text>
+              </View>
+            )}
+
+          <View style={styles.assessmentList}>
+            {participantAssessments.map((item) => (
+              <Pressable
+                key={item.id}
+                onPress={() =>
+                  handleOpenAssessment(item.id)
+                }
+                style={styles.assessmentCard}
+              >
+                <View style={styles.assessmentIcon}>
+                  <Text style={styles.assessmentIconText}>
+                    ?
+                  </Text>
+                </View>
+
+                <View style={styles.assessmentInfo}>
+                  <Text
+                    style={styles.assessmentTitle}
+                    numberOfLines={2}
+                  >
+                    {item.title}
+                  </Text>
+
+                  {!!item.description && (
+                    <Text
+                      style={styles.assessmentDescription}
+                      numberOfLines={2}
+                    >
+                      {item.description}
+                    </Text>
+                  )}
+
+                  <Text style={styles.assessmentMeta}>
+                    {item.questionCount} {item.questionCount === 1 ? "question" : "questions"}
+                    {"  •  "}
+                    Passing {item.passingPercentage}%
+                  </Text>
+
+                  {item.hasPassed ? (
+                    <Text style={styles.assessmentPassed}>
+                      PASSED {item.latestPercentage != null ? `• ${item.latestPercentage}%` : ""}
+                    </Text>
+                  ) : item.attemptCount > 0 ? (
+                    <Text style={styles.assessmentAttempted}>
+                      {item.attemptCount} {item.attemptCount === 1 ? "attempt" : "attempts"}
+                      {item.latestPercentage != null ? ` • Latest ${item.latestPercentage}%` : ""}
+                    </Text>
+                  ) : (
+                    <Text style={styles.assessmentAvailable}>
+                      Ready to take
+                    </Text>
+                  )}
+                </View>
+
+                <Text style={styles.assessmentArrow}>
+                  ›
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* ====================================================
           INFO
       ==================================================== */}
 
@@ -1056,6 +1236,159 @@ const styles = StyleSheet.create({
     lineHeight: 14,
     textAlign: "center",
     color: "#B91C1C",
+  },
+
+  // ==========================================================
+  // WRITTEN ASSESSMENT
+  // ==========================================================
+
+  assessmentSection: {
+    marginTop: 24,
+  },
+
+  assessmentBadge: {
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 9,
+    backgroundColor: "#DCFCE7",
+  },
+
+  assessmentBadgeText: {
+    fontSize: 7,
+    fontWeight: "900",
+    letterSpacing: 0.6,
+    color: "#15803D",
+  },
+
+  assessmentList: {
+    gap: 9,
+  },
+
+  assessmentCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    borderRadius: 17,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#D1FAE5",
+  },
+
+  assessmentIcon: {
+    width: 43,
+    height: 43,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ECFDF5",
+    marginRight: 12,
+  },
+
+  assessmentIconText: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#059669",
+  },
+
+  assessmentInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  assessmentTitle: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "800",
+    color: "#111827",
+  },
+
+  assessmentDescription: {
+    marginTop: 3,
+    fontSize: 9,
+    lineHeight: 14,
+    color: "#64748B",
+  },
+
+  assessmentMeta: {
+    marginTop: 6,
+    fontSize: 8,
+    color: "#64748B",
+  },
+
+  assessmentPassed: {
+    marginTop: 5,
+    fontSize: 8,
+    fontWeight: "900",
+    color: "#059669",
+  },
+
+  assessmentAttempted: {
+    marginTop: 5,
+    fontSize: 8,
+    fontWeight: "700",
+    color: "#D97706",
+  },
+
+  assessmentAvailable: {
+    marginTop: 5,
+    fontSize: 8,
+    fontWeight: "800",
+    color: "#2563EB",
+  },
+
+  assessmentArrow: {
+    marginLeft: 8,
+    fontSize: 25,
+    color: "#94A3B8",
+  },
+
+  assessmentLoading: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    gap: 7,
+  },
+
+  assessmentLoadingText: {
+    fontSize: 9,
+    color: "#64748B",
+  },
+
+  assessmentErrorCard: {
+    padding: 11,
+    borderRadius: 13,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+  },
+
+  assessmentErrorText: {
+    fontSize: 9,
+    lineHeight: 14,
+    textAlign: "center",
+    color: "#B91C1C",
+  },
+
+  assessmentEmptyCard: {
+    padding: 14,
+    borderRadius: 15,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+
+  assessmentEmptyTitle: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#111827",
+  },
+
+  assessmentEmptyText: {
+    marginTop: 4,
+    fontSize: 9,
+    lineHeight: 14,
+    color: "#64748B",
   },
 
   // ==========================================================

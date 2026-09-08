@@ -23,11 +23,9 @@ import {
 
 import {
   enrollmentApi,
+  learningMaterialApi
 } from "@/api/api";
 
-import {
-  learningMaterialApi,
-} from "@/api/api";
 
 import {
   useLearningMaterials,

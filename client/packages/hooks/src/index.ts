@@ -15,3 +15,4 @@ export * from "./Attendance";
 export * from "./useAttendanceProgress";
 export * from "./useLearningMaterials";
 export * from "./useLearningProgress";
+export * from "./useWrittenAssessment";

@@ -17,6 +17,7 @@ using server.Services.Attendance;
 using server.Interfaces.Attendance;
 using server.Services.DocumentExtraction;
 
+
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(options =>
 {
@@ -56,6 +57,10 @@ builder.Services.AddScoped<
     TrainingScheduleService
 >();
 builder.Services.AddScoped<
+    IWrittenAssessmentService,
+    WrittenAssessmentService
+>();
+builder.Services.AddScoped<
     IAdminProfileService,
     AdminProfileService
 >();
@@ -63,6 +68,12 @@ builder.Services.AddScoped<
     IEnrollmentDocumentService,
     EnrollmentDocumentService
 >();
+
+builder.Services.AddScoped
+<IAssessmentAiService, 
+AssessmentAiService
+>();
+
 
 builder.Services.AddScoped<
     IAttendanceService,

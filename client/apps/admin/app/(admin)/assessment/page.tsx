@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  useCallback,
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -11,1340 +13,808 @@ import {
   StatGrid,
 } from "@repo/ui/index";
 
-import { columns } from "./columns";
-
 import type {
-  Assessment,
-  AssessmentResult,
-  AssessmentTableMeta,
-} from "./types";
+  TrainingBatch,
+  WrittenAssessment,
+} from "@repo/types";
 
-/* =========================================================
-   MOCK DATA
-========================================================= */
+import {
+  trainingBatchApi,
+  writtenAssessmentApi,
+} from "@/lib/api";
 
-const initialAssessments: Assessment[] = [
-  {
-    id: "ASM-001",
-    participantId: "PT-001",
-    participantName: "Juan Dela Cruz",
-    training:
-      "Computer Systems Servicing NC II",
-    batch: "CSS-NCII-2026-01",
-    trainer: "Maria Santos",
-    assessment:
-      "CSS NC II Final Assessment",
-    type: "Final Assessment",
-    date: "2026-08-15",
-    score: 92,
-    passingScore: 75,
-    result: "Passed",
-    status: "Completed",
-    attempts: 1,
-    maxAttempts: 3,
-    retakeDate: null,
-    retakeTime: null,
-    retakeVenue: null,
-    remarks:
-      "Successfully completed the final assessment.",
-  },
+import {
+  columns,
+  type AdminWrittenAssessment,
+} from "./columns";
 
-  {
-    id: "ASM-002",
-    participantId: "PT-002",
-    participantName: "Maria Garcia",
-    training:
-      "Computer Systems Servicing NC II",
-    batch: "CSS-NCII-2026-01",
-    trainer: "Maria Santos",
-    assessment:
-      "CSS NC II Final Assessment",
-    type: "Final Assessment",
-    date: "2026-08-15",
-    score: 84,
-    passingScore: 75,
-    result: "Passed",
-    status: "Completed",
-    attempts: 1,
-    maxAttempts: 3,
-    retakeDate: null,
-    retakeTime: null,
-    retakeVenue: null,
-    remarks:
-      "Participant met the passing requirement.",
-  },
-
-  {
-    id: "ASM-003",
-    participantId: "PT-003",
-    participantName: "Pedro Reyes",
-    training:
-      "Computer Systems Servicing NC II",
-    batch: "CSS-NCII-2026-01",
-    trainer: "Maria Santos",
-    assessment:
-      "CSS NC II Final Assessment",
-    type: "Final Assessment",
-    date: "2026-08-15",
-    score: 68,
-    passingScore: 75,
-    result: "Failed",
-    status: "Retake Required",
-    attempts: 1,
-    maxAttempts: 3,
-    retakeDate: null,
-    retakeTime: null,
-    retakeVenue: null,
-    remarks:
-      "Participant did not meet the passing score.",
-  },
-
-  {
-    id: "ASM-004",
-    participantId: "PT-004",
-    participantName: "Ana Mendoza",
-    training:
-      "Computer Systems Servicing NC II",
-    batch: "CSS-NCII-2026-01",
-    trainer: "Maria Santos",
-    assessment:
-      "CSS NC II Final Assessment",
-    type: "Final Assessment",
-    date: "2026-08-16",
-    score: null,
-    passingScore: 75,
-    result: "Pending",
-    status: "Pending",
-    attempts: 1,
-    maxAttempts: 3,
-    retakeDate: null,
-    retakeTime: null,
-    retakeVenue: null,
-    remarks:
-      "Result is awaiting trainer submission.",
-  },
-
-  {
-    id: "ASM-005",
-    participantId: "PT-005",
-    participantName: "Mark Villanueva",
-    training:
-      "Web Development Fundamentals",
-    batch: "WEB-DEV-2026-02",
-    trainer: "John Cruz",
-    assessment:
-      "Web Development Final Project",
-    type: "Final Project",
-    date: "2026-08-14",
-    score: 89,
-    passingScore: 75,
-    result: "Passed",
-    status: "Completed",
-    attempts: 1,
-    maxAttempts: 3,
-    retakeDate: null,
-    retakeTime: null,
-    retakeVenue: null,
-    remarks:
-      "Final project successfully completed.",
-  },
-
-  {
-    id: "ASM-006",
-    participantId: "PT-006",
-    participantName: "Sofia Ramos",
-    training:
-      "Web Development Fundamentals",
-    batch: "WEB-DEV-2026-02",
-    trainer: "John Cruz",
-    assessment:
-      "Web Development Final Project",
-    type: "Final Project",
-    date: "2026-08-14",
-    score: 72,
-    passingScore: 75,
-    result: "Failed",
-    status: "Retake Scheduled",
-    attempts: 1,
-    maxAttempts: 3,
-    retakeDate: "2026-08-25",
-    retakeTime: "09:00",
-    retakeVenue:
-      "Computer Laboratory 1",
-    remarks:
-      "Retake scheduled after initial failed assessment.",
-  },
-
-  {
-    id: "ASM-007",
-    participantId: "PT-007",
-    participantName: "Daniel Flores",
-    training:
-      "Electrical Installation NC II",
-    batch: "EIM-NCII-2026-01",
-    trainer: "Kevin Santos",
-    assessment:
-      "EIM NC II Final Assessment",
-    type: "Final Assessment",
-    date: "2026-08-16",
-    score: null,
-    passingScore: 75,
-    result: "Pending",
-    status: "Pending",
-    attempts: 1,
-    maxAttempts: 3,
-    retakeDate: null,
-    retakeTime: null,
-    retakeVenue: null,
-    remarks:
-      "Assessment is currently in progress.",
-  },
-
-  {
-    id: "ASM-008",
-    participantId: "PT-008",
-    participantName: "Rachel Cruz",
-    training:
-      "Electrical Installation NC II",
-    batch: "EIM-NCII-2026-01",
-    trainer: "Kevin Santos",
-    assessment:
-      "EIM NC II Final Assessment",
-    type: "Final Assessment",
-    date: "2026-08-16",
-    score: 81,
-    passingScore: 75,
-    result: "Passed",
-    status: "Completed",
-    attempts: 1,
-    maxAttempts: 3,
-    retakeDate: null,
-    retakeTime: null,
-    retakeVenue: null,
-    remarks:
-      "Passed and submitted by trainer.",
-  },
-];
-
-/* =========================================================
-   PAGE
-========================================================= */
+import WrittenAssessmentModal from "./WrittenAssessmentModal";
+import WrittenAssessmentQuestionsModal from "./WrittenAssessmentQuestionsModal";
 
 export default function AssessmentPage() {
-  const [records, setRecords] =
-    useState<Assessment[]>(
-      initialAssessments
-    );
+  // =========================================================
+  // TRAINING BATCH
+  // =========================================================
 
-  const [search, setSearch] =
+  const [batches, setBatches] =
+    useState<TrainingBatch[]>([]);
+
+  const [selectedBatchId, setSelectedBatchId] =
     useState("");
 
-  const [training, setTraining] =
-    useState("All");
+  const [isLoadingBatches, setIsLoadingBatches] =
+    useState(true);
 
-  const [result, setResult] =
-    useState<"All" | AssessmentResult>(
-      "All"
-    );
+  // =========================================================
+  // ASSESSMENTS
+  // =========================================================
 
-  const [selected, setSelected] =
-    useState<Assessment | null>(
-      null
-    );
+  const [assessments, setAssessments] =
+    useState<WrittenAssessment[]>([]);
 
-  const [modal, setModal] =
-    useState<
-      | "view"
-      | "manage"
-      | "retake"
-      | "followup"
-      | null
-    >(null);
+  const [isLoadingAssessments, setIsLoadingAssessments] =
+    useState(false);
 
-  const [retakeDate, setRetakeDate] =
-    useState("");
+  // =========================================================
+  // ASSESSMENT MODAL
+  // =========================================================
 
-  const [retakeTime, setRetakeTime] =
-    useState("09:00");
+  const [showAssessmentModal, setShowAssessmentModal] =
+    useState(false);
 
-  const [retakeVenue, setRetakeVenue] =
-    useState("Training Room 1");
+  const [selectedAssessment, setSelectedAssessment] =
+    useState<WrittenAssessment | null>(null);
 
-  const [remarks, setRemarks] =
-    useState("");
+  // =========================================================
+  // QUESTIONS MODAL
+  // =========================================================
 
-  /* =======================================================
-     STATS
-  ======================================================= */
+  const [showQuestionsModal, setShowQuestionsModal] =
+    useState(false);
 
-  const total = records.length;
+  const [
+    selectedQuestionsAssessment,
+    setSelectedQuestionsAssessment,
+  ] = useState<WrittenAssessment | null>(null);
 
-  const passed = records.filter(
-    (item) =>
-      item.result === "Passed"
-  ).length;
+  // =========================================================
+  // UI STATE
+  // =========================================================
 
-  const failed = records.filter(
-    (item) =>
-      item.result === "Failed"
-  ).length;
+  const [error, setError] =
+    useState<string | null>(null);
 
-  const pending = records.filter(
-    (item) =>
-      item.result === "Pending"
-  ).length;
+  const [alert, setAlert] =
+    useState<string | null>(null);
 
-  const retakes = records.filter(
-    (item) =>
-      item.status ===
-        "Retake Required" ||
-      item.status ===
-        "Retake Scheduled"
-  ).length;
+  const [deletingId, setDeletingId] =
+    useState<string | null>(null);
 
-  const passRate =
-    total > 0
-      ? Math.round(
-          (passed / total) * 100
-        )
-      : 0;
+  const [publishingId, setPublishingId] =
+    useState<string | null>(null);
 
-  /* =======================================================
-     TRAININGS
-  ======================================================= */
+  // =========================================================
+  // LOAD TRAINING BATCHES
+  // =========================================================
 
-  const trainings = [
-    "All",
-    ...Array.from(
-      new Set(
-        records.map(
-          (item) => item.training
-        )
-      )
-    ),
-  ];
+  const loadBatches = useCallback(
+    async () => {
+      try {
+        setIsLoadingBatches(true);
+        setError(null);
 
-  /* =======================================================
-     FILTER
-  ======================================================= */
+        const data =
+          await trainingBatchApi.getAll();
 
-  const filteredRecords =
-    useMemo(() => {
-      const query =
-        search
-          .toLowerCase()
-          .trim();
+        setBatches(data);
 
-      return records.filter(
-        (item) => {
-          const matchesSearch =
-            !query ||
-            item.participantName
-              .toLowerCase()
-              .includes(query) ||
-            item.participantId
-              .toLowerCase()
-              .includes(query) ||
-            item.training
-              .toLowerCase()
-              .includes(query) ||
-            item.assessment
-              .toLowerCase()
-              .includes(query);
+        if (data.length === 0) {
+          setSelectedBatchId("");
+          return;
+        }
 
-          const matchesTraining =
-            training === "All" ||
-            item.training ===
-              training;
+        const selectedStillExists =
+          data.some(
+            batch =>
+              batch.id ===
+              selectedBatchId,
+          );
 
-          const matchesResult =
-            result === "All" ||
-            item.result === result;
-
-          return (
-            matchesSearch &&
-            matchesTraining &&
-            matchesResult
+        if (!selectedStillExists) {
+          setSelectedBatchId(
+            data[0].id,
           );
         }
+      } catch (err) {
+        console.error(
+          "Failed to load training batches:",
+          err,
+        );
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to load training batches.",
+        );
+      } finally {
+        setIsLoadingBatches(false);
+      }
+    },
+    [selectedBatchId],
+  );
+
+  useEffect(() => {
+    void loadBatches();
+  }, [loadBatches]);
+
+  // =========================================================
+  // LOAD ASSESSMENTS
+  // =========================================================
+
+  const loadAssessments = useCallback(
+    async () => {
+      if (!selectedBatchId) {
+        setAssessments([]);
+        return;
+      }
+
+      try {
+        setIsLoadingAssessments(true);
+        setError(null);
+
+        const data =
+          await writtenAssessmentApi.getByBatchId(
+            selectedBatchId,
+          );
+
+        setAssessments(data);
+      } catch (err) {
+        console.error(
+          "Failed to load written assessments:",
+          err,
+        );
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to load written assessments.",
+        );
+      } finally {
+        setIsLoadingAssessments(false);
+      }
+    },
+    [selectedBatchId],
+  );
+
+  useEffect(() => {
+    void loadAssessments();
+  }, [loadAssessments]);
+
+  // =========================================================
+  // BATCH CHANGE
+  // =========================================================
+
+  const handleBatchChange = (
+    batchId: string,
+  ) => {
+    setSelectedBatchId(batchId);
+
+    setAlert(null);
+    setError(null);
+
+    setSelectedAssessment(null);
+
+    setShowAssessmentModal(false);
+
+    setSelectedQuestionsAssessment(null);
+
+    setShowQuestionsModal(false);
+  };
+
+  // =========================================================
+  // CREATE ASSESSMENT
+  // =========================================================
+
+  const handleCreate = () => {
+    setAlert(null);
+    setError(null);
+
+    if (!selectedBatchId) {
+      setAlert(
+        "Please select a training batch first.",
       );
-    }, [
-      records,
-      search,
-      training,
-      result,
-    ]);
 
-  /* =======================================================
-     ACTIONS
-  ======================================================= */
-
-  function openView(
-    assessment: Assessment
-  ) {
-    setSelected(assessment);
-    setModal("view");
-  }
-
-  function openManage(
-    assessment: Assessment
-  ) {
-    setSelected(assessment);
-    setRemarks(
-      assessment.remarks
-    );
-    setModal("manage");
-  }
-
-  function openRetake(
-    assessment: Assessment
-  ) {
-    setSelected(assessment);
-
-    setRetakeDate(
-      assessment.retakeDate ??
-        ""
-    );
-
-    setRetakeTime(
-      assessment.retakeTime ??
-        "09:00"
-    );
-
-    setRetakeVenue(
-      assessment.retakeVenue ??
-        "Training Room 1"
-    );
-
-    setRemarks(
-      assessment.remarks
-    );
-
-    setModal("retake");
-  }
-
-  function updateRecord(
-    updated: Assessment
-  ) {
-    setRecords(
-      (current) =>
-        current.map((item) =>
-          item.id === updated.id
-            ? updated
-            : item
-        )
-    );
-
-    setSelected(updated);
-  }
-
-  function scheduleRetake() {
-    if (!selected) return;
-
-    if (!retakeDate) {
-      alert(
-        "Please select a retake date."
-      );
       return;
     }
 
-    const updated: Assessment = {
-      ...selected,
+    setSelectedAssessment(null);
 
-      status:
-        "Retake Scheduled",
-
-      retakeDate,
-
-      retakeTime,
-
-      retakeVenue,
-
-      remarks:
-        remarks ||
-        "Retake examination scheduled by administrator.",
-    };
-
-    updateRecord(updated);
-
-    setModal(null);
-
-    alert(
-      `Retake scheduled for ${selected.participantName}.`
-    );
-  }
-
-  function cancelRetake() {
-    if (!selected) return;
-
-    const confirmed =
-      window.confirm(
-        `Cancel the scheduled retake for ${selected.participantName}?`
-      );
-
-    if (!confirmed) return;
-
-    const updated: Assessment = {
-      ...selected,
-
-      status:
-        "Retake Required",
-
-      retakeDate: null,
-
-      retakeTime: null,
-
-      retakeVenue: null,
-
-      remarks:
-        "Retake schedule cancelled by administrator.",
-    };
-
-    updateRecord(updated);
-
-    setModal(null);
-  }
-
-  function markRetakeRequired() {
-    if (!selected) return;
-
-    const updated: Assessment = {
-      ...selected,
-
-      status:
-        "Retake Required",
-
-      retakeDate: null,
-
-      retakeTime: null,
-
-      retakeVenue: null,
-
-      remarks:
-        "Participant marked for assessment retake.",
-    };
-
-    updateRecord(updated);
-
-    setModal(null);
-
-    alert(
-      `${selected.participantName} is now marked for retake.`
-    );
-  }
-
-  function followUpTrainer() {
-    if (!selected) return;
-
-    const updated: Assessment = {
-      ...selected,
-
-      remarks:
-        remarks ||
-        "Follow-up request sent to the assigned trainer.",
-    };
-
-    updateRecord(updated);
-
-    setModal(null);
-
-    alert(
-      `Follow-up sent to ${selected.trainer}.`
-    );
-  }
-
-  /* =======================================================
-     TABLE META
-  ======================================================= */
-
-  const tableMeta: AssessmentTableMeta = {
-    onView: openView,
-    onManage: openManage,
+    setShowAssessmentModal(true);
   };
 
-  /* =======================================================
-     UI
-  ======================================================= */
+  // =========================================================
+  // EDIT ASSESSMENT
+  // =========================================================
+
+  const handleEdit = (
+    assessment: AdminWrittenAssessment,
+  ) => {
+    setAlert(null);
+    setError(null);
+
+    setSelectedAssessment(
+      assessment,
+    );
+
+    setShowAssessmentModal(true);
+  };
+
+  // =========================================================
+  // DELETE ASSESSMENT
+  // =========================================================
+
+  const handleDelete = async (
+    assessment: AdminWrittenAssessment,
+  ) => {
+    const confirmed =
+      window.confirm(
+        `Are you sure you want to delete "${assessment.title}"?`,
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingId(
+        assessment.id,
+      );
+
+      setError(null);
+      setAlert(null);
+
+      await writtenAssessmentApi.delete(
+        assessment.id,
+      );
+
+      setAssessments(current =>
+        current.filter(
+          item =>
+            item.id !==
+            assessment.id,
+        ),
+      );
+
+      if (
+        selectedQuestionsAssessment?.id ===
+        assessment.id
+      ) {
+        setShowQuestionsModal(false);
+        setSelectedQuestionsAssessment(
+          null,
+        );
+      }
+
+      setAlert(
+        "Written assessment deleted successfully.",
+      );
+    } catch (err) {
+      console.error(
+        "Failed to delete assessment:",
+        err,
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to delete assessment.",
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  // =========================================================
+  // PUBLISH / UNPUBLISH
+  // =========================================================
+
+  const handlePublish = async (
+    assessment: AdminWrittenAssessment,
+  ) => {
+    try {
+      setPublishingId(
+        assessment.id,
+      );
+
+      setError(null);
+      setAlert(null);
+
+      const updated =
+        await writtenAssessmentApi.setPublished(
+          assessment.id,
+          !assessment.isPublished,
+        );
+
+      setAssessments(current =>
+        current.map(item =>
+          item.id ===
+          assessment.id
+            ? updated
+            : item,
+        ),
+      );
+
+      /*
+       * If the question modal is currently
+       * open for this assessment, update
+       * the selected assessment too.
+       */
+      if (
+        selectedQuestionsAssessment?.id ===
+        assessment.id
+      ) {
+        setSelectedQuestionsAssessment(
+          updated,
+        );
+      }
+
+      setAlert(
+        updated.isPublished
+          ? "Assessment published successfully."
+          : "Assessment unpublished successfully.",
+      );
+    } catch (err) {
+      console.error(
+        "Failed to update publication status:",
+        err,
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to update publication status.",
+      );
+    } finally {
+      setPublishingId(null);
+    }
+  };
+
+  // =========================================================
+  // OPEN QUESTIONS
+  // =========================================================
+
+  const handleQuestions = (
+    assessment: AdminWrittenAssessment,
+  ) => {
+    setAlert(null);
+    setError(null);
+
+    setSelectedQuestionsAssessment(
+      assessment,
+    );
+
+    setShowQuestionsModal(true);
+  };
+
+  // =========================================================
+  // CLOSE ASSESSMENT MODAL
+  // =========================================================
+
+  const handleCloseAssessmentModal =
+    () => {
+      setShowAssessmentModal(false);
+
+      setSelectedAssessment(null);
+    };
+
+  // =========================================================
+  // ASSESSMENT SAVED
+  // =========================================================
+
+  const handleAssessmentSaved = (
+    saved: WrittenAssessment,
+  ) => {
+    setAssessments(current => {
+      const exists =
+        current.some(
+          item =>
+            item.id ===
+            saved.id,
+        );
+
+      if (exists) {
+        return current.map(item =>
+          item.id === saved.id
+            ? saved
+            : item,
+        );
+      }
+
+      return [
+        ...current,
+        saved,
+      ];
+    });
+
+    setShowAssessmentModal(false);
+
+    setSelectedAssessment(null);
+
+    setAlert(
+      "Written assessment saved successfully.",
+    );
+  };
+
+  // =========================================================
+  // CLOSE QUESTIONS MODAL
+  // =========================================================
+
+  const handleCloseQuestionsModal =
+    () => {
+      setShowQuestionsModal(false);
+
+      setSelectedQuestionsAssessment(
+        null,
+      );
+    };
+
+  // =========================================================
+  // QUESTIONS CHANGED
+  // =========================================================
+
+  const handleQuestionsChanged =
+    async () => {
+      /*
+       * Refresh the assessment list so
+       * questionCount stays updated.
+       */
+      await loadAssessments();
+    };
+
+  // =========================================================
+  // STATS
+  // =========================================================
+
+  const stats = useMemo(() => {
+    const total =
+      assessments.length;
+
+    const published =
+      assessments.filter(
+        item =>
+          item.isPublished,
+      ).length;
+
+    const drafts =
+      total - published;
+
+    const questions =
+      assessments.reduce(
+        (sum, item) =>
+          sum +
+          item.questionCount,
+        0,
+      );
+
+    return {
+      total,
+      published,
+      drafts,
+      questions,
+    };
+  }, [assessments]);
+
+  // =========================================================
+  // TABLE DATA
+  // =========================================================
+
+  const tableData =
+    useMemo<AdminWrittenAssessment[]>(
+      () => assessments,
+      [assessments],
+    );
+
+  // =========================================================
+  // RENDER
+  // =========================================================
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
+      {/* =====================================================
+          HEADER
+      ===================================================== */}
 
-      {/* HEADER */}
-
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-
+      <div
+        className="
+          flex
+          flex-col
+          gap-4
+          lg:flex-row
+          lg:items-center
+          lg:justify-between
+        "
+      >
         <div>
-          <p className="text-sm font-medium text-gray-500">
-            Administration
+          <p
+            className="
+              text-[10px]
+              font-bold
+              uppercase
+              tracking-[0.1em]
+              text-gray-400
+            "
+          >
+            Assessment Management
           </p>
 
-          <h1 className="mt-1 text-3xl font-bold">
-            Assessment / Exam Results
+          <h1
+            className="
+              mt-1
+              text-2xl
+              font-bold
+              text-[#17191c]
+            "
+          >
+            Written Assessments
           </h1>
 
-          <p className="mt-2 max-w-2xl text-sm text-gray-500">
-            Monitor participant assessment
-            results and manage administrative
-            actions.
+          <p
+            className="
+              mt-1
+              text-sm
+              text-gray-500
+            "
+          >
+            Create and manage written
+            assessments for training batches.
           </p>
         </div>
 
         <button
           type="button"
-          onClick={() =>
-            alert(
-              "Mock assessment report generated."
+          onClick={handleCreate}
+          disabled={
+            !selectedBatchId ||
+            isLoadingBatches
+          }
+          className="
+            rounded-xl
+            bg-black
+            px-5
+            py-3
+            text-sm
+            font-semibold
+            text-white
+            transition
+            hover:bg-gray-800
+            disabled:cursor-not-allowed
+            disabled:opacity-50
+          "
+        >
+          + Create Assessment
+        </button>
+      </div>
+
+      {/* =====================================================
+          ALERT
+      ===================================================== */}
+
+      {alert && (
+        <div
+          className="
+            rounded-xl
+            border
+            border-green-200
+            bg-green-50
+            px-4
+            py-3
+            text-sm
+            text-green-700
+          "
+        >
+          {alert}
+        </div>
+      )}
+
+      {/* =====================================================
+          ERROR
+      ===================================================== */}
+
+      {error && (
+        <div
+          className="
+            rounded-xl
+            border
+            border-red-200
+            bg-red-50
+            px-4
+            py-3
+            text-sm
+            text-red-700
+          "
+        >
+          {error}
+        </div>
+      )}
+
+      {/* =====================================================
+          TRAINING BATCH
+      ===================================================== */}
+
+      <div
+        className="
+          rounded-2xl
+          border
+          border-[#e7e9ec]
+          bg-white
+          p-5
+        "
+      >
+        <label
+          className="
+            mb-2
+            block
+            text-xs
+            font-semibold
+            text-gray-600
+          "
+        >
+          Training Batch
+        </label>
+
+        <select
+          value={selectedBatchId}
+          disabled={
+            isLoadingBatches
+          }
+          onChange={event =>
+            handleBatchChange(
+              event.target.value,
             )
           }
-          className="rounded-xl bg-[#191c1e] px-5 py-3 text-sm font-semibold text-white hover:opacity-90"
+          className="
+            w-full
+            max-w-md
+            rounded-xl
+            border
+            border-[#dfe2e6]
+            bg-white
+            px-3
+            py-2.5
+            text-sm
+            text-[#17191c]
+            outline-none
+            focus:border-black
+          "
         >
-          Export Results
-        </button>
+          <option value="">
+            Select a training batch
+          </option>
 
+          {batches.map(batch => (
+            <option
+              key={batch.id}
+              value={batch.id}
+            >
+              {batch.batchCode}
+            </option>
+          ))}
+        </select>
       </div>
 
-      {/* INFO */}
-
-      <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
-
-        <div className="flex gap-3">
-
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 font-bold text-white">
-            i
-          </div>
-
-          <div>
-            <p className="font-semibold text-blue-900">
-              Administrative Assessment Management
-            </p>
-
-            <p className="mt-1 text-sm leading-6 text-blue-800">
-              Trainers conduct assessments and
-              submit scores. Administrators manage
-              retakes, schedules, and follow-ups.
-            </p>
-          </div>
-
-        </div>
-
-      </div>
-
-      {/* STATS */}
+      {/* =====================================================
+          STATS
+      ===================================================== */}
 
       <StatGrid>
-
         <StatCard
           title="Total Assessments"
-          value={total}
-          description="All records"
+          value={stats.total}
         />
 
         <StatCard
-          title="Passed"
-          value={passed}
-          description={`${passRate}% pass rate`}
+          title="Published"
+          value={stats.published}
         />
 
         <StatCard
-          title="Failed"
-          value={failed}
-          description="Below passing score"
+          title="Drafts"
+          value={stats.drafts}
         />
 
         <StatCard
-          title="Pending"
-          value={pending}
-          description="Awaiting result"
+          title="Total Questions"
+          value={stats.questions}
         />
-
-        <StatCard
-          title="Retake Cases"
-          value={retakes}
-          description="Requires action"
-        />
-
       </StatGrid>
 
-      {/* TABLE */}
-
-      <DataTable
-        title="Exam Results"
-        description="View results and manage assessment lifecycle actions."
-        columns={columns}
-        data={filteredRecords}
-        searchable
-        searchPlaceholder="Search participant..."
-        meta={tableMeta}
-        toolbar={
-          <div className="flex flex-wrap gap-3">
-
-            <select
-              value={training}
-              onChange={(event) =>
-                setTraining(
-                  event.target.value
-                )
-              }
-              className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm"
-            >
-              {trainings.map(
-                (item) => (
-                  <option
-                    key={item}
-                    value={item}
-                  >
-                    {item === "All"
-                      ? "All Trainings"
-                      : item}
-                  </option>
-                )
-              )}
-            </select>
-
-            <select
-              value={result}
-              onChange={(event) =>
-                setResult(
-                  event.target
-                    .value as
-                    | "All"
-                    | AssessmentResult
-                )
-              }
-              className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm"
-            >
-              <option value="All">
-                All Results
-              </option>
-
-              <option value="Passed">
-                Passed
-              </option>
-
-              <option value="Failed">
-                Failed
-              </option>
-
-              <option value="Pending">
-                Pending
-              </option>
-            </select>
-
-          </div>
-        }
-        emptyTitle="No assessment records found"
-        emptyDescription="Try changing your search or filters."
-      />
-
-      {/* VIEW */}
-
-      {selected &&
-        modal === "view" && (
-          <ViewModal
-            item={selected}
-            onClose={() =>
-              setModal(null)
-            }
-          />
-        )}
-
-      {/* MANAGE */}
-
-      {selected &&
-        modal === "manage" && (
-          <ManageModal
-            item={selected}
-            onClose={() =>
-              setModal(null)
-            }
-            onSchedule={() =>
-              openRetake(selected)
-            }
-            onMarkRetake={
-              markRetakeRequired
-            }
-            onFollowUp={() =>
-              setModal("followup")
-            }
-            onCancelRetake={
-              cancelRetake
-            }
-            onReschedule={() =>
-              openRetake(selected)
-            }
-          />
-        )}
-
-      {/* RETAKE */}
-
-      {selected &&
-        modal === "retake" && (
-          <RetakeModal
-            item={selected}
-            date={retakeDate}
-            time={retakeTime}
-            venue={retakeVenue}
-            remarks={remarks}
-            setDate={setRetakeDate}
-            setTime={setRetakeTime}
-            setVenue={setRetakeVenue}
-            setRemarks={setRemarks}
-            onClose={() =>
-              setModal(null)
-            }
-            onSubmit={
-              scheduleRetake
-            }
-          />
-        )}
-
-      {/* FOLLOW UP */}
-
-      {selected &&
-        modal === "followup" && (
-          <FollowUpModal
-            item={selected}
-            remarks={remarks}
-            setRemarks={setRemarks}
-            onClose={() =>
-              setModal(null)
-            }
-            onSubmit={
-              followUpTrainer
-            }
-          />
-        )}
-
-    </div>
-  );
-}
-
-/* =========================================================
-   VIEW MODAL
-========================================================= */
-
-function ViewModal({
-  item,
-  onClose,
-}: {
-  item: Assessment;
-  onClose: () => void;
-}) {
-  return (
-    <Modal onClose={onClose}>
-
-      <ModalHeader
-        title="Assessment Details"
-        subtitle={item.id}
-        onClose={onClose}
-      />
-
-      <div className="mt-6 space-y-4">
-
-        <Detail
-          label="Participant"
-          value={item.participantName}
-        />
-
-        <Detail
-          label="Participant ID"
-          value={item.participantId}
-        />
-
-        <Detail
-          label="Training"
-          value={item.training}
-        />
-
-        <Detail
-          label="Batch"
-          value={item.batch}
-        />
-
-        <Detail
-          label="Assessment"
-          value={item.assessment}
-        />
-
-        <Detail
-          label="Trainer"
-          value={item.trainer}
-        />
-
-        <Detail
-          label="Score"
-          value={
-            item.score !== null
-              ? `${item.score} / 100`
-              : "Pending"
-          }
-        />
-
-        <Detail
-          label="Passing Score"
-          value={`${item.passingScore} / 100`}
-        />
-
-        <Detail
-          label="Result"
-          value={item.result}
-        />
-
-        <Detail
-          label="Status"
-          value={item.status}
-        />
-
-        <Detail
-          label="Attempts"
-          value={`${item.attempts} / ${item.maxAttempts}`}
-        />
-
-        <Detail
-          label="Remarks"
-          value={item.remarks}
-        />
-
-      </div>
-
-    </Modal>
-  );
-}
-
-/* =========================================================
-   MANAGE MODAL
-========================================================= */
-
-function ManageModal({
-  item,
-  onClose,
-  onSchedule,
-  onMarkRetake,
-  onFollowUp,
-  onCancelRetake,
-  onReschedule,
-}: {
-  item: Assessment;
-  onClose: () => void;
-  onSchedule: () => void;
-  onMarkRetake: () => void;
-  onFollowUp: () => void;
-  onCancelRetake: () => void;
-  onReschedule: () => void;
-}) {
-  return (
-    <Modal onClose={onClose}>
-
-      <ModalHeader
-        title="Manage Assessment"
-        subtitle={item.participantName}
-        onClose={onClose}
-      />
-
-      <div className="mt-6 space-y-3">
-
-        {item.status ===
-          "Retake Required" && (
-          <>
-            <ActionButton
-              title="Schedule Retake"
-              description="Set the date, time, and venue."
-              onClick={onSchedule}
-            />
-
-            <ActionButton
-              title="Confirm Retake Requirement"
-              description="Keep this participant in the retake queue."
-              onClick={onMarkRetake}
-            />
-          </>
-        )}
-
-        {item.status ===
-          "Retake Scheduled" && (
-          <>
-            <ActionButton
-              title="Reschedule Retake"
-              description="Change the current retake schedule."
-              onClick={onReschedule}
-            />
-
-            <ActionButton
-              title="Cancel Retake"
-              description="Remove the current retake schedule."
-              onClick={onCancelRetake}
-              danger
-            />
-          </>
-        )}
-
-        {item.status === "Pending" && (
-          <ActionButton
-            title="Follow Up Trainer"
-            description="Request the trainer to submit the result."
-            onClick={onFollowUp}
-          />
-        )}
-
-      </div>
-
-    </Modal>
-  );
-}
-
-/* =========================================================
-   RETAKE MODAL
-========================================================= */
-
-function RetakeModal({
-  item,
-  date,
-  time,
-  venue,
-  remarks,
-  setDate,
-  setTime,
-  setVenue,
-  setRemarks,
-  onClose,
-  onSubmit,
-}: {
-  item: Assessment;
-  date: string;
-  time: string;
-  venue: string;
-  remarks: string;
-  setDate: (value: string) => void;
-  setTime: (value: string) => void;
-  setVenue: (value: string) => void;
-  setRemarks: (value: string) => void;
-  onClose: () => void;
-  onSubmit: () => void;
-}) {
-  return (
-    <Modal onClose={onClose}>
-
-      <ModalHeader
-        title={
-          item.status ===
-          "Retake Scheduled"
-            ? "Reschedule Retake"
-            : "Schedule Retake"
-        }
-        subtitle={item.participantName}
-        onClose={onClose}
-      />
-
-      <div className="mt-6 space-y-5">
-
-        <Field
-          label="Retake Date"
-          type="date"
-          value={date}
-          onChange={setDate}
-        />
-
-        <Field
-          label="Time"
-          type="time"
-          value={time}
-          onChange={setTime}
-        />
-
-        <div>
-          <label className="mb-2 block text-sm font-semibold">
-            Venue
-          </label>
-
-          <select
-            value={venue}
-            onChange={(event) =>
-              setVenue(
-                event.target.value
-              )
-            }
-            className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"
-          >
-            <option>
-              Training Room 1
-            </option>
-
-            <option>
-              Training Room 2
-            </option>
-
-            <option>
-              Computer Laboratory 1
-            </option>
-
-            <option>
-              Computer Laboratory 2
-            </option>
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-2 block text-sm font-semibold">
-            Remarks
-          </label>
-
-          <textarea
-            value={remarks}
-            onChange={(event) =>
-              setRemarks(
-                event.target.value
-              )
-            }
-            rows={4}
-            className="w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm"
-          />
-        </div>
-
-      </div>
-
-      <div className="mt-6 flex gap-3">
-
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex-1 rounded-xl border border-gray-200 py-3 text-sm font-semibold"
-        >
-          Cancel
-        </button>
-
-        <button
-          type="button"
-          onClick={onSubmit}
-          className="flex-1 rounded-xl bg-[#191c1e] py-3 text-sm font-semibold text-white"
-        >
-          Save
-        </button>
-
-      </div>
-
-    </Modal>
-  );
-}
-
-/* =========================================================
-   FOLLOW UP MODAL
-========================================================= */
-
-function FollowUpModal({
-  item,
-  remarks,
-  setRemarks,
-  onClose,
-  onSubmit,
-}: {
-  item: Assessment;
-  remarks: string;
-  setRemarks: (value: string) => void;
-  onClose: () => void;
-  onSubmit: () => void;
-}) {
-  return (
-    <Modal onClose={onClose}>
-
-      <ModalHeader
-        title="Follow Up Trainer"
-        subtitle={item.participantName}
-        onClose={onClose}
-      />
-
-      <div className="mt-6">
-
-        <textarea
-          value={remarks}
-          onChange={(event) =>
-            setRemarks(
-              event.target.value
-            )
-          }
-          rows={5}
-          className="w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm"
-          placeholder="Write your follow-up message..."
-        />
-
-      </div>
-
-      <div className="mt-6 flex gap-3">
-
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex-1 rounded-xl border border-gray-200 py-3 text-sm font-semibold"
-        >
-          Cancel
-        </button>
-
-        <button
-          type="button"
-          onClick={onSubmit}
-          className="flex-1 rounded-xl bg-[#191c1e] py-3 text-sm font-semibold text-white"
-        >
-          Send Follow-up
-        </button>
-
-      </div>
-
-    </Modal>
-  );
-}
-
-/* =========================================================
-   SMALL COMPONENTS
-========================================================= */
-
-function ActionButton({
-  title,
-  description,
-  onClick,
-  danger = false,
-}: {
-  title: string;
-  description: string;
-  onClick: () => void;
-  danger?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex w-full items-center justify-between rounded-xl border p-4 text-left transition ${
-        danger
-          ? "border-red-200 hover:bg-red-50"
-          : "border-gray-200 hover:bg-gray-50"
-      }`}
-    >
-      <div>
-        <p
-          className={
-            danger
-              ? "font-semibold text-red-700"
-              : "font-semibold"
-          }
-        >
-          {title}
-        </p>
-
-        <p className="mt-1 text-xs text-gray-500">
-          {description}
-        </p>
-      </div>
-
-      <span>→</span>
-    </button>
-  );
-}
-
-function Field({
-  label,
-  type,
-  value,
-  onChange,
-}: {
-  label: string;
-  type: "date" | "time";
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <div>
-      <label className="mb-2 block text-sm font-semibold">
-        {label}
-      </label>
-
-      <input
-        type={type}
-        value={value}
-        onChange={(event) =>
-          onChange(
-            event.target.value
-          )
-        }
-        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"
-      />
-    </div>
-  );
-}
-
-function Detail({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-5 border-b border-gray-100 pb-3">
-      <span className="text-sm text-gray-500">
-        {label}
-      </span>
-
-      <span className="max-w-[65%] text-right text-sm font-semibold">
-        {value}
-      </span>
-    </div>
-  );
-}
-
-function Modal({
-  children,
-  onClose,
-}: {
-  children: React.ReactNode;
-  onClose: () => void;
-}) {
-  return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
-      onMouseDown={(event) => {
-        if (
-          event.target ===
-          event.currentTarget
-        ) {
-          onClose();
-        }
-      }}
-    >
-      <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function ModalHeader({
-  title,
-  subtitle,
-  onClose,
-}: {
-  title: string;
-  subtitle: string;
-  onClose: () => void;
-}) {
-  return (
-    <div className="flex items-start justify-between">
-
-      <div>
-        <h2 className="text-xl font-bold">
-          {title}
-        </h2>
-
-        <p className="mt-1 text-xs text-gray-500">
-          {subtitle}
-        </p>
-      </div>
-
-      <button
-        type="button"
-        onClick={onClose}
-        className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200"
+      {/* =====================================================
+          TABLE
+      ===================================================== */}
+
+      <div
+        className="
+          rounded-2xl
+          border
+          border-[#e7e9ec]
+          bg-white
+          p-5
+        "
       >
-        ×
-      </button>
+        <DataTable
+          columns={columns}
+          data={tableData}
+          searchable
+          showPagination
+          meta={{
+            onQuestions:
+              handleQuestions,
 
+            onEdit:
+              handleEdit,
+
+            onDelete:
+              handleDelete,
+
+            onPublish:
+              handlePublish,
+
+            deletingId,
+
+            publishingId,
+          }}
+        />
+
+        {isLoadingAssessments && (
+          <div
+            className="
+              mt-3
+              text-xs
+              text-gray-400
+            "
+          >
+            Loading assessments...
+          </div>
+        )}
+      </div>
+
+      {/* =====================================================
+          CREATE / EDIT ASSESSMENT MODAL
+      ===================================================== */}
+
+      {showAssessmentModal && (
+        <WrittenAssessmentModal
+          batchId={
+            selectedBatchId
+          }
+          assessment={
+            selectedAssessment
+          }
+          onClose={
+            handleCloseAssessmentModal
+          }
+          onSaved={
+            handleAssessmentSaved
+          }
+        />
+      )}
+
+      {/* =====================================================
+          QUESTION MANAGEMENT MODAL
+      ===================================================== */}
+
+      {showQuestionsModal &&
+  selectedQuestionsAssessment !== null ? (
+    <WrittenAssessmentQuestionsModal
+      assessment={selectedQuestionsAssessment}
+      onClose={
+        handleCloseQuestionsModal
+      }
+      onChanged={
+        handleQuestionsChanged
+      }
+    />
+  ) : null}
     </div>
   );
 }

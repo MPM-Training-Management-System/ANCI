@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using server.Models.Assessment;
 using server.Models.Attendance;
 using server.Models.Auth;
 using server.Models.Learning;
@@ -77,6 +78,18 @@ public DbSet<LearningSection> LearningSections
 
     public DbSet<EnrollmentDocument> EnrollmentDocuments
         => Set<EnrollmentDocument>();
+
+public DbSet<WrittenAssessment> WrittenAssessments => Set<WrittenAssessment>();
+
+public DbSet<AssessmentQuestion> AssessmentQuestions => Set<AssessmentQuestion>();
+
+public DbSet<AssessmentChoice> AssessmentChoices => Set<AssessmentChoice>();
+
+public DbSet<AssessmentAttempt> AssessmentAttempts => Set<AssessmentAttempt>();
+
+public DbSet<AssessmentAnswer> AssessmentAnswers => Set<AssessmentAnswer>();
+
+public DbSet<AssessmentResult> AssessmentResults => Set<AssessmentResult>();
 
 public DbSet<AttendanceSession> AttendanceSessions => Set<AttendanceSession>();
 
@@ -847,6 +860,248 @@ modelBuilder.Entity<TrainingSession>(entity =>
                 .HasForeignKey(x => x.EnrollmentId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+
+
+        // ==========================================================
+// WRITTEN ASSESSMENT
+// ==========================================================
+
+modelBuilder.Entity<WrittenAssessment>(entity =>
+{
+    entity.ToTable("WrittenAssessments");
+
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.Title)
+        .IsRequired()
+        .HasMaxLength(255);
+
+    entity.Property(x => x.Description)
+        .HasMaxLength(2000);
+
+    entity.Property(x => x.PassingPercentage)
+        .IsRequired();
+
+    entity.Property(x => x.IsPublished)
+        .IsRequired();
+
+    entity.Property(x => x.CreatedAt)
+        .IsRequired();
+
+    entity.Property(x => x.UpdatedAt)
+        .IsRequired(false);
+
+    entity.HasIndex(x => x.TrainingBatchId);
+
+    entity.HasOne(x => x.TrainingBatch)
+        .WithMany()
+        .HasForeignKey(x => x.TrainingBatchId)
+        .OnDelete(DeleteBehavior.Cascade);
+});
+
+
+// ==========================================================
+// ASSESSMENT QUESTION
+// ==========================================================
+
+modelBuilder.Entity<AssessmentQuestion>(entity =>
+{
+    entity.ToTable("AssessmentQuestions");
+
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.QuestionText)
+        .IsRequired()
+        .HasMaxLength(5000);
+
+    entity.Property(x => x.QuestionNumber)
+        .IsRequired();
+
+    entity.Property(x => x.Points)
+        .IsRequired();
+
+    entity.Property(x => x.CreatedAt)
+        .IsRequired();
+
+    entity.Property(x => x.UpdatedAt)
+        .IsRequired(false);
+
+    entity.HasIndex(x => new
+    {
+        x.WrittenAssessmentId,
+        x.QuestionNumber
+    })
+    .IsUnique();
+
+    entity.HasOne(x => x.WrittenAssessment)
+        .WithMany(x => x.Questions)
+        .HasForeignKey(x => x.WrittenAssessmentId)
+        .OnDelete(DeleteBehavior.Cascade);
+});
+
+
+// ==========================================================
+// ASSESSMENT CHOICE
+// ==========================================================
+
+modelBuilder.Entity<AssessmentChoice>(entity =>
+{
+    entity.ToTable("AssessmentChoices");
+
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.ChoiceLabel)
+        .IsRequired()
+        .HasMaxLength(10);
+
+    entity.Property(x => x.ChoiceText)
+        .IsRequired()
+        .HasMaxLength(2000);
+
+    entity.Property(x => x.IsCorrect)
+        .IsRequired();
+
+    entity.Property(x => x.DisplayOrder)
+        .IsRequired();
+
+    entity.HasIndex(x => new
+    {
+        x.AssessmentQuestionId,
+        x.DisplayOrder
+    })
+    .IsUnique();
+
+    entity.HasOne(x => x.AssessmentQuestion)
+        .WithMany(x => x.Choices)
+        .HasForeignKey(x => x.AssessmentQuestionId)
+        .OnDelete(DeleteBehavior.Cascade);
+});
+
+
+// ==========================================================
+// ASSESSMENT ATTEMPT
+// ==========================================================
+
+modelBuilder.Entity<AssessmentAttempt>(entity =>
+{
+    entity.ToTable("AssessmentAttempts");
+
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.AttemptNumber)
+        .IsRequired();
+
+    entity.Property(x => x.StartedAt)
+        .IsRequired();
+
+    entity.Property(x => x.SubmittedAt)
+        .IsRequired(false);
+
+    entity.Property(x => x.Status)
+        .IsRequired();
+
+    entity.HasIndex(x => new
+    {
+        x.WrittenAssessmentId,
+        x.EnrollmentId,
+        x.AttemptNumber
+    })
+    .IsUnique();
+
+    entity.HasOne(x => x.WrittenAssessment)
+        .WithMany(x => x.Attempts)
+        .HasForeignKey(x => x.WrittenAssessmentId)
+        .OnDelete(DeleteBehavior.Cascade);
+
+    entity.HasOne(x => x.Enrollment)
+        .WithMany()
+        .HasForeignKey(x => x.EnrollmentId)
+        .OnDelete(DeleteBehavior.Cascade);
+});
+
+
+// ==========================================================
+// ASSESSMENT ANSWER
+// ==========================================================
+
+modelBuilder.Entity<AssessmentAnswer>(entity =>
+{
+    entity.ToTable("AssessmentAnswers");
+
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.EarnedPoints)
+        .IsRequired();
+
+    entity.Property(x => x.IsCorrect)
+        .IsRequired();
+
+    entity.HasIndex(x => new
+    {
+        x.AssessmentAttemptId,
+        x.AssessmentQuestionId
+    })
+    .IsUnique();
+
+    entity.HasOne(x => x.AssessmentAttempt)
+        .WithMany(x => x.Answers)
+        .HasForeignKey(x => x.AssessmentAttemptId)
+        .OnDelete(DeleteBehavior.Cascade);
+
+    entity.HasOne(x => x.AssessmentQuestion)
+        .WithMany(x => x.Answers)
+        .HasForeignKey(x => x.AssessmentQuestionId)
+        .OnDelete(DeleteBehavior.Restrict);
+
+    entity.HasOne(x => x.SelectedChoice)
+        .WithMany(x => x.Answers)
+        .HasForeignKey(x => x.SelectedChoiceId)
+        .OnDelete(DeleteBehavior.Restrict);
+});
+
+
+// ==========================================================
+// ASSESSMENT RESULT
+// ==========================================================
+
+modelBuilder.Entity<AssessmentResult>(entity =>
+{
+    entity.ToTable("AssessmentResults");
+
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.TotalQuestions)
+        .IsRequired();
+
+    entity.Property(x => x.CorrectAnswers)
+        .IsRequired();
+
+    entity.Property(x => x.TotalPoints)
+        .IsRequired();
+
+    entity.Property(x => x.EarnedPoints)
+        .IsRequired();
+
+    entity.Property(x => x.Percentage)
+        .HasPrecision(5, 2)
+        .IsRequired();
+
+    entity.Property(x => x.IsPassed)
+        .IsRequired();
+
+    entity.Property(x => x.EvaluatedAt)
+        .IsRequired();
+
+    entity.HasIndex(x => x.AssessmentAttemptId)
+        .IsUnique();
+
+    entity.HasOne(x => x.AssessmentAttempt)
+        .WithOne(x => x.Result)
+        .HasForeignKey<AssessmentResult>(
+            x => x.AssessmentAttemptId
+        )
+        .OnDelete(DeleteBehavior.Cascade);
+});
  // ==========================================
 // ATTENDANCE SESSION
 // ==========================================
