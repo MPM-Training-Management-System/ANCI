@@ -19,6 +19,10 @@ function createWindow() {
 
   mainWindow.loadURL("http://localhost:3001");
 
+  
+  mainWindow.webContents.on("before-input-event", () => {
+  });
+
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
