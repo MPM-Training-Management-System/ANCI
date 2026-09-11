@@ -9,46 +9,41 @@ import {
 
 import Ionicons from "@expo/vector-icons/Ionicons";
 
-import {
-  router,
-} from "expo-router";
-
 import type {
   ParticipantAssessment,
-} from "@/src/data/participant";
+} from "@repo/types";
 
 interface Props {
   assessment: ParticipantAssessment;
+  onPress?: () => void;
 }
 
 export default function AssessmentCard({
   assessment,
+  onPress,
 }: Props) {
-  const locked =
-    assessment.status === "Locked";
-
   const completed =
-    assessment.status === "Completed";
+    assessment.hasPassed;
 
-  const inProgress =
-    assessment.status === "In Progress";
+  const attempted =
+    assessment.attemptCount > 0;
+
+  const status = completed
+    ? "Completed"
+    : attempted
+      ? "In Progress"
+      : "Available";
 
   return (
     <Pressable
-      disabled={locked}
-      onPress={() =>
-        router.push({
-          pathname: "/assessment/[id]",
-          params: {
-            id: assessment.id,
-          },
-        })
-      }
+      disabled={completed}
+      onPress={onPress}
       style={({ pressed }) => [
         styles.card,
-        locked && styles.lockedCard,
+        completed &&
+          styles.completedCard,
         pressed &&
-          !locked &&
+          !completed &&
           styles.pressed,
       ]}
     >
@@ -57,25 +52,19 @@ export default function AssessmentCard({
           styles.icon,
           completed &&
             styles.completedIcon,
-          locked &&
-            styles.lockedIcon,
         ]}
       >
         <Ionicons
           name={
             completed
               ? "checkmark-circle-outline"
-              : locked
-                ? "lock-closed-outline"
-                : "clipboard-outline"
+              : "clipboard-outline"
           }
           size={22}
           color={
             completed
               ? "#16A34A"
-              : locked
-                ? "#94A3B8"
-                : "#2563EB"
+              : "#2563EB"
           }
         />
       </View>
@@ -85,8 +74,8 @@ export default function AssessmentCard({
           <Text
             style={[
               styles.title,
-              locked &&
-                styles.lockedText,
+              completed &&
+                styles.completedText,
             ]}
             numberOfLines={2}
           >
@@ -94,37 +83,27 @@ export default function AssessmentCard({
           </Text>
 
           <StatusBadge
-            status={assessment.status}
+            status={status}
           />
         </View>
 
         <Text
-          style={styles.module}
+          style={styles.batch}
           numberOfLines={1}
         >
-          {assessment.moduleTitle}
+          Batch {assessment.batchCode}
         </Text>
 
-        <Text
-          style={styles.description}
-          numberOfLines={2}
-        >
-          {assessment.description}
-        </Text>
+        {!!assessment.description && (
+          <Text
+            style={styles.description}
+            numberOfLines={2}
+          >
+            {assessment.description}
+          </Text>
+        )}
 
         <View style={styles.meta}>
-          <View style={styles.metaItem}>
-            <Ionicons
-              name="time-outline"
-              size={13}
-              color="#94A3B8"
-            />
-
-            <Text style={styles.metaText}>
-              {assessment.durationMinutes} min
-            </Text>
-          </View>
-
           <View style={styles.metaItem}>
             <Ionicons
               name="help-circle-outline"
@@ -133,34 +112,75 @@ export default function AssessmentCard({
             />
 
             <Text style={styles.metaText}>
-              {assessment.questions.length} questions
+              {assessment.questionCount}{" "}
+              {assessment.questionCount === 1
+                ? "question"
+                : "questions"}
             </Text>
           </View>
 
-          {completed &&
-            assessment.score !==
+          <View style={styles.metaItem}>
+            <Ionicons
+              name="flag-outline"
+              size={13}
+              color="#94A3B8"
+            />
+
+            <Text style={styles.metaText}>
+              Passing:{" "}
+              {assessment.passingPercentage}%
+            </Text>
+          </View>
+
+          {assessment.attemptCount > 0 && (
+            <View style={styles.metaItem}>
+              <Ionicons
+                name="repeat-outline"
+                size={13}
+                color="#94A3B8"
+              />
+
+              <Text style={styles.metaText}>
+                {assessment.attemptCount}{" "}
+                {assessment.attemptCount === 1
+                  ? "attempt"
+                  : "attempts"}
+              </Text>
+            </View>
+          )}
+
+          {assessment.latestPercentage !==
+            null &&
+            assessment.latestPercentage !==
               undefined && (
               <View style={styles.metaItem}>
                 <Ionicons
                   name="ribbon-outline"
                   size={13}
-                  color="#16A34A"
+                  color={
+                    assessment.hasPassed
+                      ? "#16A34A"
+                      : "#F59E0B"
+                  }
                 />
 
                 <Text
                   style={[
                     styles.metaText,
-                    styles.scoreText,
+                    assessment.hasPassed
+                      ? styles.scoreText
+                      : styles.latestScoreText,
                   ]}
                 >
-                  {assessment.score}%
+                  Latest:{" "}
+                  {assessment.latestPercentage}%
                 </Text>
               </View>
             )}
         </View>
       </View>
 
-      {!locked && (
+      {!completed && (
         <Ionicons
           name="chevron-forward"
           size={18}
@@ -175,7 +195,10 @@ export default function AssessmentCard({
 function StatusBadge({
   status,
 }: {
-  status: ParticipantAssessment["status"];
+  status:
+    | "Available"
+    | "In Progress"
+    | "Completed";
 }) {
   let backgroundColor = "#DBEAFE";
   let color = "#1D4ED8";
@@ -193,12 +216,6 @@ function StatusBadge({
     backgroundColor = "#FEF3C7";
     color = "#B45309";
     icon = "play-circle-outline";
-  }
-
-  if (status === "Locked") {
-    backgroundColor = "#F1F5F9";
-    color = "#64748B";
-    icon = "lock-closed-outline";
   }
 
   return (
@@ -243,9 +260,8 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
 
-  lockedCard: {
-    backgroundColor: "#F8FAFC",
-    opacity: 0.75,
+  completedCard: {
+    backgroundColor: "#F8FFFA",
   },
 
   icon: {
@@ -259,10 +275,6 @@ const styles = StyleSheet.create({
 
   completedIcon: {
     backgroundColor: "#DCFCE7",
-  },
-
-  lockedIcon: {
-    backgroundColor: "#E2E8F0",
   },
 
   content: {
@@ -285,11 +297,11 @@ const styles = StyleSheet.create({
     color: "#0F172A",
   },
 
-  lockedText: {
-    color: "#64748B",
+  completedText: {
+    color: "#166534",
   },
 
-  module: {
+  batch: {
     marginTop: 5,
     fontSize: 7.5,
     fontWeight: "700",
@@ -323,6 +335,11 @@ const styles = StyleSheet.create({
 
   scoreText: {
     color: "#16A34A",
+    fontWeight: "800",
+  },
+
+  latestScoreText: {
+    color: "#D97706",
     fontWeight: "800",
   },
 

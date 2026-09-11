@@ -110,12 +110,11 @@ export function useWrittenAssessment(
     [api],
   );
 
-
-  const   loadByBatchIdParticipantAssessment
- = useCallback(
+const loadByBatchIdParticipantAssessment =
+  useCallback(
     async (
       trainingBatchId: string,
-    ) => {
+    ): Promise<ParticipantAssessment[]> => {
       setIsLoading(true);
       setError(null);
 
@@ -125,14 +124,12 @@ export function useWrittenAssessment(
             trainingBatchId,
           );
 
-        setAssessments(data);
-
         return data;
       } catch (err) {
         const message =
           err instanceof Error
             ? err.message
-            : "Failed to load My Question.";
+            : "Failed to load participant assessments.";
 
         setError(message);
 
