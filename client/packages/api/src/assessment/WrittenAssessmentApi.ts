@@ -386,20 +386,19 @@ export class WrittenAssessmentApi {
     );
   }
 
+async getParticipantAssessmentsByBatch(
+  trainingBatchId: string
+): Promise<ParticipantAssessment[]> {
 
-  async getParticipantAssessmentsByBatch(
-    trainingBatchId: string
-  ): Promise<WrittenAssessment[]> {
-
-    return this.api.request<WrittenAssessment[]>(
-      WrittenAssessmentEndpoints.getParticipantAssessmentsByBatch(
-        trainingBatchId
-      ),
-      {
-        method: "GET",
-      }
-    );
-  }
+  return this.api.request<ParticipantAssessment[]>(
+    WrittenAssessmentEndpoints.getParticipantAssessmentsByBatch(
+      trainingBatchId
+    ),
+    {
+      method: "GET",
+    }
+  );
+}
 
 
 

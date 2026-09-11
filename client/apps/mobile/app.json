@@ -19,7 +19,7 @@
 
     "android": {
   "adaptiveIcon": {
-    "foregroundImage": "./assets/images/ANCILOGO.png",
+    "foregroundImage": "./assets/images/LOGO.png",
     "backgroundColor": "#FFFFFF"
   },
 
@@ -40,8 +40,8 @@
     "expo-splash-screen",
     {
       "backgroundColor": "#FFFFFF",
-      "image": "./assets/images/splash-icon.png",
-      "imageWidth": 220,
+      "image": "./assets/images/ANCILOGO.png",
+      "imageWidth": 100,
       "resizeMode": "contain"
     }
   ],

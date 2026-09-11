@@ -11,6 +11,7 @@ import {
   Text,
   TextInput,
   View,
+  Image
 } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -182,25 +183,19 @@ export default function LoginForm() {
           }
         >
 
-          {/* =================================================
-              BRAND
-          ================================================= */}
+       
 
           <View
             style={styles.brandSection}
           >
 
-            <View
-              style={styles.logo}
-            >
-
-              <Text
-                style={styles.logoText}
-              >
-                A
-              </Text>
-
-            </View>
+           <View style={styles.logo}>
+          <Image
+            source={require("@/assets/images/ANCILOGO.png")}
+         
+            resizeMode="contain"
+          />
+          </View>
 
 
             <Text
@@ -705,7 +700,7 @@ const styles = StyleSheet.create({
   },
 
   logo: {
-    width: 58,
+    width: 20,
     height: 58,
     borderRadius: 18,
     backgroundColor: "#2563EB",
