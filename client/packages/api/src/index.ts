@@ -10,3 +10,4 @@ export * from "./enrollment";
 export * from "./admin";
 export * from "./attendance";
 export * from "./assessment";
+export * from "./Service";

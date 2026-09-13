@@ -5,6 +5,7 @@ using server.Models.Auth;
 using server.Models.Learning;
 using server.Models.Otp;
 using server.Models.Participant;
+using server.Models.Service;
 using server.Models.Trainer;
 using server.Models.Training;
 
@@ -27,6 +28,15 @@ public DbSet<TrainingProgramRequirement>
 
     public DbSet<LearningMaterial> LearningMaterials
     => Set<LearningMaterial>();
+
+    public DbSet<Service> Services
+    => Set<Service>();
+
+public DbSet<ServiceRequirement> ServiceRequirements
+    => Set<ServiceRequirement>();
+
+public DbSet<ServiceRequest> ServiceRequests
+    => Set<ServiceRequest>();
 
 public DbSet<LearningSectionProgress>
     LearningSectionProgresses
@@ -781,6 +791,133 @@ modelBuilder.Entity<TrainingSession>(entity =>
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+
+
+// ==========================================
+// SERVICE
+// ==========================================
+
+modelBuilder.Entity<Service>(entity =>
+{
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.ServiceCode)
+        .IsRequired()
+        .HasMaxLength(50);
+
+    entity.HasIndex(x => x.ServiceCode)
+        .IsUnique();
+
+    entity.Property(x => x.Name)
+        .IsRequired()
+        .HasMaxLength(200);
+
+    entity.Property(x => x.Description)
+        .HasMaxLength(2000);
+
+    entity.Property(x => x.Category)
+        .IsRequired()
+        .HasMaxLength(100);
+
+    entity.Property(x => x.RequiresTraining)
+        .IsRequired();
+
+    entity.Property(x => x.IsActive)
+        .IsRequired();
+
+    entity.Property(x => x.CreatedAt)
+        .IsRequired();
+
+    entity.Property(x => x.UpdatedAt)
+        .IsRequired();
+
+    entity.HasMany(x => x.Requirements)
+        .WithOne(x => x.Service)
+        .HasForeignKey(x => x.ServiceId)
+        .OnDelete(DeleteBehavior.Cascade);
+
+    entity.HasMany(x => x.Requests)
+        .WithOne(x => x.Service)
+        .HasForeignKey(x => x.ServiceId)
+        .OnDelete(DeleteBehavior.Restrict);
+});
+
+// ==========================================
+// SERVICE REQUIREMENT
+// ==========================================
+
+modelBuilder.Entity<ServiceRequirement>(entity =>
+{
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.Name)
+        .IsRequired()
+        .HasMaxLength(200);
+
+    entity.Property(x => x.Description)
+        .HasMaxLength(1000);
+
+    entity.Property(x => x.IsRequired)
+        .IsRequired();
+
+    entity.Property(x => x.DisplayOrder)
+        .IsRequired();
+
+    entity.HasIndex(x => new
+    {
+        x.ServiceId,
+        x.DisplayOrder
+    });
+
+    entity.HasOne(x => x.Service)
+        .WithMany(x => x.Requirements)
+        .HasForeignKey(x => x.ServiceId)
+        .OnDelete(DeleteBehavior.Cascade);
+});
+
+
+// ==========================================
+// SERVICE REQUEST
+// ==========================================
+
+modelBuilder.Entity<ServiceRequest>(entity =>
+{
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.Status)
+        .HasConversion<string>()
+        .IsRequired();
+
+    entity.Property(x => x.Remarks)
+        .HasMaxLength(2000);
+
+    entity.Property(x => x.RequestedAt)
+        .IsRequired();
+
+    entity.Property(x => x.ReviewedAt)
+        .IsRequired(false);
+
+    entity.HasIndex(x => x.UserId);
+
+    entity.HasIndex(x => x.ServiceId);
+
+    entity.HasIndex(x => x.Status);
+
+    entity.HasOne(x => x.Service)
+        .WithMany(x => x.Requests)
+        .HasForeignKey(x => x.ServiceId)
+        .OnDelete(DeleteBehavior.Restrict);
+
+    entity.HasOne(x => x.User)
+        .WithMany()
+        .HasForeignKey(x => x.UserId)
+        .OnDelete(DeleteBehavior.Restrict);
+
+    entity.HasOne(x => x.ReviewedByUser)
+        .WithMany()
+        .HasForeignKey(x => x.ReviewedByUserId)
+        .OnDelete(DeleteBehavior.Restrict);
+});
 
         // ==========================================
         // ENROLLMENT
