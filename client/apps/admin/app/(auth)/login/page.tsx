@@ -1,27 +1,16 @@
 "use client";
 
-import {
-  useState,
-} from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 import {
   Button,
-  Checkbox,
   Input,
   Spinner,
 } from "@repo/ui/index";
 
-import {
-  useRouter,
-} from "next/navigation";
-
-import {
-  authApi,
-} from "@/lib/api";
-
-import {
-  auth,
-} from "@/lib/auth";
+import { authApi } from "@/lib/api";
+import { auth } from "@/lib/auth";
 
 import {
   notify,
@@ -29,413 +18,428 @@ import {
 } from "@repo/hooks";
 
 export default function LoginPage() {
+  const router = useRouter();
 
-  // =========================================================
-  // ROUTER
-  // =========================================================
-
-  const router =
-    useRouter();
-
-  // =========================================================
-  // FORM
-  // =========================================================
-
-  const [
-    login,
-    setLogin,
-  ] = useState("");
-
-  const [
-    password,
-    setPassword,
-  ] = useState("");
-
-  // =========================================================
-  // UI
-  // =========================================================
-
-  const [
-    showPassword,
-    setShowPassword,
-  ] = useState(false);
-
-  const [
-    rememberMe,
-    setRememberMe,
-  ] = useState(false);
-
-  // =========================================================
-  // LOGIN HOOK
-  // =========================================================
+  const [login, setLogin] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   const {
     login: loginUser,
     isLoading,
     error,
     reset,
-  } = useLogin(
-    authApi
-  );
+  } = useLogin(authApi);
 
-  // =========================================================
-  // HANDLE LOGIN
-  // =========================================================
+  const handleLogin = async () => {
+    reset();
 
-  const handleLogin =
-    async () => {
+    if (!login.trim()) {
+      notify.error("Please enter your institutional email.");
+      return;
+    }
 
-      reset();
+    if (!password) {
+      notify.error("Please enter your password.");
+      return;
+    }
 
-      // -----------------------------------------------------
-      // VALIDATION
-      // -----------------------------------------------------
+    const data = await loginUser({
+      email: login.trim(),
+      password,
+    });
 
-      if (!login.trim()) {
-        notify.error(
-          "Please enter your institutional email."
-        );
+    if (!data) {
+      notify.error("Invalid email or password.");
+      return;
+    }
 
-        return;
-      }
+    const status = data.user?.status?.toLowerCase();
+    const role = data.user?.role?.toLowerCase();
 
-      if (!password) {
-        notify.error(
-          "Please enter your password."
-        );
-
-        return;
-      }
-
-      // -----------------------------------------------------
-      // LOGIN
-      // -----------------------------------------------------
-
-      const data =
-        await loginUser({
-          email:
-            login,
-
-          password:
-            password,
-        });
-
-      // -----------------------------------------------------
-      // LOGIN FAILED
-      // -----------------------------------------------------
-
-      if (!data) {
-        notify.error(
-          "Invalid email or password."
-        );
-
-        return;
-      }
-
-      if (data.user.status === "Active"){
-         auth.saveToken(data.token);
-
-auth.saveUser(
-  data.user
-);  
- if (
-        data.user?.role ===
-        "Admin"
-      ) {
-
-        notify.success(
-          "Login successful."
-        );
-
-        // ---------------------------------------------------
-        // REMEMBER ME
-        // ---------------------------------------------------
-
-        if (rememberMe) {
-
-          localStorage.setItem(
-            "rememberMe",
-            "true"
-          );
-
-        } else {
-
-          localStorage.removeItem(
-            "rememberMe"
-          );
-
-        }
-
-        // ---------------------------------------------------
-        // ADMIN DASHBOARD
-        // ---------------------------------------------------
-
-        router.push(
-          "/dashboard"
-        );
-
-        return;
-      }
-      }
-
+    /*
+     * Only active administrators can access
+     * the administrator control center.
+     */
+    if (status !== "active" || role !== "admin") {
       notify.error(
         "You are not authorized to access the administrator portal."
       );
 
       auth.logout();
+      return;
+    }
 
-    };
+    // Save authenticated session
+    auth.saveToken(data.token);
+    auth.saveUser(data.user);
 
- 
+    // Remember-me preference
+    if (rememberMe) {
+      localStorage.setItem("rememberMe", "true");
+    } else {
+      localStorage.removeItem("rememberMe");
+    }
+
+    notify.success("Login successful.");
+
+    router.replace("/dashboard");
+  };
+
   return (
-    <main className="min-h-screen bg-slate-100">
-
-      <div className="flex min-h-screen items-center justify-center px-5 py-10">
-
-        {/* ===================================================
-            LOGIN CARD
-        =================================================== */}
-
-        <div className="w-full max-w-md rounded-2xl bg-white p-10 shadow-2xl">
-
-          {/* =================================================
-              HEADER
-          ================================================= */}
-
-          <div className="mb-8">
-
-            <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase tracking-widest text-teal-700">
-
-              Secure Access Point
-
-            </span>
-
-            <h1 className="mt-4 text-2xl font-bold text-slate-900">
-
-              Administrator Login
-
-            </h1>
-
-            <p className="mt-1 text-sm text-slate-500">
-
-              Access your ISTMS dashboard.
-
-            </p>
-
-          </div>
-
-          {/* =================================================
-              ERROR MESSAGE
-          ================================================= */}
-
-          {error && (
-
-            <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-
-              {error}
-
-            </div>
-
-          )}
-
-          {/* =================================================
-              FORM
-          ================================================= */}
-
-          <form
-            onSubmit={(event) => {
-
-              event.preventDefault();
-
-              handleLogin();
-
-            }}
-            className="space-y-6"
+    <div
+      className="
+        w-full
+        max-w-[440px]
+        rounded-[28px]
+        border
+        border-slate-200/80
+        bg-white
+        shadow-[0_30px_80px_rgba(0,0,0,0.25)]
+      "
+    >
+      {/* =====================================================
+          FORM CONTAINER
+      ====================================================== */}
+      <div className="px-8 py-9 sm:px-10">
+        {/* =================================================
+            HEADER
+        ================================================== */}
+        <div className="mb-8">
+          <div
+            className="
+              mb-4
+              inline-flex
+              items-center
+              rounded-full
+              border
+              border-[#1670a8]/10
+              bg-[#1670a8]/5
+              px-3
+              py-1.5
+            "
           >
+            <span
+              className="
+                mr-2
+                h-1.5
+                w-1.5
+                rounded-full
+                bg-teal-400
+              "
+            />
 
-            {/* ===============================================
-                EMAIL
-            =============================================== */}
-
-            <div>
-
-              <label
-                htmlFor="email"
-                className="mb-2 block text-xs font-bold uppercase tracking-widest text-slate-500"
-              >
-
-                Institutional Email
-
-              </label>
-
-              <Input
-                id="email"
-                type="email"
-                autoComplete="email"
-                value={
-                  login
-                }
-                onChange={(event) =>
-                  setLogin(
-                    event.target.value
-                  )
-                }
-                placeholder="admin@acenextgen.com"
-                disabled={
-                  isLoading
-                }
-                className="w-full rounded-lg bg-slate-100 px-4 py-3 outline-none focus:ring-2 focus:ring-teal-400"
-              />
-
-            </div>
-
-            {/* ===============================================
-                PASSWORD
-            =============================================== */}
-
-            <div>
-
-              <label
-                htmlFor="password"
-                className="mb-2 block text-xs font-bold uppercase tracking-widest text-slate-500"
-              >
-
-                Security Password
-
-              </label>
-
-              <div className="relative">
-
-                <Input
-                  id="password"
-                  type={
-                    showPassword
-                      ? "text"
-                      : "password"
-                  }
-                  autoComplete="current-password"
-                  value={
-                    password
-                  }
-                  onChange={(event) =>
-                    setPassword(
-                      event.target.value
-                    )
-                  }
-                  placeholder="••••••••"
-                  disabled={
-                    isLoading
-                  }
-                  className="w-full rounded-lg bg-slate-100 px-4 py-3 pr-16 outline-none focus:ring-2 focus:ring-teal-400"
-                />
-
-                <button
-                  type="button"
-                  disabled={
-                    isLoading
-                  }
-                  onClick={() =>
-                    setShowPassword(
-                      (current) =>
-                        !current
-                    )
-                  }
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-500 hover:text-teal-700 disabled:opacity-50"
-                >
-
-                  {showPassword
-                    ? "Hide"
-                    : "Show"}
-
-                </button>
-
-              </div>
-
-            </div>
-
-            {/* ===============================================
-                REMEMBER ME
-            =============================================== */}
-
-            <div className="flex items-center gap-3">
-
-              <Checkbox
-                checked={
-                  rememberMe
-                }
-                onChange={(event) =>
-                  setRememberMe(
-                    event.target.checked
-                  )
-                }
-                disabled={
-                  isLoading
-                }
-              />
-
-              <label className="text-sm text-slate-600">
-
-                Keep session active for 30 days
-
-              </label>
-
-            </div>
-
-            {/* ===============================================
-                LOGIN BUTTON
-            =============================================== */}
-
-            <Button
-              type="submit"
-              disabled={
-                isLoading
-              }
-              variant="primary"
-              className="w-full rounded-lg py-4 font-bold transition hover:bg-secondary"
+            <span
+              className="
+                text-[8px]
+                font-bold
+                uppercase
+                tracking-[0.25em]
+                text-[#1670a8]
+              "
             >
-
-              {isLoading ? (
-
-                <span className="flex items-center justify-center">
-
-                  <Spinner
-                    size="md"
-                    className="mr-2"
-                  />
-
-                  Signing in...
-
-                </span>
-
-              ) : (
-
-                "Secure Login"
-
-              )}
-
-            </Button>
-
-          </form>
-
-          {/* =================================================
-              FOOTER
-          ================================================= */}
-
-          <div className="mt-8 border-t pt-8 text-center">
-
-            <p className="text-[10px] uppercase tracking-widest text-slate-400">
-
-              Authorized Personnel Only • All
-              activity monitored
-
-            </p>
-
+              Secure Access Point
+            </span>
           </div>
 
+          <h1
+            className="
+              text-2xl
+              font-extrabold
+              tracking-tight
+              text-slate-900
+            "
+          >
+            Sign in to Control Center
+          </h1>
+
+          <p
+            className="
+              mt-2
+              max-w-sm
+              text-xs
+              leading-5
+              text-slate-500
+            "
+          >
+            Use your authorized administrator credentials to
+            access the ISTMS dashboard.
+          </p>
         </div>
 
-      </div>
+        {/* =================================================
+            ERROR
+        ================================================== */}
+        {error && (
+          <div
+            className="
+              mb-5
+              rounded-xl
+              border
+              border-red-200
+              bg-red-50
+              px-4
+              py-3
+              text-xs
+              font-medium
+              text-red-600
+            "
+          >
+            {typeof error === "string"
+              ? error
+              : "Unable to sign in. Please check your credentials."}
+          </div>
+        )}
 
-    </main>
+        {/* =================================================
+            EMAIL
+        ================================================== */}
+        <div className="mb-5">
+          <label
+            htmlFor="login"
+            className="
+              mb-2
+              block
+              text-[9px]
+              font-bold
+              uppercase
+              tracking-[0.2em]
+              text-slate-500
+            "
+          >
+            Institutional Email
+          </label>
+
+          <Input
+            id="login"
+            type="email"
+            value={login}
+            onChange={(e) => setLogin(e.target.value)}
+            placeholder="admin@acenextgen.com"
+            disabled={isLoading}
+            autoComplete="email"
+            className="
+              h-12
+              rounded-xl
+              border-slate-200
+              bg-slate-50
+              text-sm
+              transition-all
+              focus:border-[#1670a8]
+              focus:bg-white
+            "
+          />
+        </div>
+
+        {/* =================================================
+            PASSWORD
+        ================================================== */}
+        <div className="mb-5">
+          <label
+            htmlFor="password"
+            className="
+              mb-2
+              block
+              text-[9px]
+              font-bold
+              uppercase
+              tracking-[0.2em]
+              text-slate-500
+            "
+          >
+            Security Password
+          </label>
+
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter your password"
+              disabled={isLoading}
+              autoComplete="current-password"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleLogin();
+                }
+              }}
+              className="
+                h-12
+                rounded-xl
+                border-slate-200
+                bg-slate-50
+                pr-16
+                text-sm
+                transition-all
+                focus:border-[#1670a8]
+                focus:bg-white
+              "
+            />
+
+            <button
+              type="button"
+              onClick={() =>
+                setShowPassword((prev) => !prev)
+              }
+              disabled={isLoading}
+              className="
+                absolute
+                right-3
+                top-1/2
+                -translate-y-1/2
+                px-2
+                py-1
+                text-[9px]
+                font-bold
+                uppercase
+                tracking-wider
+                text-slate-400
+                transition-colors
+                hover:text-[#1670a8]
+                disabled:cursor-not-allowed
+              "
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
+          </div>
+        </div>
+
+        {/* =================================================
+            REMEMBER ME
+        ================================================== */}
+        <div className="mb-7">
+          <label
+            htmlFor="rememberMe"
+            className="
+              flex
+              cursor-pointer
+              items-center
+              gap-2
+            "
+          >
+            <input
+              id="rememberMe"
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) =>
+                setRememberMe(e.target.checked)
+              }
+              disabled={isLoading}
+              className="
+                h-4
+                w-4
+                cursor-pointer
+                rounded
+                border-slate-300
+                accent-[#1670a8]
+                disabled:cursor-not-allowed
+              "
+            />
+
+            <span className="text-[11px] text-slate-500">
+              Keep session active for 30 days
+            </span>
+          </label>
+        </div>
+
+        {/* =================================================
+            LOGIN BUTTON
+        ================================================== */}
+        <Button
+          type="button"
+          onClick={handleLogin}
+          disabled={isLoading}
+          className="
+            h-12
+            w-full
+            rounded-xl
+            bg-[#1670a8]
+            text-sm
+            font-bold
+            text-white
+            shadow-[0_10px_25px_rgba(22,112,168,0.22)]
+            transition-all
+            hover:-translate-y-0.5
+            hover:bg-[#126391]
+            hover:shadow-[0_14px_30px_rgba(22,112,168,0.28)]
+            disabled:cursor-not-allowed
+            disabled:opacity-60
+          "
+        >
+          {isLoading ? (
+            <span className="flex items-center justify-center gap-2">
+              <Spinner className="h-4 w-4" />
+              Authenticating...
+            </span>
+          ) : (
+            "Access Control Center"
+          )}
+        </Button>
+
+        {/* =================================================
+            SECURITY DIVIDER
+        ================================================== */}
+        <div className="my-6 flex items-center gap-3">
+          <div className="h-px flex-1 bg-slate-200" />
+
+          <span
+            className="
+              text-[8px]
+              font-bold
+              uppercase
+              tracking-[0.2em]
+              text-slate-400
+            "
+          >
+            Secure Session
+          </span>
+
+          <div className="h-px flex-1 bg-slate-200" />
+        </div>
+
+        {/* =================================================
+            SECURITY NOTICE
+        ================================================== */}
+        <div
+          className="
+            rounded-xl
+            border
+            border-slate-100
+            bg-slate-50
+            px-4
+            py-3
+          "
+        >
+          <p
+            className="
+              text-center
+              text-[10px]
+              leading-4
+              text-slate-400
+            "
+          >
+            Authorized personnel only. Administrator activity
+            is protected and monitored by the system.
+          </p>
+        </div>
+
+        {/* Version */}
+        <p
+          className="
+            mt-5
+            text-center
+            text-[8px]
+            font-semibold
+            uppercase
+            tracking-[0.2em]
+            text-slate-300
+          "
+        >
+          ISTMS Control Center • Production
+        </p>
+      </div>
+    </div>
   );
 }

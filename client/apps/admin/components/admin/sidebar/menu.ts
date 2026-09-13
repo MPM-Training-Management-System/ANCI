@@ -47,6 +47,12 @@ export const sidebarMenu: SidebarSectionType[] = [
         icon: UserRound,
       },
 
+       {
+        title: "Services",
+        href: "/services",
+        icon: UserRound,
+      },
+
       // -------------------------------------------------------
       // TRAINER APPLICATIONS
       // -------------------------------------------------------

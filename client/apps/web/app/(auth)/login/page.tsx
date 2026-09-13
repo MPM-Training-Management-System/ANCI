@@ -1,485 +1,783 @@
 "use client";
 
-import {
-  FormEvent,
-  useState,
-} from "react";
-
+import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  ArrowRight,
+  BookOpen,
+  CalendarDays,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  FileCheck2,
+  LockKeyhole,
+  Mail,
+  QrCode,
+  ShieldCheck,
+  Sparkles,
+  Users,
+} from "lucide-react";
 
-import type {
-  LoginRequest,
-} from "@repo/types";
+import type { LoginRequest } from "@repo/types";
 
 import { authApi } from "@/lib/api";
 import { auth } from "@/lib/auth";
 import { notify } from "@repo/hooks";
 
+import Image from "next/image";
+import Logo from "@/assets/image/ANCILOGO.png";
+
 export default function LoginPage() {
   const router = useRouter();
 
-  const [email, setEmail] =
-    useState("");
+  // ============================================================
+  // FORM STATE
+  // ============================================================
 
-  const [password, setPassword] =
-    useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
-  // ==========================================================
-  // UI
-  // ==========================================================
+  // ============================================================
+  // UI STATE
+  // ============================================================
 
-  const [showPassword, setShowPassword] =
-    useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
-  const [rememberMe, setRememberMe] =
-    useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [isLoading, setIsLoading] =
-    useState(false);
-
-  const [error, setError] =
-    useState<string | null>(null);
-
-  // ==========================================================
+  // ============================================================
   // LOGIN
-  // ==========================================================
+  // ============================================================
 
-  const handleSubmit =
-    async (
-      event: FormEvent<HTMLFormElement>
-    ) => {
-      event.preventDefault();
+  const handleSubmit = async (
+    event: FormEvent<HTMLFormElement>
+  ) => {
+    event.preventDefault();
 
-      setError(null);
-      console.log("🔥 LOGIN BUTTON CLICKED");
+    setError(null);
 
-      // ------------------------------------------------------
-      // VALIDATION
-      // ------------------------------------------------------
+    // ----------------------------------------------------------
+    // VALIDATION
+    // ----------------------------------------------------------
 
-      const cleanEmail =
-        email.trim().toLowerCase();
+    const cleanEmail = email.trim().toLowerCase();
 
-      if (!cleanEmail) {
+    if (!cleanEmail) {
+      setError("Please enter your email address.");
+      return;
+    }
+
+    if (!password) {
+      setError("Please enter your password.");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      // --------------------------------------------------------
+      // LOGIN REQUEST
+      // --------------------------------------------------------
+
+      const request: LoginRequest = {
+        email: cleanEmail,
+        password,
+      };
+
+      const response = await authApi.login(request);
+
+      // --------------------------------------------------------
+      // RESPONSE VALIDATION
+      // --------------------------------------------------------
+
+      if (!response) {
+        setError("Unable to login. Please try again.");
+        return;
+      }
+
+      if (!response.token) {
         setError(
-          "Please enter your email address."
+          "Login succeeded but no authentication token was returned."
         );
+        return;
+      }
+
+      if (!response.user) {
+        setError(
+          "Login succeeded but no user information was returned."
+        );
+        return;
+      }
+
+      // --------------------------------------------------------
+      // USER INFORMATION
+      // --------------------------------------------------------
+
+      const role = response.user.role?.toLowerCase();
+
+      const isActive =
+        response.user.status?.toLowerCase() === "active";
+
+      // --------------------------------------------------------
+      // TRAINER LOGIN
+      // --------------------------------------------------------
+
+      if (role === "trainer") {
+        auth.saveToken(response.token);
+        auth.saveUser(response.user);
+
+        if (isActive) {
+          notify.success("Trainer login successful.");
+
+          router.replace("/dashboard");
+
+          return;
+        }
+
+        notify.info(
+          "Your trainer application is still under review."
+        );
+
+        router.replace("/trainer-application");
 
         return;
       }
 
-      if (!password) {
-        setError(
-          "Please enter your password."
-        );
+      // --------------------------------------------------------
+      // INVALID ROLE
+      // --------------------------------------------------------
 
-        return;
-      }
+      auth.logout();
 
-      try {
-        setIsLoading(true);
+      setError("This portal is for trainers only.");
 
-      
-        const request: LoginRequest = {
-          email: cleanEmail,
-          password,
-        };
+      notify.error("This portal is for trainers only.");
+    } catch (error) {
+      console.error("LOGIN ERROR:", error);
 
-        console.log(
-          "LOGIN REQUEST:",
-          {
-            email: cleanEmail,
-          }
-        );
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to login. Please check your credentials.";
 
-       
+      setError(message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-        const response =
-          await authApi.login(
-            request
-          );
-
-        console.log(
-          "LOGIN RESPONSE:",
-          response
-        );
-
-      
-        if (!response) {
-          setError(
-            "Unable to login. Please try again."
-          );
-
-          return;
-        }
-
-        if (!response.token) {
-          setError(
-            "Login succeeded but no authentication token was returned."
-          );
-
-          return;
-        }
-
-        if (!response.user) {
-          setError(
-            "Login succeeded but no user information was returned."
-          );
-
-          return;
-        }
-
-        
-        const role =
-          response.user.role
-            ?.toLowerCase();
-
-        const status =
-          response.user.status
-            ?.toLowerCase();
-
-        /*
-         * Support both:
-         *
-         * status = "Active"
-         *
-         * OR
-         *
-         * isActive = true
-         */
-
-        const isActive =
-          response.user.status === "Active";
-
-        console.log(
-          "LOGIN ROLE:",
-          response.user.role
-        );
-
-        console.log(
-          "LOGIN STATUS:",
-          response.user.status
-        );
-
-        console.log(
-          "LOGIN IS ACTIVE:",
-          response.user.status
-        );
-
-        if (
-          role === "trainer"
-        ) {
-          
-          auth.saveToken(
-            response.token
-          );
-
-          auth.saveUser(
-            response.user
-          );
-
-          console.log("TOKEN SAVED:", auth.getToken());
-          console.log("USER SAVED:", auth.getUser());
-
-          if (isActive) {
-            notify.success(
-              "Trainer login successful."
-            );
-
-            router.replace(
-              "/dashboard"
-            );
-
-            return;
-          }
-
-        
-
-          notify.info(
-            "Your trainer application is still under review."
-          );
-
-          router.replace(
-            "/trainer-application"
-          );
-
-          return;
-        }
-
-       
-        auth.logout();
-
-        setError(
-          "This portal is for trainers only."
-        );
-
-        notify.error(
-          "This portal is for trainers only."
-        );
-
-      } catch (error) {
-
-        console.error(
-          "LOGIN ERROR:",
-          error
-        );
-
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Unable to login. Please check your credentials.";
-
-        setError(
-          message
-        );
-
-      } finally {
-
-        setIsLoading(false);
-
-      }
-    };
-
-  // ==========================================================
+  // ============================================================
   // RENDER
-  // ==========================================================
+  // ============================================================
 
   return (
-    <main className="min-h-screen bg-[#f5f7fa]">
+    <main className="relative min-h-screen overflow-hidden bg-[#f7fafc]">
 
-      <div className="flex min-h-screen items-center justify-center px-5 py-8 sm:px-8">
+      {/* ====================================================== */}
+      {/* BACKGROUND */}
+      {/* ====================================================== */}
 
-        {/* ====================================================
-            MAIN LOGIN CONTAINER
-        ==================================================== */}
+      <div className="pointer-events-none absolute -left-40 -top-40 h-[500px] w-[500px] rounded-full bg-[#002b5c]/5 blur-[120px]" />
 
-        <div className="grid w-full max-w-[1040px] overflow-hidden rounded-[24px] bg-white shadow-[0_20px_60px_rgba(16,24,40,0.10)] lg:grid-cols-[1.05fr_0.95fr]">
+      <div className="pointer-events-none absolute -bottom-40 -right-40 h-[500px] w-[500px] rounded-full bg-[#C5A059]/10 blur-[120px]" />
 
-          {/* ==================================================
-              LEFT BRANDING PANEL
-          ================================================== */}
+      {/* Landing Page Grid */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.025]"
+        style={{
+          backgroundImage:
+            "linear-gradient(#002b5c 1px, transparent 1px), linear-gradient(90deg, #002b5c 1px, transparent 1px)",
+          backgroundSize: "40px 40px",
+        }}
+      />
 
-          <section className="relative hidden min-h-[650px] overflow-hidden bg-[#092653] lg:flex">
+      {/* ====================================================== */}
+      {/* TOP BRAND */}
+      {/* ====================================================== */}
 
-            {/* BACKGROUND SHAPES */}
+      <div className="relative z-10 mx-auto flex max-w-7xl items-center justify-between px-6 py-6 lg:px-12">
 
-            <div className="absolute -right-24 -top-24 h-[280px] w-[280px] rounded-full bg-[#1769a8]/50" />
+        <a
+          href="/"
+          className="group flex items-center gap-3"
+        >
+          <div
+            className="
+              relative
+              flex
+              h-11
+              w-11
+              items-center
+              justify-center
+              rounded-full
+              bg-white
+              p-1
+              shadow-md
+              ring-1
+              ring-gray-100
+              transition-transform
+              duration-300
+              group-hover:scale-105
+            "
+          >
+            <Image
+              src={Logo}
+              alt="ACE NextGen"
+              width={44}
+              height={44}
+              priority
+              className="h-full w-full rounded-full object-cover"
+            />
+          </div>
 
-            <div className="absolute -bottom-28 -left-24 h-[300px] w-[300px] rounded-full bg-[#123c79]/70" />
+          <div className="leading-none">
+            <p className="text-sm font-extrabold tracking-tight text-[#002b5c]">
+              ACE{" "}
+              <span className="text-[#C5A059]">
+                NEXTGEN
+              </span>
+            </p>
 
-            <div className="absolute right-[-70px] top-[45%] h-[190px] w-[190px] rounded-full border border-white/10" />
+            <p className="mt-1 text-[8px] font-bold uppercase tracking-[0.24em] text-[#002b5c]/40">
+              Consultancy Inc.
+            </p>
+          </div>
+        </a>
 
-            <div className="absolute bottom-[90px] left-[70px] h-[90px] w-[90px] rounded-full bg-white/5" />
+        <div className="hidden items-center gap-2 sm:flex">
 
-            {/* CONTENT */}
+          <ShieldCheck className="h-3.5 w-3.5 text-[#C5A059]" />
 
-            <div className="relative z-10 flex w-full flex-col justify-between p-12 xl:p-14">
+          <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-gray-400">
+            Secure Trainer Access
+          </span>
 
-              {/* LOGO */}
+        </div>
 
-              <div>
+      </div>
 
-                <div className="flex items-center gap-3">
+      {/* ====================================================== */}
+      {/* MAIN */}
+      {/* ====================================================== */}
 
-                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-lg">
+      <div className="relative z-10 mx-auto flex max-w-7xl items-center justify-center px-6 pb-10 pt-6 lg:px-12 lg:pb-16">
 
-                    <AceLogo />
+        <div
+          className="
+            grid
+            w-full
+            max-w-[1120px]
+            overflow-hidden
+            rounded-[36px]
+            border
+            border-gray-100
+            bg-white
+            shadow-[0_30px_90px_rgba(0,43,92,0.10)]
+            lg:grid-cols-[1.05fr_0.95fr]
+          "
+        >
 
-                  </div>
+          {/* ==================================================== */}
+          {/* LEFT PRODUCT PREVIEW */}
+          {/* ==================================================== */}
 
-                  <div>
+          <section
+            className="
+              relative
+              overflow-hidden
+              bg-[#f7fafc]
+              px-7
+              py-10
+              sm:px-10
+              lg:px-12
+              lg:py-12
+              xl:px-14
+            "
+          >
 
-                    <p className="text-sm font-semibold tracking-[0.16em] text-white">
-                      ACE
-                    </p>
+            {/* Background Glow */}
+            <div className="pointer-events-none absolute -left-20 top-0 h-64 w-64 rounded-full bg-[#002b5c]/5 blur-[80px]" />
 
-                    <p className="text-[10px] tracking-[0.18em] text-white/60">
-                      NEXT GEN
-                    </p>
+            <div className="pointer-events-none absolute -bottom-20 -right-20 h-72 w-72 rounded-full bg-[#C5A059]/10 blur-[90px]" />
 
-                  </div>
+            <div className="relative z-10">
 
-                </div>
+              {/* Badge */}
+              <div
+                className="
+                  inline-flex
+                  items-center
+                  gap-2
+                  rounded-full
+                  border
+                  border-[#002b5c]/10
+                  bg-white
+                  px-3
+                  py-2
+                  shadow-sm
+                "
+              >
+                <Sparkles className="h-3.5 w-3.5 text-[#C5A059]" />
 
+                <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#002b5c]/60">
+                  Trainer Workspace
+                </span>
               </div>
 
-              {/* HERO */}
-
-              <div className="max-w-[430px]">
-
-                <p className="mb-4 text-[11px] font-medium uppercase tracking-[0.24em] text-[#8fd1ff]">
-                  Trainer Portal
-                </p>
-
-                <h1 className="text-4xl font-semibold leading-[1.12] tracking-[-0.04em] text-white xl:text-[46px]">
-                  Empower
-                  <br />
-                  Every
-                  <br />
+              {/* Heading */}
+              <h1
+                className="
+                  mt-7
+                  max-w-[500px]
+                  text-4xl
+                  font-extrabold
+                  leading-[1.08]
+                  tracking-tight
+                  text-[#002b5c]
+                  sm:text-5xl
+                "
+              >
+                Empower Every
+                <br />
+                <span className="text-[#C5A059]">
                   Learning Session.
-                </h1>
+                </span>
+              </h1>
 
-                <p className="mt-6 max-w-[390px] text-sm leading-7 text-white/65">
-                  Access your training workspace to
-                  manage training sessions, monitor
-                  trainee progress, record attendance,
-                  and evaluate performance — all from
-                  one secure platform.
-                </p>
+              <p className="mt-5 max-w-[500px] text-sm leading-7 text-gray-500">
+                A dedicated workspace for trainers to manage
+                training sessions, participants, attendance,
+                learning activities, and assessments.
+              </p>
+
+              {/* ================================================= */}
+              {/* PRODUCT DASHBOARD */}
+              {/* ================================================= */}
+
+              <div className="relative mt-9">
+
+                {/* Dashboard Card */}
+                <div
+                  className="
+                    relative
+                    overflow-hidden
+                    rounded-[28px]
+                    border
+                    border-gray-100
+                    bg-white
+                    shadow-[0_20px_50px_rgba(0,43,92,0.10)]
+                  "
+                >
+
+                  {/* Dashboard Header */}
+                  <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+
+                    <div className="flex items-center gap-3">
+
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#002b5c]">
+                        <BookOpen className="h-4 w-4 text-white" />
+                      </div>
+
+                      <div>
+                        <p className="text-[10px] font-extrabold text-[#002b5c]">
+                          Training Management
+                        </p>
+
+                        <p className="mt-0.5 text-[8px] text-gray-400">
+                          Trainer Dashboard
+                        </p>
+                      </div>
+
+                    </div>
+
+                    <span className="rounded-full bg-green-50 px-2.5 py-1 text-[7px] font-bold uppercase tracking-wider text-green-600">
+                      Active
+                    </span>
+
+                  </div>
+
+                  {/* Dashboard Stats */}
+                  <div className="grid grid-cols-3 gap-3 p-5">
+
+                    <DashboardStat
+                      value="12"
+                      label="Sessions"
+                      icon={CalendarDays}
+                    />
+
+                    <DashboardStat
+                      value="08"
+                      label="Batches"
+                      icon={Users}
+                    />
+
+                    <DashboardStat
+                      value="248"
+                      label="Participants"
+                      icon={Users}
+                    />
+
+                  </div>
+
+                  {/* Training Progress */}
+                  <div className="px-5 pb-5">
+
+                    <div className="rounded-2xl bg-[#f7fafc] p-4">
+
+                      <div className="flex items-center justify-between">
+
+                        <div>
+                          <p className="text-[8px] font-bold uppercase tracking-wider text-[#C5A059]">
+                            Current Training
+                          </p>
+
+                          <p className="mt-1 text-[11px] font-extrabold text-[#002b5c]">
+                            Leadership Development
+                          </p>
+                        </div>
+
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm">
+                          <GraduationIcon />
+                        </div>
+
+                      </div>
+
+                      <div className="mt-4">
+
+                        <div className="flex justify-between">
+
+                          <span className="text-[8px] text-gray-400">
+                            Training Progress
+                          </span>
+
+                          <span className="text-[8px] font-bold text-[#002b5c]">
+                            68%
+                          </span>
+
+                        </div>
+
+                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-200">
+
+                          <div
+                            className="h-full rounded-full bg-[#C5A059]"
+                            style={{ width: "68%" }}
+                          />
+
+                        </div>
+
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                  {/* Workflow */}
+                  <div className="border-t border-gray-100 px-5 py-5">
+
+                    <p className="mb-4 text-[8px] font-bold uppercase tracking-[0.2em] text-gray-400">
+                      Training Workflow
+                    </p>
+
+                    <div className="grid grid-cols-4 gap-2">
+
+                      <MiniStep
+                        icon={Users}
+                        label="Enroll"
+                        active
+                      />
+
+                      <MiniStep
+                        icon={CalendarDays}
+                        label="Schedule"
+                        active
+                      />
+
+                      <MiniStep
+                        icon={QrCode}
+                        label="Attend"
+                        active
+                      />
+
+                      <MiniStep
+                        icon={FileCheck2}
+                        label="Assess"
+                      />
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+                {/* Floating Card */}
+                <div
+                  className="
+                    absolute
+                    -bottom-5
+                    -right-4
+                    hidden
+                    rounded-2xl
+                    border
+                    border-gray-100
+                    bg-white
+                    p-3
+                    shadow-xl
+                    sm:block
+                    xl:-right-7
+                  "
+                >
+
+                  <div className="flex items-center gap-3">
+
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-50">
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    </div>
+
+                    <div>
+                      <p className="text-[9px] font-bold text-[#002b5c]">
+                        Attendance Recorded
+                      </p>
+
+                      <p className="mt-1 text-[7px] text-gray-400">
+                        Training session
+                      </p>
+                    </div>
+
+                  </div>
+
+                </div>
 
               </div>
 
-              {/* BOTTOM LABEL */}
+              {/* ================================================= */}
+              {/* FEATURES */}
+              {/* ================================================= */}
 
-              <div className="flex items-center justify-between gap-4">
+              <div className="mt-10 grid grid-cols-2 gap-3">
 
-                <div className="rounded-xl border border-white/10 bg-white/10 px-5 py-4 backdrop-blur-sm">
+                <FeatureItem
+                  icon={CalendarDays}
+                  title="Training Schedule"
+                />
 
-                  <p className="text-[9px] font-medium uppercase tracking-[0.2em] text-white/45">
-                    ACE NEXT GEN
-                  </p>
+                <FeatureItem
+                  icon={QrCode}
+                  title="Attendance"
+                />
 
-                  <p className="mt-1 text-xs text-white/70">
-                    Secure · Reliable · Built for Trainers
-                  </p>
+                <FeatureItem
+                  icon={BookOpen}
+                  title="Learning Materials"
+                />
 
-                </div>
-
-                <div className="hidden text-right xl:block">
-
-                  <p className="text-[9px] uppercase tracking-[0.16em] text-white/35">
-                    Secure Access
-                  </p>
-
-                  <p className="mt-1 text-xs text-white/55">
-                    Authorized Personnel Only
-                  </p>
-
-                </div>
+                <FeatureItem
+                  icon={FileCheck2}
+                  title="Assessment"
+                />
 
               </div>
 
             </div>
-
           </section>
 
-          {/* ==================================================
-              RIGHT LOGIN
-          ================================================== */}
+          {/* ==================================================== */}
+          {/* RIGHT LOGIN */}
+          {/* ==================================================== */}
 
-          <section className="flex min-h-[650px] items-center justify-center bg-white px-6 py-10 sm:px-10 lg:px-12 xl:px-16">
+          <section
+            className="
+              flex
+              items-center
+              justify-center
+              bg-white
+              px-7
+              py-12
+              sm:px-10
+              lg:px-12
+              xl:px-16
+            "
+          >
 
             <div className="w-full max-w-[390px]">
 
-              {/* MOBILE LOGO */}
+              {/* ================================================= */}
+              {/* TITLE */}
+              {/* ================================================= */}
 
-              <div className="mb-10 flex items-center gap-3 lg:hidden">
+              <div className="mb-8">
 
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#eef4ff] text-[#1769e0]">
+                <div className="mb-4 flex items-center gap-3">
 
-                  <AceLogo />
+                  <span className="h-px w-8 bg-[#C5A059]" />
 
-                </div>
-
-                <div>
-
-                  <p className="text-sm font-semibold text-[#172033]">
-                    ACE NEXT GEN
-                  </p>
-
-                  <p className="text-[9px] uppercase tracking-[0.16em] text-[#98a2b3]">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.25em] text-[#C5A059]">
                     Trainer Portal
                   </p>
 
                 </div>
 
-              </div>
-
-              {/* TITLE */}
-
-              <div className="mb-8">
-
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#4a90b8]">
-                  Secure Access Point
-                </p>
-
-                <h2 className="text-[29px] font-semibold tracking-[-0.04em] text-[#172033]">
-                  Welcome Back, Trainer!
+                <h2
+                  className="
+                    text-3xl
+                    font-extrabold
+                    tracking-tight
+                    text-[#002b5c]
+                    sm:text-[34px]
+                  "
+                >
+                  Welcome Back, Trainer.
                 </h2>
 
-                <p className="mt-2 text-sm leading-6 text-[#7b8495]">
-                  Sign in to your Trainer Portal to
-                  manage training sessions, monitor
-                  trainees, and track learning progress.
+                <p className="mt-3 text-sm leading-6 text-gray-500">
+                  Sign in to manage your training workspace,
+                  monitor participants, and continue delivering
+                  professional learning experiences.
                 </p>
 
               </div>
 
+              {/* ================================================= */}
               {/* ERROR */}
+              {/* ================================================= */}
 
               {error && (
+                <div
+                  className="
+                    mb-6
+                    flex
+                    items-start
+                    gap-3
+                    rounded-2xl
+                    border
+                    border-red-100
+                    bg-red-50
+                    px-4
+                    py-3
+                    text-sm
+                    leading-5
+                    text-red-700
+                  "
+                >
+                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-red-500" />
 
-                <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-5 text-red-700">
-                  {error}
+                  <p>{error}</p>
                 </div>
-
               )}
 
+              {/* ================================================= */}
               {/* FORM */}
+              {/* ================================================= */}
 
               <form
-                onSubmit={
-                  handleSubmit
-                }
+                onSubmit={handleSubmit}
                 className="space-y-5"
               >
 
                 {/* EMAIL */}
-
                 <div>
 
                   <label
                     htmlFor="email"
-                    className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.08em] text-[#697386]"
+                    className="
+                      mb-2
+                      block
+                      text-[10px]
+                      font-bold
+                      uppercase
+                      tracking-[0.12em]
+                      text-gray-500
+                    "
                   >
-                    Email or Username
+                    Email Address
                   </label>
 
-                  <input
-                    id="email"
-                    type="email"
-                    autoComplete="email"
-                    value={
-                      email
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setEmail(
-                        event.target.value
-                      )
-                    }
-                    disabled={
-                      isLoading
-                    }
-                    placeholder="Enter your email"
-                    className="h-11 w-full rounded-lg border border-[#dfe4eb] bg-white px-4 text-sm text-[#172033] outline-none transition placeholder:text-[#a3aab6] focus:border-[#3c7da3] focus:ring-4 focus:ring-[#3c7da3]/10 disabled:bg-[#f5f7fa]"
-                  />
+                  <div className="relative">
+
+                    <Mail
+                      className="
+                        pointer-events-none
+                        absolute
+                        left-4
+                        top-1/2
+                        h-4
+                        w-4
+                        -translate-y-1/2
+                        text-gray-300
+                      "
+                    />
+
+                    <input
+                      id="email"
+                      type="email"
+                      autoComplete="email"
+                      value={email}
+                      onChange={(event) =>
+                        setEmail(event.target.value)
+                      }
+                      disabled={isLoading}
+                      placeholder="Enter your email"
+                      className="
+                        h-12
+                        w-full
+                        rounded-2xl
+                        border
+                        border-gray-200
+                        bg-gray-50
+                        pl-11
+                        pr-4
+                        text-sm
+                        text-[#002b5c]
+                        outline-none
+                        transition-all
+                        duration-200
+                        placeholder:text-gray-300
+                        focus:border-[#C5A059]
+                        focus:bg-white
+                        focus:ring-4
+                        focus:ring-[#C5A059]/10
+                        disabled:cursor-not-allowed
+                        disabled:opacity-60
+                      "
+                    />
+
+                  </div>
 
                 </div>
 
                 {/* PASSWORD */}
-
                 <div>
 
                   <label
                     htmlFor="password"
-                    className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.08em] text-[#697386]"
+                    className="
+                      mb-2
+                      block
+                      text-[10px]
+                      font-bold
+                      uppercase
+                      tracking-[0.12em]
+                      text-gray-500
+                    "
                   >
                     Password
                   </label>
 
                   <div className="relative">
+
+                    <LockKeyhole
+                      className="
+                        pointer-events-none
+                        absolute
+                        left-4
+                        top-1/2
+                        h-4
+                        w-4
+                        -translate-y-1/2
+                        text-gray-300
+                      "
+                    />
 
                     <input
                       id="password"
@@ -489,41 +787,71 @@ export default function LoginPage() {
                           : "password"
                       }
                       autoComplete="current-password"
-                      value={
-                        password
+                      value={password}
+                      onChange={(event) =>
+                        setPassword(event.target.value)
                       }
-                      onChange={(
-                        event
-                      ) =>
-                        setPassword(
-                          event.target.value
-                        )
-                      }
-                      disabled={
-                        isLoading
-                      }
+                      disabled={isLoading}
                       placeholder="Enter your password"
-                      className="h-11 w-full rounded-lg border border-[#dfe4eb] bg-white px-4 pr-14 text-sm text-[#172033] outline-none transition placeholder:text-[#a3aab6] focus:border-[#3c7da3] focus:ring-4 focus:ring-[#3c7da3]/10 disabled:bg-[#f5f7fa]"
+                      className="
+                        h-12
+                        w-full
+                        rounded-2xl
+                        border
+                        border-gray-200
+                        bg-gray-50
+                        pl-11
+                        pr-12
+                        text-sm
+                        text-[#002b5c]
+                        outline-none
+                        transition-all
+                        duration-200
+                        placeholder:text-gray-300
+                        focus:border-[#C5A059]
+                        focus:bg-white
+                        focus:ring-4
+                        focus:ring-[#C5A059]/10
+                        disabled:cursor-not-allowed
+                        disabled:opacity-60
+                      "
                     />
 
                     <button
                       type="button"
-                      disabled={
-                        isLoading
+                      disabled={isLoading}
+                      aria-label={
+                        showPassword
+                          ? "Hide password"
+                          : "Show password"
                       }
                       onClick={() =>
                         setShowPassword(
-                          (
-                            current
-                          ) =>
-                            !current
+                          (current) => !current
                         )
                       }
-                      className="absolute right-3 top-1/2 -translate-y-1/2 px-1 text-[11px] font-medium text-[#7b8495] hover:text-[#1769e0]"
+                      className="
+                        absolute
+                        right-3
+                        top-1/2
+                        flex
+                        h-8
+                        w-8
+                        -translate-y-1/2
+                        items-center
+                        justify-center
+                        rounded-full
+                        text-gray-400
+                        transition
+                        hover:bg-[#002b5c]/5
+                        hover:text-[#002b5c]
+                      "
                     >
-                      {showPassword
-                        ? "Hide"
-                        : "Show"}
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
                     </button>
 
                   </div>
@@ -531,118 +859,240 @@ export default function LoginPage() {
                 </div>
 
                 {/* REMEMBER / FORGOT */}
-
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4">
 
                   <label className="flex cursor-pointer items-center gap-2">
 
                     <input
                       type="checkbox"
-                      checked={
-                        rememberMe
-                      }
-                      disabled={
-                        isLoading
-                      }
-                      onChange={(
-                        event
-                      ) =>
+                      checked={rememberMe}
+                      disabled={isLoading}
+                      onChange={(event) =>
                         setRememberMe(
                           event.target.checked
                         )
                       }
-                      className="h-3.5 w-3.5 rounded border-[#cfd5df] text-[#3c7da3] focus:ring-[#3c7da3]"
+                      className="
+                        h-3.5
+                        w-3.5
+                        rounded
+                        border-gray-300
+                        text-[#002b5c]
+                        focus:ring-[#C5A059]
+                      "
                     />
 
-                    <span className="text-[11px] text-[#7b8495]">
-                      Keep session active for 30 days
+                    <span className="text-[10px] text-gray-500">
+                      Keep me signed in
                     </span>
 
                   </label>
 
                   <button
                     type="button"
-                    disabled={
-                      isLoading
-                    }
+                    disabled={isLoading}
                     onClick={() =>
-                      router.push(
-                        "/forgot-password"
-                      )
+                      router.push("/forgot-password")
                     }
-                    className="text-[11px] font-medium text-[#3c7da3] hover:underline disabled:opacity-50"
+                    className="
+                      text-[10px]
+                      font-bold
+                      text-[#002b5c]
+                      transition-colors
+                      hover:text-[#C5A059]
+                      hover:underline
+                      disabled:opacity-50
+                    "
                   >
                     Forgot password?
                   </button>
 
                 </div>
 
-                {/* LOGIN BUTTON */}
+                {/* ================================================= */}
+                {/* LOGIN */}
+                {/* ================================================= */}
 
                 <button
                   type="submit"
-                  disabled={
-                    isLoading
-                  }
-                  className="flex h-11 w-full items-center justify-center rounded-lg bg-[#3d7d9f] text-xs font-semibold text-white shadow-[0_3px_8px_rgba(61,125,159,0.18)] transition hover:bg-[#326b8a] disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isLoading}
+                  className="
+                    group
+                    flex
+                    h-12
+                    w-full
+                    items-center
+                    justify-center
+                    gap-3
+                    rounded-2xl
+                    bg-[#002b5c]
+                    text-xs
+                    font-bold
+                    uppercase
+                    tracking-wider
+                    text-white
+                    shadow-lg
+                    shadow-[#002b5c]/15
+                    transition-all
+                    duration-300
+                    hover:-translate-y-0.5
+                    hover:bg-[#003b7d]
+                    hover:shadow-xl
+                    disabled:cursor-not-allowed
+                    disabled:opacity-60
+                  "
                 >
 
-                  {isLoading
-                    ? "Signing in..."
-                    : "Secure Login"}
+                  {isLoading ? (
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+
+                      Signing in...
+                    </>
+                  ) : (
+                    <>
+                      Secure Login
+
+                      <ArrowRight
+                        className="
+                          h-4
+                          w-4
+                          transition-transform
+                          duration-300
+                          group-hover:translate-x-1
+                        "
+                      />
+                    </>
+                  )}
 
                 </button>
 
               </form>
 
+              {/* ================================================= */}
               {/* REGISTER */}
+              {/* ================================================= */}
 
-              <div className="mt-7 flex items-center gap-3">
+              <div className="mt-8">
 
-                <div className="h-px flex-1 bg-[#e8ebef]" />
+                <div className="flex items-center gap-3">
 
-                <span className="text-[9px] uppercase tracking-[0.12em] text-[#b0b7c2]">
-                  New trainer?
-                </span>
+                  <div className="h-px flex-1 bg-gray-100" />
 
-                <div className="h-px flex-1 bg-[#e8ebef]" />
+                  <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-gray-300">
+                    New Trainer?
+                  </span>
+
+                  <div className="h-px flex-1 bg-gray-100" />
+
+                </div>
+
+                <button
+                  type="button"
+                  disabled={isLoading}
+                  onClick={() =>
+                    router.push("/register")
+                  }
+                  className="
+                    mt-4
+                    flex
+                    h-12
+                    w-full
+                    items-center
+                    justify-center
+                    gap-2
+                    rounded-2xl
+                    border
+                    border-gray-200
+                    bg-white
+                    text-xs
+                    font-bold
+                    text-[#002b5c]
+                    transition-all
+                    duration-300
+                    hover:-translate-y-0.5
+                    hover:border-[#C5A059]
+                    hover:bg-[#C5A059]/5
+                    disabled:opacity-50
+                  "
+                >
+                  Create Trainer Account
+
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
 
               </div>
 
-              <button
-                type="button"
-                disabled={
-                  isLoading
-                }
-                onClick={() =>
-                  router.push(
-                    "/register"
-                  )
-                }
-                className="mt-5 flex h-11 w-full items-center justify-center rounded-lg border border-[#dfe4eb] bg-white text-xs font-semibold text-[#3c7da3] transition hover:border-[#3c7da3] hover:bg-[#f8fbfd]"
+              {/* ================================================= */}
+              {/* SECURITY */}
+              {/* ================================================= */}
+
+              <div
+                className="
+                  mt-8
+                  rounded-2xl
+                  border
+                  border-gray-100
+                  bg-gray-50
+                  p-4
+                "
               >
-                Create Trainer Account
-              </button>
 
-              {/* SECURITY NOTE */}
+                <div className="flex items-start gap-3">
 
-              <div className="mt-7 flex items-start gap-2.5">
+                  <div
+                    className="
+                      flex
+                      h-9
+                      w-9
+                      shrink-0
+                      items-center
+                      justify-center
+                      rounded-xl
+                      bg-[#002b5c]/5
+                    "
+                  >
+                    <ShieldCheck className="h-4 w-4 text-[#002b5c]" />
+                  </div>
 
-                <div className="mt-0.5 text-[#9aa3b2]">
-                  <ShieldIcon />
+                  <div>
+
+                    <p className="text-[10px] font-bold text-[#002b5c]">
+                      Secure Trainer Access
+                    </p>
+
+                    <p className="mt-1 text-[9px] leading-4 text-gray-400">
+                      This portal is restricted to authorized
+                      trainers. Your account activity is protected
+                      for security purposes.
+                    </p>
+
+                  </div>
+
                 </div>
-
-                <p className="text-[9px] leading-4 text-[#98a2b3]">
-                  Authorized personnel only. Your account
-                  activity is protected and monitored for
-                  security purposes.
-                </p>
 
               </div>
 
             </div>
-
           </section>
+
+        </div>
+
+      </div>
+
+      {/* ====================================================== */}
+      {/* BOTTOM */}
+      {/* ====================================================== */}
+
+      <div className="relative z-10 pb-7 text-center">
+
+        <div className="flex items-center justify-center gap-2">
+
+          <ShieldCheck className="h-3.5 w-3.5 text-[#C5A059]" />
+
+          <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-gray-400">
+            ACE NextGen Training Management Platform
+          </p>
 
         </div>
 
@@ -652,61 +1102,159 @@ export default function LoginPage() {
   );
 }
 
-// ============================================================
-// ACE LOGO
-// ============================================================
+/* ================================================================
+   DASHBOARD STAT
+================================================================ */
 
-function AceLogo() {
+function DashboardStat({
+  value,
+  label,
+  icon: Icon,
+}: {
+  value: string;
+  label: string;
+  icon: React.ElementType;
+}) {
   return (
-    <svg
-      width="25"
-      height="25"
-      viewBox="0 0 100 100"
-      fill="none"
+    <div
+      className="
+        rounded-2xl
+        border
+        border-gray-100
+        bg-white
+        p-3
+        shadow-sm
+      "
     >
-      <circle
-        cx="50"
-        cy="50"
-        r="46"
-        stroke="currentColor"
-        strokeWidth="5"
-      />
+      <div className="flex items-center justify-between">
 
-      <path
-        d="M28 65 42 31h10l20 34h-11l-4-8H39l-3 8H28Z"
-        fill="currentColor"
-      />
+        <span className="text-xl font-extrabold text-[#002b5c]">
+          {value}
+        </span>
 
-      <path
-        d="M43 49h11l-5-11-6 11Z"
-        fill="white"
-      />
+        <Icon className="h-3.5 w-3.5 text-[#C5A059]" />
 
-      <path
-        d="M62 31h12v34H62z"
-        fill="currentColor"
-      />
-    </svg>
+      </div>
+
+      <p className="mt-1 text-[7px] font-bold uppercase tracking-wider text-gray-400">
+        {label}
+      </p>
+    </div>
   );
 }
 
-// ============================================================
-// SHIELD
-// ============================================================
+/* ================================================================
+   MINI STEP
+================================================================ */
 
-function ShieldIcon() {
+function MiniStep({
+  icon: Icon,
+  label,
+  active = false,
+}: {
+  icon: React.ElementType;
+  label: string;
+  active?: boolean;
+}) {
+  return (
+    <div className="text-center">
+
+      <div
+        className={`
+          mx-auto
+          flex
+          h-9
+          w-9
+          items-center
+          justify-center
+          rounded-xl
+          ${
+            active
+              ? "bg-[#002b5c] text-white"
+              : "bg-gray-100 text-gray-300"
+          }
+        `}
+      >
+        <Icon className="h-3.5 w-3.5" />
+      </div>
+
+      <p
+        className={`
+          mt-2
+          text-[7px]
+          font-bold
+          ${
+            active
+              ? "text-[#002b5c]"
+              : "text-gray-400"
+          }
+        `}
+      >
+        {label}
+      </p>
+
+    </div>
+  );
+}
+
+/* ================================================================
+   FEATURE ITEM
+================================================================ */
+
+function FeatureItem({
+  icon: Icon,
+  title,
+}: {
+  icon: React.ElementType;
+  title: string;
+}) {
+  return (
+    <div
+      className="
+        flex
+        items-center
+        gap-3
+        rounded-2xl
+        border
+        border-gray-100
+        bg-white
+        p-3
+        shadow-sm
+        transition-all
+        duration-300
+        hover:-translate-y-0.5
+        hover:shadow-md
+      "
+    >
+
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#002b5c]/5">
+        <Icon className="h-3.5 w-3.5 text-[#002b5c]" />
+      </div>
+
+      <p className="text-[9px] font-bold text-[#002b5c]">
+        {title}
+      </p>
+
+    </div>
+  );
+}
+
+/* ================================================================
+   GRADUATION ICON
+================================================================ */
+
+function GraduationIcon() {
   return (
     <svg
-      width="15"
-      height="15"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.8"
+      className="h-4 w-4 text-[#C5A059]"
     >
-      <path d="M12 3 20 6v5c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10V6l8-3Z" />
-
-      <path d="m8.5 12 2.2 2.2 4.8-5" />
+      <path d="m2 10 10-5 10 5-10 5L2 10Z" />
+      <path d="M6 12.5V17c3.5 2.5 8.5 2.5 12 0v-4.5" />
+      <path d="M22 10v5" />
     </svg>
   );
 }

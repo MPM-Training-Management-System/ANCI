@@ -16,6 +16,7 @@ using server.Interfaces.Enrollment;
 using server.Services.Attendance;
 using server.Interfaces.Attendance;
 using server.Services.DocumentExtraction;
+using server.Services.Service;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -73,7 +74,8 @@ builder.Services.AddScoped
 <IAssessmentAiService, 
 AssessmentAiService
 >();
-
+builder.Services.AddScoped
+<IService, ServiceService>();
 
 builder.Services.AddScoped<
     IAttendanceService,
