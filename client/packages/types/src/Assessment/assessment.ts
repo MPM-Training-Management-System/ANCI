@@ -181,3 +181,94 @@ export interface AssessmentResult {
   isPassed: boolean;
   evaluatedAt: string;
 }
+
+
+
+export interface TrainerAssessmentSubmission {
+  attemptId: string;
+  writtenAssessmentId: string;
+
+  participantId: string;
+  participantName: string;
+  participantEmail: string;
+
+  attemptNumber: number;
+
+  startedAt: string;
+  submittedAt: string | null;
+
+  status: string;
+
+  totalQuestions: number;
+  correctAnswers: number;
+
+  totalPoints: number;
+  earnedPoints: number;
+
+  percentage: number;
+  isPassed: boolean;
+
+  evaluatedAt: string;
+
+  answers: TrainerAssessmentAnswer[];
+}
+
+export interface TrainerAssessmentAnswer {
+  questionId: string;
+  questionNumber: number;
+  questionText: string;
+
+  points: number;
+
+  selectedChoiceId: string | null;
+  selectedChoiceLabel: string | null;
+  selectedChoiceText: string | null;
+
+  correctChoiceId: string | null;
+  correctChoiceLabel: string | null;
+  correctChoiceText: string | null;
+
+  isCorrect: boolean;
+  earnedPoints: number;
+}
+
+
+
+export type AssessmentRetakeRequestStatus =
+  | "Pending"
+  | "Approved"
+  | "Rejected"
+  | "Consumed";
+
+export interface CreateAssessmentRetakeRequest {
+  writtenAssessmentId: string;
+  previousAttemptId: string;
+  reason?: string;
+}
+
+export interface ReviewAssessmentRetakeRequest {
+  approve: boolean;
+  adminRemarks?: string;
+}
+
+export interface AssessmentRetakeRequest {
+  id: string;
+  participantId: string;
+  writtenAssessmentId: string;
+  previousAttemptId: string;
+
+  assessmentTitle: string;
+
+  attemptNumber: number;
+  percentage: number;
+  isPassed: boolean;
+
+  reason?: string | null;
+
+  status: AssessmentRetakeRequestStatus;
+
+  requestedAt: string;
+  reviewedAt?: string | null;
+
+  adminRemarks?: string | null;
+}

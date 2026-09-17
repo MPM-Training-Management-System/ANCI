@@ -82,38 +82,65 @@ Task<IReadOnlyList<AdminAssessmentQuestionDto>>
         IReadOnlyList<DocumentImage> images,
         IReadOnlyList<DocumentMediaLink> mediaLinks,
         CancellationToken cancellationToken = default);
+// trainer:
+Task<IReadOnlyList<TrainerAssessmentSubmissionDto>>
+    GetTrainerSubmissionsAsync(Guid writtenAssessmentId);
 
+Task<TrainerAssessmentSubmissionDto?>
+    GetTrainerSubmissionAsync(Guid attemptId);
+
+// participant:
+Task<ParticipantAssessmentDto?> GetParticipantAssessmentAsync(
+    Guid participantUserId,
+    Guid writtenAssessmentId);
+
+Task<AssessmentAttemptDto> StartAttemptAsync(
+    Guid participantUserId,
+    Guid writtenAssessmentId);
+
+Task<AssessmentAttemptDto?> GetAttemptAsync(
+    Guid participantUserId,
+    Guid attemptId);
+
+Task<AssessmentResultDto> SubmitAttemptAsync(
+    Guid participantUserId,
+    SubmitAssessmentRequest request);
+
+Task<IReadOnlyList<AssessmentResultDto>> GetMyResultsAsync(
+    Guid participantUserId,
+    Guid writtenAssessmentId);
+
+Task<IReadOnlyList<ParticipantAssessmentDto>> GetParticipantAssessmentsByBatchIdAsync(
+    Guid participantUserId,
+    Guid trainingBatchId);
+
+
+    // trainer
+Task<IReadOnlyList<WrittenAssessmentDto>>
+    GetTrainerAssessmentsAsync(Guid trainerUserId);
+
+ // participant - retake
+
+Task<AssessmentRetakeRequestDto>
+    RequestRetakeAsync(
+        Guid participantUserId,
+        CreateAssessmentRetakeRequest request);
+
+Task<IReadOnlyList<AssessmentRetakeRequestDto>>
+    GetMyRetakeRequestsAsync(
+        Guid participantUserId);
+
+        // =========================================================
+// ADMIN - RETAKE REQUESTS
 // =========================================================
-// PARTICIPANT
-// =========================================================
 
-Task<ParticipantAssessmentDto?>
-    GetParticipantAssessmentAsync(
-        Guid participantUserId,
-        Guid writtenAssessmentId);
+Task<IReadOnlyList<AssessmentRetakeRequestDto>>
+    GetRetakeRequestsAsync();
 
-Task<AssessmentAttemptDto>
-    StartAttemptAsync(
-        Guid participantUserId,
-        Guid writtenAssessmentId);
+Task<AssessmentRetakeRequestDto>
+    ReviewRetakeRequestAsync(
+        Guid adminUserId,
+        Guid requestId,
+        ReviewAssessmentRetakeRequest request);
 
-Task<AssessmentAttemptDto?>
-    GetAttemptAsync(
-        Guid participantUserId,
-        Guid attemptId);
-
-Task<AssessmentResultDto>
-    SubmitAttemptAsync(
-        Guid participantUserId,
-        SubmitAssessmentRequest request);
-
-        Task<IReadOnlyList<AssessmentResultDto>>
-    GetMyResultsAsync(
-        Guid participantUserId,
-        Guid writtenAssessmentId);
-
-Task<IReadOnlyList<ParticipantAssessmentDto>>
-    GetParticipantAssessmentsByBatchIdAsync(
-        Guid participantUserId,
-        Guid trainingBatchId);
 }

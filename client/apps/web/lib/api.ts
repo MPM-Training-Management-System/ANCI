@@ -7,11 +7,13 @@ import {
   AttendanceApi,
   TrainingBatchApi,
   TrainerAssignmentApi,
-  EnrollmentApi
+  EnrollmentApi,
+  ServiceApi,
+  AuthAPIs
 } from "@repo/api";
 import { auth } from "./auth";
 
-const apiClient = new ApiClient({
+export const apiClient = new ApiClient({
   baseUrl:
     process.env.NEXT_PUBLIC_API_URL ?? "",
       getToken: async () => {
@@ -24,12 +26,16 @@ export const trainerApi =
   new TrainerApi(apiClient);
 export const authApi =
   new AuthApi(apiClient);
-
+export const serviceApi =
+  new ServiceApi(apiClient);
 export const trainerApplicationApi =
   new TrainerApplicationApi(apiClient);
 
   export const attendanceApi =
   new AttendanceApi(apiClient);
+    export const authAPIs =
+  new AuthAPIs(apiClient);
+
 
   export const trainingBatchApi =
   new TrainingBatchApi(apiClient);

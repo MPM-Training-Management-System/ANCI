@@ -10,12 +10,14 @@ import React, {
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Pressable,
   RefreshControl,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 
@@ -85,6 +87,9 @@ const assessmentId =
     loadAttempt,
     submitAttempt,
     loadMyResults,
+    requestRetake,
+    loadMyRetakeRequests,
+    retakeRequests,
     clearError,
   } = useWrittenAssessment(apiClient);
 
@@ -110,6 +115,15 @@ const assessmentId =
   const [result, setResult] =
     useState<AssessmentResult | null>(null);
 
+  const [showRetakeModal, setShowRetakeModal] =
+    useState(false);
+
+  const [retakeReason, setRetakeReason] =
+    useState("");
+
+  const [isRequestingRetake, setIsRequestingRetake] =
+    useState(false);
+
   // ==========================================================
   // LOAD ASSESSMENT
   // ==========================================================
@@ -126,9 +140,24 @@ const assessmentId =
             assessmentId,
           );
 
-        await loadMyResults(
-          assessmentId,
-        );
+        const myResults =
+          await loadMyResults(
+            assessmentId,
+          );
+
+        await loadMyRetakeRequests();
+
+        /*
+         * Keep the latest completed result on screen.
+         * This is important because the active `attempt`
+         * becomes null after submission.
+         */
+        const latestResult =
+          myResults.length > 0
+            ? myResults[0]
+            : null;
+
+        setResult(latestResult);
 
         /*
          * If already passed, do not automatically
@@ -148,73 +177,13 @@ const assessmentId =
       assessmentId,
       loadParticipantAssessment,
       loadMyResults,
+      loadMyRetakeRequests,
     ],
   );
 
   useEffect(() => {
     loadAssessment();
   }, [loadAssessment]);
-
-  // ==========================================================
-  // START / RESUME ATTEMPT
-  // ==========================================================
-
-  const handleStartAssessment =
-    useCallback(async () => {
-      if (!assessmentId) {
-        Alert.alert(
-          "Assessment Error",
-          "Assessment ID is missing.",
-        );
-
-        return;
-      }
-
-      if (
-        participantAssessment?.hasPassed
-      ) {
-        Alert.alert(
-          "Assessment Completed",
-          "You have already passed this assessment.",
-        );
-
-        return;
-      }
-
-      try {
-        /*
-         * The backend handles resume logic.
-         *
-         * If there is already an in-progress attempt,
-         * startAttempt() returns that attempt.
-         *
-         * We do NOT access attempt.answers here because
-         * AssessmentAttempt does not expose an answers property.
-         */
-        await startAttempt(
-          assessmentId,
-        );
-
-        setAnswers({});
-        setCurrentQuestionIndex(0);
-
-        /*
-         * Do not show an old result when starting
-         * or resuming an assessment.
-         */
-        setResult(null);
-
-        setHasStarted(true);
-      } catch {
-        /*
-         * Hook already handles the error state.
-         */
-      }
-    }, [
-      assessmentId,
-      participantAssessment?.hasPassed,
-      startAttempt,
-    ]);
 
   // ==========================================================
   // REFRESH
@@ -441,6 +410,224 @@ const assessmentId =
       submitAttempt,
       assessmentId,
       loadParticipantAssessment,
+    ]);
+
+  // ==========================================================
+  // RETAKE REQUEST
+  // ==========================================================
+
+  const currentRetakeRequest =
+    useMemo(() => {
+      const previousAttemptId =
+        result?.assessmentAttemptId;
+
+      if (!previousAttemptId || !assessmentId) {
+        return null;
+      }
+
+      return (
+        retakeRequests.find(
+          request =>
+            request.writtenAssessmentId === assessmentId &&
+            request.previousAttemptId === previousAttemptId,
+        ) ?? null
+      );
+    }, [
+      retakeRequests,
+      assessmentId,
+      result?.assessmentAttemptId,
+    ]);
+
+  // ==========================================================
+  // START / RESUME ATTEMPT
+  // ==========================================================
+
+  const handleStartAssessment =
+    useCallback(async () => {
+      if (!assessmentId) {
+        Alert.alert(
+          "Assessment Error",
+          "Assessment ID is missing.",
+        );
+
+        return;
+      }
+
+      if (
+        participantAssessment?.hasPassed ||
+        result?.isPassed
+      ) {
+        Alert.alert(
+          "Assessment Completed",
+          "You have already passed this assessment.",
+        );
+
+        return;
+      }
+
+      /*
+       * A completed attempt exists.
+       * A new attempt is NOT allowed from this button.
+       * The participant must request a retake first.
+       *
+       * The only exception is an existing InProgress attempt,
+       * which may be resumed.
+       */
+      if (!result && !attempt) {
+        try {
+          await startAttempt(
+            assessmentId,
+          );
+
+          setAnswers({});
+          setCurrentQuestionIndex(0);
+          setResult(null);
+          setHasStarted(true);
+        } catch {
+          // Hook already handles the error state.
+        }
+
+        return;
+      }
+
+      if (attempt?.status === "InProgress") {
+        setHasStarted(true);
+        return;
+      }
+
+      // A failed attempt normally requires a retake request.
+      // If the administrator already approved the request, start the
+      // next attempt instead of showing the "Retake Required" alert.
+      if (
+        result &&
+        !result.isPassed &&
+        currentRetakeRequest?.status === "Approved"
+      ) {
+        try {
+          await startAttempt(assessmentId);
+
+          setAnswers({});
+          setCurrentQuestionIndex(0);
+          setResult(null);
+          setHasStarted(true);
+        } catch {
+          // Hook already handles the error state.
+        }
+
+        return;
+      }
+
+      if (result && !result.isPassed) {
+        Alert.alert(
+          "Retake Required",
+          "You have already taken this assessment. Please request a retake and wait for administrator approval before starting another attempt.",
+        );
+
+        return;
+      }
+
+      /*
+       * Fallback for an unexpected state.
+       */
+      Alert.alert(
+        "Assessment Unavailable",
+        "Please refresh the assessment and try again.",
+      );
+    }, [
+      assessmentId,
+      participantAssessment?.hasPassed,
+      result,
+      attempt,
+      currentRetakeRequest?.status,
+      startAttempt,
+    ]);
+
+
+  const handleRequestRetake =
+    useCallback(async () => {
+      if (!assessmentId) {
+        Alert.alert(
+          "Assessment Error",
+          "Assessment ID is missing.",
+        );
+        return;
+      }
+
+      // IMPORTANT: submitAttempt() clears the active `attempt` in the hook.
+      // The submitted result contains the ID of the completed attempt, so
+      // use result.assessmentAttemptId for the retake request.
+      const previousAttemptId =
+        result?.assessmentAttemptId;
+
+      if (!previousAttemptId) {
+        Alert.alert(
+          "Assessment Error",
+          "The completed assessment attempt could not be identified. Please refresh the assessment and try again.",
+        );
+        return;
+      }
+
+      if (result?.isPassed) {
+        Alert.alert(
+          "Assessment Passed",
+          "You cannot request another attempt because you already passed this assessment.",
+        );
+        return;
+      }
+
+      if (currentRetakeRequest?.status === "Pending") {
+        Alert.alert(
+          "Request Pending",
+          "You already have a pending retake request for this attempt.",
+        );
+        return;
+      }
+
+      if (currentRetakeRequest?.status === "Approved") {
+        Alert.alert(
+          "Retake Approved",
+          "Your retake has already been approved. Use Start Retake to begin the next attempt.",
+        );
+        return;
+      }
+
+      if (currentRetakeRequest?.status === "Consumed") {
+        Alert.alert(
+          "Retake Already Used",
+          "This retake approval has already been used.",
+        );
+        return;
+      }
+
+      try {
+        setIsRequestingRetake(true);
+
+        const request =
+          await requestRetake({
+            writtenAssessmentId: assessmentId,
+            previousAttemptId,
+            reason: retakeReason.trim() || undefined,
+          });
+
+        setShowRetakeModal(false);
+        setRetakeReason("");
+
+        Alert.alert(
+          "Request Submitted",
+          "Your retake request has been submitted. Please wait for the administrator to review it.",
+        );
+      } catch {
+        // Hook already handles the error state.
+      } finally {
+        setIsRequestingRetake(false);
+      }
+    }, [
+      assessmentId,
+      result?.assessmentAttemptId,
+      result?.isPassed,
+      currentRetakeRequest?.status,
+      retakeReason,
+      requestRetake,
     ]);
 
   // ==========================================================
@@ -785,30 +972,169 @@ const assessmentId =
                   Continue
                 </Text>
               </Pressable>
-            ) : (
-              <Pressable
-                style={
-                  styles.primaryButton
-                }
-                onPress={() => {
-                  setResult(null);
-                  setAnswers({});
-                  setCurrentQuestionIndex(
-                    0,
-                  );
-                  setHasStarted(false);
-                }}
+            ) : currentRetakeRequest?.status === "Pending" ? (
+              <View
+                style={styles.pendingRetakeCard}
               >
-                <Text
-                  style={
-                    styles.primaryButtonText
+                <View
+                  style={styles.pendingRetakeIcon}
+                >
+                  <Text
+                    style={styles.pendingRetakeIconText}
+                  >
+                    !
+                  </Text>
+                </View>
+
+                <View
+                  style={styles.pendingRetakeContent}
+                >
+                  <Text
+                    style={styles.pendingRetakeTitle}
+                  >
+                    Retake Request Pending
+                  </Text>
+
+                  <Text
+                    style={styles.pendingRetakeText}
+                  >
+                    Your request has been sent to the administrator. You can start another attempt once it is approved.
+                  </Text>
+                </View>
+              </View>
+            ) : currentRetakeRequest?.status === "Approved" ? (
+              <Pressable
+                style={styles.primaryButton}
+                onPress={handleStartAssessment}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator
+                    color="#FFFFFF"
+                  />
+                ) : (
+                  <Text
+                    style={styles.primaryButtonText}
+                  >
+                    Start Retake
+                  </Text>
+                )}
+              </Pressable>
+            ) : (
+              <>
+                <Pressable
+                  style={styles.primaryButton}
+                  onPress={() =>
+                    setShowRetakeModal(true)
                   }
                 >
-                  Try Again
-                </Text>
-              </Pressable>
+                  <Text
+                    style={styles.primaryButtonText}
+                  >
+                    Request Retake
+                  </Text>
+                </Pressable>
+
+                {currentRetakeRequest?.status === "Rejected" ? (
+                  <Text
+                    style={styles.retakeRejectedText}
+                  >
+                    Your previous retake request was rejected. You may submit a new request.
+                  </Text>
+                ) : (
+                  <Text
+                    style={styles.retakeHelperText}
+                  >
+                    Another attempt requires administrator approval.
+                  </Text>
+                )}
+              </>
             )}
           </View>
+
+          <Modal
+            visible={showRetakeModal}
+            transparent
+            animationType="slide"
+            onRequestClose={() => {
+              if (!isRequestingRetake) {
+                setShowRetakeModal(false);
+              }
+            }}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.retakeModal}>
+                <View style={styles.modalHandle} />
+
+                <View style={styles.modalIcon}>
+                  <Text style={styles.modalIconText}>
+                    ↻
+                  </Text>
+                </View>
+
+                <Text style={styles.modalTitle}>
+                  Request Retake
+                </Text>
+
+                <Text style={styles.modalDescription}>
+                  You scored {result.percentage}% on Attempt #{result.attemptNumber}.
+                  {""}
+                  Your request will be reviewed by the administrator before you can take another attempt.
+                </Text>
+
+                <Text style={styles.inputLabel}>
+                  Reason
+                  <Text style={styles.optionalText}>
+                    {" "}(optional)
+                  </Text>
+                </Text>
+
+                <TextInput
+                  value={retakeReason}
+                  onChangeText={setRetakeReason}
+                  placeholder="Why would you like to retake the assessment?"
+                  placeholderTextColor="#94A3B8"
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                  editable={!isRequestingRetake}
+                  style={styles.reasonInput}
+                />
+
+                <View style={styles.modalButtons}>
+                  <Pressable
+                    style={styles.cancelModalButton}
+                    disabled={isRequestingRetake}
+                    onPress={() => {
+                      setShowRetakeModal(false);
+                      setRetakeReason("");
+                    }}
+                  >
+                    <Text style={styles.cancelModalButtonText}>
+                      Cancel
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={[
+                      styles.submitRetakeButton,
+                      isRequestingRetake && styles.disabledButton,
+                    ]}
+                    disabled={isRequestingRetake}
+                    onPress={handleRequestRetake}
+                  >
+                    {isRequestingRetake ? (
+                      <ActivityIndicator color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.submitRetakeButtonText}>
+                        Submit Request
+                      </Text>
+                    )}
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          </Modal>
         </ScrollView>
       </SafeAreaView>
     );
@@ -1172,31 +1498,112 @@ const assessmentId =
             </View>
           ) : null}
 
-          <Pressable
-            style={[
-              styles.primaryButton,
-              isLoading &&
-                styles.disabledButton,
-            ]}
-            disabled={isLoading}
-            onPress={
-              handleStartAssessment
-            }
-          >
-            {isLoading ? (
-              <ActivityIndicator
-                color="#FFFFFF"
-              />
-            ) : (
-              <Text
-                style={
-                  styles.primaryButtonText
-                }
+          {result  ? (
+            currentRetakeRequest?.status === "Pending" ? (
+              <View
+                style={styles.pendingRetakeCard}
               >
-                Start Assessment
-              </Text>
-            )}
-          </Pressable>
+                <View
+                  style={styles.pendingRetakeIcon}
+                >
+                  <Text
+                    style={styles.pendingRetakeIconText}
+                  >
+                    !
+                  </Text>
+                </View>
+
+                <View
+                  style={styles.pendingRetakeContent}
+                >
+                  <Text
+                    style={styles.pendingRetakeTitle}
+                  >
+                    Retake Request Pending
+                  </Text>
+
+                  <Text
+                    style={styles.pendingRetakeText}
+                  >
+                    You already completed this assessment. Wait for administrator approval before taking another attempt.
+                  </Text>
+                </View>
+              </View>
+            ) : currentRetakeRequest?.status === "Approved" ? (
+              <Pressable
+                style={[
+                  styles.primaryButton,
+                  isLoading &&
+                    styles.disabledButton,
+                ]}
+                disabled={isLoading}
+                onPress={handleStartAssessment}
+              >
+                {isLoading ? (
+                  <ActivityIndicator
+                    color="#FFFFFF"
+                  />
+                ) : (
+                  <Text
+                    style={styles.primaryButtonText}
+                  >
+                    Start Retake
+                  </Text>
+                )}
+              </Pressable>
+            ) : (
+              <>
+                <Pressable
+                  style={styles.primaryButton}
+                  onPress={() =>
+                    setShowRetakeModal(true)
+                  }
+                >
+                  <Text
+                    style={styles.primaryButtonText}
+                  >
+                    Request Retake
+                  </Text>
+                </Pressable>
+
+                {currentRetakeRequest?.status === "Rejected" ? (
+                  <Text
+                    style={styles.retakeRejectedText}
+                  >
+                    Your previous retake request was rejected. You may submit a new request.
+                  </Text>
+                ) : (
+                  <Text
+                    style={styles.retakeHelperText}
+                  >
+                    You have already taken this assessment. Another attempt requires administrator approval.
+                  </Text>
+                )}
+              </>
+            )
+          ) : (
+            <Pressable
+              style={[
+                styles.primaryButton,
+                isLoading &&
+                  styles.disabledButton,
+              ]}
+              disabled={isLoading}
+              onPress={handleStartAssessment}
+            >
+              {isLoading ? (
+                <ActivityIndicator
+                  color="#FFFFFF"
+                />
+              ) : (
+                <Text
+                  style={styles.primaryButtonText}
+                >
+                  Start Assessment
+                </Text>
+              )}
+            </Pressable>
+          )}
         </ScrollView>
       </SafeAreaView>
     );
@@ -2195,6 +2602,184 @@ const styles = StyleSheet.create({
   // ==========================================================
   // RESULT
   // ==========================================================
+
+  pendingRetakeCard: {
+    width: "100%",
+    marginTop: 22,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: "#FFFBEB",
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+  },
+
+  pendingRetakeIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FEF3C7",
+  },
+
+  pendingRetakeIconText: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#D97706",
+  },
+
+  pendingRetakeContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+
+  pendingRetakeTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#92400E",
+  },
+
+  pendingRetakeText: {
+    marginTop: 5,
+    fontSize: 13,
+    lineHeight: 19,
+    color: "#92400E",
+  },
+
+  retakeHelperText: {
+    marginTop: 10,
+    textAlign: "center",
+    fontSize: 12,
+    lineHeight: 18,
+    color: "#64748B",
+  },
+
+  retakeRejectedText: {
+    marginTop: 10,
+    paddingHorizontal: 20,
+    textAlign: "center",
+    fontSize: 12,
+    lineHeight: 18,
+    color: "#B91C1C",
+  },
+
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
+  },
+
+  retakeModal: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 28,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    backgroundColor: "#FFFFFF",
+  },
+
+  modalHandle: {
+    alignSelf: "center",
+    width: 42,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: "#CBD5E1",
+    marginBottom: 22,
+  },
+
+  modalIcon: {
+    width: 54,
+    height: 54,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#EEF2FF",
+    marginBottom: 14,
+  },
+
+  modalIconText: {
+    fontSize: 27,
+    fontWeight: "800",
+    color: "#4F46E5",
+  },
+
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#0F172A",
+  },
+
+  modalDescription: {
+    marginTop: 8,
+    fontSize: 14,
+    lineHeight: 21,
+    color: "#64748B",
+  },
+
+  inputLabel: {
+    marginTop: 22,
+    marginBottom: 8,
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#334155",
+  },
+
+  optionalText: {
+    fontWeight: "500",
+    color: "#94A3B8",
+  },
+
+  reasonInput: {
+    minHeight: 110,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    backgroundColor: "#F8FAFC",
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#0F172A",
+  },
+
+  modalButtons: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 18,
+  },
+
+  cancelModalButton: {
+    flex: 1,
+    minHeight: 50,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  cancelModalButtonText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#475569",
+  },
+
+  submitRetakeButton: {
+    flex: 1.4,
+    minHeight: 50,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#4F46E5",
+  },
+
+  submitRetakeButtonText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
 
   resultScrollContent: {
     paddingBottom: 40,

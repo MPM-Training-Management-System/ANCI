@@ -1,1569 +1,893 @@
 "use client";
 
 import {
+  useCallback,
+  useEffect,
   useMemo,
   useState,
-  type Dispatch,
-  type SetStateAction,
+  type ReactNode,
 } from "react";
 
 import {
-  DataTable,
-  StatCard,
-  StatGrid,
-} from "@repo/ui/index";
+  BookOpen,
+  CalendarDays,
+  CheckCircle2,
+  CircleAlert,
+  Eye,
+  FileText,
+  RefreshCw,
+  Search,
+  Users,
+  X,
+} from "lucide-react";
+
+import type {
+  TrainerAssessmentSubmission,
+  WrittenAssessment,
+} from "@repo/types";
+
+import { apiClient } from "@/lib/api";
 
 import {
-  columns,
-  type Assessment,
-  type AssessmentStatus,
-  type AssessmentType,
-  type Criterion,
-  type Question,
-} from "./column"
-
-/* ==========================================================
-   TRAINING OPTIONS
-========================================================== */
-
-type TrainingOption = {
-  name: string;
-  code: string;
-};
-
-const trainingOptions: TrainingOption[] = [
-  {
-    name: "Computer Systems Servicing NC II",
-    code: "CSS-NCII",
-  },
-  {
-    name: "Web Development Fundamentals",
-    code: "WEB-DEV",
-  },
-  {
-    name: "Electrical Installation and Maintenance NC II",
-    code: "EIM-NCII",
-  },
-];
-
-/* ==========================================================
-   MOCK DATA
-========================================================== */
-
-const initialAssessments: Assessment[] = [
-  {
-    id: "ASM-001",
-
-    title: "Computer Hardware Fundamentals",
-
-    description:
-      "Written examination covering computer hardware components and their functions.",
-
-    training: "Computer Systems Servicing NC II",
-    trainingCode: "CSS-NCII",
-
-    type: "Written Exam",
-    status: "Published",
-
-    passingScore: 75,
-    duration: 30,
-    attemptsAllowed: 1,
-
-    instructions:
-      "Read each question carefully and select the best answer.",
-
-    questions: [
-      {
-        id: "Q-001",
-
-        question:
-          "What is the main function of RAM?",
-
-        choices: [
-          "Permanent storage",
-          "Temporary data storage",
-          "Power supply",
-          "Network connection",
-        ],
-
-        correctAnswer:
-          "Temporary data storage",
-
-        points: 5,
-      },
-
-      {
-        id: "Q-002",
-
-        question:
-          "Which component is responsible for processing instructions?",
-
-        choices: [
-          "CPU",
-          "RAM",
-          "SSD",
-          "Power Supply",
-        ],
-
-        correctAnswer: "CPU",
-
-        points: 5,
-      },
-
-      {
-        id: "Q-003",
-
-        question:
-          "Which device is primarily used for permanent data storage?",
-
-        choices: [
-          "RAM",
-          "CPU",
-          "SSD",
-          "Monitor",
-        ],
-
-        correctAnswer: "SSD",
-
-        points: 5,
-      },
-    ],
-
-    criteria: [],
-
-    createdAt: "August 5, 2026",
-    updatedAt: "August 10, 2026",
-  },
-
-  {
-    id: "ASM-002",
-
-    title: "PC Assembly Practical Assessment",
-
-    description:
-      "Practical assessment for proper computer assembly and installation.",
-
-    training: "Computer Systems Servicing NC II",
-    trainingCode: "CSS-NCII",
-
-    type: "Practical Assessment",
-    status: "Published",
-
-    passingScore: 75,
-    duration: 60,
-    attemptsAllowed: 1,
-
-    instructions:
-      "Complete the practical task while following proper safety procedures.",
-
-    questions: [],
-
-    criteria: [
-      {
-        id: "C-001",
-
-        name: "Hardware Installation",
-
-        description:
-          "Correctly installs the required computer components.",
-
-        maxScore: 20,
-      },
-
-      {
-        id: "C-002",
-
-        name: "Cable Management",
-
-        description:
-          "Properly connects and organizes internal cables.",
-
-        maxScore: 20,
-      },
-
-      {
-        id: "C-003",
-
-        name: "OS Installation",
-
-        description:
-          "Successfully installs and configures the operating system.",
-
-        maxScore: 20,
-      },
-
-      {
-        id: "C-004",
-
-        name: "Troubleshooting",
-
-        description:
-          "Identifies and resolves common hardware problems.",
-
-        maxScore: 20,
-      },
-
-      {
-        id: "C-005",
-
-        name: "Safety Procedures",
-
-        description:
-          "Follows proper laboratory safety procedures.",
-
-        maxScore: 20,
-      },
-    ],
-
-    createdAt: "August 7, 2026",
-    updatedAt: "August 11, 2026",
-  },
-
-  {
-    id: "ASM-003",
-
-    title: "Network Configuration Exam",
-
-    description:
-      "Written examination covering basic networking concepts and configuration.",
-
-    training: "Computer Systems Servicing NC II",
-    trainingCode: "CSS-NCII",
-
-    type: "Written Exam",
-    status: "Draft",
-
-    passingScore: 75,
-    duration: 45,
-    attemptsAllowed: 2,
-
-    instructions:
-      "Read every question carefully before selecting your answer.",
-
-    questions: [
-      {
-        id: "Q-004",
-
-        question:
-          "What device is commonly used to connect multiple devices within a local network?",
-
-        choices: [
-          "Switch",
-          "Monitor",
-          "Printer",
-          "Scanner",
-        ],
-
-        correctAnswer: "Switch",
-
-        points: 5,
-      },
-    ],
-
-    criteria: [],
-
-    createdAt: "August 12, 2026",
-    updatedAt: "August 12, 2026",
-  },
-];
-
-/* ==========================================================
-   EMPTY VALUES
-========================================================== */
-
-const emptyAssessment = {
-  title: "",
-
-  description: "",
-
-  type: "Written Exam" as AssessmentType,
-
-  status: "Draft" as AssessmentStatus,
-
-  passingScore: 75,
-
-  duration: 30,
-
-  attemptsAllowed: 1,
-
-  instructions: "",
-};
-
-const emptyQuestion = {
-  question: "",
-
-  choices: ["", "", "", ""],
-
-  correctAnswer: "",
-
-  points: 5,
-};
-
-const emptyCriterion = {
-  name: "",
-
-  description: "",
-
-  maxScore: 10,
-};
-
-/* ==========================================================
-   MAIN PAGE
-========================================================== */
+  useWrittenAssessment,
+} from "@repo/hooks";
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function formatDate(value?: string | null) {
+  if (!value) {
+    return "—";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) {
+    return "—";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function getPercentage(
+  value: number | null | undefined,
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return 0;
+  }
+
+  return Number(value);
+}
+
+/* =========================================================
+   PAGE
+========================================================= */
 
 export default function TrainerAssessmentsPage() {
-  const [
-    selectedTraining,
-    setSelectedTraining,
-  ] = useState(
-    "Computer Systems Servicing NC II",
-  );
-
-  const [
+  const {
     assessments,
-    setAssessments,
-  ] = useState<Assessment[]>(
-    initialAssessments,
-  );
+    trainerSubmissions,
+
+    loadTrainerAssessments,
+    loadTrainerSubmissions,
+    loadTrainerSubmission,
+
+    isLoading,
+    error,
+  } = useWrittenAssessment(apiClient);
+
+  /* =======================================================
+     UI STATE
+  ======================================================= */
+
+  const [search, setSearch] =
+    useState("");
 
   const [
-    statusFilter,
-    setStatusFilter,
-  ] = useState<
-    "All" | AssessmentStatus
-  >("All");
+    selectedSubmission,
+    setSelectedSubmission,
+  ] =
+    useState<TrainerAssessmentSubmission | null>(
+      null,
+    );
 
   const [
-    typeFilter,
-    setTypeFilter,
-  ] = useState<
-    "All" | AssessmentType
-  >("All");
-
-  const [
-    showAssessmentModal,
-    setShowAssessmentModal,
+    isLoadingSubmission,
+    setIsLoadingSubmission,
   ] = useState(false);
 
   const [
-    showBuilderModal,
-    setShowBuilderModal,
-  ] = useState(false);
+    submissionError,
+    setSubmissionError,
+  ] = useState<string | null>(null);
 
-  const [
-    showPreviewModal,
-    setShowPreviewModal,
-  ] = useState(false);
+  /* =======================================================
+     LOAD PAGE
+  ======================================================= */
 
-  const [
-    showDeleteModal,
-    setShowDeleteModal,
-  ] = useState(false);
-
-  const [
-    selectedAssessment,
-    setSelectedAssessment,
-  ] = useState<Assessment | null>(
-    null,
-  );
-
-  const [
-    editingAssessment,
-    setEditingAssessment,
-  ] = useState<Assessment | null>(
-    null,
-  );
-
-  const [
-    assessmentForm,
-    setAssessmentForm,
-  ] = useState(emptyAssessment);
-
-  /* ========================================================
-     TRAINING ASSESSMENTS
-  ======================================================== */
-
-  const trainingAssessments =
-    useMemo(() => {
-      return assessments.filter(
-        (assessment) =>
-          assessment.training ===
-          selectedTraining,
-      );
-    }, [
-      assessments,
-      selectedTraining,
-    ]);
-
-  /* ========================================================
-     FILTERED ASSESSMENTS
-  ======================================================== */
-
-  const filteredAssessments =
-    useMemo(() => {
-      return trainingAssessments
-        .filter((assessment) => {
-          if (statusFilter === "All") {
-            return true;
-          }
-
-          return (
-            assessment.status ===
-            statusFilter
-          );
-        })
-        .filter((assessment) => {
-          if (typeFilter === "All") {
-            return true;
-          }
-
-          return (
-            assessment.type ===
-            typeFilter
-          );
-        })
-        .sort((a, b) =>
-          a.title.localeCompare(
-            b.title,
-            undefined,
-            {
-              sensitivity: "base",
-            },
-          ),
+  const loadPage = useCallback(
+    async () => {
+      try {
+        await loadTrainerAssessments();
+      } catch (err) {
+        console.error(
+          "LOAD TRAINER ASSESSMENTS ERROR:",
+          err,
         );
+      }
+    },
+    [loadTrainerAssessments],
+  );
+
+  useEffect(() => {
+    void loadPage();
+  }, [loadPage]);
+
+  /* =======================================================
+     GET TRAINING INFORMATION
+     
+     Trainer only has one assigned training,
+     so we simply use the first assessment's batch info.
+  ======================================================= */
+
+  const currentAssessment =
+    useMemo<WrittenAssessment | null>(() => {
+      return assessments[0] ?? null;
+    }, [assessments]);
+
+  /* =======================================================
+     LOAD SUBMISSIONS
+
+     IMPORTANT:
+     Do not directly use:
+
+       assessments[0].id
+
+     because assessments[0] may be undefined.
+
+     We safely check the first assessment first.
+  ======================================================= */
+
+  useEffect(() => {
+    const firstAssessment =
+      assessments[0];
+
+    if (!firstAssessment) {
+      return;
+    }
+
+    void loadTrainerSubmissions(
+      firstAssessment.id,
+    ).catch((err) => {
+      console.error(
+        "LOAD SUBMISSIONS ERROR:",
+        err,
+      );
+    });
+  }, [
+    assessments,
+    loadTrainerSubmissions,
+  ]);
+
+  /* =======================================================
+     PARTICIPANTS
+
+     One participant = one row.
+
+     If a participant has multiple submissions,
+     we keep the latest submission.
+  ======================================================= */
+
+  const participants =
+    useMemo(() => {
+      const map = new Map<
+        string,
+        TrainerAssessmentSubmission
+      >();
+
+      trainerSubmissions.forEach(
+        (submission) => {
+          const participantKey =
+            submission.participantId;
+
+          const existing =
+            map.get(participantKey);
+
+          if (!existing) {
+            map.set(
+              participantKey,
+              submission,
+            );
+
+            return;
+          }
+
+          const existingDate =
+            existing.submittedAt
+              ? new Date(
+                  existing.submittedAt,
+                ).getTime()
+              : 0;
+
+          const currentDate =
+            submission.submittedAt
+              ? new Date(
+                  submission.submittedAt,
+                ).getTime()
+              : 0;
+
+          if (
+            currentDate >=
+            existingDate
+          ) {
+            map.set(
+              participantKey,
+              submission,
+            );
+          }
+        },
+      );
+
+      return Array.from(
+        map.values(),
+      );
+    }, [trainerSubmissions]);
+
+  /* =======================================================
+     SEARCH PARTICIPANTS
+  ======================================================= */
+
+  const filteredParticipants =
+    useMemo(() => {
+      const keyword =
+        search
+          .trim()
+          .toLowerCase();
+
+      if (!keyword) {
+        return participants;
+      }
+
+      return participants.filter(
+        (participant) => {
+          return (
+            participant.participantName
+              ?.toLowerCase()
+              .includes(keyword) ||
+            participant.participantEmail
+              ?.toLowerCase()
+              .includes(keyword)
+          );
+        },
+      );
     }, [
-      trainingAssessments,
-      statusFilter,
-      typeFilter,
+      participants,
+      search,
     ]);
 
-  /* ========================================================
-     SUMMARY
-  ======================================================== */
+  /* =======================================================
+     STATISTICS
+  ======================================================= */
 
-  const publishedCount =
-    trainingAssessments.filter(
-      (assessment) =>
-        assessment.status ===
-        "Published",
+  const totalParticipants =
+    participants.length;
+
+  const passedParticipants =
+    participants.filter(
+      (participant) =>
+        participant.isPassed,
     ).length;
 
-  const draftCount =
-    trainingAssessments.filter(
-      (assessment) =>
-        assessment.status ===
-        "Draft",
+  const failedParticipants =
+    participants.filter(
+      (participant) =>
+        !participant.isPassed,
     ).length;
 
-  const writtenCount =
-    trainingAssessments.filter(
-      (assessment) =>
-        assessment.type ===
-        "Written Exam",
-    ).length;
-
-  const practicalCount =
-    trainingAssessments.filter(
-      (assessment) =>
-        assessment.type ===
-        "Practical Assessment",
-    ).length;
-
-  /* ========================================================
-     CREATE
-  ======================================================== */
-
-  function openCreateAssessment() {
-    setEditingAssessment(null);
-
-    setAssessmentForm({
-      ...emptyAssessment,
-    });
-
-    setShowAssessmentModal(true);
-  }
-
-  /* ========================================================
-     SETTINGS
-  ======================================================== */
-
-  function openSettings(
-    assessment: Assessment,
-  ) {
-    setEditingAssessment(
-      assessment,
-    );
-
-    setAssessmentForm({
-      title: assessment.title,
-
-      description:
-        assessment.description,
-
-      type: assessment.type,
-
-      status: assessment.status,
-
-      passingScore:
-        assessment.passingScore,
-
-      duration:
-        assessment.duration,
-
-      attemptsAllowed:
-        assessment.attemptsAllowed,
-
-      instructions:
-        assessment.instructions,
-    });
-
-    setShowAssessmentModal(true);
-  }
-
-  /* ========================================================
-     SAVE SETTINGS
-  ======================================================== */
-
-  function saveAssessment() {
-    const title =
-      assessmentForm.title.trim();
-
-    if (!title) {
-      alert(
-        "Please enter an assessment title.",
-      );
-
-      return;
-    }
-
-    if (
-      assessmentForm.passingScore <
-        1 ||
-      assessmentForm.passingScore >
-        100
-    ) {
-      alert(
-        "Passing score must be between 1 and 100.",
-      );
-
-      return;
-    }
-
-    if (
-      assessmentForm.duration <
-      1
-    ) {
-      alert(
-        "Duration must be at least 1 minute.",
-      );
-
-      return;
-    }
-
-    if (
-      assessmentForm.attemptsAllowed <
-      1
-    ) {
-      alert(
-        "Attempts must be at least 1.",
-      );
-
-      return;
-    }
-
-    if (editingAssessment) {
-      setAssessments(
-        (current) =>
-          current.map(
-            (assessment) => {
-              if (
-                assessment.id !==
-                editingAssessment.id
-              ) {
-                return assessment;
-              }
-
-              return {
-                ...assessment,
-
-                title,
-
-                description:
-                  assessmentForm.description.trim(),
-
-                type:
-                  assessmentForm.type,
-
-                status:
-                  assessmentForm.status,
-
-                passingScore:
-                  assessmentForm.passingScore,
-
-                duration:
-                  assessmentForm.duration,
-
-                attemptsAllowed:
-                  assessmentForm.attemptsAllowed,
-
-                instructions:
-                  assessmentForm.instructions.trim(),
-
-                updatedAt:
-                  getTodayDate(),
-              };
-            },
-          ),
-      );
-    } else {
-      const newAssessment: Assessment =
-        {
-          id: `ASM-${String(
-            assessments.length + 1,
-          ).padStart(3, "0")}`,
-
-          title,
-
-          description:
-            assessmentForm.description.trim(),
-
-          training:
-            selectedTraining,
-
-          trainingCode:
-            getTrainingCode(
-              selectedTraining,
+  const averageScore =
+    participants.length === 0
+      ? 0
+      : participants.reduce(
+          (
+            total,
+            participant,
+          ) =>
+            total +
+            getPercentage(
+              participant.percentage,
             ),
+          0,
+        ) / participants.length;
 
-          type:
-            assessmentForm.type,
+  /* =======================================================
+     VIEW PARTICIPANT
+  ======================================================= */
 
-          status:
-            assessmentForm.status,
+  const handleViewParticipant =
+    useCallback(
+      async (
+        submission: TrainerAssessmentSubmission,
+      ) => {
+        setSubmissionError(null);
+        setIsLoadingSubmission(true);
 
-          passingScore:
-            assessmentForm.passingScore,
+        try {
+          const result =
+            await loadTrainerSubmission(
+              submission.attemptId,
+            );
 
-          duration:
-            assessmentForm.duration,
+          setSelectedSubmission(
+            result,
+          );
+        } catch (err) {
+          console.error(
+            "LOAD SUBMISSION ERROR:",
+            err,
+          );
 
-          attemptsAllowed:
-            assessmentForm.attemptsAllowed,
-
-          instructions:
-            assessmentForm.instructions.trim(),
-
-          questions: [],
-
-          criteria: [],
-
-          createdAt:
-            getTodayDate(),
-
-          updatedAt:
-            getTodayDate(),
-        };
-
-      setAssessments(
-        (current) => [
-          ...current,
-          newAssessment,
-        ],
-      );
-    }
-
-    setShowAssessmentModal(false);
-
-    setEditingAssessment(null);
-  }
-
-  /* ========================================================
-     CONTENT
-  ======================================================== */
-
-  function openContent(
-    assessment: Assessment,
-  ) {
-    setSelectedAssessment(
-      assessment,
+          setSubmissionError(
+            err instanceof Error
+              ? err.message
+              : "Unable to load participant submission.",
+          );
+        } finally {
+          setIsLoadingSubmission(false);
+        }
+      },
+      [loadTrainerSubmission],
     );
 
-    setShowBuilderModal(true);
-  }
+  /* =======================================================
+     CLOSE MODAL
+  ======================================================= */
 
-  /* ========================================================
-     PREVIEW
-  ======================================================== */
+  const closeParticipantModal =
+    useCallback(() => {
+      setSelectedSubmission(null);
+      setSubmissionError(null);
+      setIsLoadingSubmission(false);
+    }, []);
 
-  function openPreview(
-    assessment: Assessment,
-  ) {
-    setSelectedAssessment(
-      assessment,
-    );
-
-    setShowPreviewModal(true);
-  }
-
-  /* ========================================================
-     PUBLISH
-  ======================================================== */
-
-  function togglePublish(
-    assessment: Assessment,
-  ) {
-    setAssessments(
-      (current) =>
-        current.map(
-          (item) => {
-            if (
-              item.id !==
-              assessment.id
-            ) {
-              return item;
-            }
-
-            return {
-              ...item,
-
-              status:
-                item.status ===
-                "Published"
-                  ? "Draft"
-                  : "Published",
-
-              updatedAt:
-                getTodayDate(),
-            };
-          },
-        ),
-    );
-  }
-
-  /* ========================================================
-     DELETE
-  ======================================================== */
-
-  function openDelete(
-    assessment: Assessment,
-  ) {
-    setSelectedAssessment(
-      assessment,
-    );
-
-    setShowDeleteModal(true);
-  }
-
-  function deleteAssessment() {
-    if (!selectedAssessment) {
-      return;
-    }
-
-    setAssessments(
-      (current) =>
-        current.filter(
-          (assessment) =>
-            assessment.id !==
-            selectedAssessment.id,
-        ),
-    );
-
-    setSelectedAssessment(null);
-
-    setShowDeleteModal(false);
-  }
-
-  /* ========================================================
-     SAVE CONTENT
-  ======================================================== */
-
-  function saveBuilder(
-    updatedAssessment: Assessment,
-  ) {
-    setAssessments(
-      (current) =>
-        current.map(
-          (assessment) =>
-            assessment.id ===
-            updatedAssessment.id
-              ? {
-                  ...updatedAssessment,
-
-                  updatedAt:
-                    getTodayDate(),
-                }
-              : assessment,
-        ),
-    );
-
-    setSelectedAssessment(
-      updatedAssessment,
-    );
-  }
-
-  /* ========================================================
-     RESET FILTERS
-  ======================================================== */
-
-  function clearFilters() {
-    setStatusFilter("All");
-
-    setTypeFilter("All");
-  }
-
-  /* ========================================================
+  /* =======================================================
      RENDER
-  ======================================================== */
+  ======================================================= */
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-slate-50 px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-6">
 
-      {/* ==================================================
-          HEADER
-      ================================================== */}
+        {/* =================================================
+            HEADER
+        ================================================= */}
 
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-
-        <div>
-          <div className="mb-2 flex items-center gap-2 text-xs text-gray-400">
-            <span>Trainer</span>
-
-            <span>/</span>
-
-            <span className="font-medium text-gray-600">
-              Assessments
-            </span>
-          </div>
-
-          <h1 className="text-2xl font-bold tracking-tight text-[#17191c] sm:text-3xl">
-            Assessments
-          </h1>
-
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
-            Create and manage written exams
-            and practical assessments for
-            your assigned training programs.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={
-            openCreateAssessment
-          }
-          className="inline-flex h-11 items-center justify-center rounded-xl bg-[#191c1e] px-5 text-xs font-semibold text-white transition hover:opacity-90"
-        >
-          <span className="mr-2 text-base">
-            +
-          </span>
-
-          Create Assessment
-        </button>
-      </div>
-
-      {/* ==================================================
-          INFO
-      ================================================== */}
-
-      <div className="flex items-start gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
-
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-sm font-bold text-blue-700">
-          i
-        </div>
-
-        <div>
-          <p className="text-sm font-semibold text-blue-900">
-            Trainer-created assessments
-          </p>
-
-          <p className="mt-1 text-xs leading-5 text-blue-700">
-            Create written exams that can be
-            automatically scored and practical
-            assessments that can be manually
-            graded by the trainer.
-          </p>
-        </div>
-
-      </div>
-
-      {/* ==================================================
-          TRAINING SELECTOR
-      ================================================== */}
-
-      <section className="rounded-2xl border border-[#e7e9ec] bg-white p-5">
-
-        <div className="max-w-xl">
-
-          <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-            Training Program
-          </label>
-
-          <select
-            value={selectedTraining}
-            onChange={(event) => {
-              setSelectedTraining(
-                event.target.value,
-              );
-
-              setStatusFilter("All");
-
-              setTypeFilter("All");
-            }}
-            className="h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none transition focus:border-gray-300 focus:bg-white"
-          >
-            {trainingOptions.map(
-              (training) => (
-                <option
-                  key={training.code}
-                  value={training.name}
-                >
-                  {training.name}
-                </option>
-              ),
-            )}
-          </select>
-
-        </div>
-
-      </section>
-
-      {/* ==================================================
-          STATISTICS
-      ================================================== */}
-
-      <StatGrid>
-
-        <StatCard
-          title="Total Assessments"
-          description="All assessments"
-          value={
-            trainingAssessments.length
-          }
-        />
-
-        <StatCard
-          title="Published"
-          description="Available to participants"
-          value={publishedCount}
-          variant="success"
-        />
-
-        <StatCard
-          title="Draft"
-          description="Still being prepared"
-          value={draftCount}
-          variant="warning"
-        />
-
-        <StatCard
-          title="Written / Practical"
-          description="Assessment types"
-          value={`${writtenCount} / ${practicalCount}`}
-        />
-
-      </StatGrid>
-
-      {/* ==================================================
-          FILTER STATUS
-      ================================================== */}
-
-      {(statusFilter !== "All" ||
-        typeFilter !== "All") && (
-        <div className="flex items-center gap-2">
-
-          <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[9px] font-semibold text-gray-500">
-            {filteredAssessments.length}{" "}
-            result
-            {filteredAssessments.length !==
-            1
-              ? "s"
-              : ""}
-          </span>
-
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="text-[10px] font-semibold text-gray-500 underline underline-offset-2 transition hover:text-gray-800"
-          >
-            Clear filters
-          </button>
-
-        </div>
-      )}
-
-      {/* ==================================================
-          DATA TABLE
-      ================================================== */}
-
-      <DataTable
-        title="Assessment List"
-        description={`Assessments created for ${selectedTraining}.`}
-        columns={columns}
-        data={filteredAssessments}
-        searchable
-        searchPlaceholder="Search assessment..."
-        showPagination
-        emptyTitle="No assessments found"
-        emptyDescription="Try changing your filters or create a new assessment."
-        meta={{
-          onContent:
-            openContent,
-
-          onPreview:
-            openPreview,
-
-          onSettings:
-            openSettings,
-
-          onTogglePublish:
-            togglePublish,
-
-          onDelete:
-            openDelete,
-        }}
-        toolbar={
-          <div className="flex flex-wrap gap-2">
-
-            {/* TYPE FILTER */}
-
-            <select
-              value={typeFilter}
-              onChange={(event) =>
-                setTypeFilter(
-                  event.target
-                    .value as
-                    | "All"
-                    | AssessmentType,
-                )
-              }
-              className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none transition focus:border-gray-300 focus:bg-white"
-            >
-              <option value="All">
-                All Types
-              </option>
-
-              <option value="Written Exam">
-                Written Exam
-              </option>
-
-              <option value="Practical Assessment">
-                Practical Assessment
-              </option>
-            </select>
-
-            {/* STATUS FILTER */}
-
-            <select
-              value={statusFilter}
-              onChange={(event) =>
-                setStatusFilter(
-                  event.target
-                    .value as
-                    | "All"
-                    | AssessmentStatus,
-                )
-              }
-              className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none transition focus:border-gray-300 focus:bg-white"
-            >
-              <option value="All">
-                All Status
-              </option>
-
-              <option value="Published">
-                Published
-              </option>
-
-              <option value="Draft">
-                Draft
-              </option>
-            </select>
-
-          </div>
-        }
-      />
-
-      {/* ==================================================
-          SETTINGS MODAL
-      ================================================== */}
-
-      {showAssessmentModal && (
-        <AssessmentSettingsModal
-          editing={
-            editingAssessment
-          }
-          form={assessmentForm}
-          setForm={
-            setAssessmentForm
-          }
-          onClose={() => {
-            setShowAssessmentModal(
-              false,
-            );
-
-            setEditingAssessment(
-              null,
-            );
-          }}
-          onSave={
-            saveAssessment
-          }
-        />
-      )}
-
-      {/* ==================================================
-          CONTENT BUILDER MODAL
-      ================================================== */}
-
-      {showBuilderModal &&
-        selectedAssessment && (
-          <AssessmentContentModal
-            assessment={
-              selectedAssessment
-            }
-            onClose={() => {
-              setShowBuilderModal(
-                false,
-              );
-
-              setSelectedAssessment(
-                null,
-              );
-            }}
-            onSave={
-              saveBuilder
-            }
-          />
-        )}
-
-      {/* ==================================================
-          PREVIEW MODAL
-      ================================================== */}
-
-      {showPreviewModal &&
-        selectedAssessment && (
-          <PreviewModal
-            assessment={
-              selectedAssessment
-            }
-            onClose={() => {
-              setShowPreviewModal(
-                false,
-              );
-
-              setSelectedAssessment(
-                null,
-              );
-            }}
-          />
-        )}
-
-      {/* ==================================================
-          DELETE MODAL
-      ================================================== */}
-
-      {showDeleteModal &&
-        selectedAssessment && (
-          <DeleteModal
-            assessment={
-              selectedAssessment
-            }
-            onClose={() => {
-              setShowDeleteModal(
-                false,
-              );
-
-              setSelectedAssessment(
-                null,
-              );
-            }}
-            onConfirm={
-              deleteAssessment
-            }
-          />
-        )}
-
-    </div>
-  );
-}
-
-/* ==========================================================
-   SETTINGS MODAL
-========================================================== */
-
-function AssessmentSettingsModal({
-  editing,
-  form,
-  setForm,
-  onClose,
-  onSave,
-}: {
-  editing: Assessment | null;
-
-  form: typeof emptyAssessment;
-
-  setForm: Dispatch<
-    SetStateAction<
-      typeof emptyAssessment
-    >
-  >;
-
-  onClose: () => void;
-
-  onSave: () => void;
-}) {
-  return (
-    <div
-      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/45 p-3 backdrop-blur-sm sm:p-5"
-      onMouseDown={(event) => {
-        if (
-          event.target ===
-          event.currentTarget
-        ) {
-          onClose();
-        }
-      }}
-    >
-      <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-
-        {/* HEADER */}
-
-        <div className="flex shrink-0 items-start justify-between border-b border-[#eef0f2] px-6 py-5">
-
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-              Assessment Settings
-            </p>
+            <div className="mb-2 flex items-center gap-2 text-sm text-slate-500">
+              <BookOpen className="h-4 w-4" />
 
-            <h2 className="mt-1 text-lg font-bold">
-              {editing
-                ? "Assessment Settings"
-                : "Create Assessment"}
-            </h2>
+              Trainer Portal
+            </div>
 
-            <p className="mt-1 text-xs text-gray-500">
-              Configure the basic information
-              and rules for the assessment.
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+              My Training
+            </h1>
+
+            <p className="mt-1 max-w-2xl text-sm text-slate-500 sm:text-base">
+              View participant assessment results
+              for your assigned training.
             </p>
           </div>
 
           <button
             type="button"
-            onClick={onClose}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-lg text-gray-500 transition hover:bg-gray-200"
+            onClick={() =>
+              void loadPage()
+            }
+            disabled={isLoading}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            ×
+            <RefreshCw
+              className={
+                isLoading
+                  ? "h-4 w-4 animate-spin"
+                  : "h-4 w-4"
+              }
+            />
+
+            Refresh
           </button>
+        </div>
+
+        {/* =================================================
+            TRAINING INFORMATION
+        ================================================= */}
+
+        {currentAssessment && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-100">
+                  <BookOpen className="h-6 w-6 text-slate-700" />
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Assigned Training
+                  </p>
+
+                  <h2 className="mt-1 text-xl font-bold text-slate-900">
+                    {currentAssessment.title}
+                  </h2>
+
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                      {currentAssessment.batchCode ||
+                        "Unknown Batch"}
+                    </span>
+
+                    <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
+                      <FileText className="h-3.5 w-3.5" />
+
+                      {currentAssessment.questionCount ??
+                        0}{" "}
+                      questions
+                    </span>
+
+                    <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
+                      <CalendarDays className="h-3.5 w-3.5" />
+
+                      Created{" "}
+                      {formatDate(
+                        currentAssessment.createdAt,
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <span
+                  className={
+                    currentAssessment.isPublished
+                      ? "inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700"
+                      : "inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700"
+                  }
+                >
+                  {currentAssessment.isPublished
+                    ? "Published"
+                    : "Draft"}
+                </span>
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* =================================================
+            ERROR
+        ================================================= */}
+
+        {error && (
+          <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
+            <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+
+            <div>
+              <p className="text-sm font-semibold text-red-800">
+                Unable to load training assessments
+              </p>
+
+              <p className="mt-1 text-sm text-red-700">
+                {error}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* =================================================
+            STATS
+        ================================================= */}
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+
+          <StatCard
+            icon={
+              <Users className="h-5 w-5" />
+            }
+            label="Participants"
+            value={totalParticipants}
+          />
+
+          <StatCard
+            icon={
+              <CheckCircle2 className="h-5 w-5" />
+            }
+            label="Passed"
+            value={passedParticipants}
+          />
+
+          <StatCard
+            icon={
+              <CircleAlert className="h-5 w-5" />
+            }
+            label="Failed"
+            value={failedParticipants}
+          />
+
+          <StatCard
+            icon={
+              <FileText className="h-5 w-5" />
+            }
+            label="Average Score"
+            value={`${averageScore.toFixed(1)}%`}
+          />
 
         </div>
 
-        {/* BODY */}
+        {/* =================================================
+            PARTICIPANTS SECTION
+        ================================================= */}
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 
-          <div className="space-y-5">
+          {/* SECTION HEADER */}
 
-            {/* TITLE */}
-
-            <div>
-              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                Assessment Title
-              </label>
-
-              <input
-                value={form.title}
-                onChange={(event) =>
-                  setForm(
-                    (current) => ({
-                      ...current,
-
-                      title:
-                        event.target.value,
-                    }),
-                  )
-                }
-                placeholder="e.g. Computer Hardware Fundamentals"
-                className="h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
-              />
-            </div>
-
-            {/* DESCRIPTION */}
-
-            <div>
-              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                Description
-              </label>
-
-              <textarea
-                value={
-                  form.description
-                }
-                onChange={(event) =>
-                  setForm(
-                    (current) => ({
-                      ...current,
-
-                      description:
-                        event.target
-                          .value,
-                    }),
-                  )
-                }
-                rows={3}
-                placeholder="Describe the assessment..."
-                className="w-full resize-none rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 py-3 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
-              />
-            </div>
-
-            {/* TYPE + STATUS */}
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="border-b border-slate-200 p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
 
               <div>
-                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Assessment Type
-                </label>
+                <h2 className="text-lg font-bold text-slate-900">
+                  Participants
+                </h2>
 
-                <select
-                  value={form.type}
-                  onChange={(event) =>
-                    setForm(
-                      (current) => ({
-                        ...current,
-
-                        type:
-                          event.target
-                            .value as AssessmentType,
-                      }),
-                    )
-                  }
-                  className="h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
-                >
-                  <option value="Written Exam">
-                    Written Exam
-                  </option>
-
-                  <option value="Practical Assessment">
-                    Practical Assessment
-                  </option>
-                </select>
+                <p className="mt-1 text-sm text-slate-500">
+                  View assessment results and answer details.
+                </p>
               </div>
 
-              <div>
-                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Status
-                </label>
+              {/* SEARCH */}
 
-                <select
-                  value={form.status}
-                  onChange={(event) =>
-                    setForm(
-                      (current) => ({
-                        ...current,
-
-                        status:
-                          event.target
-                            .value as AssessmentStatus,
-                      }),
-                    )
-                  }
-                  className="h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
-                >
-                  <option value="Draft">
-                    Draft
-                  </option>
-
-                  <option value="Published">
-                    Published
-                  </option>
-                </select>
-              </div>
-
-            </div>
-
-            {/* SETTINGS */}
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-
-              {/* PASSING */}
-
-              <div>
-                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Passing Score
-                </label>
-
-                <div className="relative">
-
-                  <input
-                    type="number"
-                    min={1}
-                    max={100}
-                    value={
-                      form.passingScore
-                    }
-                    onChange={(event) =>
-                      setForm(
-                        (current) => ({
-                          ...current,
-
-                          passingScore:
-                            Number(
-                              event.target
-                                .value,
-                            ),
-                        }),
-                      )
-                    }
-                    className="h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 pr-8 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
-                  />
-
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-                    %
-                  </span>
-
-                </div>
-              </div>
-
-              {/* DURATION */}
-
-              <div>
-                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Duration
-                </label>
-
-                <div className="relative">
-
-                  <input
-                    type="number"
-                    min={1}
-                    value={
-                      form.duration
-                    }
-                    onChange={(event) =>
-                      setForm(
-                        (current) => ({
-                          ...current,
-
-                          duration:
-                            Number(
-                              event.target
-                                .value,
-                            ),
-                        }),
-                      )
-                    }
-                    className="h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 pr-12 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
-                  />
-
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">
-                    min
-                  </span>
-
-                </div>
-              </div>
-
-              {/* ATTEMPTS */}
-
-              <div>
-                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Attempts
-                </label>
+              <div className="relative w-full lg:w-80">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 
                 <input
-                  type="number"
-                  min={1}
-                  value={
-                    form.attemptsAllowed
-                  }
+                  type="text"
+                  value={search}
                   onChange={(event) =>
-                    setForm(
-                      (current) => ({
-                        ...current,
-
-                        attemptsAllowed:
-                          Number(
-                            event.target
-                              .value,
-                          ),
-                      }),
+                    setSearch(
+                      event.target.value,
                     )
                   }
-                  className="h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
+                  placeholder="Search participant..."
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-slate-400"
                 />
               </div>
 
             </div>
-
-            {/* INSTRUCTIONS */}
-
-            <div>
-              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                Instructions
-              </label>
-
-              <textarea
-                value={
-                  form.instructions
-                }
-                onChange={(event) =>
-                  setForm(
-                    (current) => ({
-                      ...current,
-
-                      instructions:
-                        event.target
-                          .value,
-                    }),
-                  )
-                }
-                rows={4}
-                placeholder="Instructions for participants..."
-                className="w-full resize-none rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 py-3 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
-              />
-            </div>
-
-            {/* INFO */}
-
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-
-              <p className="text-xs font-semibold text-gray-700">
-                What happens next?
-              </p>
-
-              <p className="mt-1 text-[10px] leading-5 text-gray-500">
-                After saving the settings,
-                use <b>Content</b> to add
-                questions for written exams
-                or criteria for practical
-                assessments.
-              </p>
-
-            </div>
-
           </div>
+
+          {/* =================================================
+              LOADING
+          ================================================= */}
+
+          {isLoading && (
+            <div className="space-y-3 p-5">
+              {[1, 2, 3, 4].map(
+                (item) => (
+                  <div
+                    key={item}
+                    className="h-16 animate-pulse rounded-xl bg-slate-100"
+                  />
+                ),
+              )}
+            </div>
+          )}
+
+          {/* =================================================
+              EMPTY
+          ================================================= */}
+
+          {!isLoading &&
+            filteredParticipants.length ===
+              0 && (
+              <div className="px-6 py-16 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
+                  <Users className="h-7 w-7 text-slate-400" />
+                </div>
+
+                <h3 className="mt-4 text-lg font-bold text-slate-900">
+                  {search
+                    ? "No participants found"
+                    : "No submissions yet"}
+                </h3>
+
+                <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
+                  {search
+                    ? "Try searching using a different participant name or email."
+                    : "Participants will appear here after they submit the assessment."}
+                </p>
+              </div>
+            )}
+
+          {/* =================================================
+              TABLE
+          ================================================= */}
+
+          {!isLoading &&
+            filteredParticipants.length >
+              0 && (
+              <div className="overflow-x-auto">
+
+                <table className="w-full min-w-[850px]">
+
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50">
+
+                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Participant
+                      </th>
+
+                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Submitted
+                      </th>
+
+                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Score
+                      </th>
+
+                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Result
+                      </th>
+
+                      <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Action
+                      </th>
+
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-slate-100">
+
+                    {filteredParticipants.map(
+                      (participant) => (
+                        <tr
+                          key={
+                            participant.participantId
+                          }
+                          className="transition hover:bg-slate-50"
+                        >
+
+                          {/* PARTICIPANT */}
+
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-3">
+
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-700">
+                                {getInitials(
+                                  participant.participantName,
+                                )}
+                              </div>
+
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-semibold text-slate-900">
+                                  {
+                                    participant.participantName
+                                  }
+                                </p>
+
+                                <p className="mt-0.5 truncate text-xs text-slate-500">
+                                  {
+                                    participant.participantEmail
+                                  }
+                                </p>
+                              </div>
+
+                            </div>
+                          </td>
+
+                          {/* SUBMITTED */}
+
+                          <td className="px-5 py-4">
+                            <p className="text-sm text-slate-600">
+                              {formatDateTime(
+                                participant.submittedAt,
+                              )}
+                            </p>
+
+                            <p className="mt-0.5 text-xs text-slate-400">
+                              Attempt #
+                              {
+                                participant.attemptNumber
+                              }
+                            </p>
+                          </td>
+
+                          {/* SCORE */}
+
+                          <td className="px-5 py-4">
+                            <p className="text-sm font-bold text-slate-900">
+                              {
+                                participant.earnedPoints
+                              }
+                              /
+                              {
+                                participant.totalPoints
+                              }
+                            </p>
+
+                            <p className="mt-0.5 text-xs text-slate-500">
+                              {getPercentage(
+                                participant.percentage,
+                              )}
+                              %
+                            </p>
+                          </td>
+
+                          {/* RESULT */}
+
+                          <td className="px-5 py-4">
+                            <ResultBadge
+                              passed={
+                                participant.isPassed
+                              }
+                            />
+                          </td>
+
+                          {/* ACTION */}
+
+                          <td className="px-5 py-4 text-right">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void handleViewParticipant(
+                                  participant,
+                                )
+                              }
+                              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
+                            >
+                              <Eye className="h-4 w-4" />
+
+                              View
+                            </button>
+                          </td>
+
+                        </tr>
+                      ),
+                    )}
+
+                  </tbody>
+                </table>
+
+              </div>
+            )}
+
         </div>
 
-        {/* FOOTER */}
+      </div>
 
-        <div className="flex shrink-0 justify-end gap-3 border-t border-[#eef0f2] px-6 py-4">
+      {/* ===================================================
+          PARTICIPANT DETAILS MODAL
+      =================================================== */}
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl border border-[#e7e9ec] px-5 py-2.5 text-[11px] font-semibold text-gray-600 transition hover:bg-gray-50"
-          >
-            Cancel
-          </button>
+      {(selectedSubmission ||
+        isLoadingSubmission) && (
+        <SubmissionDetailsModal
+          submission={
+            selectedSubmission
+          }
+          isLoading={
+            isLoadingSubmission
+          }
+          error={
+            submissionError
+          }
+          onClose={
+            closeParticipantModal
+          }
+        />
+      )}
+    </div>
+  );
+}
 
-          <button
-            type="button"
-            onClick={onSave}
-            className="rounded-xl bg-[#191c1e] px-5 py-2.5 text-[11px] font-semibold text-white transition hover:opacity-90"
-          >
-            {editing
-              ? "Save Settings"
-              : "Create Assessment"}
-          </button>
+/* =========================================================
+   GET INITIALS
+========================================================= */
+function getInitials(name?: string | null) {
+  if (!name?.trim()) {
+    return "P";
+  }
 
+  const parts = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  const first = parts[0];
+
+  if (!first) {
+    return "P";
+  }
+
+  if (parts.length === 1) {
+    return first
+      .slice(0, 2)
+      .toUpperCase();
+  }
+
+  const last =
+    parts[parts.length - 1];
+
+  if (!last) {
+    return first
+      .slice(0, 2)
+      .toUpperCase();
+  }
+
+  return (
+    first.charAt(0) +
+    last.charAt(0)
+  ).toUpperCase();
+}
+
+/* =========================================================
+   STAT CARD
+========================================================= */
+
+function StatCard({
+  icon,
+  label,
+  value,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string | number;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-center justify-between">
+
+        <div>
+          <p className="text-sm font-medium text-slate-500">
+            {label}
+          </p>
+
+          <p className="mt-1 text-2xl font-bold text-slate-900">
+            {value}
+          </p>
+        </div>
+
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+          {icon}
         </div>
 
       </div>
@@ -1571,1616 +895,344 @@ function AssessmentSettingsModal({
   );
 }
 
-/* ==========================================================
-   CONTENT MODAL
-========================================================== */
+/* =========================================================
+   RESULT BADGE
+========================================================= */
 
-function AssessmentContentModal({
-  assessment,
-  onClose,
-  onSave,
+function ResultBadge({
+  passed,
 }: {
-  assessment: Assessment;
+  passed: boolean;
+}) {
+  return (
+    <span
+      className={
+        passed
+          ? "inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700"
+          : "inline-flex rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700"
+      }
+    >
+      {passed
+        ? "Passed"
+        : "Failed"}
+    </span>
+  );
+}
+
+/* =========================================================
+   SUBMISSION DETAILS MODAL
+========================================================= */
+
+function SubmissionDetailsModal({
+  submission,
+  isLoading,
+  error,
+  onClose,
+}: {
+  submission:
+    | TrainerAssessmentSubmission
+    | null;
+
+  isLoading: boolean;
+
+  error: string | null;
 
   onClose: () => void;
-
-  onSave: (
-    assessment: Assessment,
-  ) => void;
 }) {
-  const [current, setCurrent] =
-    useState<Assessment>(
-      assessment,
-    );
-
-  const [
-    showQuestionForm,
-    setShowQuestionForm,
-  ] = useState(false);
-
-  const [
-    showCriterionForm,
-    setShowCriterionForm,
-  ] = useState(false);
-
-  const [
-    editingQuestion,
-    setEditingQuestion,
-  ] = useState<Question | null>(
-    null,
-  );
-
-  const [
-    editingCriterion,
-    setEditingCriterion,
-  ] = useState<Criterion | null>(
-    null,
-  );
-
-  const [
-    questionForm,
-    setQuestionForm,
-  ] = useState(emptyQuestion);
-
-  const [
-    criterionForm,
-    setCriterionForm,
-  ] = useState(emptyCriterion);
-
-  /* ========================================================
-     QUESTION
-  ======================================================== */
-
-  function openAddQuestion() {
-    setEditingQuestion(null);
-
-    setQuestionForm({
-      ...emptyQuestion,
-
-      choices: ["", "", "", ""],
-    });
-
-    setShowQuestionForm(true);
-  }
-
-  function editQuestion(
-    question: Question,
-  ) {
-    setEditingQuestion(
-      question,
-    );
-
-    const choices = [
-      ...question.choices,
-    ];
-
-    while (choices.length < 4) {
-      choices.push("");
-    }
-
-    setQuestionForm({
-      question:
-        question.question,
-
-      choices: choices.slice(
-        0,
-        4,
-      ),
-
-      correctAnswer:
-        question.correctAnswer,
-
-      points: question.points,
-    });
-
-    setShowQuestionForm(true);
-  }
-
-  function saveQuestion() {
-    if (
-      !questionForm.question.trim()
-    ) {
-      alert(
-        "Please enter the question.",
-      );
-
-      return;
-    }
-
-    const choices =
-      questionForm.choices
-        .map((choice) =>
-          choice.trim(),
-        )
-        .filter(Boolean);
-
-    if (choices.length < 2) {
-      alert(
-        "Please provide at least 2 answer choices.",
-      );
-
-      return;
-    }
-
-    if (
-      !questionForm.correctAnswer ||
-      !choices.includes(
-        questionForm.correctAnswer,
-      )
-    ) {
-      alert(
-        "Please select a valid correct answer.",
-      );
-
-      return;
-    }
-
-    if (questionForm.points < 1) {
-      alert(
-        "Points must be at least 1.",
-      );
-
-      return;
-    }
-
-    const newQuestion: Question =
-      {
-        id:
-          editingQuestion?.id ??
-          `Q-${Date.now()}`,
-
-        question:
-          questionForm.question.trim(),
-
-        choices,
-
-        correctAnswer:
-          questionForm.correctAnswer,
-
-        points:
-          questionForm.points,
-      };
-
-    setCurrent((previous) => ({
-      ...previous,
-
-      questions:
-        editingQuestion
-          ? previous.questions.map(
-              (question) =>
-                question.id ===
-                editingQuestion.id
-                  ? newQuestion
-                  : question,
-            )
-          : [
-              ...previous.questions,
-              newQuestion,
-            ],
-    }));
-
-    closeQuestionForm();
-  }
-
-  function deleteQuestion(
-    questionId: string,
-  ) {
-    const confirmed =
-      window.confirm(
-        "Delete this question?",
-      );
-
-    if (!confirmed) {
-      return;
-    }
-
-    setCurrent((previous) => ({
-      ...previous,
-
-      questions:
-        previous.questions.filter(
-          (question) =>
-            question.id !==
-            questionId,
-        ),
-    }));
-  }
-
-  function closeQuestionForm() {
-    setShowQuestionForm(false);
-
-    setEditingQuestion(null);
-
-    setQuestionForm({
-      ...emptyQuestion,
-
-      choices: ["", "", "", ""],
-    });
-  }
-
-  /* ========================================================
-     CRITERIA
-  ======================================================== */
-
-  function openAddCriterion() {
-    setEditingCriterion(null);
-
-    setCriterionForm({
-      ...emptyCriterion,
-    });
-
-    setShowCriterionForm(true);
-  }
-
-  function editCriterion(
-    criterion: Criterion,
-  ) {
-    setEditingCriterion(
-      criterion,
-    );
-
-    setCriterionForm({
-      name: criterion.name,
-
-      description:
-        criterion.description,
-
-      maxScore:
-        criterion.maxScore,
-    });
-
-    setShowCriterionForm(true);
-  }
-
-  function saveCriterion() {
-    if (
-      !criterionForm.name.trim()
-    ) {
-      alert(
-        "Please enter a criterion name.",
-      );
-
-      return;
-    }
-
-    if (
-      criterionForm.maxScore < 1
-    ) {
-      alert(
-        "Maximum score must be at least 1.",
-      );
-
-      return;
-    }
-
-    const newCriterion: Criterion =
-      {
-        id:
-          editingCriterion?.id ??
-          `C-${Date.now()}`,
-
-        name:
-          criterionForm.name.trim(),
-
-        description:
-          criterionForm.description.trim(),
-
-        maxScore:
-          criterionForm.maxScore,
-      };
-
-    setCurrent((previous) => ({
-      ...previous,
-
-      criteria:
-        editingCriterion
-          ? previous.criteria.map(
-              (criterion) =>
-                criterion.id ===
-                editingCriterion.id
-                  ? newCriterion
-                  : criterion,
-            )
-          : [
-              ...previous.criteria,
-              newCriterion,
-            ],
-    }));
-
-    closeCriterionForm();
-  }
-
-  function deleteCriterion(
-    criterionId: string,
-  ) {
-    const confirmed =
-      window.confirm(
-        "Delete this criterion?",
-      );
-
-    if (!confirmed) {
-      return;
-    }
-
-    setCurrent((previous) => ({
-      ...previous,
-
-      criteria:
-        previous.criteria.filter(
-          (criterion) =>
-            criterion.id !==
-            criterionId,
-        ),
-    }));
-  }
-
-  function closeCriterionForm() {
-    setShowCriterionForm(false);
-
-    setEditingCriterion(null);
-
-    setCriterionForm({
-      ...emptyCriterion,
-    });
-  }
-
-  /* ========================================================
-     TOTALS
-  ======================================================== */
-
-  const totalQuestionPoints =
-    current.questions.reduce(
-      (total, question) =>
-        total + question.points,
-      0,
-    );
-
-  const totalCriteriaPoints =
-    current.criteria.reduce(
-      (total, criterion) =>
-        total + criterion.maxScore,
-      0,
-    );
-
-  /* ========================================================
-     RENDER
-  ======================================================== */
-
   return (
-    <div
-      className="fixed inset-0 z-[130] flex items-center justify-center bg-black/45 p-3 backdrop-blur-sm sm:p-5"
-      onMouseDown={(event) => {
-        if (
-          event.target ===
-          event.currentTarget
-        ) {
-          onClose();
-        }
-      }}
-    >
+    <div className="fixed inset-0 z-[600] overflow-y-auto bg-slate-950/50 p-3 backdrop-blur-sm sm:p-5">
 
-      <div className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div className="flex min-h-full items-center justify-center">
 
-        {/* HEADER */}
+        <div className="flex max-h-[94vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
 
-        <div className="flex shrink-0 items-start justify-between border-b border-[#eef0f2] px-6 py-5">
+          {/* =================================================
+              HEADER
+          ================================================= */}
 
-          <div>
+          <div className="flex shrink-0 items-start justify-between border-b border-slate-200 p-5 sm:p-6">
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="min-w-0 pr-4">
 
-              <span
-                className={`rounded-full px-2.5 py-1 text-[9px] font-bold ${
-                  current.type ===
-                  "Written Exam"
-                    ? "bg-violet-50 text-violet-700"
-                    : "bg-emerald-50 text-emerald-700"
-                }`}
-              >
-                {current.type}
-              </span>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Participant Details
+              </p>
 
-              <span
-                className={`rounded-full px-2.5 py-1 text-[9px] font-bold ${
-                  current.status ===
-                  "Published"
-                    ? "bg-emerald-50 text-emerald-700"
-                    : "bg-amber-50 text-amber-700"
-                }`}
-              >
-                {current.status}
-              </span>
-
-            </div>
-
-            <h2 className="mt-2 text-lg font-bold">
-              {current.title}
-            </h2>
-
-            <p className="mt-1 text-xs text-gray-500">
-              {current.training}
-            </p>
-
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-lg text-gray-500 transition hover:bg-gray-200"
-          >
-            ×
-          </button>
-
-        </div>
-
-        {/* BODY */}
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-
-          {/* WRITTEN EXAM */}
-
-          {current.type ===
-            "Written Exam" && (
-            <div className="space-y-4">
-
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-
-                <div>
-
-                  <h3 className="text-sm font-bold">
-                    Exam Questions
-                  </h3>
-
-                  <p className="mt-1 text-[10px] text-gray-400">
+              {submission && (
+                <>
+                  <h2 className="mt-1 text-xl font-bold text-slate-900 sm:text-2xl">
                     {
-                      current.questions
-                        .length
-                    }{" "}
-                    questions ·{" "}
+                      submission.participantName
+                    }
+                  </h2>
+
+                  <p className="mt-1 text-sm text-slate-500">
                     {
-                      totalQuestionPoints
-                    }{" "}
-                    points
+                      submission.participantEmail
+                    }
                   </p>
-
-                </div>
-
-                <button
-                  type="button"
-                  onClick={
-                    openAddQuestion
-                  }
-                  className="rounded-xl bg-[#191c1e] px-4 py-2.5 text-[10px] font-semibold text-white transition hover:opacity-90"
-                >
-                  + Add Question
-                </button>
-
-              </div>
-
-              {current.questions
-                .length === 0 ? (
-                <EmptyBuilder
-                  text="No questions yet. Add questions to build this written exam."
-                />
-              ) : (
-                <div className="space-y-3">
-
-                  {current.questions.map(
-                    (
-                      question,
-                      index,
-                    ) => (
-                      <div
-                        key={
-                          question.id
-                        }
-                        className="rounded-2xl border border-[#e7e9ec] p-5"
-                      >
-
-                        <div className="flex gap-4">
-
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#191c1e] text-[10px] font-bold text-white">
-                            {index + 1}
-                          </div>
-
-                          <div className="min-w-0 flex-1">
-
-                            <div className="flex items-start justify-between gap-3">
-
-                              <p className="text-xs font-semibold leading-5">
-                                {
-                                  question.question
-                                }
-                              </p>
-
-                              <span className="shrink-0 rounded-lg bg-gray-100 px-2 py-1 text-[9px] font-bold text-gray-500">
-                                {
-                                  question.points
-                                }{" "}
-                                pts
-                              </span>
-
-                            </div>
-
-                            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-
-                              {question.choices.map(
-                                (
-                                  choice,
-                                ) => (
-                                  <div
-                                    key={
-                                      choice
-                                    }
-                                    className={`rounded-xl border px-3 py-2.5 text-[10px] ${
-                                      choice ===
-                                      question.correctAnswer
-                                        ? "border-emerald-200 bg-emerald-50 font-semibold text-emerald-700"
-                                        : "border-[#eef0f2] bg-[#fafbfc] text-gray-600"
-                                    }`}
-                                  >
-                                    {choice ===
-                                    question.correctAnswer
-                                      ? "✓ "
-                                      : "○ "}
-
-                                    {
-                                      choice
-                                    }
-                                  </div>
-                                ),
-                              )}
-
-                            </div>
-
-                            <div className="mt-4 flex gap-2">
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  editQuestion(
-                                    question,
-                                  )
-                                }
-                                className="rounded-lg border border-[#e7e9ec] px-3 py-2 text-[10px] font-semibold text-gray-600 transition hover:bg-gray-50"
-                              >
-                                Edit
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  deleteQuestion(
-                                    question.id,
-                                  )
-                                }
-                                className="rounded-lg bg-red-50 px-3 py-2 text-[10px] font-semibold text-red-600 transition hover:bg-red-100"
-                              >
-                                Delete
-                              </button>
-
-                            </div>
-
-                          </div>
-
-                        </div>
-
-                      </div>
-                    ),
-                  )}
-
-                </div>
+                </>
               )}
 
             </div>
-          )}
-
-          {/* PRACTICAL */}
-
-          {current.type ===
-            "Practical Assessment" && (
-            <div className="space-y-4">
-
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-
-                <div>
-
-                  <h3 className="text-sm font-bold">
-                    Assessment Criteria
-                  </h3>
-
-                  <p className="mt-1 text-[10px] text-gray-400">
-                    {
-                      current.criteria
-                        .length
-                    }{" "}
-                    criteria ·{" "}
-                    {
-                      totalCriteriaPoints
-                    }{" "}
-                    total points
-                  </p>
-
-                </div>
-
-                <button
-                  type="button"
-                  onClick={
-                    openAddCriterion
-                  }
-                  className="rounded-xl bg-[#191c1e] px-4 py-2.5 text-[10px] font-semibold text-white transition hover:opacity-90"
-                >
-                  + Add Criterion
-                </button>
-
-              </div>
-
-              {current.criteria
-                .length === 0 ? (
-                <EmptyBuilder
-                  text="No criteria yet. Add the criteria that the trainer will use when grading the practical assessment."
-                />
-              ) : (
-                <div className="space-y-3">
-
-                  {current.criteria.map(
-                    (
-                      criterion,
-                      index,
-                    ) => (
-                      <div
-                        key={
-                          criterion.id
-                        }
-                        className="rounded-2xl border border-[#e7e9ec] p-5"
-                      >
-
-                        <div className="flex gap-4">
-
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-[10px] font-bold text-emerald-700">
-                            {index + 1}
-                          </div>
-
-                          <div className="min-w-0 flex-1">
-
-                            <div className="flex items-start justify-between gap-3">
-
-                              <div>
-
-                                <p className="text-xs font-semibold">
-                                  {
-                                    criterion.name
-                                  }
-                                </p>
-
-                                <p className="mt-1 text-[10px] leading-5 text-gray-400">
-                                  {
-                                    criterion.description ||
-                                    "No description."
-                                  }
-                                </p>
-
-                              </div>
-
-                              <span className="shrink-0 rounded-lg bg-gray-100 px-2.5 py-1.5 text-[9px] font-bold text-gray-600">
-                                {
-                                  criterion.maxScore
-                                }{" "}
-                                pts
-                              </span>
-
-                            </div>
-
-                            <div className="mt-4 flex gap-2">
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  editCriterion(
-                                    criterion,
-                                  )
-                                }
-                                className="rounded-lg border border-[#e7e9ec] px-3 py-2 text-[10px] font-semibold text-gray-600 transition hover:bg-gray-50"
-                              >
-                                Edit
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  deleteCriterion(
-                                    criterion.id,
-                                  )
-                                }
-                                className="rounded-lg bg-red-50 px-3 py-2 text-[10px] font-semibold text-red-600 transition hover:bg-red-100"
-                              >
-                                Delete
-                              </button>
-
-                            </div>
-
-                          </div>
-
-                        </div>
-
-                      </div>
-                    ),
-                  )}
-
-                </div>
-              )}
-
-            </div>
-          )}
-
-        </div>
-
-        {/* FOOTER */}
-
-        <div className="flex shrink-0 flex-col gap-3 border-t border-[#eef0f2] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-
-          <div className="text-[10px] text-gray-400">
-            {current.type ===
-            "Written Exam"
-              ? `${current.questions.length} questions · ${totalQuestionPoints} points`
-              : `${current.criteria.length} criteria · ${totalCriteriaPoints} points`}
-          </div>
-
-          <div className="flex gap-3">
 
             <button
               type="button"
               onClick={onClose}
-              className="rounded-xl border border-[#e7e9ec] px-5 py-2.5 text-[11px] font-semibold text-gray-600 transition hover:bg-gray-50"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
             >
-              Cancel
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                onSave(current);
-
-                onClose();
-              }}
-              className="rounded-xl bg-[#191c1e] px-5 py-2.5 text-[11px] font-semibold text-white transition hover:opacity-90"
-            >
-              Save Content
+              <X className="h-5 w-5" />
             </button>
 
           </div>
 
-        </div>
+          {/* =================================================
+              LOADING
+          ================================================= */}
 
-      </div>
+          {isLoading && (
+            <div className="flex min-h-[300px] items-center justify-center p-8">
 
-      {/* QUESTION FORM */}
+              <div className="flex items-center gap-3">
 
-      {showQuestionForm && (
-        <QuestionForm
-          form={questionForm}
-          setForm={
-            setQuestionForm
-          }
-          editing={
-            editingQuestion
-          }
-          onClose={
-            closeQuestionForm
-          }
-          onSave={
-            saveQuestion
-          }
-        />
-      )}
+                <Spinner />
 
-      {/* CRITERION FORM */}
-
-      {showCriterionForm && (
-        <CriterionForm
-          form={criterionForm}
-          setForm={
-            setCriterionForm
-          }
-          editing={
-            editingCriterion
-          }
-          onClose={
-            closeCriterionForm
-          }
-          onSave={
-            saveCriterion
-          }
-        />
-      )}
-
-    </div>
-  );
-}
-
-/* ==========================================================
-   QUESTION FORM
-========================================================== */
-
-function QuestionForm({
-  form,
-  setForm,
-  editing,
-  onClose,
-  onSave,
-}: {
-  form: typeof emptyQuestion;
-
-  setForm: Dispatch<
-    SetStateAction<
-      typeof emptyQuestion
-    >
-  >;
-
-  editing: Question | null;
-
-  onClose: () => void;
-
-  onSave: () => void;
-}) {
-  function updateChoice(
-    index: number,
-    value: string,
-  ) {
-    setForm((current) => {
-      const previousChoice =
-        current.choices[index];
-
-      const choices = [
-        ...current.choices,
-      ];
-
-      choices[index] = value;
-
-      let correctAnswer =
-        current.correctAnswer;
-
-      if (
-        previousChoice ===
-        current.correctAnswer
-      ) {
-        correctAnswer = value;
-      }
-
-      return {
-        ...current,
-
-        choices,
-
-        correctAnswer,
-      };
-    });
-  }
-
-  return (
-    <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/50 p-3 backdrop-blur-sm sm:p-5">
-
-      <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-
-        <div className="flex shrink-0 items-start justify-between border-b border-[#eef0f2] px-6 py-5">
-
-          <div>
-
-            <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-violet-500">
-              Written Exam
-            </p>
-
-            <h2 className="mt-1 text-lg font-bold">
-              {editing
-                ? "Edit Question"
-                : "Add Question"}
-            </h2>
-
-            <p className="mt-1 text-xs text-gray-500">
-              Create a multiple-choice
-              question.
-            </p>
-
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-lg text-gray-500 transition hover:bg-gray-200"
-          >
-            ×
-          </button>
-
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-
-          <div className="space-y-5">
-
-            {/* QUESTION */}
-
-            <div>
-
-              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                Question
-              </label>
-
-              <textarea
-                value={
-                  form.question
-                }
-                onChange={(event) =>
-                  setForm(
-                    (current) => ({
-                      ...current,
-
-                      question:
-                        event.target
-                          .value,
-                    }),
-                  )
-                }
-                rows={4}
-                placeholder="Enter your question..."
-                className="w-full resize-none rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 py-3 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
-              />
-
-            </div>
-
-            {/* CHOICES */}
-
-            <div>
-
-              <div className="flex items-center justify-between">
-
-                <label className="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Answer Choices
-                </label>
-
-                <span className="text-[9px] text-gray-400">
-                  Select the correct answer
+                <span className="text-sm font-medium text-slate-700">
+                  Loading participant details...
                 </span>
 
               </div>
 
-              <div className="mt-3 space-y-3">
+            </div>
+          )}
 
-                {form.choices.map(
-                  (
-                    choice,
-                    index,
-                  ) => (
-                    <div
-                      key={index}
-                      className={`flex items-center gap-3 rounded-xl border p-2 transition ${
-                        form.correctAnswer ===
-                          choice &&
-                        choice.trim()
-                          ? "border-emerald-200 bg-emerald-50/50"
-                          : "border-transparent"
-                      }`}
-                    >
+          {/* =================================================
+              ERROR
+          ================================================= */}
 
-                      <input
-                        type="radio"
-                        name="correct-answer"
-                        checked={
-                          form.correctAnswer ===
-                            choice &&
-                          choice.trim() !==
-                            ""
-                        }
-                        onChange={() =>
-                          setForm(
-                            (
-                              current,
-                            ) => ({
-                              ...current,
+          {!isLoading &&
+            error && (
+              <div className="p-5 sm:p-6">
 
-                              correctAnswer:
-                                choice,
-                            }),
-                          )
-                        }
-                        className="h-4 w-4 accent-[#191c1e]"
-                      />
+                <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
 
-                      <input
-                        value={
-                          choice
-                        }
-                        onChange={(
-                          event,
-                        ) =>
-                          updateChoice(
-                            index,
-                            event
-                              .target
-                              .value,
-                          )
-                        }
-                        placeholder={`Choice ${
-                          index + 1
-                        }`}
-                        className="h-11 flex-1 rounded-xl border border-[#e7e9ec] bg-white px-3 text-xs outline-none transition focus:border-gray-300"
-                      />
+                  <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
 
-                    </div>
-                  ),
-                )}
+                  <div>
+                    <p className="text-sm font-semibold text-red-800">
+                      Unable to load submission
+                    </p>
+
+                    <p className="mt-1 text-sm text-red-700">
+                      {error}
+                    </p>
+                  </div>
+
+                </div>
 
               </div>
+            )}
 
-            </div>
+          {/* =================================================
+              BODY
+          ================================================= */}
 
-            {/* POINTS */}
+          {!isLoading &&
+            !error &&
+            submission && (
+              <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
 
-            <div>
+                {/* =================================================
+                    RESULT SUMMARY
+                ================================================= */}
 
-              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                Points
-              </label>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
 
-              <input
-                type="number"
-                min={1}
-                value={
-                  form.points
-                }
-                onChange={(event) =>
-                  setForm(
-                    (current) => ({
-                      ...current,
+                  <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
 
-                      points:
-                        Number(
-                          event.target
-                            .value,
+                    <div>
+
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Assessment Result
+                      </p>
+
+                      <div className="mt-2 flex items-center gap-3">
+
+                        <p className="text-3xl font-bold text-slate-900">
+                          {getPercentage(
+                            submission.percentage,
+                          )}
+                          %
+                        </p>
+
+                        <ResultBadge
+                          passed={
+                            submission.isPassed
+                          }
+                        />
+
+                      </div>
+
+                      <p className="mt-2 text-sm text-slate-500">
+                        Submitted{" "}
+                        {formatDateTime(
+                          submission.submittedAt,
+                        )}
+                      </p>
+
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+
+                      <ScoreItem
+                        label="Score"
+                        value={`${submission.earnedPoints}/${submission.totalPoints}`}
+                      />
+
+                      <ScoreItem
+                        label="Correct"
+                        value={`${submission.correctAnswers}/${submission.totalQuestions}`}
+                      />
+
+                      <ScoreItem
+                        label="Attempt"
+                        value={`#${submission.attemptNumber}`}
+                      />
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+                {/* =================================================
+                    ADDITIONAL DETAILS
+                ================================================= */}
+
+                <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+
+                  <DetailCard
+                    label="Status"
+                    value={
+                      submission.status ||
+                      "Completed"
+                    }
+                  />
+
+                  <DetailCard
+                    label="Evaluated"
+                    value={formatDateTime(
+                      submission.evaluatedAt,
+                    )}
+                  />
+
+                  <DetailCard
+                    label="Total Questions"
+                    value={String(
+                      submission.totalQuestions,
+                    )}
+                  />
+
+                </div>
+
+                {/* =================================================
+                    ANSWER REVIEW
+                ================================================= */}
+
+                <div className="mt-7">
+
+                  <div className="mb-4">
+
+                    <h3 className="text-lg font-bold text-slate-900">
+                      Answer Review
+                    </h3>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                      Review the participant's answers
+                      and automatically calculated score.
+                    </p>
+
+                  </div>
+
+                  {!submission.answers ||
+                    submission.answers.length ===
+                      0 ? (
+                    <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center">
+
+                      <FileText className="mx-auto h-8 w-8 text-slate-300" />
+
+                      <p className="mt-3 text-sm font-medium text-slate-500">
+                        No answer details available.
+                      </p>
+
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+
+                      {submission.answers.map(
+                        (answer) => (
+                          <AnswerCard
+                            key={
+                              answer.questionId
+                            }
+                            answer={
+                              answer
+                            }
+                          />
                         ),
-                    }),
-                  )
-                }
-                className="h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
-              />
+                      )}
 
-            </div>
+                    </div>
+                  )}
 
-          </div>
+                </div>
 
-        </div>
+              </div>
+            )}
 
-        <div className="flex shrink-0 justify-end gap-3 border-t border-[#eef0f2] px-6 py-4">
+          {/* =================================================
+              FOOTER
+          ================================================= */}
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl border border-[#e7e9ec] px-5 py-2.5 text-[11px] font-semibold text-gray-600 transition hover:bg-gray-50"
-          >
-            Cancel
-          </button>
+          <div className="flex shrink-0 justify-end border-t border-slate-200 px-5 py-4 sm:px-6">
 
-          <button
-            type="button"
-            onClick={onSave}
-            className="rounded-xl bg-[#191c1e] px-5 py-2.5 text-[11px] font-semibold text-white transition hover:opacity-90"
-          >
-            {editing
-              ? "Save Question"
-              : "Add Question"}
-          </button>
-
-        </div>
-
-      </div>
-    </div>
-  );
-}
-
-/* ==========================================================
-   CRITERION FORM
-========================================================== */
-
-function CriterionForm({
-  form,
-  setForm,
-  editing,
-  onClose,
-  onSave,
-}: {
-  form: typeof emptyCriterion;
-
-  setForm: Dispatch<
-    SetStateAction<
-      typeof emptyCriterion
-    >
-  >;
-
-  editing: Criterion | null;
-
-  onClose: () => void;
-
-  onSave: () => void;
-}) {
-  return (
-    <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/50 p-3 backdrop-blur-sm sm:p-5">
-
-      <div className="flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-
-        <div className="flex shrink-0 items-start justify-between border-b border-[#eef0f2] px-6 py-5">
-
-          <div>
-
-            <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-600">
-              Practical Assessment
-            </p>
-
-            <h2 className="mt-1 text-lg font-bold">
-              {editing
-                ? "Edit Criterion"
-                : "Add Criterion"}
-            </h2>
-
-            <p className="mt-1 text-xs text-gray-500">
-              Define how the participant
-              will be evaluated.
-            </p>
-
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-lg text-gray-500 transition hover:bg-gray-200"
-          >
-            ×
-          </button>
-
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-
-          <div className="space-y-5">
-
-            {/* NAME */}
-
-            <div>
-
-              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                Criterion Name
-              </label>
-
-              <input
-                value={form.name}
-                onChange={(event) =>
-                  setForm(
-                    (current) => ({
-                      ...current,
-
-                      name:
-                        event.target
-                          .value,
-                    }),
-                  )
-                }
-                placeholder="e.g. Hardware Installation"
-                className="h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
-              />
-
-            </div>
-
-            {/* DESCRIPTION */}
-
-            <div>
-
-              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                Description
-              </label>
-
-              <textarea
-                value={
-                  form.description
-                }
-                onChange={(event) =>
-                  setForm(
-                    (current) => ({
-                      ...current,
-
-                      description:
-                        event.target
-                          .value,
-                    }),
-                  )
-                }
-                rows={4}
-                placeholder="Describe what the participant is expected to demonstrate..."
-                className="w-full resize-none rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 py-3 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
-              />
-
-            </div>
-
-            {/* MAX SCORE */}
-
-            <div>
-
-              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                Maximum Score
-              </label>
-
-              <input
-                type="number"
-                min={1}
-                value={
-                  form.maxScore
-                }
-                onChange={(event) =>
-                  setForm(
-                    (current) => ({
-                      ...current,
-
-                      maxScore:
-                        Number(
-                          event.target
-                            .value,
-                        ),
-                    }),
-                  )
-                }
-                className="h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
-              />
-
-            </div>
-
-          </div>
-
-        </div>
-
-        <div className="flex shrink-0 justify-end gap-3 border-t border-[#eef0f2] px-6 py-4">
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl border border-[#e7e9ec] px-5 py-2.5 text-[11px] font-semibold text-gray-600 transition hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-
-          <button
-            type="button"
-            onClick={onSave}
-            className="rounded-xl bg-[#191c1e] px-5 py-2.5 text-[11px] font-semibold text-white transition hover:opacity-90"
-          >
-            {editing
-              ? "Save Criterion"
-              : "Add Criterion"}
-          </button>
-
-        </div>
-
-      </div>
-    </div>
-  );
-}
-
-/* ==========================================================
-   PREVIEW MODAL
-========================================================== */
-
-function PreviewModal({
-  assessment,
-  onClose,
-}: {
-  assessment: Assessment;
-
-  onClose: () => void;
-}) {
-  const isWritten =
-    assessment.type ===
-    "Written Exam";
-
-  return (
-    <div
-      className="fixed inset-0 z-[140] flex items-center justify-center bg-black/45 p-3 backdrop-blur-sm sm:p-5"
-      onMouseDown={(event) => {
-        if (
-          event.target ===
-          event.currentTarget
-        ) {
-          onClose();
-        }
-      }}
-    >
-
-      <div className="flex max-h-[94vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-
-        <div className="flex shrink-0 items-start justify-between border-b border-[#eef0f2] px-6 py-5">
-
-          <div>
-
-            <span
-              className={`inline-flex rounded-full px-2.5 py-1 text-[9px] font-bold ${
-                isWritten
-                  ? "bg-violet-50 text-violet-700"
-                  : "bg-emerald-50 text-emerald-700"
-              }`}
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              {assessment.type}
-            </span>
-
-            <h2 className="mt-3 text-xl font-bold">
-              {assessment.title}
-            </h2>
-
-            <p className="mt-1 text-xs text-gray-500">
-              Passing Score:{" "}
-              {
-                assessment.passingScore
-              }
-              %
-            </p>
+              Close
+            </button>
 
           </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-lg text-gray-500 transition hover:bg-gray-200"
-          >
-            ×
-          </button>
-
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-
-          {/* INFO */}
-
-          <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-
-            <PreviewInfo
-              label="Duration"
-              value={`${assessment.duration} min`}
-            />
-
-            <PreviewInfo
-              label="Attempts"
-              value={String(
-                assessment.attemptsAllowed,
-              )}
-            />
-
-            <PreviewInfo
-              label="Status"
-              value={
-                assessment.status
-              }
-            />
-
-          </div>
-
-          {/* INSTRUCTIONS */}
-
-          {assessment.instructions && (
-            <div className="mb-5 rounded-2xl border border-blue-100 bg-blue-50 p-5">
-
-              <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-blue-500">
-                Instructions
-              </p>
-
-              <p className="mt-2 text-xs leading-6 text-blue-800">
-                {
-                  assessment.instructions
-                }
-              </p>
-
-            </div>
-          )}
-
-          {/* DESCRIPTION */}
-
-          {assessment.description && (
-            <div className="mb-5 rounded-2xl border border-[#e7e9ec] bg-[#fafbfc] p-5">
-
-              <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                About this assessment
-              </p>
-
-              <p className="mt-2 text-xs leading-6 text-gray-600">
-                {
-                  assessment.description
-                }
-              </p>
-
-            </div>
-          )}
-
-          {/* WRITTEN */}
-
-          {isWritten ? (
-            <div className="space-y-4">
-
-              {assessment.questions
-                .length === 0 ? (
-                <EmptyBuilder
-                  text="No questions have been added yet."
-                />
-              ) : (
-                assessment.questions.map(
-                  (
-                    question,
-                    index,
-                  ) => (
-                    <div
-                      key={
-                        question.id
-                      }
-                      className="rounded-2xl border border-[#e7e9ec] p-5"
-                    >
-
-                      <div className="flex gap-4">
-
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#191c1e] text-[10px] font-bold text-white">
-                          {index + 1}
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-
-                          <div className="flex items-start justify-between gap-3">
-
-                            <p className="text-sm font-semibold leading-6">
-                              {
-                                question.question
-                              }
-                            </p>
-
-                            <span className="shrink-0 text-[9px] font-bold text-gray-400">
-                              {
-                                question.points
-                              }{" "}
-                              pts
-                            </span>
-
-                          </div>
-
-                          <div className="mt-4 space-y-2">
-
-                            {question.choices.map(
-                              (
-                                choice,
-                              ) => (
-                                <div
-                                  key={
-                                    choice
-                                  }
-                                  className="rounded-xl border border-[#eef0f2] bg-[#fafbfc] px-4 py-3 text-xs text-gray-600"
-                                >
-                                  ○{" "}
-                                  {
-                                    choice
-                                  }
-                                </div>
-                              ),
-                            )}
-
-                          </div>
-
-                        </div>
-
-                      </div>
-
-                    </div>
-                  ),
-                )
-              )}
-
-            </div>
-          ) : (
-            <div className="space-y-3">
-
-              {assessment.criteria
-                .length === 0 ? (
-                <EmptyBuilder
-                  text="No assessment criteria have been added yet."
-                />
-              ) : (
-                assessment.criteria.map(
-                  (
-                    criterion,
-                    index,
-                  ) => (
-                    <div
-                      key={
-                        criterion.id
-                      }
-                      className="rounded-2xl border border-[#e7e9ec] p-5"
-                    >
-
-                      <div className="flex gap-4">
-
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-[10px] font-bold text-emerald-700">
-                          {index + 1}
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-
-                          <div className="flex items-start justify-between gap-3">
-
-                            <div>
-
-                              <p className="text-xs font-semibold">
-                                {
-                                  criterion.name
-                                }
-                              </p>
-
-                              <p className="mt-1 text-[10px] leading-5 text-gray-400">
-                                {
-                                  criterion.description ||
-                                  "No description."
-                                }
-                              </p>
-
-                            </div>
-
-                            <span className="shrink-0 rounded-lg bg-gray-100 px-2.5 py-1.5 text-[9px] font-bold text-gray-600">
-                              {
-                                criterion.maxScore
-                              }{" "}
-                              pts
-                            </span>
-
-                          </div>
-
-                        </div>
-
-                      </div>
-
-                    </div>
-                  ),
-                )
-              )}
-
-            </div>
-          )}
-
-        </div>
-
-        <div className="flex shrink-0 justify-end border-t border-[#eef0f2] px-6 py-4">
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl bg-[#191c1e] px-5 py-2.5 text-[11px] font-semibold text-white transition hover:opacity-90"
-          >
-            Close Preview
-          </button>
 
         </div>
 
       </div>
+
     </div>
   );
 }
 
-/* ==========================================================
-   PREVIEW INFO
-========================================================== */
+/* =========================================================
+   DETAIL CARD
+========================================================= */
 
-function PreviewInfo({
+function DetailCard({
   label,
   value,
 }: {
   label: string;
-
   value: string;
 }) {
   return (
-    <div className="rounded-xl bg-[#f8f9fa] p-4">
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
 
-      <p className="text-[9px] font-bold uppercase tracking-[0.08em] text-gray-400">
+      <p className="text-xs font-medium text-slate-400">
         {label}
       </p>
 
-      <p className="mt-1 text-xs font-bold text-gray-700">
+      <p className="mt-1 text-sm font-bold text-slate-800">
         {value}
       </p>
 
@@ -3188,134 +1240,183 @@ function PreviewInfo({
   );
 }
 
-/* ==========================================================
-   DELETE MODAL
-========================================================== */
+/* =========================================================
+   SCORE ITEM
+========================================================= */
 
-function DeleteModal({
-  assessment,
-  onClose,
-  onConfirm,
+function ScoreItem({
+  label,
+  value,
 }: {
-  assessment: Assessment;
-
-  onClose: () => void;
-
-  onConfirm: () => void;
+  label: string;
+  value: string;
 }) {
   return (
-    <div
-      className="fixed inset-0 z-[180] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm"
-      onMouseDown={(event) => {
-        if (
-          event.target ===
-          event.currentTarget
-        ) {
-          onClose();
-        }
-      }}
-    >
+    <div className="rounded-xl bg-white px-4 py-3 shadow-sm">
 
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+      <p className="text-xs text-slate-400">
+        {label}
+      </p>
 
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-50 text-lg font-bold text-red-600">
-          !
-        </div>
-
-        <h2 className="mt-5 text-xl font-bold">
-          Delete Assessment?
-        </h2>
-
-        <p className="mt-2 text-sm leading-6 text-gray-500">
-          Are you sure you want to delete{" "}
-          <span className="font-semibold text-gray-700">
-            {assessment.title}
-          </span>
-          ?
-        </p>
-
-        <div className="mt-6 rounded-xl border border-red-100 bg-red-50 p-3">
-
-          <p className="text-[10px] leading-5 text-red-700">
-            This will also remove its
-            questions or practical
-            assessment criteria from this
-            mock data.
-          </p>
-
-        </div>
-
-        <div className="mt-6 flex gap-3">
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 rounded-xl border border-[#e7e9ec] py-3 text-xs font-semibold text-gray-600 transition hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-
-          <button
-            type="button"
-            onClick={onConfirm}
-            className="flex-1 rounded-xl bg-red-600 py-3 text-xs font-semibold text-white transition hover:bg-red-700"
-          >
-            Delete
-          </button>
-
-        </div>
-
-      </div>
-    </div>
-  );
-}
-
-/* ==========================================================
-   EMPTY BUILDER
-========================================================== */
-
-function EmptyBuilder({
-  text,
-}: {
-  text: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-dashed border-[#dfe2e5] px-6 py-14 text-center">
-
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-lg text-gray-400">
-        +
-      </div>
-
-      <p className="mx-auto mt-4 max-w-md text-xs leading-5 text-gray-500">
-        {text}
+      <p className="mt-1 text-sm font-bold text-slate-900">
+        {value}
       </p>
 
     </div>
   );
 }
 
-/* ==========================================================
-   HELPERS
-========================================================== */
+/* =========================================================
+   ANSWER CARD
+========================================================= */
 
-function getTrainingCode(
-  training: string,
-) {
+function AnswerCard({
+  answer,
+}: {
+  answer:
+    TrainerAssessmentSubmission["answers"][number];
+}) {
+  const correct =
+    answer.isCorrect;
+
   return (
-    trainingOptions.find(
-      (item) =>
-        item.name === training,
-    )?.code ?? ""
+    <div className="rounded-2xl border border-slate-200 bg-white p-5">
+
+      {/* QUESTION */}
+
+      <div className="flex items-start justify-between gap-4">
+
+        <div className="flex min-w-0 gap-3">
+
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-700">
+            {
+              answer.questionNumber
+            }
+          </div>
+
+          <div className="min-w-0">
+
+            <p className="text-sm font-semibold leading-6 text-slate-900">
+              {
+                answer.questionText
+              }
+            </p>
+
+            <p className="mt-1 text-xs text-slate-400">
+              {answer.points} point
+              {answer.points === 1
+                ? ""
+                : "s"}
+            </p>
+
+          </div>
+
+        </div>
+
+        <ResultBadge
+          passed={correct}
+        />
+
+      </div>
+
+      {/* PARTICIPANT ANSWER */}
+
+      <div
+        className={
+          correct
+            ? "mt-4 rounded-xl border border-emerald-100 bg-emerald-50/50 p-4"
+            : "mt-4 rounded-xl border border-red-100 bg-red-50/50 p-4"
+        }
+      >
+
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          Participant Answer
+        </p>
+
+        <div className="mt-2 text-sm text-slate-700">
+
+          {answer.selectedChoiceLabel && (
+            <span className="mr-2 font-bold text-slate-900">
+              {
+                answer.selectedChoiceLabel
+              }
+              .
+            </span>
+          )}
+
+          <span>
+            {
+              answer.selectedChoiceText ||
+              "No answer"
+            }
+          </span>
+
+        </div>
+
+      </div>
+
+      {/* CORRECT ANSWER */}
+
+      {!correct && (
+        <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Correct Answer
+          </p>
+
+          <div className="mt-2 text-sm text-slate-700">
+
+            {answer.correctChoiceLabel && (
+              <span className="mr-2 font-bold text-slate-900">
+                {
+                  answer.correctChoiceLabel
+                }
+                .
+              </span>
+            )}
+
+            <span>
+              {
+                answer.correctChoiceText ||
+                "—"
+              }
+            </span>
+
+          </div>
+
+        </div>
+      )}
+
+      {/* POINTS */}
+
+      <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
+
+        <span className="text-xs text-slate-500">
+          Earned points
+        </span>
+
+        <span className="text-sm font-bold text-slate-900">
+          {
+            answer.earnedPoints
+          }
+          /
+          {
+            answer.points
+          }
+        </span>
+
+      </div>
+
+    </div>
   );
 }
 
-function getTodayDate() {
-  return new Date().toLocaleDateString(
-    "en-US",
-    {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    },
+/* =========================================================
+   SPINNER
+========================================================= */
+
+function Spinner() {
+  return (
+    <span className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-slate-700" />
   );
 }

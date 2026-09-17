@@ -11,15 +11,19 @@ import type {
   AdminAssessmentQuestion,
   AssessmentAttempt,
   AssessmentResult,
+  AssessmentRetakeRequest,
   CreateAssessmentChoiceRequest,
   CreateAssessmentQuestionRequest,
+  CreateAssessmentRetakeRequest,
   CreateWrittenAssessmentRequest,
   ParticipantAssessment,
+  ReviewAssessmentRetakeRequest,
   SubmitAssessmentRequest,
   UpdateAssessmentChoiceRequest,
   UpdateAssessmentQuestionRequest,
   UpdateWrittenAssessmentRequest,
   WrittenAssessment,
+  TrainerAssessmentSubmission,
 } from "@repo/types";
 
 
@@ -386,6 +390,72 @@ export class WrittenAssessmentApi {
     );
   }
 
+  // =========================================================
+// PARTICIPANT - RETAKE REQUEST
+// =========================================================
+
+async requestRetake(
+  request: CreateAssessmentRetakeRequest,
+): Promise<AssessmentRetakeRequest> {
+
+  return this.api.request<AssessmentRetakeRequest>(
+    WrittenAssessmentEndpoints.requestRetake(),
+    {
+      method: "POST",
+
+      body: request,
+    },
+  );
+}
+
+
+async getMyRetakeRequests(): Promise<
+  AssessmentRetakeRequest[]
+> {
+
+  return this.api.request<AssessmentRetakeRequest[]>(
+    WrittenAssessmentEndpoints.getMyRetakeRequests(),
+    {
+      method: "GET",
+    },
+  );
+}
+
+
+// =========================================================
+// ADMIN - RETAKE REQUESTS
+// =========================================================
+
+async getRetakeRequests(): Promise<
+  AssessmentRetakeRequest[]
+> {
+
+  return this.api.request<AssessmentRetakeRequest[]>(
+    WrittenAssessmentEndpoints.getRetakeRequests(),
+    {
+      method: "GET",
+    },
+  );
+}
+
+
+async reviewRetakeRequest(
+  requestId: string,
+  request: ReviewAssessmentRetakeRequest,
+): Promise<AssessmentRetakeRequest> {
+
+  return this.api.request<AssessmentRetakeRequest>(
+    WrittenAssessmentEndpoints.reviewRetakeRequest(
+      requestId,
+    ),
+    {
+      method: "PUT",
+
+      body: request,
+    },
+  );
+}
+
 async getParticipantAssessmentsByBatch(
   trainingBatchId: string
 ): Promise<ParticipantAssessment[]> {
@@ -397,6 +467,45 @@ async getParticipantAssessmentsByBatch(
     {
       method: "GET",
     }
+  );
+}
+
+// =========================================================
+// TRAINER - ASSESSMENT SUBMISSIONS
+// =========================================================
+
+async getTrainerSubmissions(
+  assessmentId: string,
+): Promise<TrainerAssessmentSubmission[]> {
+  return this.api.request<TrainerAssessmentSubmission[]>(
+    WrittenAssessmentEndpoints.getTrainerSubmissions(
+      assessmentId,
+    ),
+    {
+      method: "GET",
+    },
+  );
+}
+
+async getTrainerAssessments(): Promise<WrittenAssessment[]> {
+  return this.api.request<WrittenAssessment[]>(
+    WrittenAssessmentEndpoints.getTrainerAssessments(),
+    {
+      method: "GET",
+    },
+  );
+}
+
+async getTrainerSubmission(
+  attemptId: string,
+): Promise<TrainerAssessmentSubmission> {
+  return this.api.request<TrainerAssessmentSubmission>(
+    WrittenAssessmentEndpoints.getTrainerSubmission(
+      attemptId,
+    ),
+    {
+      method: "GET",
+    },
   );
 }
 

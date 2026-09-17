@@ -11,3 +11,4 @@ export * from "./admin";
 export * from "./attendance";
 export * from "./assessment";
 export * from "./Service";
+export * from "./auth";

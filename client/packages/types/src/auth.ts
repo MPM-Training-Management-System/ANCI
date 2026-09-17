@@ -17,7 +17,7 @@ export interface RegisterRequest {
     name: string;
     type: string;
   };
-  
+
   password: string;
 }
 
@@ -26,24 +26,36 @@ export interface RegisterResponse {
   message: string;
 }
 
+
+// =========================================================
+// OTP
+// =========================================================
+
 export interface VerifyOtpRequest {
   email: string;
   otpCode: string;
 }
-export interface SendOtpRequest{
+
+export interface SendOtpRequest {
   email: string;
 }
+
 export interface OtpResponse {
   success: boolean;
   message: string;
 }
 
-export interface LoginRequest{
+
+// =========================================================
+// LOGIN
+// =========================================================
+
+export interface LoginRequest {
   email: string;
   password: string;
 }
 
-export interface LoginUser{
+export interface LoginUser {
   id: string;
   email: string;
   fullName: string;
@@ -51,15 +63,61 @@ export interface LoginUser{
   status: string;
 }
 
-export interface LoginResponse{
+export interface LoginResponse {
   success: boolean;
   message: string;
   token: string;
   user: LoginUser;
-
 }
 
-export interface MeUser{
+
+// =========================================================
+// FORGOT PASSWORD
+// =========================================================
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+
+// =========================================================
+// VERIFY PASSWORD RESET OTP
+// =========================================================
+
+export interface VerifyResetOtpRequest {
+  email: string;
+  otpCode: string;
+}
+
+
+// =========================================================
+// RESET PASSWORD
+// =========================================================
+
+export interface ResetPasswordRequest {
+  email: string;
+  otpCode: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+
+// =========================================================
+// CHANGE PASSWORD
+// =========================================================
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+
+// =========================================================
+// CURRENT AUTHENTICATED USER
+// =========================================================
+
+export interface MeUser {
   id: string;
   email: string;
   fullName: string;
@@ -67,24 +125,30 @@ export interface MeUser{
   profileImage: string | null;
 }
 
-export interface MeResponse{
+export interface MeResponse {
   successs: boolean;
   user: MeUser;
 }
 
 
-
+// =========================================================
+// TRAINER REGISTRATION
+// =========================================================
 
 export interface RegisterTrainerRequest {
   fullName: string;
+
   firstName: string;
   middleName: string;
   lastName: string;
+
   birthDate: string;
   address: string;
   gender: string;
+
   email: string;
   mobileNumber?: string;
+
   password: string;
 
   specialization: string;
@@ -92,39 +156,35 @@ export interface RegisterTrainerRequest {
   yearsOfExperience?: number;
 
   certificationName?: string;
-
   certificationNumber?: string;
 
- profileImage?: File;
+  profileImage?: File;
 }
+
+
+// =========================================================
+// TRAINER PROFILE
+// =========================================================
 
 export interface TrainerProfile {
   id: string;
 
   userId: string;
-
   userCode: string;
 
   firstName: string;
-
   middleName: string;
-
   lastName: string;
 
   birthDate: string;
-
   address: string;
-
   gender: string;
 
   fullName: string;
-
   email: string;
-
   mobileNumber: string | null;
 
   specialization: string;
-
   bio: string | null;
 
   yearsOfExperience: number | null;
@@ -132,8 +192,5 @@ export interface TrainerProfile {
   profileImageUrl: string | null;
 
   isActive: boolean;
-
   activatedAt: string | null;
 }
-
-

@@ -1,6 +1,9 @@
 export interface ApiClientOptions {
   baseUrl: string;
-  getToken?: () => Promise<string | null> | string | null;
+
+  getToken?: () => string | null | Promise<string | null>;
+
+  onUnauthorized?: () => void;
 }
 
 export interface ApiRequestOptions

@@ -9,15 +9,19 @@ import type {
   AssessmentAttempt,
   AssessmentQuestion,
   AssessmentResult,
+  AssessmentRetakeRequest,
   CreateAssessmentChoiceRequest,
   CreateAssessmentQuestionRequest,
+  CreateAssessmentRetakeRequest,
   CreateWrittenAssessmentRequest,
   ParticipantAssessment,
+  ReviewAssessmentRetakeRequest,
   SubmitAssessmentRequest,
   UpdateAssessmentChoiceRequest,
   UpdateAssessmentQuestionRequest,
   UpdateWrittenAssessmentRequest,
   WrittenAssessment,
+  TrainerAssessmentSubmission,
 } from "@repo/types";
 
 import {
@@ -58,6 +62,13 @@ export function useWrittenAssessment(
   const [results, setResults] =
     useState<AssessmentResult[]>([]);
 
+    // PARTICIPANT - RETAKE REQUESTS
+const [retakeRequests, setRetakeRequests] =
+  useState<AssessmentRetakeRequest[]>([]);
+
+    const [trainerSubmissions, setTrainerSubmissions] =
+  useState<TrainerAssessmentSubmission[]>([]);
+
   const [isLoading, setIsLoading] =
     useState(false);
 
@@ -73,7 +84,44 @@ export function useWrittenAssessment(
     setError(null);
   }, []);
 
+const loadTrainerAssessments = useCallback(
+  async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
 
+      const data =
+        await assessmentApi.getTrainerAssessments();
+
+      const normalized =
+        Array.isArray(data)
+          ? data
+          : [];
+
+      setAssessments(normalized);
+
+      return normalized;
+    } catch (error) {
+      console.error(
+        "LOAD TRAINER ASSESSMENTS ERROR:",
+        error,
+      );
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to load your assessments.";
+
+      setError(message);
+      setAssessments([]);
+
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  },
+  [],
+);
   // =========================================================
   // ADMIN - ASSESSMENT
   // =========================================================
@@ -109,6 +157,70 @@ export function useWrittenAssessment(
     },
     [api],
   );
+
+  // =========================================================
+// TRAINER - ASSESSMENT SUBMISSIONS
+// =========================================================
+
+const loadTrainerSubmissions = useCallback(
+  async (
+    assessmentId: string,
+  ): Promise<TrainerAssessmentSubmission[]> => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const data =
+        await assessmentApi.getTrainerSubmissions(
+          assessmentId,
+        );
+
+      setTrainerSubmissions(data);
+
+      return data;
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to load assessment submissions.";
+
+      setError(message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  },
+  [api],
+);
+
+const loadTrainerSubmission = useCallback(
+  async (
+    attemptId: string,
+  ): Promise<TrainerAssessmentSubmission> => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const data =
+        await assessmentApi.getTrainerSubmission(
+          attemptId,
+        );
+
+      return data;
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to load assessment submission.";
+
+      setError(message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  },
+  [api],
+);
 
 const loadByBatchIdParticipantAssessment =
   useCallback(
@@ -865,7 +977,149 @@ const loadByBatchIdParticipantAssessment =
     },
     [api],
   );
+// =========================================================
+// PARTICIPANT - RETAKE REQUEST
+// =========================================================
 
+const requestRetake = useCallback(
+  async (
+    request: CreateAssessmentRetakeRequest,
+  ): Promise<AssessmentRetakeRequest> => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const data =
+        await assessmentApi.requestRetake(
+          request,
+        );
+
+      setRetakeRequests(current => [
+        data,
+        ...current,
+      ]);
+
+      return data;
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to submit retake request.";
+
+      setError(message);
+
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  },
+  [api],
+);
+
+
+const loadMyRetakeRequests = useCallback(
+  async (): Promise<AssessmentRetakeRequest[]> => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const data =
+        await assessmentApi
+          .getMyRetakeRequests();
+
+      setRetakeRequests(data);
+
+      return data;
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to load retake requests.";
+
+      setError(message);
+
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  },
+  [api],
+);
+
+// =========================================================
+// ADMIN - RETAKE REQUESTS
+// =========================================================
+
+const loadRetakeRequests = useCallback(
+  async (): Promise<AssessmentRetakeRequest[]> => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const data =
+        await assessmentApi
+          .getRetakeRequests();
+
+      setRetakeRequests(data);
+
+      return data;
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to load retake requests.";
+
+      setError(message);
+
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  },
+  [api],
+);
+
+
+const reviewRetakeRequest = useCallback(
+  async (
+    requestId: string,
+    request: ReviewAssessmentRetakeRequest,
+  ): Promise<AssessmentRetakeRequest> => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const data =
+        await assessmentApi
+          .reviewRetakeRequest(
+            requestId,
+            request,
+          );
+
+      setRetakeRequests(current =>
+        current.map(item =>
+          item.id === requestId
+            ? data
+            : item,
+        ),
+      );
+
+      return data;
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to review retake request.";
+
+      setError(message);
+
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  },
+  [api],
+);
 
   // =========================================================
   // RESET
@@ -880,6 +1134,7 @@ const loadByBatchIdParticipantAssessment =
     setResults([]);
     setError(null);
     setIsLoading(false);
+    setRetakeRequests([]);
   }, []);
 
 
@@ -921,17 +1176,31 @@ const loadByBatchIdParticipantAssessment =
     // AI generation
     generateFromDocument,
 
+    trainerSubmissions,
+loadTrainerSubmissions,
+loadTrainerSubmission,
+  loadTrainerAssessments,
+
     // admin choices
     createChoice,
     updateChoice,
     deleteChoice,
 
-    // participant
-    loadParticipantAssessment,
-    startAttempt,
-    loadAttempt,
-    submitAttempt,
-    loadMyResults,
-    loadByBatchIdParticipantAssessment
+   // participant
+loadParticipantAssessment,
+startAttempt,
+loadAttempt,
+submitAttempt,
+loadMyResults,
+loadByBatchIdParticipantAssessment,
+
+// participant - retake
+retakeRequests,
+requestRetake,
+loadMyRetakeRequests,
+
+// admin - retake
+loadRetakeRequests,
+reviewRetakeRequest,
   };
 }

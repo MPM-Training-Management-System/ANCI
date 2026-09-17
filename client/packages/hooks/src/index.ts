@@ -17,3 +17,5 @@ export * from "./useLearningMaterials";
 export * from "./useLearningProgress";
 export * from "./useWrittenAssessment";
 export * from "./useService";
+export * from "./useAdminUsers";
+export * from "./useForgotPassword";

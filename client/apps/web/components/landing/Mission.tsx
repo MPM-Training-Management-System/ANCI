@@ -1,5 +1,7 @@
 import Image from "next/image";
+
 import Tony from "@/assets/image/tony.jpg";
+
 import {
   ArrowRight,
   CheckCircle2,
@@ -24,19 +26,16 @@ export default function Mission() {
       <div className="pointer-events-none absolute -right-40 bottom-0 h-96 w-96 rounded-full bg-[#002b5c]/5 blur-[120px]" />
 
       <div className="container relative z-10 mx-auto px-6 lg:px-12">
-
         {/* ========================================================= */}
         {/* MAIN CONTENT */}
         {/* ========================================================= */}
 
         <div className="grid items-center gap-16 lg:grid-cols-2 lg:gap-24">
-
           {/* ===================================================== */}
           {/* LEFT - IMAGE */}
           {/* ===================================================== */}
 
           <div className="relative">
-
             {/* Glow */}
             <div className="absolute -inset-6 rounded-[50px] bg-[#C5A059]/10 blur-3xl" />
 
@@ -80,11 +79,9 @@ export default function Mission() {
                 "
               />
 
-              {/* Bottom Image Caption */}
+              {/* Image Caption */}
               <div className="absolute bottom-0 left-0 right-0 p-7 lg:p-9">
-
                 <div className="flex items-center gap-3">
-
                   <div
                     className="
                       flex
@@ -109,7 +106,6 @@ export default function Mission() {
                       Creating meaningful and sustainable impact.
                     </p>
                   </div>
-
                 </div>
               </div>
             </div>
@@ -135,7 +131,6 @@ export default function Mission() {
               "
             >
               <div className="flex items-center gap-3">
-
                 <div
                   className="
                     flex
@@ -159,7 +154,6 @@ export default function Mission() {
                     Built around integrity
                   </p>
                 </div>
-
               </div>
             </div>
           </div>
@@ -169,16 +163,13 @@ export default function Mission() {
           {/* ===================================================== */}
 
           <div>
-
             {/* Eyebrow */}
             <div className="mb-5 flex items-center gap-3">
-
               <span className="h-px w-10 bg-[#C5A059]" />
 
               <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#C5A059]">
                 Our Mission
               </p>
-
             </div>
 
             {/* Heading */}
@@ -196,6 +187,7 @@ export default function Mission() {
             >
               Empowering People.
               <br />
+
               <span className="text-[#C5A059]">
                 Strengthening Institutions.
               </span>
@@ -221,8 +213,7 @@ export default function Mission() {
             {/* ================================================= */}
 
             <div className="mt-9 grid gap-5 sm:grid-cols-2">
-
-              {/* Item 1 */}
+              {/* Purpose-Driven Services */}
               <div
                 className="
                   group
@@ -239,7 +230,6 @@ export default function Mission() {
                 "
               >
                 <div className="flex items-start gap-4">
-
                   <div
                     className="
                       flex
@@ -275,11 +265,10 @@ export default function Mission() {
                       organizational needs.
                     </p>
                   </div>
-
                 </div>
               </div>
 
-              {/* Item 2 */}
+              {/* People Development */}
               <div
                 className="
                   group
@@ -296,7 +285,6 @@ export default function Mission() {
                 "
               >
                 <div className="flex items-start gap-4">
-
                   <div
                     className="
                       flex
@@ -332,10 +320,8 @@ export default function Mission() {
                       professional capability.
                     </p>
                   </div>
-
                 </div>
               </div>
-
             </div>
 
             {/* ================================================= */}
@@ -343,7 +329,6 @@ export default function Mission() {
             {/* ================================================= */}
 
             <div className="mt-8 space-y-3">
-
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="h-4 w-4 shrink-0 text-[#C5A059]" />
 
@@ -367,12 +352,13 @@ export default function Mission() {
                   Sustainable impact for institutions and communities
                 </span>
               </div>
-
             </div>
 
+            {/* ================================================= */}
             {/* CTA */}
-            <div className="mt-10">
+            {/* ================================================= */}
 
+            <div className="mt-10">
               <a
                 href="#services"
                 className="
@@ -408,9 +394,7 @@ export default function Mission() {
                   "
                 />
               </a>
-
             </div>
-
           </div>
         </div>
 
@@ -430,8 +414,7 @@ export default function Mission() {
             sm:grid-cols-3
           "
         >
-
-          {/* Item */}
+          {/* Integrity */}
           <div
             className="
               flex
@@ -460,7 +443,7 @@ export default function Mission() {
             </div>
           </div>
 
-          {/* Item */}
+          {/* Excellence */}
           <div
             className="
               flex
@@ -489,9 +472,8 @@ export default function Mission() {
             </div>
           </div>
 
-          {/* Item */}
+          {/* Impact */}
           <div className="flex items-center gap-4 p-6 lg:p-8">
-
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#002b5c]">
               <Users className="h-5 w-5 text-white" />
             </div>
@@ -505,11 +487,8 @@ export default function Mission() {
                 Stronger people and institutions
               </p>
             </div>
-
           </div>
-
         </div>
-
       </div>
     </section>
   );

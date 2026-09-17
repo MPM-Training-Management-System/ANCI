@@ -11,7 +11,10 @@ import type {
   Service,
   ServiceRequest,
   UpdateService,
-  UpdateServiceRequestStatus,
+  ReviewServiceRequest,
+    CreateServiceConsultation,
+  ServiceConsultation,
+  UpdateServiceConsultation,
 } from "@repo/types";
 
 export function useService(
@@ -30,6 +33,16 @@ export function useService(
   // =========================
   // SERVICE REQUEST STATE
   // =========================
+
+  const [consultations, setConsultations] = useState<
+  ServiceConsultation[]
+>([]);
+
+const [isLoadingConsultations, setIsLoadingConsultations] =
+  useState(false);
+
+const [isSubmittingConsultation, setIsSubmittingConsultation] =
+  useState(false);
 
   const [serviceRequests, setServiceRequests] =
     useState<ServiceRequest[]>([]);
@@ -167,6 +180,83 @@ export function useService(
     [serviceApi]
   );
 
+
+  const getConsultations = async () => {
+  setIsLoadingConsultations(true);
+
+  try {
+    const result = await serviceApi.getConsultations();
+
+    setConsultations(result);
+
+    return result;
+  } catch (error) {
+    console.error("Failed to fetch consultations:", error);
+    return null;
+  } finally {
+    setIsLoadingConsultations(false);
+  }
+};
+
+const createConsultation = async (
+  data: CreateServiceConsultation,
+) => {
+  setIsSubmittingConsultation(true);
+
+  try {
+    const result =
+      await serviceApi.createConsultation(data);
+
+    if (result) {
+      setConsultations((prev) => [
+        result,
+        ...prev,
+      ]);
+    }
+
+    return result;
+  } catch (error) {
+    console.error(
+      "Failed to create consultation:",
+      error,
+    );
+
+    return null;
+  } finally {
+    setIsSubmittingConsultation(false);
+  }
+};
+
+const updateConsultation = async (
+  id: string,
+  data: UpdateServiceConsultation,
+) => {
+  setIsSubmittingConsultation(true);
+
+  try {
+    const result =
+      await serviceApi.updateConsultation(id, data);
+
+    if (result) {
+      setConsultations((prev) =>
+        prev.map((item) =>
+          item.id === id ? result : item,
+        ),
+      );
+    }
+
+    return result;
+  } catch (error) {
+    console.error(
+      "Failed to update consultation:",
+      error,
+    );
+
+    return null;
+  } finally {
+    setIsSubmittingConsultation(false);
+  }
+};
   // =========================
   // UPDATE SERVICE
   // =========================
@@ -231,6 +321,10 @@ export function useService(
           )
         );
 
+        if (service?.id === id) {
+          setService(null);
+        }
+
         return true;
       } catch (err) {
         const message =
@@ -245,11 +339,24 @@ export function useService(
         setIsDeleting(false);
       }
     },
-    [serviceApi]
+    [serviceApi, service]
   );
 
   // =========================
   // CREATE SERVICE REQUEST
+  // =========================
+  //
+  // Public landing page
+  //
+  // Applicant submits:
+  // - serviceId
+  // - applicantName
+  // - applicantEmail
+  // - remarks
+  //
+  // UserId is NOT required here.
+  // The backend handles the optional
+  // authenticated user automatically.
   // =========================
 
   const createServiceRequest =
@@ -268,6 +375,11 @@ export function useService(
 
           setServiceRequest(created);
 
+          /*
+           * Keep the request in local state
+           * in case this hook is also used by
+           * an admin page.
+           */
           setServiceRequests((current) => [
             created,
             ...current,
@@ -358,52 +470,47 @@ export function useService(
       [serviceApi]
     );
 
-  // =========================
-  // UPDATE REQUEST STATUS
-  // =========================
+  const reviewServiceRequest = useCallback(
+  async (
+    id: string,
+    data: ReviewServiceRequest,
+  ) => {
+    setIsUpdatingRequest(true);
+    setError(null);
 
-  const updateServiceRequestStatus =
-    useCallback(
-      async (
-        id: string,
-        data: UpdateServiceRequestStatus
-      ) => {
-        setIsUpdatingRequest(true);
-        setError(null);
+    try {
+      const updated =
+        await serviceApi.reviewRequest(
+          id,
+          data,
+        );
 
-        try {
-          const updated =
-            await serviceApi.updateRequestStatus(
-              id,
-              data
-            );
+      setServiceRequests(current =>
+        current.map(item =>
+          item.id === id
+            ? updated
+            : item,
+        ),
+      );
 
-          setServiceRequests((current) =>
-            current.map((item) =>
-              item.id === id
-                ? updated
-                : item
-            )
-          );
+      setServiceRequest(updated);
 
-          setServiceRequest(updated);
+      return updated;
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to review service request.";
 
-          return updated;
-        } catch (err) {
-          const message =
-            err instanceof Error
-              ? err.message
-              : "Failed to update service request.";
+      setError(message);
 
-          setError(message);
-
-          return null;
-        } finally {
-          setIsUpdatingRequest(false);
-        }
-      },
-      [serviceApi]
-    );
+      return null;
+    } finally {
+      setIsUpdatingRequest(false);
+    }
+  },
+  [serviceApi],
+);
 
   // =========================
   // RESET
@@ -454,8 +561,18 @@ export function useService(
     createServiceRequest,
     getServiceRequests,
     getServiceRequest,
-    updateServiceRequestStatus,
+    reviewServiceRequest,
 
+
+
+  consultations,
+  isLoadingConsultations,
+  isSubmittingConsultation,
+
+  getConsultations,
+  createConsultation,
+  updateConsultation,
+  
     // Reset
     reset,
   };

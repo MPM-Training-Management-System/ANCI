@@ -12,26 +12,31 @@ export class ApiClient {
     endpoint: string,
     options: ApiRequestOptions = {}
   ): Promise<T> {
-
-    const token =
-      this.options.getToken
-        ? await this.options.getToken()
-        : null;
+    const token = this.options.getToken
+      ? await this.options.getToken()
+      : null;
 
     const url =
       `${this.options.baseUrl}${endpoint}`;
-
 
     console.log(
       "================================"
     );
 
-    console.log("API REQUEST");
-    console.log("URL:", url);
+    console.log(
+      "API REQUEST"
+    );
+
+    console.log(
+      "URL:",
+      url
+    );
+
     console.log(
       "METHOD:",
       options.method ?? "GET"
     );
+
     console.log(
       "HAS TOKEN:",
       !!token
@@ -41,16 +46,11 @@ export class ApiClient {
       "================================"
     );
 
-
     const headers =
-      new Headers(
-        options.headers
-      );
-
+      new Headers(options.headers);
 
     const isFormData =
       options.body instanceof FormData;
-
 
     if (!isFormData) {
       headers.set(
@@ -59,7 +59,6 @@ export class ApiClient {
       );
     }
 
-
     if (token) {
       headers.set(
         "Authorization",
@@ -67,43 +66,30 @@ export class ApiClient {
       );
     }
 
-
     let body:
-      BodyInit | undefined;
-
+      | BodyInit
+      | undefined;
 
     if (
       options.body === undefined
     ) {
-
       body = undefined;
-
     } else if (isFormData) {
-
       body =
         options.body as FormData;
-
     } else {
-
-      body =
-        JSON.stringify(
-          options.body
-        );
+      body = JSON.stringify(
+        options.body
+      );
     }
 
-
     try {
-
       const response =
-        await fetch(
-          url,
-          {
-            ...options,
-            headers,
-            body,
-          }
-        );
-
+        await fetch(url, {
+          ...options,
+          headers,
+          body,
+        });
 
       console.log(
         "STATUS:",
@@ -115,130 +101,217 @@ export class ApiClient {
         response.statusText
       );
 
-
       const contentType =
         response.headers.get(
           "content-type"
         );
-
 
       console.log(
         "CONTENT TYPE:",
         contentType
       );
 
-
-      /*
-       * Read response body ONCE.
-       */
-
       const text =
         await response.text();
-
 
       console.log(
         "RESPONSE:",
         text
       );
 
-
       /*
-       * Handle HTTP errors
+       * ==========================================================
+       * 401 UNAUTHORIZED
+       * ==========================================================
+       *
+       * This is the important part.
+       *
+       * Whenever backend returns 401:
+       *
+       * 1. Tell frontend
+       * 2. Dispatch global auth event
+       * 3. Throw error
        */
+      if (response.status === 401) {
+        console.error(
+          "================================"
+        );
 
-     if (!response.ok) {
-  let message = "Something went wrong.";
+        console.error(
+          "UNAUTHORIZED - SESSION EXPIRED"
+        );
 
-  console.error("================================");
-  console.error("API ERROR");
-  console.error("STATUS:", response.status);
-  console.error("STATUS TEXT:", response.statusText);
-  console.error("URL:", url);
-  console.error("RAW RESPONSE:", text);
-  console.error("================================");
+        console.error(
+          "URL:",
+          url
+        );
 
-  if (text) {
-    try {
-      const error = JSON.parse(text);
+        console.error(
+          "================================"
+        );
 
-      console.error(
-        "API ERROR JSON:",
-        JSON.stringify(error, null, 2)
-      );
+        /*
+         * Call configured callback.
+         */
+        this.options.onUnauthorized?.();
 
-      if (error.errors) {
-        const validationErrors =
-          Object.entries(error.errors)
-            .flatMap(
-              ([field, messages]) => {
-                if (Array.isArray(messages)) {
-                  return messages.map(
-                    (message) =>
-                      `${field}: ${message}`
-                  );
-                }
-
-                return [
-                  `${field}: ${String(messages)}`,
-                ];
-              }
+        /*
+         * Global browser event.
+         *
+         * AuthGuard listens to this.
+         */
+        if (
+          typeof window !==
+          "undefined"
+        ) {
+          window.dispatchEvent(
+            new CustomEvent(
+              "auth:unauthorized"
             )
-            .join("\n");
+          );
+        }
 
-        message =
-          validationErrors ||
-          error.message ||
-          error.title ||
-          error.error ||
-          JSON.stringify(error);
-      } else {
-        message =
-          error.message ??
-          error.title ??
-          error.error ??
-          JSON.stringify(error);
+        throw new Error(
+          "Your session has expired. Please login again."
+        );
       }
-    } catch {
-      message = text;
-    }
-  }
-
-  throw new Error(
-    `HTTP ${response.status}: ${message}`
-  );
-}
-
 
       /*
-       * Handle empty response
+       * ==========================================================
+       * OTHER API ERRORS
+       * ==========================================================
        */
+      if (!response.ok) {
+        let message =
+          "Something went wrong.";
 
+        console.error(
+          "================================"
+        );
+
+        console.error(
+          "API ERROR"
+        );
+
+        console.error(
+          "STATUS:",
+          response.status
+        );
+
+        console.error(
+          "STATUS TEXT:",
+          response.statusText
+        );
+
+        console.error(
+          "URL:",
+          url
+        );
+
+        console.error(
+          "RAW RESPONSE:",
+          text
+        );
+
+        console.error(
+          "================================"
+        );
+
+        if (text) {
+          try {
+            const error =
+              JSON.parse(text);
+
+            console.error(
+              "API ERROR JSON:",
+              JSON.stringify(
+                error,
+                null,
+                2
+              )
+            );
+
+            if (error.errors) {
+              const validationErrors =
+                Object.entries(
+                  error.errors
+                )
+                  .flatMap(
+                    ([
+                      field,
+                      messages,
+                    ]) => {
+                      if (
+                        Array.isArray(
+                          messages
+                        )
+                      ) {
+                        return messages.map(
+                          (message) =>
+                            `${field}: ${message}`
+                        );
+                      }
+
+                      return [
+                        `${field}: ${String(
+                          messages
+                        )}`,
+                      ];
+                    }
+                  )
+                  .join("\n");
+
+              message =
+                validationErrors ||
+                error.message ||
+                error.title ||
+                error.error ||
+                JSON.stringify(error);
+            } else {
+              message =
+                error.message ??
+                error.title ??
+                error.error ??
+                JSON.stringify(error);
+            }
+          } catch {
+            message = text;
+          }
+        }
+
+        throw new Error(
+          `HTTP ${response.status}: ${message}`
+        );
+      }
+
+      /*
+       * ==========================================================
+       * NO CONTENT
+       * ==========================================================
+       */
       if (
         response.status === 204 ||
         !text
       ) {
-
         return undefined as T;
       }
 
-
       /*
-       * Parse JSON response
+       * ==========================================================
+       * JSON
+       * ==========================================================
        */
-
       try {
-
         return JSON.parse(
           text
         ) as T;
-
       } catch {
-
+        /*
+         * Plain text response
+         */
         return text as T;
       }
-
     } catch (error) {
-
       console.error(
         "API REQUEST ERROR:",
         error
@@ -248,11 +321,7 @@ export class ApiClient {
     }
   }
 
-
-  get<T>(
-    url: string
-  ) {
-
+  get<T>(url: string) {
     return this.request<T>(
       url,
       {
@@ -261,12 +330,10 @@ export class ApiClient {
     );
   }
 
-
   post<T>(
     url: string,
     body?: unknown
   ) {
-
     return this.request<T>(
       url,
       {
@@ -276,12 +343,10 @@ export class ApiClient {
     );
   }
 
-
   put<T>(
     url: string,
     body?: unknown
   ) {
-
     return this.request<T>(
       url,
       {
@@ -291,12 +356,10 @@ export class ApiClient {
     );
   }
 
-
   patch<T>(
     url: string,
     body?: unknown
   ) {
-
     return this.request<T>(
       url,
       {
@@ -306,11 +369,7 @@ export class ApiClient {
     );
   }
 
-
-  delete<T>(
-    url: string
-  ) {
-
+  delete<T>(url: string) {
     return this.request<T>(
       url,
       {

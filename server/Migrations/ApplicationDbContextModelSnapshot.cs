@@ -227,6 +227,54 @@ namespace server.Migrations
                     b.ToTable("AssessmentResults", (string)null);
                 });
 
+            modelBuilder.Entity("server.Models.Assessment.AssessmentRetakeRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AdminRemarks")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid>("ParticipantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PreviousAttemptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ReviewedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("WrittenAssessmentId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParticipantId");
+
+                    b.HasIndex("PreviousAttemptId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("WrittenAssessmentId");
+
+                    b.ToTable("AssessmentRetakeRequests", (string)null);
+                });
+
             modelBuilder.Entity("server.Models.Assessment.WrittenAssessment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -814,11 +862,69 @@ namespace server.Migrations
                     b.ToTable("Services");
                 });
 
+            modelBuilder.Entity("server.Models.Service.ServiceConsultation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("EndedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("MeetingLink")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime>("ScheduledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ServiceRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScheduledAt");
+
+                    b.HasIndex("ServiceRequestId")
+                        .IsUnique();
+
+                    b.ToTable("ServiceConsultations");
+                });
+
             modelBuilder.Entity("server.Models.Service.ServiceRequest", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<string>("AdminRemarks")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("ApplicantEmail")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<string>("ApplicantName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<string>("Remarks")
                         .HasMaxLength(2000)
@@ -826,6 +932,9 @@ namespace server.Migrations
 
                     b.Property<DateTime>("RequestedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ResolutionType")
+                        .HasColumnType("text");
 
                     b.Property<DateTime?>("ReviewedAt")
                         .HasColumnType("timestamp with time zone");
@@ -840,7 +949,7 @@ namespace server.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<Guid>("UserId")
+                    b.Property<Guid?>("UserId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
@@ -1342,6 +1451,33 @@ namespace server.Migrations
                     b.Navigation("AssessmentAttempt");
                 });
 
+            modelBuilder.Entity("server.Models.Assessment.AssessmentRetakeRequest", b =>
+                {
+                    b.HasOne("server.Models.Participant.ParticipantProfile", "ParticipantProfile")
+                        .WithMany()
+                        .HasForeignKey("ParticipantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("server.Models.Assessment.AssessmentAttempt", "PreviousAttempt")
+                        .WithMany()
+                        .HasForeignKey("PreviousAttemptId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("server.Models.Assessment.WrittenAssessment", "WrittenAssessment")
+                        .WithMany()
+                        .HasForeignKey("WrittenAssessmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ParticipantProfile");
+
+                    b.Navigation("PreviousAttempt");
+
+                    b.Navigation("WrittenAssessment");
+                });
+
             modelBuilder.Entity("server.Models.Assessment.WrittenAssessment", b =>
                 {
                     b.HasOne("server.Models.Training.TrainingBatch", "TrainingBatch")
@@ -1503,6 +1639,17 @@ namespace server.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("server.Models.Service.ServiceConsultation", b =>
+                {
+                    b.HasOne("server.Models.Service.ServiceRequest", "ServiceRequest")
+                        .WithOne()
+                        .HasForeignKey("server.Models.Service.ServiceConsultation", "ServiceRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ServiceRequest");
+                });
+
             modelBuilder.Entity("server.Models.Service.ServiceRequest", b =>
                 {
                     b.HasOne("server.Models.Auth.User", "ReviewedByUser")
@@ -1519,8 +1666,7 @@ namespace server.Migrations
                     b.HasOne("server.Models.Auth.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("ReviewedByUser");
 

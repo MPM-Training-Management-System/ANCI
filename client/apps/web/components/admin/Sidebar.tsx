@@ -13,9 +13,7 @@ export default function Sidebar({
 }: SidebarProps) {
   return (
     <>
-      {/* =========================================
-          MOBILE OVERLAY
-          ========================================= */}
+ 
 
       {mobileOpen && (
         <button
@@ -35,9 +33,6 @@ export default function Sidebar({
         />
       )}
 
-      {/* =========================================
-          SIDEBAR
-          ========================================= */}
 
       <aside
         className={`
@@ -54,9 +49,7 @@ export default function Sidebar({
           border-white/10
           bg-primary
 
-          /* =====================================
-             MOBILE
-             ===================================== */
+    
 
           w-[280px]
 
@@ -70,10 +63,7 @@ export default function Sidebar({
               ? "translate-x-0"
               : "-translate-x-full"
           }
-
-          /* =====================================
-             DESKTOP
-             ===================================== */
+ */
 
           md:translate-x-0
           md:transition-[width]
@@ -86,9 +76,6 @@ export default function Sidebar({
           }
         `}
       >
-        {/* =====================================
-            HEADER
-            ===================================== */}
 
         <SidebarHeader
           collapsed={collapsed}
@@ -96,17 +83,11 @@ export default function Sidebar({
           setMobileOpen={setMobileOpen}
         />
 
-        {/* =====================================
-            MENU
-            ===================================== */}
 
         <SidebarMenu
           collapsed={collapsed}
         />
 
-        {/* =====================================
-            FOOTER
-            ===================================== */}
 
         <SidebarFooter
           collapsed={collapsed}

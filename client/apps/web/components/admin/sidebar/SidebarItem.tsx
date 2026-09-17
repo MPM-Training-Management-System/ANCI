@@ -30,9 +30,6 @@ export default function SidebarItem({
     (item.href !== "/dashboard" &&
       pathname.startsWith(item.href));
 
-  /* =========================================
-     LOCKED ITEM
-     ========================================= */
 
   const lockedContent = (
     <div
@@ -90,9 +87,6 @@ export default function SidebarItem({
     </div>
   );
 
-  /* =========================================
-     NORMAL ITEM
-     ========================================= */
 
   const content = (
     <Link

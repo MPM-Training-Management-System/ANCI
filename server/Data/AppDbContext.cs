@@ -35,8 +35,12 @@ public DbSet<TrainingProgramRequirement>
 public DbSet<ServiceRequirement> ServiceRequirements
     => Set<ServiceRequirement>();
 
+    public DbSet<AssessmentRetakeRequest> AssessmentRetakeRequests
+    => Set<AssessmentRetakeRequest>();
+
 public DbSet<ServiceRequest> ServiceRequests
     => Set<ServiceRequest>();
+public DbSet<ServiceConsultation> ServiceConsultations { get; set; }
 
 public DbSet<LearningSectionProgress>
     LearningSectionProgresses
@@ -875,7 +879,6 @@ modelBuilder.Entity<ServiceRequirement>(entity =>
         .OnDelete(DeleteBehavior.Cascade);
 });
 
-
 // ==========================================
 // SERVICE REQUEST
 // ==========================================
@@ -884,11 +887,26 @@ modelBuilder.Entity<ServiceRequest>(entity =>
 {
     entity.HasKey(x => x.Id);
 
+    entity.Property(x => x.ApplicantName)
+        .IsRequired()
+        .HasMaxLength(200);
+
+    entity.Property(x => x.ApplicantEmail)
+        .IsRequired()
+        .HasMaxLength(320);
+
+    entity.Property(x => x.Remarks)
+        .HasMaxLength(2000);
+
     entity.Property(x => x.Status)
         .HasConversion<string>()
         .IsRequired();
 
-    entity.Property(x => x.Remarks)
+    entity.Property(x => x.ResolutionType)
+        .HasConversion<string>()
+        .IsRequired(false);
+
+    entity.Property(x => x.AdminRemarks)
         .HasMaxLength(2000);
 
     entity.Property(x => x.RequestedAt)
@@ -897,28 +915,82 @@ modelBuilder.Entity<ServiceRequest>(entity =>
     entity.Property(x => x.ReviewedAt)
         .IsRequired(false);
 
+    entity.Property(x => x.UserId)
+        .IsRequired(false);
+
+    entity.Property(x => x.ReviewedByUserId)
+        .IsRequired(false);
+
+    // Indexes
     entity.HasIndex(x => x.UserId);
 
     entity.HasIndex(x => x.ServiceId);
 
     entity.HasIndex(x => x.Status);
 
+    // Service relationship
     entity.HasOne(x => x.Service)
         .WithMany(x => x.Requests)
         .HasForeignKey(x => x.ServiceId)
         .OnDelete(DeleteBehavior.Restrict);
 
+    // Optional applicant/user relationship
     entity.HasOne(x => x.User)
         .WithMany()
         .HasForeignKey(x => x.UserId)
+        .IsRequired(false)
         .OnDelete(DeleteBehavior.Restrict);
 
+    // Admin reviewer relationship
     entity.HasOne(x => x.ReviewedByUser)
         .WithMany()
         .HasForeignKey(x => x.ReviewedByUserId)
+        .IsRequired(false)
         .OnDelete(DeleteBehavior.Restrict);
 });
 
+// ==========================================
+// SERVICE CONSULTATION
+// ==========================================
+
+modelBuilder.Entity<ServiceConsultation>(entity =>
+{
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.ScheduledAt)
+        .IsRequired();
+
+    entity.Property(x => x.EndedAt)
+        .IsRequired(false);
+
+    entity.Property(x => x.MeetingLink)
+        .IsRequired()
+        .HasMaxLength(1000);
+
+    entity.Property(x => x.Notes)
+        .HasMaxLength(2000);
+
+    entity.Property(x => x.Status)
+        .HasConversion<string>()
+        .IsRequired();
+
+    entity.Property(x => x.CreatedAt)
+        .IsRequired();
+
+    entity.Property(x => x.UpdatedAt)
+        .IsRequired();
+
+    entity.HasIndex(x => x.ServiceRequestId);
+
+    entity.HasIndex(x => x.ScheduledAt);
+
+    entity.HasOne(x => x.ServiceRequest)
+        .WithOne()
+        .HasForeignKey<ServiceConsultation>(
+            x => x.ServiceRequestId
+        )
+        .OnDelete(DeleteBehavior.Cascade);
+});
         // ==========================================
         // ENROLLMENT
         // ==========================================
@@ -1193,6 +1265,78 @@ modelBuilder.Entity<AssessmentAnswer>(entity =>
     entity.HasOne(x => x.SelectedChoice)
         .WithMany(x => x.Answers)
         .HasForeignKey(x => x.SelectedChoiceId)
+        .OnDelete(DeleteBehavior.Restrict);
+});
+
+
+// ==========================================================
+// ASSESSMENT RETAKE REQUEST
+// ==========================================================
+
+modelBuilder.Entity<AssessmentRetakeRequest>(entity =>
+{
+    entity.ToTable("AssessmentRetakeRequests");
+
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.Reason)
+        .HasMaxLength(1000)
+        .IsRequired(false);
+
+    entity.Property(x => x.Status)
+        .HasConversion<int>()
+        .IsRequired();
+
+    entity.Property(x => x.RequestedAt)
+        .IsRequired();
+
+    entity.Property(x => x.ReviewedAt)
+        .IsRequired(false);
+
+    entity.Property(x => x.AdminRemarks)
+        .HasMaxLength(1000)
+        .IsRequired(false);
+
+    entity.Property(x => x.ReviewedBy)
+        .IsRequired(false);
+
+    // ======================================================
+    // INDEXES
+    // ======================================================
+
+    entity.HasIndex(x => x.ParticipantId);
+
+    entity.HasIndex(x => x.WrittenAssessmentId);
+
+    entity.HasIndex(x => x.PreviousAttemptId);
+
+    entity.HasIndex(x => x.Status);
+
+    // ======================================================
+    // PARTICIPANT
+    // ======================================================
+
+    entity.HasOne(x => x.ParticipantProfile)
+        .WithMany()
+        .HasForeignKey(x => x.ParticipantId)
+        .OnDelete(DeleteBehavior.Restrict);
+
+    // ======================================================
+    // WRITTEN ASSESSMENT
+    // ======================================================
+
+    entity.HasOne(x => x.WrittenAssessment)
+        .WithMany()
+        .HasForeignKey(x => x.WrittenAssessmentId)
+        .OnDelete(DeleteBehavior.Restrict);
+
+    // ======================================================
+    // PREVIOUS ATTEMPT
+    // ======================================================
+
+    entity.HasOne(x => x.PreviousAttempt)
+        .WithMany()
+        .HasForeignKey(x => x.PreviousAttemptId)
         .OnDelete(DeleteBehavior.Restrict);
 });
 

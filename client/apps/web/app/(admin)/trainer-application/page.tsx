@@ -27,9 +27,6 @@ import {
 } from "@/hooks/useTrainerApplication";
 
 
-// =========================================================
-// STATUS CONFIG
-// =========================================================
 
 const statusConfig = {
   Pending: {
@@ -68,10 +65,6 @@ const statusConfig = {
   },
 };
 
-
-// =========================================================
-// PAGE
-// =========================================================
 
 export default function TrainerApplicationPage() {
 
@@ -232,9 +225,6 @@ export default function TrainerApplicationPage() {
   }
 
 
-  // =======================================================
-  // STATUS
-  // =======================================================
 
   const currentStatus =
     status ?? "Pending";
@@ -247,9 +237,6 @@ export default function TrainerApplicationPage() {
     config.icon;
 
 
-  // =======================================================
-  // SAVE APPLICATION
-  // =======================================================
 
   const handleSave =
     async () => {
@@ -271,9 +258,6 @@ export default function TrainerApplicationPage() {
     };
 
 
-  // =======================================================
-  // PROFILE IMAGE
-  // =======================================================
 
   const handleProfileImage =
     async (

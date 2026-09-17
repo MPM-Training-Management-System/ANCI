@@ -17,7 +17,8 @@ using server.Services.Attendance;
 using server.Interfaces.Attendance;
 using server.Services.DocumentExtraction;
 using server.Services.Service;
-
+using System.Text.Json.Serialization;
+using server.Services.Email;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(options =>
@@ -111,6 +112,10 @@ builder.Services.AddScoped<
     ITrainerApplicationService,
     TrainerApplicationService
 >();
+builder.Services.AddScoped<
+    IAdminUserService,
+    AdminUserService
+>();
 builder.Services.Configure<CloudinarySettings>(
     builder.Configuration.GetSection("Cloudinary")
 );
@@ -193,18 +198,52 @@ builder.Services
         };
 });
 
+var emailSettings =
+    builder.Configuration
+        .GetSection("EmailSettings")
+        .Get<EmailSettings>()
+    ?? throw new InvalidOperationException(
+        "EmailSettings configuration is missing."
+    );
+
+builder.Services.AddSingleton(
+    emailSettings
+);
+
+builder.Services.AddScoped<
+    IEmailService,
+    EmailService
+>();
+
+builder.Services.AddScoped<
+    IServiceEmailService,
+    ServiceEmailService
+>();
+
 
 
 builder.Services.AddAuthorization();
-builder.Services.AddControllers();
+
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(
+            new JsonStringEnumConverter()
+        );
+    });
 builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IAuthService, AuthService>();
+
 builder.Services.AddScoped<
     IOtpService,
     OtpService
 >();
-builder.Services.AddScoped<PasswordService>();
+
 builder.Services.AddDataProtection();
+builder.Services.AddScoped<
+    IServiceConsultationService,
+    ServiceConsultationService
+>();
 
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddEndpointsApiExplorer();

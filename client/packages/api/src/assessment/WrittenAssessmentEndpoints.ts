@@ -98,4 +98,40 @@ export const WrittenAssessmentEndpoints = {
 
   getParticipantAssessmentsByBatch: (trainingBatchId: string) =>
     `/api/written-assessments/batch/${trainingBatchId}/participant`,
+
+
+  // =========================================================
+// TRAINER - ASSESSMENT SUBMISSIONS
+// =========================================================
+
+getTrainerSubmissions: (assessmentId: string) =>
+  `/api/written-assessments/${assessmentId}/submissions`,
+
+getTrainerSubmission: (attemptId: string) =>
+  `/api/written-assessments/submissions/${attemptId}`,
+
+  getTrainerAssessments: () =>
+    `/api/written-assessments/trainer`,
+
+
+    // =========================================================
+  // PARTICIPANT - RETAKE REQUEST
+  // =========================================================
+
+  requestRetake: () =>
+    `/api/written-assessments/retake-request`,
+
+  getMyRetakeRequests: () =>
+    `/api/written-assessments/retake-requests`,
+
+  // =========================================================
+  // ADMIN - RETAKE REQUESTS
+  // =========================================================
+
+  getRetakeRequests: () =>
+    `/api/written-assessments/admin/retake-requests`,
+
+  reviewRetakeRequest: (requestId: string) =>
+    `/api/written-assessments/admin/retake-requests/${requestId}/review`,
+
 };

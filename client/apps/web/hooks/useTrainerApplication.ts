@@ -13,6 +13,7 @@ import type {
   TrainerApplicationDocument,
   UpdateTrainerApplicationRequest,
 } from "@repo/types";
+import { auth } from "@/lib/auth";
 
 
 export function useTrainerApplication(
@@ -56,68 +57,72 @@ export function useTrainerApplication(
   // =========================================================
   // LOAD MY APPLICATION
   // =========================================================
+const loadApplication = useCallback(
+  async () => {
+    // Do not call the API if the user is not authenticated
+    const token = auth.getToken();
 
-  const loadApplication = useCallback(
-    async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
+    if (!token) {
+      setIsLoading(false);
+      setApplication(null);
+      setDocuments([]);
+      setError(null);
+      return null;
+    }
 
-        const response =
-          await authApi.getMyTrainerApplication();
+    try {
+      setIsLoading(true);
+      setError(null);
 
-        setApplication(response);
+      const response =
+        await authApi.getMyTrainerApplication();
 
-        // -----------------------------------------------
-        // LOAD DOCUMENTS
-        // -----------------------------------------------
+      setApplication(response);
 
-        if (response?.id) {
-          try {
-            const documentResponse =
-              await authApi.getMyTrainerDocuments(
-                response.id
-              );
-
-            setDocuments(
-              documentResponse ?? []
-            );
-          } catch (documentError) {
-            console.error(
-              "LOAD TRAINER DOCUMENTS ERROR:",
-              documentError
+      if (response?.id) {
+        try {
+          const documentResponse =
+            await authApi.getMyTrainerDocuments(
+              response.id
             );
 
-            // Application can still be displayed
-            // even if documents fail to load.
-            setDocuments([]);
-          }
-        } else {
+          setDocuments(
+            documentResponse ?? []
+          );
+        } catch (documentError) {
+          console.error(
+            "LOAD TRAINER DOCUMENTS ERROR:",
+            documentError
+          );
+
           setDocuments([]);
         }
-
-        return response;
-      } catch (error) {
-        console.error(
-          "LOAD TRAINER APPLICATION ERROR:",
-          error
-        );
-
-        setError(
-          error instanceof Error
-            ? error.message
-            : "Unable to load trainer application."
-        );
-
-        setApplication(null);
-
-        return null;
-      } finally {
-        setIsLoading(false);
+      } else {
+        setDocuments([]);
       }
-    },
-    [authApi]
-  );
+
+      return response;
+    } catch (error) {
+      console.error(
+        "LOAD TRAINER APPLICATION ERROR:",
+        error
+      );
+
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Unable to load trainer application."
+      );
+
+      setApplication(null);
+
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  },
+  [authApi]
+);
 
 
   // =========================================================

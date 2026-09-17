@@ -7,9 +7,10 @@ export type ServiceRequestStatus =
   | "Completed"
   | "Cancelled";
 
-/* =========================
-   SERVICE REQUIREMENT
-========================= */
+export type ServiceRequestResolutionType =
+  | "Training"
+  | "Consultation"
+  | "Other";
 
 export interface ServiceRequirement {
   id: string;
@@ -18,10 +19,6 @@ export interface ServiceRequirement {
   isRequired: boolean;
   displayOrder: number;
 }
-
-/* =========================
-   SERVICE
-========================= */
 
 export interface Service {
   id: string;
@@ -35,10 +32,6 @@ export interface Service {
   updatedAt: string;
   requirements: ServiceRequirement[];
 }
-
-/* =========================
-   CREATE SERVICE
-========================= */
 
 export interface CreateServiceRequirement {
   name: string;
@@ -55,10 +48,6 @@ export interface CreateService {
   requiresTraining: boolean;
   requirements: CreateServiceRequirement[];
 }
-
-/* =========================
-   UPDATE SERVICE
-========================= */
 
 export interface UpdateServiceRequirement {
   id?: string;
@@ -77,43 +66,74 @@ export interface UpdateService {
   requirements: UpdateServiceRequirement[];
 }
 
-/* =========================
-   CREATE SERVICE REQUEST
-========================= */
-
+/**
+ * Public service request
+ */
 export interface CreateServiceRequest {
   serviceId: string;
+  applicantName: string;
+  applicantEmail: string;
   remarks?: string | null;
 }
-
-/* =========================
-   SERVICE REQUEST
-========================= */
 export interface ServiceRequest {
   id: string;
-
   serviceId: string;
   serviceName?: string | null;
 
-  userId: string;
-  applicantName?: string | null;
-  applicantEmail?: string | null;
+  userId?: string | null;
+
+  applicantName: string;
+  applicantEmail: string;
 
   remarks?: string | null;
 
   status: ServiceRequestStatus;
 
-  requestedAt: string;
+  resolutionType?: ServiceRequestResolutionType | null;
+  adminRemarks?: string | null;
 
+  requestedAt: string;
   reviewedAt?: string | null;
   reviewedByUserId?: string | null;
 }
 
-/* =========================
-   UPDATE REQUEST STATUS
-========================= */
-
-export interface UpdateServiceRequestStatus {
+export interface ReviewServiceRequest {
   status: ServiceRequestStatus;
-  remarks?: string | null;
+  resolutionType?: ServiceRequestResolutionType | null;
+  adminRemarks?: string | null;
+}
+
+export type ServiceConsultationStatus =
+  | "Scheduled"
+  | "InProgress"
+  | "Completed"
+  | "Cancelled";
+
+export interface CreateServiceConsultation {
+  serviceRequestId: string;
+  scheduledAt: string;
+  meetingLink: string;
+  notes?: string | null;
+}
+
+export interface UpdateServiceConsultation {
+  scheduledAt: string;
+  meetingLink: string;
+  notes?: string | null;
+  status: ServiceConsultationStatus;
+}
+
+export interface ServiceConsultation {
+  id: string;
+  serviceRequestId: string;
+  serviceName?: string | null;
+  applicantName: string;
+  applicantEmail: string;
+  scheduledAt: string;
+  endedAt?: string | null;
+  meetingLink: string;
+  notes?: string | null;
+  status: ServiceConsultationStatus;
+  createdAt: string;
+  updatedAt: string;
 }

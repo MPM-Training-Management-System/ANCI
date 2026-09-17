@@ -160,7 +160,112 @@ public class AuthController : ControllerBase
         }
     }
 
+    // =========================================================
+// FORGOT PASSWORD
+// POST /api/auth/forgot-password
+// =========================================================
 
+[AllowAnonymous]
+[HttpPost("forgot-password")]
+public async Task<IActionResult> ForgotPassword(
+    [FromBody] ForgotPasswordRequest request)
+{
+    if (!ModelState.IsValid)
+    {
+        return ValidationProblem(ModelState);
+    }
+
+    var result =
+        await _authService
+            .ForgotPasswordAsync(request);
+
+    return Ok(result);
+}
+
+// =========================================================
+// VERIFY PASSWORD RESET OTP
+// POST /api/auth/verify-reset-otp
+// =========================================================
+
+[AllowAnonymous]
+[HttpPost("verify-reset-otp")]
+public async Task<IActionResult> VerifyPasswordResetOtp(
+    [FromBody] VerifyResetOtpRequest request)
+{
+    if (!ModelState.IsValid)
+    {
+        return ValidationProblem(ModelState);
+    }
+
+    var result =
+        await _authService
+            .VerifyPasswordResetOtpAsync(request);
+
+    return Ok(result);
+}
+// =========================================================
+// RESET PASSWORD
+// POST /api/auth/reset-password
+// =========================================================
+
+[AllowAnonymous]
+[HttpPost("reset-password")]
+public async Task<IActionResult> ResetPassword(
+    [FromBody] ResetPasswordRequest request)
+{
+    if (!ModelState.IsValid)
+    {
+        return ValidationProblem(ModelState);
+    }
+
+    var result =
+        await _authService
+            .ResetPasswordAsync(request);
+
+    return Ok(result);
+}
+
+// =========================================================
+// CHANGE PASSWORD
+// POST /api/auth/change-password
+// =========================================================
+
+[Authorize]
+[HttpPost("change-password")]
+public async Task<IActionResult> ChangePassword(
+    [FromBody] ChangePasswordRequest request)
+{
+    if (!ModelState.IsValid)
+    {
+        return ValidationProblem(ModelState);
+    }
+
+    var userIdClaim =
+        User.FindFirst(
+            ClaimTypes.NameIdentifier
+        )?.Value;
+
+    if (!Guid.TryParse(
+            userIdClaim,
+            out var userId))
+    {
+        return Unauthorized(
+            new
+            {
+                message = "Invalid authentication."
+            }
+        );
+    }
+
+    var result =
+        await _authService
+            .ChangePasswordAsync(
+                userId,
+                request
+            );
+
+    return Ok(result);
+}
     // =========================================================
     // CURRENT AUTHENTICATED USER
     // GET /api/auth/me
@@ -194,60 +299,4 @@ public class AuthController : ControllerBase
         );
     }
 
-
-    // =========================================================
-    // ADMIN AUTHORIZATION TEST
-    // GET /api/auth/test/admin
-    // =========================================================
-
-    [Authorize(Roles = "Admin")]
-    [HttpGet("test/admin")]
-    public IActionResult AdminTest()
-    {
-        return Ok(
-            new
-            {
-                message =
-                    "Admin authorization successful."
-            }
-        );
-    }
-
-
-    // =========================================================
-    // TRAINER AUTHORIZATION TEST
-    // GET /api/auth/test/trainer
-    // =========================================================
-
-    [Authorize(Roles = "Trainer")]
-    [HttpGet("test/trainer")]
-    public IActionResult TrainerTest()
-    {
-        return Ok(
-            new
-            {
-                message =
-                    "Trainer authorization successful."
-            }
-        );
-    }
-
-
-    // =========================================================
-    // PARTICIPANT AUTHORIZATION TEST
-    // GET /api/auth/test/participant
-    // =========================================================
-
-    [Authorize(Roles = "Participant")]
-    [HttpGet("test/participant")]
-    public IActionResult ParticipantTest()
-    {
-        return Ok(
-            new
-            {
-                message =
-                    "Participant authorization successful."
-            }
-        );
-    }
 }

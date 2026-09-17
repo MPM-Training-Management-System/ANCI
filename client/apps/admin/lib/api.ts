@@ -12,7 +12,9 @@ import {
   AttendanceApi,
   LearningMaterialApi,
   WrittenAssessmentApi,
-  ServiceApi
+  ServiceApi,
+  AdminUserApi,
+  AuthAPIs
 } from "@repo/api";
 
 import {
@@ -66,6 +68,13 @@ export const api =
 
 export const authApi =
   new AuthApi(api);
+
+export const authAPIs =
+  new AuthAPIs(api);
+
+  
+export const adminUserApi =
+  new AdminUserApi(api);
 
 
 

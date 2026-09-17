@@ -6,6 +6,9 @@ import {
 } from "react";
 
 import { auth } from "@/lib/auth";
+import { authApi } from "@/lib/api";
+
+import { useTrainerApplication } from "@/hooks/useTrainerApplication";
 
 import { sidebarMenu } from "./menu";
 import SidebarItem from "./SidebarItem";
@@ -33,12 +36,15 @@ export default function SidebarMenu({
   const isTrainer =
     user?.role?.toLowerCase() === "trainer";
 
-  const isActive =
-    user?.isActive === true ||
-    user?.status?.toLowerCase() === "active";
+  const {
+    application,
+  } = useTrainerApplication(authApi);
 
-  const isPendingTrainer =
-    isTrainer && !isActive;
+  const applicationStatus =
+    application?.status?.toLowerCase();
+
+  const isApproved =
+    applicationStatus === "approved";
 
   return (
     <nav
@@ -59,7 +65,6 @@ export default function SidebarMenu({
           key={section.title}
           className="mb-6"
         >
-          {/* Section Title */}
           {!collapsed && (
             <h3
               className="
@@ -76,12 +81,15 @@ export default function SidebarMenu({
             </h3>
           )}
 
-          {/* Menu Items */}
           <div className="space-y-1">
             {section.items.map((item) => {
+              const isApplicationPage =
+                item.href === "/trainer-application";
+
               const locked =
-                isPendingTrainer &&
-                item.href !== "/setting";
+                isTrainer &&
+                !isApproved &&
+                !isApplicationPage;
 
               return (
                 <SidebarItem

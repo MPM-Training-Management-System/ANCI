@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 using server.Data;
 using server.DTOs.Auth;
+using server.DTOs.Otp;
 using server.DTOs.Trainer;
 using server.Enums;
 using server.Models.Auth;
@@ -22,12 +23,15 @@ public class AuthService : IAuthService
 
     private readonly ICloudinaryService _cloudinaryService;
 
+    private readonly IOtpService _otpService;
+
 
     public AuthService(
         ApplicationDbContext db,
         PasswordService passwordService,
         JwtService jwtService,
-        ICloudinaryService cloudinaryService)
+        ICloudinaryService cloudinaryService,
+        IOtpService otpService)
     {
         _db = db;
 
@@ -39,6 +43,9 @@ public class AuthService : IAuthService
 
         _cloudinaryService =
             cloudinaryService;
+
+        _otpService =
+            otpService;
     }
 
 
@@ -290,9 +297,9 @@ public class AuthService : IAuthService
         RegisterTrainerAsync(
             RegisterTrainerRequest request)
     {
-        // =====================================================
+        // -----------------------------------------------------
         // NORMALIZE EMAIL
-        // =====================================================
+        // -----------------------------------------------------
 
         var email =
             request.Email
@@ -300,9 +307,9 @@ public class AuthService : IAuthService
                 .ToLowerInvariant();
 
 
-        // =====================================================
+        // -----------------------------------------------------
         // VALIDATE EMAIL
-        // =====================================================
+        // -----------------------------------------------------
 
         if (
             string.IsNullOrWhiteSpace(email)
@@ -314,9 +321,9 @@ public class AuthService : IAuthService
         }
 
 
-        // =====================================================
+        // -----------------------------------------------------
         // CHECK EXISTING EMAIL
-        // =====================================================
+        // -----------------------------------------------------
 
         var existingUser =
             await _db.Users
@@ -334,9 +341,9 @@ public class AuthService : IAuthService
         }
 
 
-        // =====================================================
+        // -----------------------------------------------------
         // VALIDATE FIRST NAME
-        // =====================================================
+        // -----------------------------------------------------
 
         if (
             string.IsNullOrWhiteSpace(
@@ -350,9 +357,9 @@ public class AuthService : IAuthService
         }
 
 
-        // =====================================================
+        // -----------------------------------------------------
         // VALIDATE LAST NAME
-        // =====================================================
+        // -----------------------------------------------------
 
         if (
             string.IsNullOrWhiteSpace(
@@ -366,9 +373,9 @@ public class AuthService : IAuthService
         }
 
 
-        // =====================================================
+        // -----------------------------------------------------
         // VALIDATE PASSWORD
-        // =====================================================
+        // -----------------------------------------------------
 
         if (
             string.IsNullOrWhiteSpace(
@@ -382,9 +389,9 @@ public class AuthService : IAuthService
         }
 
 
-        // =====================================================
+        // -----------------------------------------------------
         // VALIDATE SPECIALIZATION
-        // =====================================================
+        // -----------------------------------------------------
 
         if (
             string.IsNullOrWhiteSpace(
@@ -398,9 +405,9 @@ public class AuthService : IAuthService
         }
 
 
-        // =====================================================
+        // -----------------------------------------------------
         // VALIDATE ADDRESS
-        // =====================================================
+        // -----------------------------------------------------
 
         if (
             string.IsNullOrWhiteSpace(
@@ -414,9 +421,9 @@ public class AuthService : IAuthService
         }
 
 
-        // =====================================================
+        // -----------------------------------------------------
         // VALIDATE GENDER
-        // =====================================================
+        // -----------------------------------------------------
 
         if (
             string.IsNullOrWhiteSpace(
@@ -430,9 +437,9 @@ public class AuthService : IAuthService
         }
 
 
-        // =====================================================
+        // -----------------------------------------------------
         // VALIDATE YEARS OF EXPERIENCE
-        // =====================================================
+        // -----------------------------------------------------
 
         if (
             request.YearsOfExperience.HasValue
@@ -450,9 +457,9 @@ public class AuthService : IAuthService
         }
 
 
-        // =====================================================
+        // -----------------------------------------------------
         // PROFILE IMAGE
-        // =====================================================
+        // -----------------------------------------------------
 
         string? profileImageUrl = null;
 
@@ -481,17 +488,17 @@ public class AuthService : IAuthService
         }
 
 
-        // =====================================================
+        // -----------------------------------------------------
         // GENERATE TRAINER USER CODE
-        // =====================================================
+        // -----------------------------------------------------
 
         var userCode =
             await GenerateTrainerUserCodeAsync();
 
 
-        // =====================================================
+        // -----------------------------------------------------
         // BUILD FULL NAME
-        // =====================================================
+        // -----------------------------------------------------
 
         var fullName =
             BuildFullName(
@@ -501,9 +508,9 @@ public class AuthService : IAuthService
             );
 
 
-        // =====================================================
+        // -----------------------------------------------------
         // CREATE USER
-        // =====================================================
+        // -----------------------------------------------------
 
         var user =
             new User
@@ -534,9 +541,6 @@ public class AuthService : IAuthService
                 Role =
                     UserRole.Trainer,
 
-                // Trainer still needs
-                // email verification and
-                // admin approval.
                 Status =
                     UserStatus.Pending,
 
@@ -551,9 +555,9 @@ public class AuthService : IAuthService
             };
 
 
-        // =====================================================
+        // -----------------------------------------------------
         // CREATE TRAINER APPLICATION
-        // =====================================================
+        // -----------------------------------------------------
 
         var trainerApplication =
             new TrainerApplication
@@ -606,17 +610,9 @@ public class AuthService : IAuthService
             };
 
 
-        // =====================================================
+        // -----------------------------------------------------
         // CREATE TRAINER PROFILE
-        // =====================================================
-        //
-        // IMPORTANT:
-        // This is what was missing from your current code.
-        //
-        // The trainer profile is created immediately during
-        // registration, but it remains inactive until admin
-        // approval.
-        // =====================================================
+        // -----------------------------------------------------
 
         var trainerProfile =
             new TrainerProfile
@@ -626,11 +622,6 @@ public class AuthService : IAuthService
 
                 UserId =
                     user.Id,
-
-
-                // -------------------------------------------------
-                // PERSONAL INFORMATION
-                // -------------------------------------------------
 
                 FirstName =
                     request.FirstName.Trim(),
@@ -656,11 +647,6 @@ public class AuthService : IAuthService
                         request.Gender
                     ),
 
-
-                // -------------------------------------------------
-                // TRAINER INFORMATION
-                // -------------------------------------------------
-
                 IsActive =
                     false,
 
@@ -675,69 +661,54 @@ public class AuthService : IAuthService
                 YearsOfExperience =
                     request.YearsOfExperience,
 
-
-                // -------------------------------------------------
-                // PROFILE IMAGE
-                // -------------------------------------------------
-
                 ProfileImageUrl =
                     profileImageUrl,
 
-
-                // -------------------------------------------------
-                // ACTIVATION
-                // -------------------------------------------------
-
                 ActivatedAt =
                     null,
-
-
-                // -------------------------------------------------
-                // RELATIONSHIP
-                // -------------------------------------------------
 
                 User =
                     user
             };
 
 
-        // =====================================================
+        // -----------------------------------------------------
         // ADD USER
-        // =====================================================
+        // -----------------------------------------------------
 
         _db.Users.Add(
             user
         );
 
 
-        // =====================================================
+        // -----------------------------------------------------
         // ADD TRAINER APPLICATION
-        // =====================================================
+        // -----------------------------------------------------
 
         _db.TrainerApplications.Add(
             trainerApplication
         );
 
 
-        // =====================================================
+        // -----------------------------------------------------
         // ADD TRAINER PROFILE
-        // =====================================================
+        // -----------------------------------------------------
 
         _db.TrainerProfiles.Add(
             trainerProfile
         );
 
 
-        // =====================================================
+        // -----------------------------------------------------
         // SAVE DATABASE
-        // =====================================================
+        // -----------------------------------------------------
 
         await _db.SaveChangesAsync();
 
 
-        // =====================================================
+        // -----------------------------------------------------
         // RETURN RESPONSE
-        // =====================================================
+        // -----------------------------------------------------
 
         return new UserRegistrationResponse
         {
@@ -771,66 +742,69 @@ public class AuthService : IAuthService
     }
 
 
-  // =========================================================
-// LOGIN
-// POST /api/auth/login
-// =========================================================
+    // =========================================================
+    // LOGIN
+    // POST /api/auth/login
+    // =========================================================
 
-public async Task<LoginResponse>
-    LoginAsync(
-        LoginRequest request)
-{
-   
-
-    var email =
-        request.Email
-            .Trim()
-            .ToLowerInvariant();
+    public async Task<LoginResponse>
+        LoginAsync(
+            LoginRequest request)
+    {
+        var email =
+            request.Email
+                .Trim()
+                .ToLowerInvariant();
 
 
-   
+        var user =
+            await _db.Users
+                .FirstOrDefaultAsync(
+                    x =>
+                        x.Email == email
+                );
 
-    var user =
-        await _db.Users
-            .FirstOrDefaultAsync(
-                x =>
-                    x.Email == email
+
+        if (user is null)
+        {
+            throw new UnauthorizedAccessException(
+                "Invalid email or password."
             );
+        }
 
 
+        var passwordValid =
+            _passwordService
+                .VerifyPassword(
+                    request.Password,
+                    user.PasswordHash
+                );
 
-    if (user is null)
-    {
-        throw new UnauthorizedAccessException(
-            "Invalid email or password."
-        );
-    }
 
-
-   
-    var passwordValid =
-        _passwordService
-            .VerifyPassword(
-                request.Password,
-                user.PasswordHash
+        if (!passwordValid)
+        {
+            throw new UnauthorizedAccessException(
+                "Invalid email or password."
             );
+        }
 
 
-    if (!passwordValid)
-    {
-        throw new UnauthorizedAccessException(
-            "Invalid email or password."
-        );
-    }
+        // -----------------------------------------------------
+        // EMAIL VERIFICATION
+        // -----------------------------------------------------
+
+        if (!user.IsEmailVerified)
+        {
+            throw new UnauthorizedAccessException(
+                "Please verify your email address before logging in."
+            );
+        }
 
 
-    if (!user.IsEmailVerified)
-    {
-        throw new UnauthorizedAccessException(
-            "Please verify your email address before logging in."
-        );
-    }
-   
+        // -----------------------------------------------------
+        // TRAINER PROFILE
+        // -----------------------------------------------------
+
         var trainerProfile =
             await _db.TrainerProfiles
                 .FirstOrDefaultAsync(
@@ -838,12 +812,17 @@ public async Task<LoginResponse>
                         x.UserId ==
                         user.Id
                 );
-       
+
+
+        // -----------------------------------------------------
+        // JWT
+        // -----------------------------------------------------
 
         var jwt =
             _jwtService.GenerateToken(
                 user
             );
+
 
         return new LoginResponse
         {
@@ -872,13 +851,296 @@ public async Task<LoginResponse>
                         user.Role.ToString(),
 
                     Status =
-                        user.Status.ToString(),
-
+                        user.Status.ToString()
                 }
         };
     }
 
 
+    // =========================================================
+    // FORGOT PASSWORD
+    // POST /api/auth/forgot-password
+    // =========================================================
+
+    public async Task<OtpResponse>
+        ForgotPasswordAsync(
+            ForgotPasswordRequest request)
+    {
+        var email =
+            request.Email
+                .Trim()
+                .ToLowerInvariant();
+
+
+        return await _otpService
+            .SendPasswordResetOtpAsync(
+                new SendOtpRequest
+                {
+                    Email =
+                        email
+                }
+            );
+    }
+
+
+    // =========================================================
+    // VERIFY PASSWORD RESET OTP
+    // POST /api/auth/verify-reset-otp
+    // =========================================================
+
+    public async Task<OtpResponse>
+        VerifyPasswordResetOtpAsync(
+            VerifyResetOtpRequest request)
+    {
+        var email =
+            request.Email
+                .Trim()
+                .ToLowerInvariant();
+
+
+        return await _otpService
+            .VerifyPasswordResetOtpAsync(
+                new VerifyOtpRequest
+                {
+                    Email =
+                        email,
+
+                    OtpCode =
+                        request.OtpCode
+                }
+            );
+    }
+
+
+    // =========================================================
+    // RESET PASSWORD
+    // POST /api/auth/reset-password
+    // =========================================================
+
+    public async Task<OtpResponse>
+        ResetPasswordAsync(
+            ResetPasswordRequest request)
+    {
+        var email =
+            request.Email
+                .Trim()
+                .ToLowerInvariant();
+
+
+        var user =
+            await _db.Users
+                .FirstOrDefaultAsync(
+                    x =>
+                        x.Email == email
+                );
+
+
+        if (user is null)
+        {
+            return new OtpResponse
+            {
+                Success = false,
+
+                Message =
+                    "Unable to reset password."
+            };
+        }
+
+
+        // -----------------------------------------------------
+        // FIND THE MOST RECENT PASSWORD RESET OTP
+        // -----------------------------------------------------
+
+        var otp =
+            await _db.OtpVerifications
+                .Where(
+                    x =>
+                        x.UserId == user.Id
+                        &&
+                        x.Purpose ==
+                            OtpPurpose.PasswordReset
+                        &&
+                        x.OtpCode ==
+                            request.OtpCode
+                        &&
+                        x.IsUsed
+                )
+                .OrderByDescending(
+                    x =>
+                        x.VerifiedAt
+                )
+                .FirstOrDefaultAsync();
+
+
+        if (otp is null)
+        {
+            return new OtpResponse
+            {
+                Success = false,
+
+                Message =
+                    "Invalid or unverified password reset OTP."
+            };
+        }
+
+
+        // -----------------------------------------------------
+        // CHECK OTP EXPIRATION
+        // -----------------------------------------------------
+
+        if (
+            otp.ExpiresAt <=
+            DateTime.UtcNow
+        )
+        {
+            return new OtpResponse
+            {
+                Success = false,
+
+                Message =
+                    "The password reset OTP has expired."
+            };
+        }
+
+
+        // -----------------------------------------------------
+        // HASH NEW PASSWORD
+        // -----------------------------------------------------
+
+        user.PasswordHash =
+            _passwordService
+                .HashPassword(
+                    request.NewPassword
+                );
+
+
+        user.UpdatedAt =
+            DateTime.UtcNow;
+
+
+        await _db.SaveChangesAsync();
+
+
+        return new OtpResponse
+        {
+            Success = true,
+
+            Message =
+                "Password reset successfully."
+        };
+    }
+
+
+    // =========================================================
+    // CHANGE PASSWORD
+    // POST /api/auth/change-password
+    // AUTHENTICATED USER
+    // =========================================================
+
+    public async Task<OtpResponse>
+        ChangePasswordAsync(
+            Guid userId,
+            ChangePasswordRequest request)
+    {
+        var user =
+            await _db.Users
+                .FirstOrDefaultAsync(
+                    x =>
+                        x.Id == userId
+                );
+
+
+        if (user is null)
+        {
+            return new OtpResponse
+            {
+                Success = false,
+
+                Message =
+                    "User account not found."
+            };
+        }
+
+
+        // -----------------------------------------------------
+        // VERIFY CURRENT PASSWORD
+        // -----------------------------------------------------
+
+        var currentPasswordValid =
+            _passwordService
+                .VerifyPassword(
+                    request.CurrentPassword,
+                    user.PasswordHash
+                );
+
+
+        if (!currentPasswordValid)
+        {
+            return new OtpResponse
+            {
+                Success = false,
+
+                Message =
+                    "Current password is incorrect."
+            };
+        }
+
+
+        // -----------------------------------------------------
+        // PREVENT SAME PASSWORD
+        // -----------------------------------------------------
+
+        var samePassword =
+            _passwordService
+                .VerifyPassword(
+                    request.NewPassword,
+                    user.PasswordHash
+                );
+
+
+        if (samePassword)
+        {
+            return new OtpResponse
+            {
+                Success = false,
+
+                Message =
+                    "New password must be different from your current password."
+            };
+        }
+
+
+        // -----------------------------------------------------
+        // HASH NEW PASSWORD
+        // -----------------------------------------------------
+
+        user.PasswordHash =
+            _passwordService
+                .HashPassword(
+                    request.NewPassword
+                );
+
+
+        user.UpdatedAt =
+            DateTime.UtcNow;
+
+
+        await _db.SaveChangesAsync();
+
+
+        return new OtpResponse
+        {
+            Success = true,
+
+            Message =
+                "Password changed successfully."
+        };
+    }
+
+
+    // =========================================================
+    // GENERATE PARTICIPANT USER CODE
+    // =========================================================
 
     private async Task<string>
         GenerateParticipantUserCodeAsync()
@@ -935,7 +1197,7 @@ public async Task<LoginResponse>
 
 
     // =========================================================
-    // GENERATE TRAINER CODE
+    // GENERATE TRAINER USER CODE
     // =========================================================
 
     private async Task<string>

@@ -11,14 +11,16 @@ namespace server.Controllers;
 public class WrittenAssessmentsController : ControllerBase
 {
     private readonly IWrittenAssessmentService _service;
-    private readonly IDocumentTextExtractionService _documentTextExtractionService;
+    private readonly IDocumentTextExtractionService
+        _documentTextExtractionService;
 
     public WrittenAssessmentsController(
         IWrittenAssessmentService service,
         IDocumentTextExtractionService documentTextExtractionService)
     {
         _service = service;
-        _documentTextExtractionService = documentTextExtractionService;
+        _documentTextExtractionService =
+            documentTextExtractionService;
     }
 
     // =========================================================
@@ -33,7 +35,9 @@ public class WrittenAssessmentsController : ControllerBase
                 System.Security.Claims.ClaimTypes.NameIdentifier
             )?.Value;
 
-        if (!Guid.TryParse(userId, out var parsedUserId))
+        if (!Guid.TryParse(
+                userId,
+                out var parsedUserId))
         {
             throw new UnauthorizedAccessException(
                 "User ID claim is missing or invalid.");
@@ -42,14 +46,17 @@ public class WrittenAssessmentsController : ControllerBase
         return parsedUserId;
     }
 
+
     // =========================================================
     // ADMIN - WRITTEN ASSESSMENT
     // =========================================================
 
     [HttpGet("batch/{trainingBatchId:guid}")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<IReadOnlyList<WrittenAssessmentDto>>>
-        GetByBatchId(Guid trainingBatchId)
+    public async Task<
+        ActionResult<IReadOnlyList<WrittenAssessmentDto>>>
+        GetByBatchId(
+            Guid trainingBatchId)
     {
         var result =
             await _service.GetByBatchIdAsync(
@@ -58,10 +65,13 @@ public class WrittenAssessmentsController : ControllerBase
         return Ok(result);
     }
 
+
     [HttpGet("{id:guid}")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<WrittenAssessmentDto>>
-        GetById(Guid id)
+    public async Task<
+        ActionResult<WrittenAssessmentDto>>
+        GetById(
+            Guid id)
     {
         var result =
             await _service.GetByIdAsync(id);
@@ -70,21 +80,26 @@ public class WrittenAssessmentsController : ControllerBase
         {
             return NotFound(new
             {
-                message = "Written assessment not found."
+                message =
+                    "Written assessment not found."
             });
         }
 
         return Ok(result);
     }
 
+
     [HttpPost]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<WrittenAssessmentDto>>
+    public async Task<
+        ActionResult<WrittenAssessmentDto>>
         Create(
-            [FromBody] CreateWrittenAssessmentRequest request)
+            [FromBody]
+            CreateWrittenAssessmentRequest request)
     {
         var result =
-            await _service.CreateAsync(request);
+            await _service.CreateAsync(
+                request);
 
         return CreatedAtAction(
             nameof(GetById),
@@ -92,12 +107,15 @@ public class WrittenAssessmentsController : ControllerBase
             result);
     }
 
+
     [HttpPut("{id:guid}")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<WrittenAssessmentDto>>
+    public async Task<
+        ActionResult<WrittenAssessmentDto>>
         Update(
             Guid id,
-            [FromBody] UpdateWrittenAssessmentRequest request)
+            [FromBody]
+            UpdateWrittenAssessmentRequest request)
     {
         var result =
             await _service.UpdateAsync(
@@ -107,22 +125,27 @@ public class WrittenAssessmentsController : ControllerBase
         return Ok(result);
     }
 
+
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult>
-        Delete(Guid id)
+        Delete(
+            Guid id)
     {
         await _service.DeleteAsync(id);
 
         return NoContent();
     }
 
+
     [HttpPut("{id:guid}/publish")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<WrittenAssessmentDto>>
+    public async Task<
+        ActionResult<WrittenAssessmentDto>>
         SetPublished(
             Guid id,
-            [FromQuery] bool isPublished)
+            [FromQuery]
+            bool isPublished)
     {
         var result =
             await _service.SetPublishedAsync(
@@ -132,15 +155,18 @@ public class WrittenAssessmentsController : ControllerBase
         return Ok(result);
     }
 
+
     // =========================================================
     // ADMIN - QUESTIONS
     // =========================================================
 
     [HttpGet("{id:guid}/questions")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<
-        IReadOnlyList<AdminAssessmentQuestionDto>>>
-        GetQuestions(Guid id)
+    public async Task<
+        ActionResult<
+            IReadOnlyList<AdminAssessmentQuestionDto>>>
+        GetQuestions(
+            Guid id)
     {
         var result =
             await _service.GetQuestionsAsync(id);
@@ -148,11 +174,14 @@ public class WrittenAssessmentsController : ControllerBase
         return Ok(result);
     }
 
+
     [HttpPost("questions")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<AdminAssessmentQuestionDto>>
+    public async Task<
+        ActionResult<AdminAssessmentQuestionDto>>
         CreateQuestion(
-            [FromBody] CreateAssessmentQuestionRequest request)
+            [FromBody]
+            CreateAssessmentQuestionRequest request)
     {
         var result =
             await _service.CreateQuestionAsync(
@@ -161,12 +190,15 @@ public class WrittenAssessmentsController : ControllerBase
         return Ok(result);
     }
 
+
     [HttpPut("questions/{questionId:guid}")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<AdminAssessmentQuestionDto>>
+    public async Task<
+        ActionResult<AdminAssessmentQuestionDto>>
         UpdateQuestion(
             Guid questionId,
-            [FromBody] UpdateAssessmentQuestionRequest request)
+            [FromBody]
+            UpdateAssessmentQuestionRequest request)
     {
         var result =
             await _service.UpdateQuestionAsync(
@@ -176,10 +208,12 @@ public class WrittenAssessmentsController : ControllerBase
         return Ok(result);
     }
 
+
     [HttpDelete("questions/{questionId:guid}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult>
-        DeleteQuestion(Guid questionId)
+        DeleteQuestion(
+            Guid questionId)
     {
         await _service.DeleteQuestionAsync(
             questionId);
@@ -187,15 +221,18 @@ public class WrittenAssessmentsController : ControllerBase
         return NoContent();
     }
 
+
     // =========================================================
     // ADMIN - CHOICES
     // =========================================================
 
     [HttpPost("choices")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<AdminAssessmentChoiceDto>>
+    public async Task<
+        ActionResult<AdminAssessmentChoiceDto>>
         CreateChoice(
-            [FromBody] CreateAssessmentChoiceRequest request)
+            [FromBody]
+            CreateAssessmentChoiceRequest request)
     {
         var result =
             await _service.CreateChoiceAsync(
@@ -204,12 +241,15 @@ public class WrittenAssessmentsController : ControllerBase
         return Ok(result);
     }
 
+
     [HttpPut("choices/{choiceId:guid}")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<AdminAssessmentChoiceDto>>
+    public async Task<
+        ActionResult<AdminAssessmentChoiceDto>>
         UpdateChoice(
             Guid choiceId,
-            [FromBody] UpdateAssessmentChoiceRequest request)
+            [FromBody]
+            UpdateAssessmentChoiceRequest request)
     {
         var result =
             await _service.UpdateChoiceAsync(
@@ -219,10 +259,12 @@ public class WrittenAssessmentsController : ControllerBase
         return Ok(result);
     }
 
+
     [HttpDelete("choices/{choiceId:guid}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult>
-        DeleteChoice(Guid choiceId)
+        DeleteChoice(
+            Guid choiceId)
     {
         await _service.DeleteChoiceAsync(
             choiceId);
@@ -230,22 +272,72 @@ public class WrittenAssessmentsController : ControllerBase
         return NoContent();
     }
 
+
     // =========================================================
-    // PARTICIPANT
+    // TRAINER - GET SUBMISSIONS
+    // =========================================================
+
+    [Authorize(Roles = "Trainer")]
+    [HttpGet("{id:guid}/submissions")]
+    public async Task<IActionResult>
+        GetTrainerSubmissions(
+            Guid id)
+    {
+        var submissions =
+            await _service
+                .GetTrainerSubmissionsAsync(id);
+
+        return Ok(submissions);
+    }
+
+
+    // =========================================================
+    // TRAINER - GET SINGLE SUBMISSION
+    // =========================================================
+
+    [Authorize(Roles = "Trainer")]
+    [HttpGet("submissions/{attemptId:guid}")]
+    public async Task<IActionResult>
+        GetTrainerSubmission(
+            Guid attemptId)
+    {
+        var submission =
+            await _service
+                .GetTrainerSubmissionAsync(
+                    attemptId);
+
+        if (submission is null)
+        {
+            return NotFound(new
+            {
+                message =
+                    "Assessment submission not found."
+            });
+        }
+
+        return Ok(submission);
+    }
+
+
+    // =========================================================
+    // PARTICIPANT - GET ASSESSMENT
     // =========================================================
 
     [HttpGet("{id:guid}/participant")]
     [Authorize(Roles = "Participant")]
-    public async Task<ActionResult<ParticipantAssessmentDto>>
-        GetParticipantAssessment(Guid id)
+    public async Task<
+        ActionResult<ParticipantAssessmentDto>>
+        GetParticipantAssessment(
+            Guid id)
     {
         var participantUserId =
             GetCurrentUserId();
 
         var result =
-            await _service.GetParticipantAssessmentAsync(
-                participantUserId,
-                id);
+            await _service
+                .GetParticipantAssessmentAsync(
+                    participantUserId,
+                    id);
 
         if (result is null)
         {
@@ -259,11 +351,18 @@ public class WrittenAssessmentsController : ControllerBase
         return Ok(result);
     }
 
+
+    // =========================================================
+    // PARTICIPANT - START ATTEMPT
+    // =========================================================
+
     [HttpPost("start")]
     [Authorize(Roles = "Participant")]
-    public async Task<ActionResult<AssessmentAttemptDto>>
+    public async Task<
+        ActionResult<AssessmentAttemptDto>>
         StartAttempt(
-            [FromBody] StartAssessmentRequest request)
+            [FromBody]
+            StartAssessmentRequest request)
     {
         var participantUserId =
             GetCurrentUserId();
@@ -276,84 +375,17 @@ public class WrittenAssessmentsController : ControllerBase
         return Ok(result);
     }
 
+
     // =========================================================
-// ADMIN - AI QUESTION GENERATION FROM DOCUMENT
-// =========================================================
-
-[HttpPost("{id:guid}/generate-from-document")]
-[Authorize(Roles = "Admin")]
-[RequestSizeLimit(20_000_000)]
-public async Task<ActionResult<
-    IReadOnlyList<AdminAssessmentQuestionDto>>>
-    GenerateQuestionsFromDocument(
-        Guid id,
-        IFormFile file,
-        [FromQuery] int questionCount = 10,
-        CancellationToken cancellationToken = default)
-{
-    if (file is null || file.Length == 0)
-    {
-        return BadRequest(new
-        {
-            message = "A DOCX document is required."
-        });
-    }
-
-    if (questionCount < 1 || questionCount > 100)
-    {
-        return BadRequest(new
-        {
-            message = "Question count must be between 1 and 100."
-        });
-    }
-
-    var extension =
-        Path.GetExtension(file.FileName)
-            .ToLowerInvariant();
-
-    if (extension != ".docx")
-    {
-        return BadRequest(new
-        {
-            message = "Only DOCX files are supported."
-        });
-    }
-
-    await using var stream =
-        file.OpenReadStream();
-
-    var extractionResult =
-        await _documentTextExtractionService.ExtractAsync(
-            stream,
-            file.FileName,
-            file.ContentType);
-
-    if (string.IsNullOrWhiteSpace(
-            extractionResult.Text))
-    {
-        return BadRequest(new
-        {
-            message =
-                "The uploaded document does not contain readable text."
-        });
-    }
-
-    var result =
-        await _service.GenerateQuestionsFromDocumentAsync(
-            id,
-            extractionResult.Text,
-            questionCount,
-            extractionResult.Images,
-            extractionResult.MediaLinks,
-            cancellationToken);
-
-    return Ok(result);
-}
+    // PARTICIPANT - GET ATTEMPT
+    // =========================================================
 
     [HttpGet("attempts/{attemptId:guid}")]
     [Authorize(Roles = "Participant")]
-    public async Task<ActionResult<AssessmentAttemptDto>>
-        GetAttempt(Guid attemptId)
+    public async Task<
+        ActionResult<AssessmentAttemptDto>>
+        GetAttempt(
+            Guid attemptId)
     {
         var participantUserId =
             GetCurrentUserId();
@@ -375,11 +407,18 @@ public async Task<ActionResult<
         return Ok(result);
     }
 
+
+    // =========================================================
+    // PARTICIPANT - SUBMIT ATTEMPT
+    // =========================================================
+
     [HttpPost("submit")]
     [Authorize(Roles = "Participant")]
-    public async Task<ActionResult<AssessmentResultDto>>
+    public async Task<
+        ActionResult<AssessmentResultDto>>
         SubmitAttempt(
-            [FromBody] SubmitAssessmentRequest request)
+            [FromBody]
+            SubmitAssessmentRequest request)
     {
         var participantUserId =
             GetCurrentUserId();
@@ -392,11 +431,18 @@ public async Task<ActionResult<
         return Ok(result);
     }
 
+
+    // =========================================================
+    // PARTICIPANT - GET RESULTS
+    // =========================================================
+
     [HttpGet("{id:guid}/results")]
     [Authorize(Roles = "Participant")]
-    public async Task<ActionResult<
-        IReadOnlyList<AssessmentResultDto>>>
-        GetMyResults(Guid id)
+    public async Task<
+        ActionResult<
+            IReadOnlyList<AssessmentResultDto>>>
+        GetMyResults(
+            Guid id)
     {
         var participantUserId =
             GetCurrentUserId();
@@ -409,21 +455,230 @@ public async Task<ActionResult<
         return Ok(result);
     }
 
-    [HttpGet("batch/{trainingBatchId:guid}/participant")]
-[Authorize(Roles = "Participant")]
-public async Task<
-    ActionResult<IReadOnlyList<ParticipantAssessmentDto>>>
-    GetParticipantAssessmentsByBatch(
-        Guid trainingBatchId)
-{
-    var participantUserId =
-        GetCurrentUserId();
 
-    var result =
-        await _service.GetParticipantAssessmentsByBatchIdAsync(
-            participantUserId,
-            trainingBatchId);
+    // =========================================================
+    // PARTICIPANT - GET ASSESSMENTS BY BATCH
+    // =========================================================
 
-    return Ok(result);
-}
+    [HttpGet(
+        "batch/{trainingBatchId:guid}/participant")]
+    [Authorize(Roles = "Participant")]
+    public async Task<
+        ActionResult<
+            IReadOnlyList<ParticipantAssessmentDto>>>
+        GetParticipantAssessmentsByBatch(
+            Guid trainingBatchId)
+    {
+        var participantUserId =
+            GetCurrentUserId();
+
+        var result =
+            await _service
+                .GetParticipantAssessmentsByBatchIdAsync(
+                    participantUserId,
+                    trainingBatchId);
+
+        return Ok(result);
+    }
+
+
+    // =========================================================
+    // PARTICIPANT - REQUEST RETAKE
+    // =========================================================
+
+    [HttpPost("retake-request")]
+    [Authorize(Roles = "Participant")]
+    public async Task<
+        ActionResult<AssessmentRetakeRequestDto>>
+        RequestRetake(
+            [FromBody]
+            CreateAssessmentRetakeRequest request)
+    {
+        var participantUserId =
+            GetCurrentUserId();
+
+        var result =
+            await _service.RequestRetakeAsync(
+                participantUserId,
+                request);
+
+        return Ok(result);
+    }
+
+
+    // =========================================================
+    // PARTICIPANT - MY RETAKE REQUESTS
+    // =========================================================
+
+    [HttpGet("retake-requests")]
+    [Authorize(Roles = "Participant")]
+    public async Task<
+        ActionResult<
+            IReadOnlyList<AssessmentRetakeRequestDto>>>
+        GetMyRetakeRequests()
+    {
+        var participantUserId =
+            GetCurrentUserId();
+
+        var result =
+            await _service.GetMyRetakeRequestsAsync(
+                participantUserId);
+
+        return Ok(result);
+    }
+
+
+    // =========================================================
+    // ADMIN - GET RETAKE REQUESTS
+    // =========================================================
+
+    [HttpGet("admin/retake-requests")]
+    [Authorize(Roles = "Admin")]
+    public async Task<
+        ActionResult<
+            IReadOnlyList<AssessmentRetakeRequestDto>>>
+        GetRetakeRequests()
+    {
+        var result =
+            await _service.GetRetakeRequestsAsync();
+
+        return Ok(result);
+    }
+
+
+    // =========================================================
+    // ADMIN - REVIEW RETAKE REQUEST
+    // =========================================================
+
+    [HttpPut(
+        "admin/retake-requests/{requestId:guid}/review")]
+    [Authorize(Roles = "Admin")]
+    public async Task<
+        ActionResult<AssessmentRetakeRequestDto>>
+        ReviewRetakeRequest(
+            Guid requestId,
+            [FromBody]
+            ReviewAssessmentRetakeRequest request)
+    {
+        var adminUserId =
+            GetCurrentUserId();
+
+        var result =
+            await _service
+                .ReviewRetakeRequestAsync(
+                    adminUserId,
+                    requestId,
+                    request);
+
+        return Ok(result);
+    }
+
+
+    // =========================================================
+    // TRAINER - GET MY ASSESSMENTS
+    // =========================================================
+
+    [HttpGet("trainer")]
+    [Authorize(Roles = "Trainer")]
+    public async Task<
+        ActionResult<
+            IReadOnlyList<WrittenAssessmentDto>>>
+        GetTrainerAssessments()
+    {
+        var userId =
+            GetCurrentUserId();
+
+        var assessments =
+            await _service
+                .GetTrainerAssessmentsAsync(
+                    userId);
+
+        return Ok(assessments);
+    }
+
+
+    // =========================================================
+    // ADMIN - AI QUESTION GENERATION FROM DOCUMENT
+    // =========================================================
+
+    [HttpPost(
+        "{id:guid}/generate-from-document")]
+    [Authorize(Roles = "Admin")]
+    [RequestSizeLimit(20_000_000)]
+    public async Task<
+        ActionResult<
+            IReadOnlyList<AdminAssessmentQuestionDto>>>
+        GenerateQuestionsFromDocument(
+            Guid id,
+            IFormFile file,
+            [FromQuery]
+            int questionCount = 10,
+            CancellationToken cancellationToken = default)
+    {
+        if (file is null ||
+            file.Length == 0)
+        {
+            return BadRequest(new
+            {
+                message =
+                    "A DOCX document is required."
+            });
+        }
+
+        if (questionCount < 1 ||
+            questionCount > 100)
+        {
+            return BadRequest(new
+            {
+                message =
+                    "Question count must be between 1 and 100."
+            });
+        }
+
+        var extension =
+            Path.GetExtension(
+                file.FileName)
+                .ToLowerInvariant();
+
+        if (extension != ".docx")
+        {
+            return BadRequest(new
+            {
+                message =
+                    "Only DOCX files are supported."
+            });
+        }
+
+        await using var stream =
+            file.OpenReadStream();
+
+        var extractionResult =
+            await _documentTextExtractionService
+                .ExtractAsync(
+                    stream,
+                    file.FileName,
+                    file.ContentType);
+
+        if (string.IsNullOrWhiteSpace(
+                extractionResult.Text))
+        {
+            return BadRequest(new
+            {
+                message =
+                    "The uploaded document does not contain readable text."
+            });
+        }
+
+        var result =
+            await _service
+                .GenerateQuestionsFromDocumentAsync(
+                    id,
+                    extractionResult.Text,
+                    questionCount,
+                    extractionResult.Images,
+                    extractionResult.MediaLinks,
+                    cancellationToken);
+
+        return Ok(result);
+    }
 }

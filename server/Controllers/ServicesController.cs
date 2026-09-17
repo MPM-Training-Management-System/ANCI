@@ -128,40 +128,40 @@ public class ServicesController : ControllerBase
             });
         }
     }
-
-    // POST: api/services/requests
-    [Authorize]
-    [HttpPost("requests")]
-    public async Task<ActionResult<ServiceRequestDto>> CreateRequest(
-        [FromBody] CreateServiceRequestDto dto)
+// POST: api/services/requests
+[AllowAnonymous]
+[HttpPost("requests")]
+public async Task<ActionResult<ServiceRequestDto>> CreateRequest(
+    [FromBody] CreateServiceRequestDto dto)
+{
+    try
     {
-        try
+        Guid? userId = null;
+
+        var userIdClaim = User.FindFirstValue(
+            ClaimTypes.NameIdentifier
+        );
+
+        if (Guid.TryParse(userIdClaim, out var parsedUserId))
         {
-            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            if (!Guid.TryParse(userIdClaim, out var userId))
-            {
-                return Unauthorized(new
-                {
-                    message = "Invalid user identity."
-                });
-            }
-
-            var request = await _service.CreateRequestAsync(
-                userId,
-                dto
-            );
-
-            return Ok(request);
+            userId = parsedUserId;
         }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
-        }
+
+        var request = await _service.CreateRequestAsync(
+            userId,
+            dto
+        );
+
+        return Ok(request);
     }
+    catch (InvalidOperationException ex)
+    {
+        return BadRequest(new
+        {
+            message = ex.Message
+        });
+    }
+}
 
     [HttpGet("requests")]
 [Authorize(Roles = "Admin")]
@@ -190,47 +190,38 @@ public async Task<IActionResult> GetRequest(
 
     return Ok(request);
 }
-
-[HttpPut("requests/{id:guid}/status")]
+// PUT: api/services/requests/{id}/review
+[HttpPut("requests/{id:guid}/review")]
 [Authorize(Roles = "Admin")]
-public async Task<IActionResult> UpdateRequestStatus(
+public async Task<IActionResult> ReviewRequest(
     Guid id,
-    [FromBody] UpdateServiceRequestStatusDto dto
-)
+    [FromBody] ReviewServiceRequestDto dto)
 {
-    if (string.IsNullOrWhiteSpace(dto.Status))
-    {
-        return BadRequest(new
-        {
-            message = "Status is required."
-        });
-    }
-
-    var adminUserIdClaim = User.FindFirst(
-        ClaimTypes.NameIdentifier
-    )?.Value;
-
-    if (!Guid.TryParse(
-        adminUserIdClaim,
-        out var adminUserId
-    ))
-    {
-        return Unauthorized(new
-        {
-            message = "Invalid admin user."
-        });
-    }
-
     try
     {
+        var adminUserIdClaim =
+            User.FindFirstValue(
+                ClaimTypes.NameIdentifier
+            );
+
+        if (!Guid.TryParse(
+                adminUserIdClaim,
+                out var adminUserId))
+        {
+            return Unauthorized(new
+            {
+                message = "Invalid admin identity."
+            });
+        }
+
         var request =
-            await _service.UpdateRequestStatusAsync(
+            await _service.ReviewRequestAsync(
                 id,
                 adminUserId,
                 dto
             );
 
-        if (request == null)
+        if (request is null)
         {
             return NotFound(new
             {
@@ -240,7 +231,7 @@ public async Task<IActionResult> UpdateRequestStatus(
 
         return Ok(request);
     }
-    catch (ArgumentException ex)
+    catch (InvalidOperationException ex)
     {
         return BadRequest(new
         {

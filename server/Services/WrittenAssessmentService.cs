@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using server.Data;
 using server.DTOs.Assessments;
+using server.Enums;
 using server.Models.Assessment;
 using server.Models.Participant;
 using server.Models.Training;
@@ -12,323 +13,245 @@ using EnrollmentModel = server.Models.Participant.Enrollment;
 namespace server.Services;
 
 public class WrittenAssessmentService
-    : IWrittenAssessmentService
+: IWrittenAssessmentService
 {
-    private readonly ApplicationDbContext _db;
-    private readonly IAssessmentAiService _assessmentAiService;
-   public WrittenAssessmentService(
-    ApplicationDbContext db,
-    IAssessmentAiService assessmentAiService)
+private readonly ApplicationDbContext _db;
+private readonly IAssessmentAiService _assessmentAiService;
+public WrittenAssessmentService(
+ApplicationDbContext db,
+IAssessmentAiService assessmentAiService)
 {
-    _db = db;
-    _assessmentAiService = assessmentAiService;
-
+_db = db;
+_assessmentAiService = assessmentAiService;
 
 }
 
+// ==========================================================
+// ADMIN
+// GET ASSESSMENTS BY BATCH
+// ==========================================================
 
-    // ==========================================================
-    // ADMIN
-    // GET ASSESSMENTS BY BATCH
-    // ==========================================================
+public async Task<IReadOnlyList<WrittenAssessmentDto>>
+    GetByBatchIdAsync(
+        Guid trainingBatchId)
+{
+    var assessments =
+        await _db.WrittenAssessments
+            .AsNoTracking()
+            .Include(x => x.TrainingBatch)
+            .Include(x => x.Questions)
+            .Where(x =>
+                x.TrainingBatchId ==
+                trainingBatchId)
+            .OrderByDescending(
+                x => x.CreatedAt)
+            .ToListAsync();
 
-    public async Task<IReadOnlyList<WrittenAssessmentDto>>
-        GetByBatchIdAsync(
-            Guid trainingBatchId)
-    {
-        var assessments =
-            await _db.WrittenAssessments
-                .AsNoTracking()
-                .Include(x => x.TrainingBatch)
-                .Include(x => x.Questions)
-                .Where(x =>
-                    x.TrainingBatchId ==
-                    trainingBatchId)
-                .OrderByDescending(
-                    x => x.CreatedAt)
-                .ToListAsync();
-
-        return assessments
-            .Select(MapAssessment)
-            .ToList();
-    }
-
-
-    // ==========================================================
-    // ADMIN
-    // GET ASSESSMENT BY ID
-    // ==========================================================
-
-    public async Task<WrittenAssessmentDto?>
-        GetByIdAsync(
-            Guid id)
-    {
-        var assessment =
-            await _db.WrittenAssessments
-                .AsNoTracking()
-                .Include(x => x.TrainingBatch)
-                .Include(x => x.Questions)
-                .FirstOrDefaultAsync(
-                    x => x.Id == id);
-
-        if (assessment is null)
-        {
-            return null;
-        }
-
-        return MapAssessment(
-            assessment);
-    }
+    return assessments
+        .Select(MapAssessment)
+        .ToList();
+}
 
 
-    // ==========================================================
-    // ADMIN
-    // CREATE ASSESSMENT
-    // ==========================================================
+// ==========================================================
+// ADMIN
+// GET ASSESSMENT BY ID
+// ==========================================================
 
-    public async Task<WrittenAssessmentDto>
-        CreateAsync(
-            CreateWrittenAssessmentRequest request)
-    {
-        ValidateAssessmentRequest(
-            request.Title,
-            request.PassingPercentage);
-
-        var batch =
-            await _db.TrainingBatches
-                .AsNoTracking()
-                .FirstOrDefaultAsync(
-                    x =>
-                        x.Id ==
-                        request.TrainingBatchId);
-
-        if (batch is null)
-        {
-            throw new KeyNotFoundException(
-                "Training batch not found.");
-        }
-
-        var existingAssessment =
-            await _db.WrittenAssessments
-                .AnyAsync(
-                    x =>
-                        x.TrainingBatchId ==
-                            request.TrainingBatchId &&
-                        x.Title.ToLower() ==
-                            request.Title
-                                .Trim()
-                                .ToLower());
-
-        if (existingAssessment)
-        {
-            throw new InvalidOperationException(
-                "An assessment with the same title already exists for this training batch.");
-        }
-
-        var now =
-            DateTime.UtcNow;
-
-        var assessment =
-            new WrittenAssessment
-            {
-                Id = Guid.NewGuid(),
-
-                TrainingBatchId =
-                    request.TrainingBatchId,
-
-                Title =
-                    request.Title.Trim(),
-
-                Description =
-                    NormalizeNullable(
-                        request.Description),
-
-                PassingPercentage =
-                    request.PassingPercentage,
-
-                IsPublished = false,
-
-                CreatedAt = now,
-
-                UpdatedAt = null,
-            };
-
-        _db.WrittenAssessments.Add(
-            assessment);
-
-        await _db.SaveChangesAsync();
-
-        await _db.Entry(assessment)
-            .Reference(x => x.TrainingBatch)
-            .LoadAsync();
-
-        return MapAssessment(
-            assessment);
-    }
-
-
-    // ==========================================================
-    // ADMIN
-    // UPDATE ASSESSMENT
-    // ==========================================================
-
-    public async Task<WrittenAssessmentDto>
-        UpdateAsync(
-            Guid id,
-            UpdateWrittenAssessmentRequest request)
-    {
-        ValidateAssessmentRequest(
-            request.Title,
-            request.PassingPercentage);
-
-        var assessment =
-            await _db.WrittenAssessments
-                .Include(x => x.TrainingBatch)
-                .Include(x => x.Questions)
-                .FirstOrDefaultAsync(
-                    x => x.Id == id);
-
-        if (assessment is null)
-        {
-            throw new KeyNotFoundException(
-                "Written assessment not found.");
-        }
-
-        var duplicate =
-            await _db.WrittenAssessments
-                .AnyAsync(
-                    x =>
-                        x.Id != id &&
-                        x.TrainingBatchId ==
-                            assessment.TrainingBatchId &&
-                        x.Title.ToLower() ==
-                            request.Title
-                                .Trim()
-                                .ToLower());
-
-        if (duplicate)
-        {
-            throw new InvalidOperationException(
-                "An assessment with the same title already exists for this training batch.");
-        }
-
-        assessment.Title =
-            request.Title.Trim();
-
-        assessment.Description =
-            NormalizeNullable(
-                request.Description);
-
-        assessment.PassingPercentage =
-            request.PassingPercentage;
-
-        assessment.UpdatedAt =
-            DateTime.UtcNow;
-
-        await _db.SaveChangesAsync();
-
-        return MapAssessment(
-            assessment);
-    }
-
-
-    // ==========================================================
-    // ADMIN
-    // DELETE ASSESSMENT
-    // ==========================================================
-
-    public async Task DeleteAsync(
+public async Task<WrittenAssessmentDto?>
+    GetByIdAsync(
         Guid id)
-    {
-        var assessment =
-            await _db.WrittenAssessments
-                .FirstOrDefaultAsync(
-                    x => x.Id == id);
-
-        if (assessment is null)
-        {
-            throw new KeyNotFoundException(
-                "Written assessment not found.");
-        }
-
-        var hasAttempts =
-            await _db.AssessmentAttempts
-                .AnyAsync(
-                    x =>
-                        x.WrittenAssessmentId ==
-                        id);
-
-        if (hasAttempts)
-        {
-            throw new InvalidOperationException(
-                "This assessment cannot be deleted because participant attempts already exist.");
-        }
-
-        _db.WrittenAssessments.Remove(
-            assessment);
-
-        await _db.SaveChangesAsync();
-    }
-
-
-    // ==========================================================
-    // ADMIN
-    // PUBLISH / UNPUBLISH
-    // ==========================================================
-
-    public async Task<WrittenAssessmentDto>
-        SetPublishedAsync(
-            Guid id,
-            bool isPublished)
-    {
-        var assessment =
-            await _db.WrittenAssessments
-                .Include(x => x.TrainingBatch)
-                .Include(x => x.Questions)
-                    .ThenInclude(x => x.Choices)
-                .FirstOrDefaultAsync(
-                    x => x.Id == id);
-
-        if (assessment is null)
-        {
-            throw new KeyNotFoundException(
-                "Written assessment not found.");
-        }
-
-        if (isPublished)
-        {
-            ValidateAssessmentCanBePublished(
-                assessment);
-        }
-
-        assessment.IsPublished =
-            isPublished;
-
-        assessment.UpdatedAt =
-            DateTime.UtcNow;
-
-        await _db.SaveChangesAsync();
-
-        return MapAssessment(
-            assessment);
-    }
-
-
-    // ==========================================================
-    // QUESTIONS
-    // GET
-    // ==========================================================
-public async Task<
-    IReadOnlyList<AdminAssessmentQuestionDto>>
-    GetQuestionsAsync(
-        Guid writtenAssessmentId)
 {
     var assessment =
         await _db.WrittenAssessments
+            .AsNoTracking()
+            .Include(x => x.TrainingBatch)
             .Include(x => x.Questions)
-                .ThenInclude(x => x.Choices)
             .FirstOrDefaultAsync(
-                x => x.Id == writtenAssessmentId);
+                x => x.Id == id);
+
+    if (assessment is null)
+    {
+        return null;
+    }
+
+    return MapAssessment(
+        assessment);
+}
+
+
+// ==========================================================
+// ADMIN
+// CREATE ASSESSMENT
+// ==========================================================
+
+public async Task<WrittenAssessmentDto>
+    CreateAsync(
+        CreateWrittenAssessmentRequest request)
+{
+    ValidateAssessmentRequest(
+        request.Title,
+        request.PassingPercentage);
+
+    var batch =
+        await _db.TrainingBatches
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                x =>
+                    x.Id ==
+                    request.TrainingBatchId);
+
+    if (batch is null)
+    {
+        throw new KeyNotFoundException(
+            "Training batch not found.");
+    }
+
+    var existingAssessment =
+        await _db.WrittenAssessments
+            .AnyAsync(
+                x =>
+                    x.TrainingBatchId ==
+                        request.TrainingBatchId &&
+                    x.Title.ToLower() ==
+                        request.Title
+                            .Trim()
+                            .ToLower());
+
+    if (existingAssessment)
+    {
+        throw new InvalidOperationException(
+            "An assessment with the same title already exists for this training batch.");
+    }
+
+    var now =
+        DateTime.UtcNow;
+
+    var assessment =
+        new WrittenAssessment
+        {
+            Id = Guid.NewGuid(),
+
+            TrainingBatchId =
+                request.TrainingBatchId,
+
+            Title =
+                request.Title.Trim(),
+
+            Description =
+                NormalizeNullable(
+                    request.Description),
+
+            PassingPercentage =
+                request.PassingPercentage,
+
+            IsPublished = false,
+
+            CreatedAt = now,
+
+            UpdatedAt = null,
+        };
+
+    _db.WrittenAssessments.Add(
+        assessment);
+
+    await _db.SaveChangesAsync();
+
+    await _db.Entry(assessment)
+        .Reference(x => x.TrainingBatch)
+        .LoadAsync();
+
+    return MapAssessment(
+        assessment);
+}
+
+public async Task<IReadOnlyList<WrittenAssessmentDto>>
+GetTrainerAssessmentsAsync(Guid trainerUserId)
+
+{
+var trainerProfile =
+await _db.TrainerProfiles
+.AsNoTracking()
+.FirstOrDefaultAsync(
+x => x.UserId == trainerUserId
+);
+
+if (trainerProfile is null)
+{
+    throw new KeyNotFoundException(
+        "Trainer profile not found."
+    );
+}
+
+var assignedBatchIds =
+    await _db.TrainerAssignments
+        .AsNoTracking()
+        .Where(x =>
+            x.TrainerProfileId == trainerProfile.Id &&
+            x.IsActive
+        )
+        .Select(x => x.TrainingBatchId)
+        .Distinct()
+        .ToListAsync();
+
+if (assignedBatchIds.Count == 0)
+{
+    return [];
+}
+
+var assessments =
+    await _db.WrittenAssessments
+        .AsNoTracking()
+        .Include(x => x.TrainingBatch)
+        .Include(x => x.Questions)
+        .Where(x =>
+            assignedBatchIds.Contains(
+                x.TrainingBatchId
+            )
+        )
+        .OrderByDescending(
+            x => x.CreatedAt
+        )
+        .ToListAsync();
+
+return assessments
+    .Select(x => new WrittenAssessmentDto
+    {
+        Id = x.Id,
+        TrainingBatchId = x.TrainingBatchId,
+        BatchCode = x.TrainingBatch.BatchCode,
+        Title = x.Title,
+        Description = x.Description,
+        PassingPercentage = x.PassingPercentage,
+        IsPublished = x.IsPublished,
+        QuestionCount = x.Questions.Count,
+        CreatedAt = x.CreatedAt,
+        UpdatedAt = x.UpdatedAt,
+    })
+    .ToList();
+
+}
+
+// ==========================================================
+// ADMIN
+// UPDATE ASSESSMENT
+// ==========================================================
+
+public async Task<WrittenAssessmentDto>
+    UpdateAsync(
+        Guid id,
+        UpdateWrittenAssessmentRequest request)
+{
+    ValidateAssessmentRequest(
+        request.Title,
+        request.PassingPercentage);
+
+    var assessment =
+        await _db.WrittenAssessments
+            .Include(x => x.TrainingBatch)
+            .Include(x => x.Questions)
+            .FirstOrDefaultAsync(
+                x => x.Id == id);
 
     if (assessment is null)
     {
@@ -336,12 +259,155 @@ public async Task<
             "Written assessment not found.");
     }
 
-    return assessment.Questions
-        .OrderBy(x => x.QuestionNumber)
-        .Select(MapQuestionToAdminDto)
-        .ToList();
+    var duplicate =
+        await _db.WrittenAssessments
+            .AnyAsync(
+                x =>
+                    x.Id != id &&
+                    x.TrainingBatchId ==
+                        assessment.TrainingBatchId &&
+                    x.Title.ToLower() ==
+                        request.Title
+                            .Trim()
+                            .ToLower());
+
+    if (duplicate)
+    {
+        throw new InvalidOperationException(
+            "An assessment with the same title already exists for this training batch.");
+    }
+
+    assessment.Title =
+        request.Title.Trim();
+
+    assessment.Description =
+        NormalizeNullable(
+            request.Description);
+
+    assessment.PassingPercentage =
+        request.PassingPercentage;
+
+    assessment.UpdatedAt =
+        DateTime.UtcNow;
+
+    await _db.SaveChangesAsync();
+
+    return MapAssessment(
+        assessment);
 }
 
+
+// ==========================================================
+// ADMIN
+// DELETE ASSESSMENT
+// ==========================================================
+
+public async Task DeleteAsync(
+    Guid id)
+{
+    var assessment =
+        await _db.WrittenAssessments
+            .FirstOrDefaultAsync(
+                x => x.Id == id);
+
+    if (assessment is null)
+    {
+        throw new KeyNotFoundException(
+            "Written assessment not found.");
+    }
+
+    var hasAttempts =
+        await _db.AssessmentAttempts
+            .AnyAsync(
+                x =>
+                    x.WrittenAssessmentId ==
+                    id);
+
+    if (hasAttempts)
+    {
+        throw new InvalidOperationException(
+            "This assessment cannot be deleted because participant attempts already exist.");
+    }
+
+    _db.WrittenAssessments.Remove(
+        assessment);
+
+    await _db.SaveChangesAsync();
+}
+
+
+// ==========================================================
+// ADMIN
+// PUBLISH / UNPUBLISH
+// ==========================================================
+
+public async Task<WrittenAssessmentDto>
+    SetPublishedAsync(
+        Guid id,
+        bool isPublished)
+{
+    var assessment =
+        await _db.WrittenAssessments
+            .Include(x => x.TrainingBatch)
+            .Include(x => x.Questions)
+                .ThenInclude(x => x.Choices)
+            .FirstOrDefaultAsync(
+                x => x.Id == id);
+
+    if (assessment is null)
+    {
+        throw new KeyNotFoundException(
+            "Written assessment not found.");
+    }
+
+    if (isPublished)
+    {
+        ValidateAssessmentCanBePublished(
+            assessment);
+    }
+
+    assessment.IsPublished =
+        isPublished;
+
+    assessment.UpdatedAt =
+        DateTime.UtcNow;
+
+    await _db.SaveChangesAsync();
+
+    return MapAssessment(
+        assessment);
+}
+
+
+// ==========================================================
+// QUESTIONS
+// GET
+// ==========================================================
+
+public async Task<
+IReadOnlyList<AdminAssessmentQuestionDto>>
+GetQuestionsAsync(
+Guid writtenAssessmentId)
+{
+var assessment =
+await _db.WrittenAssessments
+.Include(x => x.Questions)
+.ThenInclude(x => x.Choices)
+.FirstOrDefaultAsync(
+x => x.Id == writtenAssessmentId);
+
+if (assessment is null)
+{
+    throw new KeyNotFoundException(
+        "Written assessment not found.");
+}
+
+return assessment.Questions
+    .OrderBy(x => x.QuestionNumber)
+    .Select(MapQuestionToAdminDto)
+    .ToList();
+
+}
 
 // ==========================================================
 // QUESTIONS
@@ -361,26 +427,25 @@ CancellationToken cancellationToken = default)
 // VALIDATE INPUT
 // =========================================================
 
-
 if (string.IsNullOrWhiteSpace(rawText))
 {
-    throw new ArgumentException(
-        "Source document text is required.",
-        nameof(rawText));
+throw new ArgumentException(
+"Source document text is required.",
+nameof(rawText));
 }
 
 if (questionCount < 1)
 {
-    throw new ArgumentException(
-        "Question count must be at least 1.",
-        nameof(questionCount));
+throw new ArgumentException(
+"Question count must be at least 1.",
+nameof(questionCount));
 }
 
 if (questionCount > 100)
 {
-    throw new ArgumentException(
-        "Question count must not exceed 100.",
-        nameof(questionCount));
+throw new ArgumentException(
+"Question count must not exceed 100.",
+nameof(questionCount));
 }
 
 images ??= [];
@@ -391,17 +456,17 @@ mediaLinks ??= [];
 // =========================================================
 
 var assessment =
-    await _db.WrittenAssessments
-        .Include(x => x.Questions)
-            .ThenInclude(x => x.Choices)
-        .FirstOrDefaultAsync(
-            x => x.Id == writtenAssessmentId,
-            cancellationToken);
+await _db.WrittenAssessments
+.Include(x => x.Questions)
+.ThenInclude(x => x.Choices)
+.FirstOrDefaultAsync(
+x => x.Id == writtenAssessmentId,
+cancellationToken);
 
 if (assessment is null)
 {
-    throw new KeyNotFoundException(
-        "Written assessment not found.");
+throw new KeyNotFoundException(
+"Written assessment not found.");
 }
 
 // =========================================================
@@ -410,8 +475,8 @@ if (assessment is null)
 
 if (assessment.IsPublished)
 {
-    throw new InvalidOperationException(
-        "Published assessments cannot be modified.");
+throw new InvalidOperationException(
+"Published assessments cannot be modified.");
 }
 
 // =========================================================
@@ -419,22 +484,22 @@ if (assessment.IsPublished)
 // =========================================================
 
 var aiResult =
-    await _assessmentAiService.GenerateQuestionsAsync(
-        rawText,
-        assessment.Title,
-        cancellationToken);
+await _assessmentAiService.GenerateQuestionsAsync(
+rawText,
+assessment.Title,
+cancellationToken);
 
 if (aiResult is null)
 {
-    throw new InvalidOperationException(
-        "AI did not return an assessment result.");
+throw new InvalidOperationException(
+"AI did not return an assessment result.");
 }
 
 if (aiResult.Questions is null ||
-    aiResult.Questions.Count == 0)
+aiResult.Questions.Count == 0)
 {
-    throw new InvalidOperationException(
-        "AI did not generate any assessment questions.");
+throw new InvalidOperationException(
+"AI did not generate any assessment questions.");
 }
 
 // =========================================================
@@ -442,10 +507,10 @@ if (aiResult.Questions is null ||
 // =========================================================
 
 var nextQuestionNumber =
-    assessment.Questions
-        .Select(x => x.QuestionNumber)
-        .DefaultIfEmpty(0)
-        .Max() + 1;
+assessment.Questions
+.Select(x => x.QuestionNumber)
+.DefaultIfEmpty(0)
+.Max() + 1;
 
 // =========================================================
 // SAVE AI GENERATED QUESTIONS
@@ -453,424 +518,52 @@ var nextQuestionNumber =
 
 foreach (var aiQuestion in aiResult.Questions.Take(questionCount))
 {
-    if (string.IsNullOrWhiteSpace(
-            aiQuestion.QuestionText))
-    {
-        continue;
-    }
-
-    var question =
-        new AssessmentQuestion
-        {
-            Id = Guid.NewGuid(),
-
-            WrittenAssessmentId =
-                writtenAssessmentId,
-
-            QuestionNumber =
-                nextQuestionNumber,
-
-            QuestionText =
-                aiQuestion.QuestionText.Trim(),
-
-            Points =
-                aiQuestion.Points > 0
-                    ? aiQuestion.Points
-                    : 1,
-
-            CreatedAt =
-                DateTime.UtcNow,
-
-            UpdatedAt = null,
-
-            Choices = []
-        };
-
-    // =====================================================
-    // SAVE CHOICES
-    // =====================================================
-
-    if (aiQuestion.Choices is not null)
-    {
-        foreach (var aiChoice in
-                 aiQuestion.Choices)
-        {
-            if (string.IsNullOrWhiteSpace(
-                    aiChoice.ChoiceText))
-            {
-                continue;
-            }
-
-            var choice =
-                new AssessmentChoice
-                {
-                    Id = Guid.NewGuid(),
-
-                    AssessmentQuestionId =
-                        question.Id,
-
-                    ChoiceLabel =
-                        string.IsNullOrWhiteSpace(
-                            aiChoice.ChoiceLabel)
-                            ? GetChoiceLabel(
-                                aiQuestion.Choices
-                                    .ToList()
-                                    .IndexOf(
-                                        aiChoice))
-                            : aiChoice.ChoiceLabel
-                                .Trim()
-                                .ToUpperInvariant(),
-
-                    ChoiceText =
-                        aiChoice.ChoiceText.Trim(),
-
-                    IsCorrect =
-                        aiChoice.IsCorrect,
-
-                    DisplayOrder =
-                        aiChoice.DisplayOrder > 0
-                            ? aiChoice.DisplayOrder
-                            : question
-                                .Choices
-                                .Count + 1
-                };
-
-            question.Choices.Add(
-                choice);
-        }
-    }
-
-    // =====================================================
-    // QUESTION VALIDATION
-    // =====================================================
-
-    var correctChoiceCount =
-        question.Choices.Count(
-            x => x.IsCorrect);
-
-    if (question.Choices.Count == 0)
-    {
-        continue;
-    }
-
-    if (correctChoiceCount != 1)
-    {
-        continue;
-    }
-
-    _db.AssessmentQuestions.Add(
-        question);
-
-    nextQuestionNumber++;
-}
-
-// =========================================================
-// CHECK IF ANY QUESTIONS WERE CREATED
-// =========================================================
-
-var generatedQuestions =
-    _db.ChangeTracker
-        .Entries<AssessmentQuestion>()
-        .Where(x =>
-            x.State ==
-                EntityState.Added &&
-            x.Entity.WrittenAssessmentId ==
-                writtenAssessmentId)
-        .Select(x => x.Entity)
-        .ToList();
-
-if (generatedQuestions.Count == 0)
+if (string.IsNullOrWhiteSpace(
+aiQuestion.QuestionText))
 {
-    throw new InvalidOperationException(
-        "No valid assessment questions were generated.");
+continue;
 }
 
-// =========================================================
-// SAVE EVERYTHING
-// =========================================================
-
-assessment.UpdatedAt =
-    DateTime.UtcNow;
-
-await _db.SaveChangesAsync(
-    cancellationToken);
-
-// =========================================================
-// RETURN SAVED QUESTIONS
-// =========================================================
-
-return generatedQuestions
-    .OrderBy(x => x.QuestionNumber)
-    .Select(MapQuestionToAdminDto)
-    .ToList();
-
-
-}
-
-    // ==========================================================
-    // QUESTIONS
-    // CREATE
-    // ==========================================================
-
-    public async Task<AdminAssessmentQuestionDto>
-        CreateQuestionAsync(
-            CreateAssessmentQuestionRequest request)
+var question =
+    new AssessmentQuestion
     {
-        ValidateQuestionRequest(
-            request.QuestionNumber,
-            request.QuestionText,
-            request.Points);
+        Id = Guid.NewGuid(),
 
-        var assessment =
-            await _db.WrittenAssessments
-                .FirstOrDefaultAsync(
-                    x =>
-                        x.Id ==
-                        request.WrittenAssessmentId);
+        WrittenAssessmentId =
+            writtenAssessmentId,
 
-        if (assessment is null)
-        {
-            throw new KeyNotFoundException(
-                "Written assessment not found.");
-        }
+        QuestionNumber =
+            nextQuestionNumber,
 
-        if (assessment.IsPublished)
-        {
-            throw new InvalidOperationException(
-                "Published assessments cannot be modified.");
-        }
+        QuestionText =
+            aiQuestion.QuestionText.Trim(),
 
-        var duplicate =
-            await _db.AssessmentQuestions
-                .AnyAsync(
-                    x =>
-                        x.WrittenAssessmentId ==
-                            request.WrittenAssessmentId &&
-                        x.QuestionNumber ==
-                            request.QuestionNumber);
+        Points =
+            aiQuestion.Points > 0
+                ? aiQuestion.Points
+                : 1,
 
-        if (duplicate)
-        {
-            throw new InvalidOperationException(
-                "A question with this question number already exists.");
-        }
+        CreatedAt =
+            DateTime.UtcNow,
 
-        var question =
-            new AssessmentQuestion
-            {
-                Id = Guid.NewGuid(),
+        UpdatedAt = null,
 
-                WrittenAssessmentId =
-                    request.WrittenAssessmentId,
+        Choices = []
+    };
 
-                QuestionNumber =
-                    request.QuestionNumber,
+// =====================================================
+// SAVE CHOICES
+// =====================================================
 
-                QuestionText =
-                    request.QuestionText.Trim(),
-
-                Points =
-                    request.Points,
-
-                CreatedAt =
-                    DateTime.UtcNow,
-
-                UpdatedAt = null,
-            };
-
-        _db.AssessmentQuestions.Add(
-            question);
-
-        await _db.SaveChangesAsync();
-
-        question.Choices = [];
-
-        return MapQuestionToAdminDto(question);
-    }
-
-
-    // ==========================================================
-    // QUESTIONS
-    // UPDATE
-    // ==========================================================
-
-    public async Task<AdminAssessmentQuestionDto>
-        UpdateQuestionAsync(
-            Guid questionId,
-            UpdateAssessmentQuestionRequest request)
+if (aiQuestion.Choices is not null)
+{
+    foreach (var aiChoice in
+             aiQuestion.Choices)
     {
-        ValidateQuestionRequest(
-            request.QuestionNumber,
-            request.QuestionText,
-            request.Points);
-
-        var question =
-            await _db.AssessmentQuestions
-                .Include(x => x.WrittenAssessment)
-                .Include(x => x.Choices)
-                .FirstOrDefaultAsync(
-                    x =>
-                        x.Id ==
-                        questionId);
-
-        if (question is null)
+        if (string.IsNullOrWhiteSpace(
+                aiChoice.ChoiceText))
         {
-            throw new KeyNotFoundException(
-                "Assessment question not found.");
-        }
-
-        if (question.WrittenAssessment.IsPublished)
-        {
-            throw new InvalidOperationException(
-                "Published assessments cannot be modified.");
-        }
-
-        var duplicate =
-            await _db.AssessmentQuestions
-                .AnyAsync(
-                    x =>
-                        x.Id != questionId &&
-                        x.WrittenAssessmentId ==
-                            question.WrittenAssessmentId &&
-                        x.QuestionNumber ==
-                            request.QuestionNumber);
-
-        if (duplicate)
-        {
-            throw new InvalidOperationException(
-                "A question with this question number already exists.");
-        }
-
-        question.QuestionNumber =
-            request.QuestionNumber;
-
-        question.QuestionText =
-            request.QuestionText.Trim();
-
-        question.Points =
-            request.Points;
-
-        question.UpdatedAt =
-            DateTime.UtcNow;
-
-        await _db.SaveChangesAsync();
-
-        return MapQuestionToAdminDto(question);
-    }
-
-
-    // ==========================================================
-    // QUESTIONS
-    // DELETE
-    // ==========================================================
-
-    public async Task DeleteQuestionAsync(
-        Guid questionId)
-    {
-        var question =
-            await _db.AssessmentQuestions
-                .Include(x => x.WrittenAssessment)
-                .FirstOrDefaultAsync(
-                    x =>
-                        x.Id ==
-                        questionId);
-
-        if (question is null)
-        {
-            throw new KeyNotFoundException(
-                "Assessment question not found.");
-        }
-
-        if (question.WrittenAssessment.IsPublished)
-        {
-            throw new InvalidOperationException(
-                "Published assessments cannot be modified.");
-        }
-
-        var hasAnswers =
-            await _db.AssessmentAnswers
-                .AnyAsync(
-                    x =>
-                        x.AssessmentQuestionId ==
-                        questionId);
-
-        if (hasAnswers)
-        {
-            throw new InvalidOperationException(
-                "This question cannot be deleted because participant answers already exist.");
-        }
-
-        _db.AssessmentQuestions.Remove(
-            question);
-
-        await _db.SaveChangesAsync();
-    }
-
-
-    // ==========================================================
-    // CHOICES
-    // CREATE
-    // ==========================================================
-
-    public async Task<AdminAssessmentChoiceDto>
-        CreateChoiceAsync(
-            CreateAssessmentChoiceRequest request)
-    {
-        ValidateChoiceRequest(
-            request.ChoiceLabel,
-            request.ChoiceText,
-            request.DisplayOrder);
-
-        var question =
-            await _db.AssessmentQuestions
-                .Include(x => x.WrittenAssessment)
-                .FirstOrDefaultAsync(
-                    x =>
-                        x.Id ==
-                        request.AssessmentQuestionId);
-
-        if (question is null)
-        {
-            throw new KeyNotFoundException(
-                "Assessment question not found.");
-        }
-
-        if (question.WrittenAssessment.IsPublished)
-        {
-            throw new InvalidOperationException(
-                "Published assessments cannot be modified.");
-        }
-
-        var duplicateOrder =
-            await _db.AssessmentChoices
-                .AnyAsync(
-                    x =>
-                        x.AssessmentQuestionId ==
-                            request.AssessmentQuestionId &&
-                        x.DisplayOrder ==
-                            request.DisplayOrder);
-
-        if (duplicateOrder)
-        {
-            throw new InvalidOperationException(
-                "A choice with this display order already exists.");
-        }
-
-        var duplicateLabel =
-            await _db.AssessmentChoices
-                .AnyAsync(
-                    x =>
-                        x.AssessmentQuestionId ==
-                            request.AssessmentQuestionId &&
-                        x.ChoiceLabel.ToLower() ==
-                            request.ChoiceLabel
-                                .Trim()
-                                .ToLower());
-
-        if (duplicateLabel)
-        {
-            throw new InvalidOperationException(
-                "A choice with this label already exists.");
+            continue;
         }
 
         var choice =
@@ -879,225 +572,2134 @@ return generatedQuestions
                 Id = Guid.NewGuid(),
 
                 AssessmentQuestionId =
-                    request.AssessmentQuestionId,
+                    question.Id,
 
                 ChoiceLabel =
-                    request.ChoiceLabel
-                        .Trim()
-                        .ToUpperInvariant(),
+                    string.IsNullOrWhiteSpace(
+                        aiChoice.ChoiceLabel)
+                        ? GetChoiceLabel(
+                            aiQuestion.Choices
+                                .ToList()
+                                .IndexOf(
+                                    aiChoice))
+                        : aiChoice.ChoiceLabel
+                            .Trim()
+                            .ToUpperInvariant(),
 
                 ChoiceText =
-                    request.ChoiceText.Trim(),
+                    aiChoice.ChoiceText.Trim(),
 
                 IsCorrect =
-                    request.IsCorrect,
+                    aiChoice.IsCorrect,
 
                 DisplayOrder =
-                    request.DisplayOrder,
+                    aiChoice.DisplayOrder > 0
+                        ? aiChoice.DisplayOrder
+                        : question
+                            .Choices
+                            .Count + 1
             };
 
-        _db.AssessmentChoices.Add(
+        question.Choices.Add(
             choice);
-
-        await _db.SaveChangesAsync();
-
-       return MapChoiceToAdminDto(choice);
     }
+}
 
+// =====================================================
+// QUESTION VALIDATION
+// =====================================================
 
-    // ==========================================================
-    // CHOICES
-    // UPDATE
-    // ==========================================================
+var correctChoiceCount =
+    question.Choices.Count(
+        x => x.IsCorrect);
 
-    public async Task<AdminAssessmentChoiceDto>
-        UpdateChoiceAsync(
-            Guid choiceId,
-            UpdateAssessmentChoiceRequest request)
+if (question.Choices.Count == 0)
+{
+    continue;
+}
+
+if (correctChoiceCount != 1)
+{
+    continue;
+}
+
+_db.AssessmentQuestions.Add(
+    question);
+
+nextQuestionNumber++;
+
+}
+
+// =========================================================
+// CHECK IF ANY QUESTIONS WERE CREATED
+// =========================================================
+
+var generatedQuestions =
+_db.ChangeTracker
+.Entries<AssessmentQuestion>()
+.Where(x =>
+x.State ==
+EntityState.Added &&
+x.Entity.WrittenAssessmentId ==
+writtenAssessmentId)
+.Select(x => x.Entity)
+.ToList();
+
+if (generatedQuestions.Count == 0)
+{
+throw new InvalidOperationException(
+"No valid assessment questions were generated.");
+}
+
+// =========================================================
+// SAVE EVERYTHING
+// =========================================================
+
+assessment.UpdatedAt =
+DateTime.UtcNow;
+
+await _db.SaveChangesAsync(
+cancellationToken);
+
+// =========================================================
+// RETURN SAVED QUESTIONS
+// =========================================================
+
+return generatedQuestions
+.OrderBy(x => x.QuestionNumber)
+.Select(MapQuestionToAdminDto)
+.ToList();
+
+}
+
+// ==========================================================
+// QUESTIONS
+// CREATE
+// ==========================================================
+
+public async Task<AdminAssessmentQuestionDto>
+    CreateQuestionAsync(
+        CreateAssessmentQuestionRequest request)
+{
+    ValidateQuestionRequest(
+        request.QuestionNumber,
+        request.QuestionText,
+        request.Points);
+
+    var assessment =
+        await _db.WrittenAssessments
+            .FirstOrDefaultAsync(
+                x =>
+                    x.Id ==
+                    request.WrittenAssessmentId);
+
+    if (assessment is null)
     {
-        ValidateChoiceRequest(
-            request.ChoiceLabel,
-            request.ChoiceText,
-            request.DisplayOrder);
-
-        var choice =
-            await _db.AssessmentChoices
-                .Include(x => x.AssessmentQuestion)
-                    .ThenInclude(x =>
-                        x.WrittenAssessment)
-                .FirstOrDefaultAsync(
-                    x =>
-                        x.Id ==
-                        choiceId);
-
-        if (choice is null)
-        {
-            throw new KeyNotFoundException(
-                "Assessment choice not found.");
-        }
-
-        if (
-            choice
-                .AssessmentQuestion
-                .WrittenAssessment
-                .IsPublished)
-        {
-            throw new InvalidOperationException(
-                "Published assessments cannot be modified.");
-        }
-
-        var duplicateOrder =
-            await _db.AssessmentChoices
-                .AnyAsync(
-                    x =>
-                        x.Id != choiceId &&
-                        x.AssessmentQuestionId ==
-                            choice.AssessmentQuestionId &&
-                        x.DisplayOrder ==
-                            request.DisplayOrder);
-
-        if (duplicateOrder)
-        {
-            throw new InvalidOperationException(
-                "A choice with this display order already exists.");
-        }
-
-        var duplicateLabel =
-            await _db.AssessmentChoices
-                .AnyAsync(
-                    x =>
-                        x.Id != choiceId &&
-                        x.AssessmentQuestionId ==
-                            choice.AssessmentQuestionId &&
-                        x.ChoiceLabel.ToLower() ==
-                            request.ChoiceLabel
-                                .Trim()
-                                .ToLower());
-
-        if (duplicateLabel)
-        {
-            throw new InvalidOperationException(
-                "A choice with this label already exists.");
-        }
-
-        choice.ChoiceLabel =
-            request.ChoiceLabel
-                .Trim()
-                .ToUpperInvariant();
-
-        choice.ChoiceText =
-            request.ChoiceText.Trim();
-
-        choice.IsCorrect =
-            request.IsCorrect;
-
-        choice.DisplayOrder =
-            request.DisplayOrder;
-
-        await _db.SaveChangesAsync();
-
-        return MapChoiceToAdminDto(choice);
+        throw new KeyNotFoundException(
+            "Written assessment not found.");
     }
 
-
-    // ==========================================================
-    // CHOICES
-    // DELETE
-    // ==========================================================
-
-    public async Task DeleteChoiceAsync(
-        Guid choiceId)
+    if (assessment.IsPublished)
     {
-        var choice =
-            await _db.AssessmentChoices
-                .Include(x => x.AssessmentQuestion)
-                    .ThenInclude(x =>
-                        x.WrittenAssessment)
-                .FirstOrDefaultAsync(
-                    x =>
-                        x.Id ==
-                        choiceId);
-
-        if (choice is null)
-        {
-            throw new KeyNotFoundException(
-                "Assessment choice not found.");
-        }
-
-        if (
-            choice
-                .AssessmentQuestion
-                .WrittenAssessment
-                .IsPublished)
-        {
-            throw new InvalidOperationException(
-                "Published assessments cannot be modified.");
-        }
-
-        var hasAnswers =
-            await _db.AssessmentAnswers
-                .AnyAsync(
-                    x =>
-                        x.SelectedChoiceId ==
-                        choiceId);
-
-        if (hasAnswers)
-        {
-            throw new InvalidOperationException(
-                "This choice cannot be deleted because it has already been used in a participant answer.");
-        }
-
-        _db.AssessmentChoices.Remove(
-            choice);
-
-        await _db.SaveChangesAsync();
+        throw new InvalidOperationException(
+            "Published assessments cannot be modified.");
     }
 
+    var duplicate =
+        await _db.AssessmentQuestions
+            .AnyAsync(
+                x =>
+                    x.WrittenAssessmentId ==
+                        request.WrittenAssessmentId &&
+                    x.QuestionNumber ==
+                        request.QuestionNumber);
 
+    if (duplicate)
+    {
+        throw new InvalidOperationException(
+            "A question with this question number already exists.");
+    }
+
+    var question =
+        new AssessmentQuestion
+        {
+            Id = Guid.NewGuid(),
+
+            WrittenAssessmentId =
+                request.WrittenAssessmentId,
+
+            QuestionNumber =
+                request.QuestionNumber,
+
+            QuestionText =
+                request.QuestionText.Trim(),
+
+            Points =
+                request.Points,
+
+            CreatedAt =
+                DateTime.UtcNow,
+
+            UpdatedAt = null,
+        };
+
+    _db.AssessmentQuestions.Add(
+        question);
+
+    await _db.SaveChangesAsync();
+
+    question.Choices = [];
+
+    return MapQuestionToAdminDto(question);
+}
+
+
+// ==========================================================
+// QUESTIONS
+// UPDATE
+// ==========================================================
+
+public async Task<AdminAssessmentQuestionDto>
+    UpdateQuestionAsync(
+        Guid questionId,
+        UpdateAssessmentQuestionRequest request)
+{
+    ValidateQuestionRequest(
+        request.QuestionNumber,
+        request.QuestionText,
+        request.Points);
+
+    var question =
+        await _db.AssessmentQuestions
+            .Include(x => x.WrittenAssessment)
+            .Include(x => x.Choices)
+            .FirstOrDefaultAsync(
+                x =>
+                    x.Id ==
+                    questionId);
+
+    if (question is null)
+    {
+        throw new KeyNotFoundException(
+            "Assessment question not found.");
+    }
+
+    if (question.WrittenAssessment.IsPublished)
+    {
+        throw new InvalidOperationException(
+            "Published assessments cannot be modified.");
+    }
+
+    var duplicate =
+        await _db.AssessmentQuestions
+            .AnyAsync(
+                x =>
+                    x.Id != questionId &&
+                    x.WrittenAssessmentId ==
+                        question.WrittenAssessmentId &&
+                    x.QuestionNumber ==
+                        request.QuestionNumber);
+
+    if (duplicate)
+    {
+        throw new InvalidOperationException(
+            "A question with this question number already exists.");
+    }
+
+    question.QuestionNumber =
+        request.QuestionNumber;
+
+    question.QuestionText =
+        request.QuestionText.Trim();
+
+    question.Points =
+        request.Points;
+
+    question.UpdatedAt =
+        DateTime.UtcNow;
+
+    await _db.SaveChangesAsync();
+
+    return MapQuestionToAdminDto(question);
+}
+
+
+// ==========================================================
+// QUESTIONS
+// DELETE
+// ==========================================================
+
+public async Task DeleteQuestionAsync(
+    Guid questionId)
+{
+    var question =
+        await _db.AssessmentQuestions
+            .Include(x => x.WrittenAssessment)
+            .FirstOrDefaultAsync(
+                x =>
+                    x.Id ==
+                    questionId);
+
+    if (question is null)
+    {
+        throw new KeyNotFoundException(
+            "Assessment question not found.");
+    }
+
+    if (question.WrittenAssessment.IsPublished)
+    {
+        throw new InvalidOperationException(
+            "Published assessments cannot be modified.");
+    }
+
+    var hasAnswers =
+        await _db.AssessmentAnswers
+            .AnyAsync(
+                x =>
+                    x.AssessmentQuestionId ==
+                    questionId);
+
+    if (hasAnswers)
+    {
+        throw new InvalidOperationException(
+            "This question cannot be deleted because participant answers already exist.");
+    }
+
+    _db.AssessmentQuestions.Remove(
+        question);
+
+    await _db.SaveChangesAsync();
+}
+
+
+// ==========================================================
+// CHOICES
+// CREATE
+// ==========================================================
+
+public async Task<AdminAssessmentChoiceDto>
+    CreateChoiceAsync(
+        CreateAssessmentChoiceRequest request)
+{
+    ValidateChoiceRequest(
+        request.ChoiceLabel,
+        request.ChoiceText,
+        request.DisplayOrder);
+
+    var question =
+        await _db.AssessmentQuestions
+            .Include(x => x.WrittenAssessment)
+            .FirstOrDefaultAsync(
+                x =>
+                    x.Id ==
+                    request.AssessmentQuestionId);
+
+    if (question is null)
+    {
+        throw new KeyNotFoundException(
+            "Assessment question not found.");
+    }
+
+    if (question.WrittenAssessment.IsPublished)
+    {
+        throw new InvalidOperationException(
+            "Published assessments cannot be modified.");
+    }
+
+    var duplicateOrder =
+        await _db.AssessmentChoices
+            .AnyAsync(
+                x =>
+                    x.AssessmentQuestionId ==
+                        request.AssessmentQuestionId &&
+                    x.DisplayOrder ==
+                        request.DisplayOrder);
+
+    if (duplicateOrder)
+    {
+        throw new InvalidOperationException(
+            "A choice with this display order already exists.");
+    }
+
+    var duplicateLabel =
+        await _db.AssessmentChoices
+            .AnyAsync(
+                x =>
+                    x.AssessmentQuestionId ==
+                        request.AssessmentQuestionId &&
+                    x.ChoiceLabel.ToLower() ==
+                        request.ChoiceLabel
+                            .Trim()
+                            .ToLower());
+
+    if (duplicateLabel)
+    {
+        throw new InvalidOperationException(
+            "A choice with this label already exists.");
+    }
+
+    var choice =
+        new AssessmentChoice
+        {
+            Id = Guid.NewGuid(),
+
+            AssessmentQuestionId =
+                request.AssessmentQuestionId,
+
+            ChoiceLabel =
+                request.ChoiceLabel
+                    .Trim()
+                    .ToUpperInvariant(),
+
+            ChoiceText =
+                request.ChoiceText.Trim(),
+
+            IsCorrect =
+                request.IsCorrect,
+
+            DisplayOrder =
+                request.DisplayOrder,
+        };
+
+    _db.AssessmentChoices.Add(
+        choice);
+
+    await _db.SaveChangesAsync();
+
+   return MapChoiceToAdminDto(choice);
+}
+
+
+// ==========================================================
+// CHOICES
+// UPDATE
+// ==========================================================
+
+public async Task<AdminAssessmentChoiceDto>
+    UpdateChoiceAsync(
+        Guid choiceId,
+        UpdateAssessmentChoiceRequest request)
+{
+    ValidateChoiceRequest(
+        request.ChoiceLabel,
+        request.ChoiceText,
+        request.DisplayOrder);
+
+    var choice =
+        await _db.AssessmentChoices
+            .Include(x => x.AssessmentQuestion)
+                .ThenInclude(x =>
+                    x.WrittenAssessment)
+            .FirstOrDefaultAsync(
+                x =>
+                    x.Id ==
+                    choiceId);
+
+    if (choice is null)
+    {
+        throw new KeyNotFoundException(
+            "Assessment choice not found.");
+    }
+
+    if (
+        choice
+            .AssessmentQuestion
+            .WrittenAssessment
+            .IsPublished)
+    {
+        throw new InvalidOperationException(
+            "Published assessments cannot be modified.");
+    }
+
+    var duplicateOrder =
+        await _db.AssessmentChoices
+            .AnyAsync(
+                x =>
+                    x.Id != choiceId &&
+                    x.AssessmentQuestionId ==
+                        choice.AssessmentQuestionId &&
+                    x.DisplayOrder ==
+                        request.DisplayOrder);
+
+    if (duplicateOrder)
+    {
+        throw new InvalidOperationException(
+            "A choice with this display order already exists.");
+    }
+
+    var duplicateLabel =
+        await _db.AssessmentChoices
+            .AnyAsync(
+                x =>
+                    x.Id != choiceId &&
+                    x.AssessmentQuestionId ==
+                        choice.AssessmentQuestionId &&
+                    x.ChoiceLabel.ToLower() ==
+                        request.ChoiceLabel
+                            .Trim()
+                            .ToLower());
+
+    if (duplicateLabel)
+    {
+        throw new InvalidOperationException(
+            "A choice with this label already exists.");
+    }
+
+    choice.ChoiceLabel =
+        request.ChoiceLabel
+            .Trim()
+            .ToUpperInvariant();
+
+    choice.ChoiceText =
+        request.ChoiceText.Trim();
+
+    choice.IsCorrect =
+        request.IsCorrect;
+
+    choice.DisplayOrder =
+        request.DisplayOrder;
+
+    await _db.SaveChangesAsync();
+
+    return MapChoiceToAdminDto(choice);
+}
+
+
+// ==========================================================
+// CHOICES
+// DELETE
+// ==========================================================
+
+public async Task DeleteChoiceAsync(
+    Guid choiceId)
+{
+    var choice =
+        await _db.AssessmentChoices
+            .Include(x => x.AssessmentQuestion)
+                .ThenInclude(x =>
+                    x.WrittenAssessment)
+            .FirstOrDefaultAsync(
+                x =>
+                    x.Id ==
+                    choiceId);
+
+    if (choice is null)
+    {
+        throw new KeyNotFoundException(
+            "Assessment choice not found.");
+    }
+
+    if (
+        choice
+            .AssessmentQuestion
+            .WrittenAssessment
+            .IsPublished)
+    {
+        throw new InvalidOperationException(
+            "Published assessments cannot be modified.");
+    }
+
+    var hasAnswers =
+        await _db.AssessmentAnswers
+            .AnyAsync(
+                x =>
+                    x.SelectedChoiceId ==
+                    choiceId);
+
+    if (hasAnswers)
+    {
+        throw new InvalidOperationException(
+            "This choice cannot be deleted because it has already been used in a participant answer.");
+    }
+
+    _db.AssessmentChoices.Remove(
+        choice);
+
+    await _db.SaveChangesAsync();
+}
+
+// ==========================================================
+
+// TRAINER
+// GET SUBMISSIONS
+// ==========================================================
+
+public async Task<IReadOnlyList<TrainerAssessmentSubmissionDto>>
+GetTrainerSubmissionsAsync(
+Guid writtenAssessmentId)
+{
+var assessment =
+await _db.WrittenAssessments
+.AsNoTracking()
+.FirstOrDefaultAsync(
+x => x.Id == writtenAssessmentId);
+
+if (assessment is null)
+{
+    throw new KeyNotFoundException(
+        "Written assessment not found.");
+}
+
+var attempts =
+    await _db.AssessmentAttempts
+        .AsNoTracking()
+        .Include(x => x.WrittenAssessment)
+        .Include(x => x.Enrollment)
+            .ThenInclude(x => x.ParticipantProfile)
+                .ThenInclude(x => x.User)
+        .Include(x => x.Answers)
+            .ThenInclude(x => x.AssessmentQuestion)
+                .ThenInclude(x => x.Choices)
+        .Include(x => x.Answers)
+            .ThenInclude(x => x.SelectedChoice)
+        .Include(x => x.Result)
+        .Where(x =>
+            x.WrittenAssessmentId ==
+                writtenAssessmentId &&
+            x.Result != null &&
+            x.Status !=
+                AssessmentAttemptStatus.InProgress)
+        .OrderByDescending(x => x.SubmittedAt)
+        .ToListAsync();
+
+return attempts
+    .Select(MapTrainerSubmission)
+    .ToList();
+
+}
+
+// ==========================================================
+// TRAINER
+// GET SINGLE SUBMISSION
+// ==========================================================
+
+public async Task<TrainerAssessmentSubmissionDto?>
+GetTrainerSubmissionAsync(
+Guid attemptId)
+{
+var attempt =
+await _db.AssessmentAttempts
+.AsNoTracking()
+.Include(x => x.WrittenAssessment)
+.Include(x => x.Enrollment)
+.ThenInclude(x => x.ParticipantProfile)
+.ThenInclude(x => x.User)
+.Include(x => x.Answers)
+.ThenInclude(x => x.AssessmentQuestion)
+.ThenInclude(x => x.Choices)
+.Include(x => x.Answers)
+.ThenInclude(x => x.SelectedChoice)
+.Include(x => x.Result)
+.FirstOrDefaultAsync(
+x => x.Id == attemptId);
+
+if (attempt is null)
+{
+    return null;
+}
+
+if (attempt.Result is null)
+{
+    return null;
+}
+
+return MapTrainerSubmission(attempt);
+
+}
+
+// ==========================================================
+// PARTICIPANT
+// GET ASSESSMENT
+// ==========================================================
+
+public async Task<ParticipantAssessmentDto?>
+    GetParticipantAssessmentAsync(
+        Guid participantUserId,
+        Guid writtenAssessmentId)
+{
+    var assessment =
+        await _db.WrittenAssessments
+            .AsNoTracking()
+            .Include(x => x.TrainingBatch)
+            .Include(x => x.Questions)
+            .Include(x => x.Attempts)
+                .ThenInclude(x => x.Result)
+            .FirstOrDefaultAsync(
+                x =>
+                    x.Id ==
+                    writtenAssessmentId &&
+                    x.IsPublished);
+
+    if (assessment is null)
+    {
+        return null;
+    }
+
+    var enrollment =
+        await GetApprovedEnrollmentAsync(
+            participantUserId,
+            assessment.TrainingBatchId);
+
+    if (enrollment is null)
+    {
+        return null;
+    }
+
+    var attempts =
+        assessment.Attempts
+            .Where(
+                x =>
+                    x.EnrollmentId ==
+                    enrollment.Id)
+            .OrderByDescending(
+                x => x.AttemptNumber)
+            .ToList();
+
+    var latestResult =
+        attempts
+            .Select(x => x.Result)
+            .FirstOrDefault(
+                x => x is not null);
+
+    return new ParticipantAssessmentDto
+    {
+        Id =
+            assessment.Id,
+
+        TrainingBatchId =
+            assessment.TrainingBatchId,
+
+        BatchCode =
+            assessment.TrainingBatch.BatchCode,
+
+        Title =
+            assessment.Title,
+
+        Description =
+            assessment.Description,
+
+        PassingPercentage =
+            assessment.PassingPercentage,
+
+        QuestionCount =
+            assessment.Questions.Count,
+
+        IsPublished =
+            assessment.IsPublished,
+
+        AttemptCount =
+            attempts.Count,
+
+        HasPassed =
+            attempts.Any(
+                x =>
+                    x.Status ==
+                    AssessmentAttemptStatus.Passed),
+
+        LatestPercentage =
+            latestResult?.Percentage,
+    };
+}
+
+
+// ==========================================================
+// PARTICIPANT
+// START ATTEMPT
+// ==========================================================
+// ==========================================================
+// PARTICIPANT
+// START ATTEMPT
+// ==========================================================
+
+public async Task<AssessmentAttemptDto>
+    StartAttemptAsync(
+        Guid participantUserId,
+        Guid writtenAssessmentId)
+{
     // ==========================================================
-    // PARTICIPANT
     // GET ASSESSMENT
     // ==========================================================
 
-    public async Task<ParticipantAssessmentDto?>
-        GetParticipantAssessmentAsync(
-            Guid participantUserId,
-            Guid writtenAssessmentId)
+    var assessment =
+        await _db.WrittenAssessments
+            .Include(x => x.TrainingBatch)
+            .Include(x => x.Questions)
+                .ThenInclude(x => x.Choices)
+            .FirstOrDefaultAsync(
+                x =>
+                    x.Id ==
+                    writtenAssessmentId);
+
+    if (assessment is null)
     {
-        var assessment =
-            await _db.WrittenAssessments
-                .AsNoTracking()
-                .Include(x => x.TrainingBatch)
-                .Include(x => x.Questions)
-                .Include(x => x.Attempts)
-                    .ThenInclude(x => x.Result)
-                .FirstOrDefaultAsync(
+        throw new KeyNotFoundException(
+            "Written assessment not found.");
+    }
+
+    if (!assessment.IsPublished)
+    {
+        throw new InvalidOperationException(
+            "This assessment is not currently published.");
+    }
+
+
+    // ==========================================================
+    // GET APPROVED ENROLLMENT
+    // ==========================================================
+
+    var enrollment =
+        await GetApprovedEnrollmentAsync(
+            participantUserId,
+            assessment.TrainingBatchId);
+
+    if (enrollment is null)
+    {
+        throw new UnauthorizedAccessException(
+            "You do not have an approved enrollment for this training batch.");
+    }
+
+
+    // ==========================================================
+    // GET PREVIOUS ATTEMPTS
+    // ==========================================================
+
+    var previousAttempts =
+        await _db.AssessmentAttempts
+            .Include(x => x.Result)
+            .Where(
+                x =>
+                    x.WrittenAssessmentId ==
+                        writtenAssessmentId
+                    &&
+                    x.EnrollmentId ==
+                        enrollment.Id)
+            .OrderByDescending(
+                x => x.AttemptNumber)
+            .ToListAsync();
+
+
+    // ==========================================================
+    // CHECK IF ALREADY PASSED
+    // ==========================================================
+
+    var passed =
+        previousAttempts.Any(
+            x =>
+                x.Status ==
+                AssessmentAttemptStatus.Passed);
+
+    if (passed)
+    {
+        throw new InvalidOperationException(
+            "You have already passed this assessment.");
+    }
+
+
+    // ==========================================================
+    // RESUME EXISTING ACTIVE ATTEMPT
+    // ==========================================================
+
+    var activeAttempt =
+        previousAttempts.FirstOrDefault(
+            x =>
+                x.Status ==
+                AssessmentAttemptStatus.InProgress);
+
+    if (activeAttempt is not null)
+    {
+        await LoadAttemptQuestionsAsync(
+            activeAttempt);
+
+        return MapAttempt(
+            activeAttempt);
+    }
+
+
+    // ==========================================================
+    // FIRST ATTEMPT
+    // ==========================================================
+
+    // If the participant has never taken
+    // the assessment before, allow the first attempt
+    // without requiring a retake request.
+
+    if (previousAttempts.Count == 0)
+    {
+        var firstAttempt =
+            new AssessmentAttempt
+            {
+                Id =
+                    Guid.NewGuid(),
+
+                WrittenAssessmentId =
+                    writtenAssessmentId,
+
+                EnrollmentId =
+                    enrollment.Id,
+
+                AttemptNumber =
+                    1,
+
+                StartedAt =
+                    DateTime.UtcNow,
+
+                SubmittedAt =
+                    null,
+
+                Status =
+                    AssessmentAttemptStatus.InProgress,
+            };
+
+        _db.AssessmentAttempts.Add(
+            firstAttempt);
+
+        await _db.SaveChangesAsync();
+
+        await LoadAttemptQuestionsAsync(
+            firstAttempt);
+
+        return MapAttempt(
+            firstAttempt);
+    }
+
+
+    // ==========================================================
+    // GET LATEST ATTEMPT
+    // ==========================================================
+
+    var latestAttempt =
+        previousAttempts
+            .OrderByDescending(
+                x => x.AttemptNumber)
+            .First();
+
+
+    // ==========================================================
+    // LATEST ATTEMPT MUST HAVE RESULT
+    // ==========================================================
+
+    if (latestAttempt.Result is null)
+    {
+        throw new InvalidOperationException(
+            "Your previous assessment attempt has not been completed.");
+    }
+
+
+    // ==========================================================
+    // LATEST ATTEMPT MUST BE FAILED
+    // ==========================================================
+
+    if (latestAttempt.Status !=
+        AssessmentAttemptStatus.Failed)
+    {
+        throw new InvalidOperationException(
+            "You cannot start another assessment attempt at this time.");
+    }
+
+
+    // ==========================================================
+    // GET RETAKE REQUEST FOR LATEST ATTEMPT
+    // ==========================================================
+
+    var retakeRequest =
+        await _db.AssessmentRetakeRequests
+            .FirstOrDefaultAsync(
+                x =>
+                    x.ParticipantId ==
+                        enrollment.ParticipantProfileId
+                    &&
+                    x.WrittenAssessmentId ==
+                        writtenAssessmentId
+                    &&
+                    x.PreviousAttemptId ==
+                        latestAttempt.Id);
+
+
+    // ==========================================================
+    // NO RETAKE REQUEST
+    // ==========================================================
+
+    if (retakeRequest is null)
+    {
+        throw new InvalidOperationException(
+            "You must request a retake before starting another attempt.");
+    }
+
+
+    // ==========================================================
+    // RETAKE REQUEST PENDING
+    // ==========================================================
+
+    if (retakeRequest.Status ==
+        AssessmentRetakeRequestStatus.Pending)
+    {
+        throw new InvalidOperationException(
+            "Your retake request is still pending administrator approval.");
+    }
+
+
+    // ==========================================================
+    // RETAKE REQUEST REJECTED
+    // ==========================================================
+
+    if (retakeRequest.Status ==
+        AssessmentRetakeRequestStatus.Rejected)
+    {
+        throw new InvalidOperationException(
+            "Your retake request was rejected. Please submit a new retake request.");
+    }
+
+
+    // ==========================================================
+    // RETAKE REQUEST ALREADY USED
+    // ==========================================================
+
+    if (retakeRequest.Status ==
+        AssessmentRetakeRequestStatus.Consumed)
+    {
+        throw new InvalidOperationException(
+            "This retake approval has already been used.");
+    }
+
+
+    // ==========================================================
+    // RETAKE REQUEST APPROVED
+    // ==========================================================
+
+    if (retakeRequest.Status ==
+        AssessmentRetakeRequestStatus.Approved)
+    {
+        var nextAttemptNumber =
+            latestAttempt.AttemptNumber + 1;
+
+        var newAttempt =
+            new AssessmentAttempt
+            {
+                Id =
+                    Guid.NewGuid(),
+
+                WrittenAssessmentId =
+                    writtenAssessmentId,
+
+                EnrollmentId =
+                    enrollment.Id,
+
+                AttemptNumber =
+                    nextAttemptNumber,
+
+                StartedAt =
+                    DateTime.UtcNow,
+
+                SubmittedAt =
+                    null,
+
+                Status =
+                    AssessmentAttemptStatus.InProgress,
+            };
+
+        _db.AssessmentAttempts.Add(
+            newAttempt);
+
+
+        // ======================================================
+        // CONSUME THE APPROVAL
+        // ======================================================
+
+        retakeRequest.Status =
+            AssessmentRetakeRequestStatus.Consumed;
+
+
+        await _db.SaveChangesAsync();
+
+
+        await LoadAttemptQuestionsAsync(
+            newAttempt);
+
+        return MapAttempt(
+            newAttempt);
+    }
+
+
+    // ==========================================================
+    // FALLBACK
+    // ==========================================================
+
+    throw new InvalidOperationException(
+        "This retake request is not eligible for another attempt.");
+}
+
+
+// ==========================================================
+// PARTICIPANT
+// GET ATTEMPT
+// ==========================================================
+
+public async Task<AssessmentAttemptDto?>
+    GetAttemptAsync(
+        Guid participantUserId,
+        Guid attemptId)
+{
+    var attempt =
+        await _db.AssessmentAttempts
+            .Include(x => x.WrittenAssessment)
+            .Include(x => x.Enrollment)
+                .ThenInclude(x =>
+                    x.ParticipantProfile)
+            .Include(x => x.Answers)
+            .FirstOrDefaultAsync(
+                x =>
+                    x.Id ==
+                    attemptId);
+
+    if (attempt is null)
+    {
+        return null;
+    }
+
+    var userId =
+        attempt
+            .Enrollment
+            .ParticipantProfile
+            .UserId;
+
+    if (userId != participantUserId)
+    {
+        throw new UnauthorizedAccessException(
+            "You are not authorized to access this assessment attempt.");
+    }
+
+    await LoadAttemptQuestionsAsync(
+        attempt);
+
+    return MapAttempt(
+        attempt);
+}
+
+
+// ==========================================================
+// PARTICIPANT
+// SUBMIT ATTEMPT
+// ==========================================================
+
+public async Task<AssessmentResultDto>
+    SubmitAttemptAsync(
+        Guid participantUserId,
+        SubmitAssessmentRequest request)
+{
+    if (request.Answers is null)
+    {
+        throw new ArgumentException(
+            "Assessment answers are required.");
+    }
+
+    var attempt =
+        await _db.AssessmentAttempts
+            .Include(x => x.WrittenAssessment)
+                .ThenInclude(x =>
+                    x.Questions)
+                        .ThenInclude(x =>
+                            x.Choices)
+            .Include(x => x.Enrollment)
+                .ThenInclude(x =>
+                    x.ParticipantProfile)
+            .Include(x => x.Answers)
+            .Include(x => x.Result)
+            .FirstOrDefaultAsync(
+                x =>
+                    x.Id ==
+                    request.AttemptId);
+
+    if (attempt is null)
+    {
+        throw new KeyNotFoundException(
+            "Assessment attempt not found.");
+    }
+
+    var ownerUserId =
+        attempt
+            .Enrollment
+            .ParticipantProfile
+            .UserId;
+
+    if (ownerUserId != participantUserId)
+    {
+        throw new UnauthorizedAccessException(
+            "You are not authorized to submit this assessment attempt.");
+    }
+
+    if (
+        attempt.Status !=
+        AssessmentAttemptStatus.InProgress)
+    {
+        if (attempt.Result is not null)
+        {
+            return MapResult(
+                attempt);
+        }
+
+        throw new InvalidOperationException(
+            "This assessment attempt has already been submitted.");
+    }
+
+    var questions =
+        attempt
+            .WrittenAssessment
+            .Questions
+            .OrderBy(
+                x => x.QuestionNumber)
+            .ToList();
+
+    if (questions.Count == 0)
+    {
+        throw new InvalidOperationException(
+            "This assessment does not contain any questions.");
+    }
+
+    var questionIds =
+        questions
+            .Select(x => x.Id)
+            .ToHashSet();
+
+    var submittedQuestionIds =
+        request.Answers
+            .Select(x => x.QuestionId)
+            .ToList();
+
+    if (
+        submittedQuestionIds.Count !=
+        submittedQuestionIds.Distinct().Count())
+    {
+        throw new ArgumentException(
+            "Duplicate answers for the same question are not allowed.");
+    }
+
+    if (
+        submittedQuestionIds.Any(
+            x =>
+                !questionIds.Contains(x)))
+    {
+        throw new ArgumentException(
+            "One or more submitted questions do not belong to this assessment.");
+    }
+
+    var answerByQuestion =
+        request.Answers
+            .ToDictionary(
+                x => x.QuestionId);
+
+    var totalPoints =
+        questions.Sum(
+            x =>
+                x.Points);
+
+    var earnedPoints = 0;
+
+    var correctAnswers = 0;
+
+    foreach (var question in questions)
+    {
+        answerByQuestion.TryGetValue(
+            question.Id,
+            out var submittedAnswer);
+
+        Guid? selectedChoiceId =
+            submittedAnswer
+                ?.SelectedChoiceId;
+
+        AssessmentChoice? selectedChoice =
+            null;
+
+        if (selectedChoiceId.HasValue)
+        {
+            selectedChoice =
+                question.Choices
+                    .FirstOrDefault(
+                        x =>
+                            x.Id ==
+                            selectedChoiceId.Value);
+
+            if (selectedChoice is null)
+            {
+                throw new ArgumentException(
+                    $"Selected choice does not belong to question {question.QuestionNumber}.");
+            }
+        }
+
+        var isCorrect =
+            selectedChoice?.IsCorrect ??
+            false;
+
+        var earned =
+            isCorrect
+                ? question.Points
+                : 0;
+
+        if (isCorrect)
+        {
+            correctAnswers++;
+        }
+
+        earnedPoints += earned;
+
+        var existingAnswer =
+            attempt.Answers
+                .FirstOrDefault(
                     x =>
-                        x.Id ==
-                        writtenAssessmentId &&
-                        x.IsPublished);
+                        x.AssessmentQuestionId ==
+                        question.Id);
 
-        if (assessment is null)
+        if (existingAnswer is null)
         {
-            return null;
+            existingAnswer =
+                new AssessmentAnswer
+                {
+                    Id =
+                        Guid.NewGuid(),
+
+                    AssessmentAttemptId =
+                        attempt.Id,
+
+                    AssessmentQuestionId =
+                        question.Id,
+
+                    SelectedChoiceId =
+                        selectedChoiceId,
+
+                    EarnedPoints =
+                        earned,
+
+                    IsCorrect =
+                        isCorrect,
+                };
+
+            _db.AssessmentAnswers.Add(
+                existingAnswer);
+
+            attempt.Answers.Add(
+                existingAnswer);
+        }
+        else
+        {
+            existingAnswer.SelectedChoiceId =
+                selectedChoiceId;
+
+            existingAnswer.EarnedPoints =
+                earned;
+
+            existingAnswer.IsCorrect =
+                isCorrect;
+        }
+    }
+
+    var percentage =
+        totalPoints <= 0
+            ? 0m
+            : Math.Round(
+                earnedPoints *
+                100m /
+                totalPoints,
+                2);
+
+    var isPassed =
+        percentage >=
+        attempt
+            .WrittenAssessment
+            .PassingPercentage;
+
+    var now =
+        DateTime.UtcNow;
+
+    attempt.SubmittedAt =
+        now;
+
+    attempt.Status =
+        isPassed
+            ? AssessmentAttemptStatus.Passed
+            : AssessmentAttemptStatus.Failed;
+
+    if (attempt.Result is null)
+    {
+        attempt.Result =
+            new AssessmentResult
+            {
+                Id =
+                    Guid.NewGuid(),
+
+                AssessmentAttemptId =
+                    attempt.Id,
+
+                TotalQuestions =
+                    questions.Count,
+
+                CorrectAnswers =
+                    correctAnswers,
+
+                TotalPoints =
+                    totalPoints,
+
+                EarnedPoints =
+                    earnedPoints,
+
+                Percentage =
+                    percentage,
+
+                IsPassed =
+                    isPassed,
+
+                EvaluatedAt =
+                    now,
+            };
+
+        _db.AssessmentResults.Add(
+            attempt.Result);
+    }
+    else
+    {
+        attempt.Result.TotalQuestions =
+            questions.Count;
+
+        attempt.Result.CorrectAnswers =
+            correctAnswers;
+
+        attempt.Result.TotalPoints =
+            totalPoints;
+
+        attempt.Result.EarnedPoints =
+            earnedPoints;
+
+        attempt.Result.Percentage =
+            percentage;
+
+        attempt.Result.IsPassed =
+            isPassed;
+
+        attempt.Result.EvaluatedAt =
+            now;
+    }
+
+    await _db.SaveChangesAsync();
+
+    return MapResult(
+        attempt);
+}
+
+public async Task<IReadOnlyList<AssessmentResultDto>>
+GetMyResultsAsync(
+Guid participantUserId,
+Guid writtenAssessmentId)
+{
+var batchId =
+await GetBatchIdForAssessmentAsync(
+writtenAssessmentId);
+
+var enrollment =
+    await GetApprovedEnrollmentAsync(
+        participantUserId,
+        batchId);
+
+if (enrollment is null)
+{
+    throw new UnauthorizedAccessException(
+        "You do not have an approved enrollment for this training batch.");
+}
+
+var attempts =
+    await _db.AssessmentAttempts
+        .AsNoTracking()
+        .Include(x => x.WrittenAssessment)
+        .Include(x => x.Result)
+        .Where(
+            x =>
+                x.WrittenAssessmentId ==
+                    writtenAssessmentId &&
+                x.EnrollmentId ==
+                    enrollment.Id &&
+                x.Result != null)
+        .OrderByDescending(
+            x => x.AttemptNumber)
+        .ToListAsync();
+
+return attempts
+    .Select(MapResult)
+    .ToList();
+
+}
+
+private async Task<EnrollmentModel?>
+    GetApprovedEnrollmentAsync(
+        Guid participantUserId,
+        Guid trainingBatchId)
+{
+    return await _db.Enrollments
+        .Include(x =>
+            x.ParticipantProfile)
+        .Where(
+            x =>
+                x.TrainingBatchId ==
+                    trainingBatchId &&
+                x.Status ==
+                    EnrollmentStatus.Approved &&
+                x.ParticipantProfile.UserId ==
+                    participantUserId)
+        .FirstOrDefaultAsync();
+}
+
+
+// ==========================================================
+// PRIVATE
+// GET BATCH ID
+// ==========================================================
+
+private async Task<Guid>
+    GetBatchIdForAssessmentAsync(
+        Guid writtenAssessmentId)
+{
+    var batchId =
+        await _db.WrittenAssessments
+            .Where(
+                x =>
+                    x.Id ==
+                    writtenAssessmentId)
+            .Select(
+                x =>
+                    (Guid?)x.TrainingBatchId)
+            .FirstOrDefaultAsync();
+
+    if (!batchId.HasValue)
+    {
+        throw new KeyNotFoundException(
+            "Written assessment not found.");
+    }
+
+    return batchId.Value;
+}
+
+
+// ==========================================================
+// PRIVATE
+// LOAD ATTEMPT QUESTIONS
+// ==========================================================
+
+private async Task
+    LoadAttemptQuestionsAsync(
+        AssessmentAttempt attempt)
+{
+    await _db.Entry(attempt)
+        .Reference(
+            x =>
+                x.WrittenAssessment)
+        .Query()
+        .Include(
+            x =>
+                x.Questions)
+            .ThenInclude(
+                x =>
+                    x.Choices)
+        .LoadAsync();
+}
+
+
+// ==========================================================
+// PRIVATE
+// VALIDATION
+// ==========================================================
+
+private static void
+    ValidateAssessmentRequest(
+        string title,
+        int passingPercentage)
+{
+    if (string.IsNullOrWhiteSpace(title))
+    {
+        throw new ArgumentException(
+            "Assessment title is required.");
+    }
+
+    if (title.Trim().Length > 255)
+    {
+        throw new ArgumentException(
+            "Assessment title cannot exceed 255 characters.");
+    }
+
+    if (
+        passingPercentage < 1 ||
+        passingPercentage > 100)
+    {
+        throw new ArgumentException(
+            "Passing percentage must be between 1 and 100.");
+    }
+}
+
+
+private static void
+    ValidateQuestionRequest(
+        int questionNumber,
+        string questionText,
+        int points)
+{
+    if (questionNumber <= 0)
+    {
+        throw new ArgumentException(
+            "Question number must be greater than zero.");
+    }
+
+    if (string.IsNullOrWhiteSpace(questionText))
+    {
+        throw new ArgumentException(
+            "Question text is required.");
+    }
+
+    if (questionText.Trim().Length > 5000)
+    {
+        throw new ArgumentException(
+            "Question text cannot exceed 5000 characters.");
+    }
+
+    if (points <= 0)
+    {
+        throw new ArgumentException(
+            "Question points must be greater than zero.");
+    }
+}
+
+
+private static void
+    ValidateChoiceRequest(
+        string choiceLabel,
+        string choiceText,
+        int displayOrder)
+{
+    if (string.IsNullOrWhiteSpace(choiceLabel))
+    {
+        throw new ArgumentException(
+            "Choice label is required.");
+    }
+
+    if (choiceLabel.Trim().Length > 10)
+    {
+        throw new ArgumentException(
+            "Choice label cannot exceed 10 characters.");
+    }
+
+    if (string.IsNullOrWhiteSpace(choiceText))
+    {
+        throw new ArgumentException(
+            "Choice text is required.");
+    }
+
+    if (choiceText.Trim().Length > 2000)
+    {
+        throw new ArgumentException(
+            "Choice text cannot exceed 2000 characters.");
+    }
+
+    if (displayOrder < 0)
+    {
+        throw new ArgumentException(
+            "Display order cannot be negative.");
+    }
+}
+
+
+private static void
+    ValidateAssessmentCanBePublished(
+        WrittenAssessment assessment)
+{
+    if (assessment.Questions.Count == 0)
+    {
+        throw new InvalidOperationException(
+            "An assessment must have at least one question before it can be published.");
+    }
+
+    foreach (
+        var question
+        in assessment.Questions)
+    {
+        if (question.Points <= 0)
+        {
+            throw new InvalidOperationException(
+                $"Question {question.QuestionNumber} must have at least one point.");
         }
 
-        var enrollment =
-            await GetApprovedEnrollmentAsync(
-                participantUserId,
-                assessment.TrainingBatchId);
-
-        if (enrollment is null)
+        if (question.Choices.Count < 2)
         {
-            return null;
+            throw new InvalidOperationException(
+                $"Question {question.QuestionNumber} must have at least two choices.");
         }
 
+        var correctCount =
+            question.Choices.Count(
+                x =>
+                    x.IsCorrect);
+
+        if (correctCount != 1)
+        {
+            throw new InvalidOperationException(
+                $"Question {question.QuestionNumber} must have exactly one correct choice.");
+        }
+    }
+}
+
+
+// ==========================================================
+// PRIVATE
+// NORMALIZE
+// ==========================================================
+
+private static string?
+    NormalizeNullable(
+        string? value)
+{
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        return null;
+    }
+
+    return value.Trim();
+}
+
+
+// ==========================================================
+// MAPPING
+// ==========================================================
+
+private static WrittenAssessmentDto
+    MapAssessment(
+        WrittenAssessment assessment)
+{
+    return new WrittenAssessmentDto
+    {
+        Id =
+            assessment.Id,
+
+        TrainingBatchId =
+            assessment.TrainingBatchId,
+
+        BatchCode =
+            assessment.TrainingBatch
+                ?.BatchCode
+            ?? string.Empty,
+
+        Title =
+            assessment.Title,
+
+        Description =
+            assessment.Description,
+
+        PassingPercentage =
+            assessment.PassingPercentage,
+
+        IsPublished =
+            assessment.IsPublished,
+
+        QuestionCount =
+            assessment.Questions.Count,
+
+        CreatedAt =
+            assessment.CreatedAt,
+
+        UpdatedAt =
+            assessment.UpdatedAt,
+    };
+}
+
+
+private static AssessmentQuestionDto
+    MapQuestion(
+        AssessmentQuestion question)
+{
+    return new AssessmentQuestionDto
+    {
+        Id =
+            question.Id,
+
+        WrittenAssessmentId =
+            question.WrittenAssessmentId,
+
+        QuestionNumber =
+            question.QuestionNumber,
+
+        QuestionText =
+            question.QuestionText,
+
+        Points =
+            question.Points,
+
+        Choices =
+            question.Choices
+                .OrderBy(
+                    x =>
+                        x.DisplayOrder)
+                .Select(
+                    MapChoice)
+                .ToList(),
+    };
+}
+
+
+private static AssessmentChoiceDto
+    MapChoice(
+        AssessmentChoice choice)
+{
+    return new AssessmentChoiceDto
+    {
+        Id =
+            choice.Id,
+
+        AssessmentQuestionId =
+            choice.AssessmentQuestionId,
+
+        ChoiceLabel =
+            choice.ChoiceLabel,
+
+        ChoiceText =
+            choice.ChoiceText,
+
+        DisplayOrder =
+            choice.DisplayOrder,
+    };
+}
+
+private static TrainerAssessmentSubmissionDto
+MapTrainerSubmission(
+AssessmentAttempt attempt)
+{
+if (attempt.Result is null)
+{
+throw new InvalidOperationException(
+"Assessment result is not available.");
+}
+
+var participantProfile =
+    attempt
+        .Enrollment
+        .ParticipantProfile;
+
+var user =
+    participantProfile.User;
+
+var answers =
+    attempt.Answers
+        .OrderBy(x =>
+            x.AssessmentQuestion.QuestionNumber)
+        .Select(answer =>
+        {
+            var question =
+                answer.AssessmentQuestion;
+
+            var selectedChoice =
+                answer.SelectedChoice;
+
+            var correctChoice =
+                question.Choices
+                    .FirstOrDefault(
+                        x => x.IsCorrect);
+
+            return new TrainerAssessmentAnswerDto
+            {
+                QuestionId =
+                    question.Id,
+
+                QuestionNumber =
+                    question.QuestionNumber,
+
+                QuestionText =
+                    question.QuestionText,
+
+                Points =
+                    question.Points,
+
+                SelectedChoiceId =
+                    answer.SelectedChoiceId,
+
+                SelectedChoiceLabel =
+                    selectedChoice?.ChoiceLabel,
+
+                SelectedChoiceText =
+                    selectedChoice?.ChoiceText,
+
+                CorrectChoiceId =
+                    correctChoice?.Id,
+
+                CorrectChoiceLabel =
+                    correctChoice?.ChoiceLabel,
+
+                CorrectChoiceText =
+                    correctChoice?.ChoiceText,
+
+                IsCorrect =
+                    answer.IsCorrect,
+
+                EarnedPoints =
+                    answer.EarnedPoints
+            };
+        })
+        .ToList();
+
+return new TrainerAssessmentSubmissionDto
+{
+    AttemptId =
+        attempt.Id,
+
+    WrittenAssessmentId =
+        attempt.WrittenAssessmentId,
+
+    ParticipantId =
+        participantProfile.Id,
+
+    ParticipantName =
+        user.FullName,
+
+    ParticipantEmail =
+        user.Email,
+
+    AttemptNumber =
+        attempt.AttemptNumber,
+
+    StartedAt =
+        attempt.StartedAt,
+
+    SubmittedAt =
+        attempt.SubmittedAt,
+
+    Status =
+        attempt.Status.ToString(),
+
+    TotalQuestions =
+        attempt.Result.TotalQuestions,
+
+    CorrectAnswers =
+        attempt.Result.CorrectAnswers,
+
+    TotalPoints =
+        attempt.Result.TotalPoints,
+
+    EarnedPoints =
+        attempt.Result.EarnedPoints,
+
+    Percentage =
+        attempt.Result.Percentage,
+
+    IsPassed =
+        attempt.Result.IsPassed,
+
+    EvaluatedAt =
+        attempt.Result.EvaluatedAt,
+
+    Answers =
+        answers
+};
+
+}
+private static AssessmentAttemptDto
+MapAttempt(
+AssessmentAttempt attempt)
+{
+var questions =
+attempt
+.WrittenAssessment
+.Questions
+.OrderBy(
+x =>
+x.QuestionNumber)
+.Select(
+MapQuestion)
+.ToList();
+
+    return new AssessmentAttemptDto
+    {
+        Id =
+            attempt.Id,
+
+        WrittenAssessmentId =
+            attempt.WrittenAssessmentId,
+
+        AssessmentTitle =
+            attempt
+                .WrittenAssessment
+                .Title,
+
+        AttemptNumber =
+            attempt.AttemptNumber,
+
+        StartedAt =
+            attempt.StartedAt,
+
+        Status =
+            attempt.Status,
+
+        Questions =
+            questions,
+    };
+}
+
+
+private static AssessmentResultDto
+    MapResult(
+        AssessmentAttempt attempt)
+{
+    if (attempt.Result is null)
+    {
+        throw new InvalidOperationException(
+            "Assessment result is not available.");
+    }
+
+    return new AssessmentResultDto
+    {
+        Id =
+            attempt.Result.Id,
+
+        AssessmentAttemptId =
+            attempt.Id,
+
+        WrittenAssessmentId =
+            attempt.WrittenAssessmentId,
+
+        AssessmentTitle =
+            attempt
+                .WrittenAssessment
+                .Title,
+
+        AttemptNumber =
+            attempt.AttemptNumber,
+
+        TotalQuestions =
+            attempt.Result
+                .TotalQuestions,
+
+        CorrectAnswers =
+            attempt.Result
+                .CorrectAnswers,
+
+        TotalPoints =
+            attempt.Result
+                .TotalPoints,
+
+        EarnedPoints =
+            attempt.Result
+                .EarnedPoints,
+
+        Percentage =
+            attempt.Result
+                .Percentage,
+
+        IsPassed =
+            attempt.Result
+                .IsPassed,
+
+        EvaluatedAt =
+            attempt.Result
+                .EvaluatedAt,
+    };
+}
+
+
+private static AdminAssessmentQuestionDto
+MapQuestionToAdminDto(
+    AssessmentQuestion question)
+
+{
+return new AdminAssessmentQuestionDto
+{
+Id = question.Id,
+
+    WrittenAssessmentId =
+        question.WrittenAssessmentId,
+
+    QuestionNumber =
+        question.QuestionNumber,
+
+    QuestionText =
+        question.QuestionText,
+
+    Points =
+        question.Points,
+
+    Choices =
+        question.Choices
+            .OrderBy(x => x.DisplayOrder)
+            .Select(MapChoiceToAdminDto)
+            .ToList()
+};
+
+}
+
+private static AdminAssessmentChoiceDto
+MapChoiceToAdminDto(
+AssessmentChoice choice)
+{
+return new AdminAssessmentChoiceDto
+{
+Id = choice.Id,
+
+    AssessmentQuestionId =
+        choice.AssessmentQuestionId,
+
+    ChoiceLabel =
+        choice.ChoiceLabel,
+
+    ChoiceText =
+        choice.ChoiceText,
+
+    IsCorrect =
+        choice.IsCorrect,
+
+    DisplayOrder =
+        choice.DisplayOrder
+};
+
+}
+
+private static string GetChoiceLabel(
+int index)
+{
+return index switch
+{
+0 => "A",
+1 => "B",
+2 => "C",
+3 => "D",
+_ => ((char)('A' + index))
+.ToString()
+};
+}
+public async Task<IReadOnlyList<ParticipantAssessmentDto>>
+GetParticipantAssessmentsByBatchIdAsync(
+Guid participantUserId,
+Guid trainingBatchId)
+{
+var enrollment =
+await GetApprovedEnrollmentAsync(
+participantUserId,
+trainingBatchId);
+
+if (enrollment is null)
+{
+    return [];
+}
+
+var assessments =
+    await _db.WrittenAssessments
+        .AsNoTracking()
+        .Include(x => x.TrainingBatch)
+        .Include(x => x.Questions)
+        .Include(x => x.Attempts)
+            .ThenInclude(x => x.Result)
+        .Where(x =>
+            x.TrainingBatchId ==
+                trainingBatchId &&
+            x.IsPublished)
+        .OrderBy(x => x.CreatedAt)
+        .ToListAsync();
+
+return assessments
+    .Select(assessment =>
+    {
         var attempts =
             assessment.Attempts
-                .Where(
-                    x =>
-                        x.EnrollmentId ==
-                        enrollment.Id)
+                .Where(x =>
+                    x.EnrollmentId ==
+                    enrollment.Id)
                 .OrderByDescending(
                     x => x.AttemptNumber)
                 .ToList();
@@ -1146,1122 +2748,557 @@ return generatedQuestions
             LatestPercentage =
                 latestResult?.Percentage,
         };
-    }
-
-
-    // ==========================================================
-    // PARTICIPANT
-    // START ATTEMPT
-    // ==========================================================
-
-    public async Task<AssessmentAttemptDto>
-        StartAttemptAsync(
-            Guid participantUserId,
-            Guid writtenAssessmentId)
-    {
-        var assessment =
-            await _db.WrittenAssessments
-                .Include(x => x.TrainingBatch)
-                .Include(x => x.Questions)
-                    .ThenInclude(x => x.Choices)
-                .FirstOrDefaultAsync(
-                    x =>
-                        x.Id ==
-                        writtenAssessmentId);
-
-        if (assessment is null)
-        {
-            throw new KeyNotFoundException(
-                "Written assessment not found.");
-        }
-
-        if (!assessment.IsPublished)
-        {
-            throw new InvalidOperationException(
-                "This assessment is not currently published.");
-        }
-
-        var enrollment =
-            await GetApprovedEnrollmentAsync(
-                participantUserId,
-                assessment.TrainingBatchId);
-
-        if (enrollment is null)
-        {
-            throw new UnauthorizedAccessException(
-                "You do not have an approved enrollment for this training batch.");
-        }
-
-        var previousAttempts =
-            await _db.AssessmentAttempts
-                .Where(
-                    x =>
-                        x.WrittenAssessmentId ==
-                            writtenAssessmentId &&
-                        x.EnrollmentId ==
-                            enrollment.Id)
-                .OrderByDescending(
-                    x => x.AttemptNumber)
-                .ToListAsync();
-
-        var passed =
-            previousAttempts.Any(
-                x =>
-                    x.Status ==
-                    AssessmentAttemptStatus.Passed);
-
-        if (passed)
-        {
-            throw new InvalidOperationException(
-                "You have already passed this assessment.");
-        }
-
-        var activeAttempt =
-            previousAttempts.FirstOrDefault(
-                x =>
-                    x.Status ==
-                    AssessmentAttemptStatus.InProgress);
-
-        if (activeAttempt is not null)
-        {
-            await LoadAttemptQuestionsAsync(
-                activeAttempt);
-
-            return MapAttempt(
-                activeAttempt);
-        }
-
-        var nextAttemptNumber =
-            previousAttempts.Count == 0
-                ? 1
-                : previousAttempts.Max(
-                    x => x.AttemptNumber) + 1;
-
-        var attempt =
-            new AssessmentAttempt
-            {
-                Id =
-                    Guid.NewGuid(),
-
-                WrittenAssessmentId =
-                    writtenAssessmentId,
-
-                EnrollmentId =
-                    enrollment.Id,
-
-                AttemptNumber =
-                    nextAttemptNumber,
-
-                StartedAt =
-                    DateTime.UtcNow,
-
-                SubmittedAt =
-                    null,
-
-                Status =
-                    AssessmentAttemptStatus.InProgress,
-            };
-
-        _db.AssessmentAttempts.Add(
-            attempt);
-
-        await _db.SaveChangesAsync();
-
-        await LoadAttemptQuestionsAsync(
-            attempt);
-
-        return MapAttempt(
-            attempt);
-    }
-
-
-    // ==========================================================
-    // PARTICIPANT
-    // GET ATTEMPT
-    // ==========================================================
-
-    public async Task<AssessmentAttemptDto?>
-        GetAttemptAsync(
-            Guid participantUserId,
-            Guid attemptId)
-    {
-        var attempt =
-            await _db.AssessmentAttempts
-                .Include(x => x.WrittenAssessment)
-                .Include(x => x.Enrollment)
-                    .ThenInclude(x =>
-                        x.ParticipantProfile)
-                .Include(x => x.Answers)
-                .FirstOrDefaultAsync(
-                    x =>
-                        x.Id ==
-                        attemptId);
-
-        if (attempt is null)
-        {
-            return null;
-        }
-
-        var userId =
-            attempt
-                .Enrollment
-                .ParticipantProfile
-                .UserId;
-
-        if (userId != participantUserId)
-        {
-            throw new UnauthorizedAccessException(
-                "You are not authorized to access this assessment attempt.");
-        }
-
-        await LoadAttemptQuestionsAsync(
-            attempt);
-
-        return MapAttempt(
-            attempt);
-    }
-
-
-    // ==========================================================
-    // PARTICIPANT
-    // SUBMIT ATTEMPT
-    // ==========================================================
-
-    public async Task<AssessmentResultDto>
-        SubmitAttemptAsync(
-            Guid participantUserId,
-            SubmitAssessmentRequest request)
-    {
-        if (request.Answers is null)
-        {
-            throw new ArgumentException(
-                "Assessment answers are required.");
-        }
-
-        var attempt =
-            await _db.AssessmentAttempts
-                .Include(x => x.WrittenAssessment)
-                    .ThenInclude(x =>
-                        x.Questions)
-                            .ThenInclude(x =>
-                                x.Choices)
-                .Include(x => x.Enrollment)
-                    .ThenInclude(x =>
-                        x.ParticipantProfile)
-                .Include(x => x.Answers)
-                .Include(x => x.Result)
-                .FirstOrDefaultAsync(
-                    x =>
-                        x.Id ==
-                        request.AttemptId);
-
-        if (attempt is null)
-        {
-            throw new KeyNotFoundException(
-                "Assessment attempt not found.");
-        }
-
-        var ownerUserId =
-            attempt
-                .Enrollment
-                .ParticipantProfile
-                .UserId;
-
-        if (ownerUserId != participantUserId)
-        {
-            throw new UnauthorizedAccessException(
-                "You are not authorized to submit this assessment attempt.");
-        }
-
-        if (
-            attempt.Status !=
-            AssessmentAttemptStatus.InProgress)
-        {
-            if (attempt.Result is not null)
-            {
-                return MapResult(
-                    attempt);
-            }
-
-            throw new InvalidOperationException(
-                "This assessment attempt has already been submitted.");
-        }
-
-        var questions =
-            attempt
-                .WrittenAssessment
-                .Questions
-                .OrderBy(
-                    x => x.QuestionNumber)
-                .ToList();
-
-        if (questions.Count == 0)
-        {
-            throw new InvalidOperationException(
-                "This assessment does not contain any questions.");
-        }
-
-        var questionIds =
-            questions
-                .Select(x => x.Id)
-                .ToHashSet();
-
-        var submittedQuestionIds =
-            request.Answers
-                .Select(x => x.QuestionId)
-                .ToList();
-
-        if (
-            submittedQuestionIds.Count !=
-            submittedQuestionIds.Distinct().Count())
-        {
-            throw new ArgumentException(
-                "Duplicate answers for the same question are not allowed.");
-        }
-
-        if (
-            submittedQuestionIds.Any(
-                x =>
-                    !questionIds.Contains(x)))
-        {
-            throw new ArgumentException(
-                "One or more submitted questions do not belong to this assessment.");
-        }
-
-        var answerByQuestion =
-            request.Answers
-                .ToDictionary(
-                    x => x.QuestionId);
-
-        var totalPoints =
-            questions.Sum(
-                x =>
-                    x.Points);
-
-        var earnedPoints = 0;
-
-        var correctAnswers = 0;
-
-        foreach (var question in questions)
-        {
-            answerByQuestion.TryGetValue(
-                question.Id,
-                out var submittedAnswer);
-
-            Guid? selectedChoiceId =
-                submittedAnswer
-                    ?.SelectedChoiceId;
-
-            AssessmentChoice? selectedChoice =
-                null;
-
-            if (selectedChoiceId.HasValue)
-            {
-                selectedChoice =
-                    question.Choices
-                        .FirstOrDefault(
-                            x =>
-                                x.Id ==
-                                selectedChoiceId.Value);
-
-                if (selectedChoice is null)
-                {
-                    throw new ArgumentException(
-                        $"Selected choice does not belong to question {question.QuestionNumber}.");
-                }
-            }
-
-            var isCorrect =
-                selectedChoice?.IsCorrect ??
-                false;
-
-            var earned =
-                isCorrect
-                    ? question.Points
-                    : 0;
-
-            if (isCorrect)
-            {
-                correctAnswers++;
-            }
-
-            earnedPoints += earned;
-
-            var existingAnswer =
-                attempt.Answers
-                    .FirstOrDefault(
-                        x =>
-                            x.AssessmentQuestionId ==
-                            question.Id);
-
-            if (existingAnswer is null)
-            {
-                existingAnswer =
-                    new AssessmentAnswer
-                    {
-                        Id =
-                            Guid.NewGuid(),
-
-                        AssessmentAttemptId =
-                            attempt.Id,
-
-                        AssessmentQuestionId =
-                            question.Id,
-
-                        SelectedChoiceId =
-                            selectedChoiceId,
-
-                        EarnedPoints =
-                            earned,
-
-                        IsCorrect =
-                            isCorrect,
-                    };
-
-                _db.AssessmentAnswers.Add(
-                    existingAnswer);
-
-                attempt.Answers.Add(
-                    existingAnswer);
-            }
-            else
-            {
-                existingAnswer.SelectedChoiceId =
-                    selectedChoiceId;
-
-                existingAnswer.EarnedPoints =
-                    earned;
-
-                existingAnswer.IsCorrect =
-                    isCorrect;
-            }
-        }
-
-        var percentage =
-            totalPoints <= 0
-                ? 0m
-                : Math.Round(
-                    earnedPoints *
-                    100m /
-                    totalPoints,
-                    2);
-
-        var isPassed =
-            percentage >=
-            attempt
-                .WrittenAssessment
-                .PassingPercentage;
-
-        var now =
-            DateTime.UtcNow;
-
-        attempt.SubmittedAt =
-            now;
-
-        attempt.Status =
-            isPassed
-                ? AssessmentAttemptStatus.Passed
-                : AssessmentAttemptStatus.Failed;
-
-        if (attempt.Result is null)
-        {
-            attempt.Result =
-                new AssessmentResult
-                {
-                    Id =
-                        Guid.NewGuid(),
-
-                    AssessmentAttemptId =
-                        attempt.Id,
-
-                    TotalQuestions =
-                        questions.Count,
-
-                    CorrectAnswers =
-                        correctAnswers,
-
-                    TotalPoints =
-                        totalPoints,
-
-                    EarnedPoints =
-                        earnedPoints,
-
-                    Percentage =
-                        percentage,
-
-                    IsPassed =
-                        isPassed,
-
-                    EvaluatedAt =
-                        now,
-                };
-
-            _db.AssessmentResults.Add(
-                attempt.Result);
-        }
-        else
-        {
-            attempt.Result.TotalQuestions =
-                questions.Count;
-
-            attempt.Result.CorrectAnswers =
-                correctAnswers;
-
-            attempt.Result.TotalPoints =
-                totalPoints;
-
-            attempt.Result.EarnedPoints =
-                earnedPoints;
-
-            attempt.Result.Percentage =
-                percentage;
-
-            attempt.Result.IsPassed =
-                isPassed;
-
-            attempt.Result.EvaluatedAt =
-                now;
-        }
-
-        await _db.SaveChangesAsync();
-
-        return MapResult(
-            attempt);
-    }
-
-
-   public async Task<IReadOnlyList<AssessmentResultDto>>
-    GetMyResultsAsync(
+    })
+    .ToList();
+
+}
+public async Task<AssessmentRetakeRequestDto>
+    RequestRetakeAsync(
         Guid participantUserId,
-        Guid writtenAssessmentId)
+        CreateAssessmentRetakeRequest request)
 {
-    var batchId =
-        await GetBatchIdForAssessmentAsync(
-            writtenAssessmentId);
+    // ==========================================================
+    // GET PARTICIPANT
+    // ==========================================================
+
+    var participant =
+        await _db.ParticipantProfiles
+            .FirstOrDefaultAsync(
+                x => x.UserId == participantUserId);
+
+    if (participant is null)
+    {
+        throw new KeyNotFoundException(
+            "Participant profile not found.");
+    }
+
+    // ==========================================================
+    // GET ASSESSMENT
+    // ==========================================================
+
+    var assessment =
+        await _db.WrittenAssessments
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                x =>
+                    x.Id ==
+                    request.WrittenAssessmentId);
+
+    if (assessment is null)
+    {
+        throw new KeyNotFoundException(
+            "Written assessment not found.");
+    }
+
+    // ==========================================================
+    // CHECK APPROVED ENROLLMENT
+    // ==========================================================
 
     var enrollment =
-        await GetApprovedEnrollmentAsync(
-            participantUserId,
-            batchId);
+        await _db.Enrollments
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                x =>
+                    x.ParticipantProfileId ==
+                        participant.Id &&
+                    x.TrainingBatchId ==
+                        assessment.TrainingBatchId &&
+                    x.Status ==
+                        EnrollmentStatus.Approved);
 
     if (enrollment is null)
     {
         throw new UnauthorizedAccessException(
-            "You do not have an approved enrollment for this training batch.");
+            "You are not enrolled in this assessment.");
     }
 
-    var attempts =
+    // ==========================================================
+    // GET PREVIOUS ATTEMPT
+    // ==========================================================
+
+    var previousAttempt =
         await _db.AssessmentAttempts
-            .AsNoTracking()
-            .Include(x => x.WrittenAssessment)
             .Include(x => x.Result)
-            .Where(
+            .FirstOrDefaultAsync(
                 x =>
-                    x.WrittenAssessmentId ==
-                        writtenAssessmentId &&
+                    x.Id ==
+                        request.PreviousAttemptId &&
                     x.EnrollmentId ==
                         enrollment.Id &&
-                    x.Result != null)
-            .OrderByDescending(
-                x => x.AttemptNumber)
-            .ToListAsync();
+                    x.WrittenAssessmentId ==
+                        request.WrittenAssessmentId);
 
-    return attempts
-        .Select(MapResult)
-        .ToList();
-}
-
-    private async Task<EnrollmentModel?>
-        GetApprovedEnrollmentAsync(
-            Guid participantUserId,
-            Guid trainingBatchId)
+    if (previousAttempt is null)
     {
-        return await _db.Enrollments
-            .Include(x =>
-                x.ParticipantProfile)
-            .Where(
+        throw new KeyNotFoundException(
+            "Previous assessment attempt not found.");
+    }
+
+    // ==========================================================
+    // PREVIOUS ATTEMPT MUST HAVE RESULT
+    // ==========================================================
+
+    if (previousAttempt.Result is null)
+    {
+        throw new InvalidOperationException(
+            "The previous assessment attempt has no result.");
+    }
+
+    // ==========================================================
+    // ONLY FAILED ATTEMPTS CAN REQUEST RETAKE
+    // ==========================================================
+
+    if (previousAttempt.Status !=
+        AssessmentAttemptStatus.Failed)
+    {
+        throw new InvalidOperationException(
+            "Only failed assessment attempts can request a retake.");
+    }
+
+    // ==========================================================
+    // CHECK IF PARTICIPANT ALREADY PASSED
+    // ==========================================================
+
+    var hasPassed =
+        await _db.AssessmentAttempts
+            .AsNoTracking()
+            .AnyAsync(
                 x =>
-                    x.TrainingBatchId ==
-                        trainingBatchId &&
+                    x.EnrollmentId ==
+                        enrollment.Id &&
+                    x.WrittenAssessmentId ==
+                        request.WrittenAssessmentId &&
                     x.Status ==
-                        EnrollmentStatus.Approved &&
-                    x.ParticipantProfile.UserId ==
-                        participantUserId)
-            .FirstOrDefaultAsync();
+                        AssessmentAttemptStatus.Passed);
+
+    if (hasPassed)
+    {
+        throw new InvalidOperationException(
+            "You have already passed this assessment.");
     }
 
-
     // ==========================================================
-    // PRIVATE
-    // GET BATCH ID
+    // CHECK EXISTING PENDING REQUEST
     // ==========================================================
 
-    private async Task<Guid>
-        GetBatchIdForAssessmentAsync(
-            Guid writtenAssessmentId)
-    {
-        var batchId =
-            await _db.WrittenAssessments
-                .Where(
-                    x =>
-                        x.Id ==
-                        writtenAssessmentId)
-                .Select(
-                    x =>
-                        (Guid?)x.TrainingBatchId)
-                .FirstOrDefaultAsync();
-
-        if (!batchId.HasValue)
-        {
-            throw new KeyNotFoundException(
-                "Written assessment not found.");
-        }
-
-        return batchId.Value;
-    }
-
-
-    // ==========================================================
-    // PRIVATE
-    // LOAD ATTEMPT QUESTIONS
-    // ==========================================================
-
-    private async Task
-        LoadAttemptQuestionsAsync(
-            AssessmentAttempt attempt)
-    {
-        await _db.Entry(attempt)
-            .Reference(
+    var hasPendingRequest =
+        await _db.AssessmentRetakeRequests
+            .AsNoTracking()
+            .AnyAsync(
                 x =>
-                    x.WrittenAssessment)
-            .Query()
-            .Include(
-                x =>
-                    x.Questions)
-                .ThenInclude(
-                    x =>
-                        x.Choices)
-            .LoadAsync();
+                    x.ParticipantId ==
+                        participant.Id &&
+                    x.WrittenAssessmentId ==
+                        request.WrittenAssessmentId &&
+                    x.Status ==
+                        AssessmentRetakeRequestStatus.Pending);
+
+    if (hasPendingRequest)
+    {
+        throw new InvalidOperationException(
+            "You already have a pending retake request.");
     }
 
-
     // ==========================================================
-    // PRIVATE
-    // VALIDATION
+    // CREATE RETAKE REQUEST
     // ==========================================================
 
-    private static void
-        ValidateAssessmentRequest(
-            string title,
-            int passingPercentage)
-    {
-        if (string.IsNullOrWhiteSpace(title))
-        {
-            throw new ArgumentException(
-                "Assessment title is required.");
-        }
-
-        if (title.Trim().Length > 255)
-        {
-            throw new ArgumentException(
-                "Assessment title cannot exceed 255 characters.");
-        }
-
-        if (
-            passingPercentage < 1 ||
-            passingPercentage > 100)
-        {
-            throw new ArgumentException(
-                "Passing percentage must be between 1 and 100.");
-        }
-    }
-
-
-    private static void
-        ValidateQuestionRequest(
-            int questionNumber,
-            string questionText,
-            int points)
-    {
-        if (questionNumber <= 0)
-        {
-            throw new ArgumentException(
-                "Question number must be greater than zero.");
-        }
-
-        if (string.IsNullOrWhiteSpace(questionText))
-        {
-            throw new ArgumentException(
-                "Question text is required.");
-        }
-
-        if (questionText.Trim().Length > 5000)
-        {
-            throw new ArgumentException(
-                "Question text cannot exceed 5000 characters.");
-        }
-
-        if (points <= 0)
-        {
-            throw new ArgumentException(
-                "Question points must be greater than zero.");
-        }
-    }
-
-
-    private static void
-        ValidateChoiceRequest(
-            string choiceLabel,
-            string choiceText,
-            int displayOrder)
-    {
-        if (string.IsNullOrWhiteSpace(choiceLabel))
-        {
-            throw new ArgumentException(
-                "Choice label is required.");
-        }
-
-        if (choiceLabel.Trim().Length > 10)
-        {
-            throw new ArgumentException(
-                "Choice label cannot exceed 10 characters.");
-        }
-
-        if (string.IsNullOrWhiteSpace(choiceText))
-        {
-            throw new ArgumentException(
-                "Choice text is required.");
-        }
-
-        if (choiceText.Trim().Length > 2000)
-        {
-            throw new ArgumentException(
-                "Choice text cannot exceed 2000 characters.");
-        }
-
-        if (displayOrder < 0)
-        {
-            throw new ArgumentException(
-                "Display order cannot be negative.");
-        }
-    }
-
-
-    private static void
-        ValidateAssessmentCanBePublished(
-            WrittenAssessment assessment)
-    {
-        if (assessment.Questions.Count == 0)
-        {
-            throw new InvalidOperationException(
-                "An assessment must have at least one question before it can be published.");
-        }
-
-        foreach (
-            var question
-            in assessment.Questions)
-        {
-            if (question.Points <= 0)
-            {
-                throw new InvalidOperationException(
-                    $"Question {question.QuestionNumber} must have at least one point.");
-            }
-
-            if (question.Choices.Count < 2)
-            {
-                throw new InvalidOperationException(
-                    $"Question {question.QuestionNumber} must have at least two choices.");
-            }
-
-            var correctCount =
-                question.Choices.Count(
-                    x =>
-                        x.IsCorrect);
-
-            if (correctCount != 1)
-            {
-                throw new InvalidOperationException(
-                    $"Question {question.QuestionNumber} must have exactly one correct choice.");
-            }
-        }
-    }
-
-
-    // ==========================================================
-    // PRIVATE
-    // NORMALIZE
-    // ==========================================================
-
-    private static string?
-        NormalizeNullable(
-            string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
-
-        return value.Trim();
-    }
-
-
-    // ==========================================================
-    // MAPPING
-    // ==========================================================
-
-    private static WrittenAssessmentDto
-        MapAssessment(
-            WrittenAssessment assessment)
-    {
-        return new WrittenAssessmentDto
+    var retakeRequest =
+        new AssessmentRetakeRequest
         {
             Id =
-                assessment.Id,
+                Guid.NewGuid(),
 
-            TrainingBatchId =
-                assessment.TrainingBatchId,
-
-            BatchCode =
-                assessment.TrainingBatch
-                    ?.BatchCode
-                ?? string.Empty,
-
-            Title =
-                assessment.Title,
-
-            Description =
-                assessment.Description,
-
-            PassingPercentage =
-                assessment.PassingPercentage,
-
-            IsPublished =
-                assessment.IsPublished,
-
-            QuestionCount =
-                assessment.Questions.Count,
-
-            CreatedAt =
-                assessment.CreatedAt,
-
-            UpdatedAt =
-                assessment.UpdatedAt,
-        };
-    }
-
-
-    private static AssessmentQuestionDto
-        MapQuestion(
-            AssessmentQuestion question)
-    {
-        return new AssessmentQuestionDto
-        {
-            Id =
-                question.Id,
+            ParticipantId =
+                participant.Id,
 
             WrittenAssessmentId =
-                question.WrittenAssessmentId,
+                request.WrittenAssessmentId,
 
-            QuestionNumber =
-                question.QuestionNumber,
+            PreviousAttemptId =
+                request.PreviousAttemptId,
 
-            QuestionText =
-                question.QuestionText,
-
-            Points =
-                question.Points,
-
-            Choices =
-                question.Choices
-                    .OrderBy(
-                        x =>
-                            x.DisplayOrder)
-                    .Select(
-                        MapChoice)
-                    .ToList(),
-        };
-    }
-
-
-    private static AssessmentChoiceDto
-        MapChoice(
-            AssessmentChoice choice)
-    {
-        return new AssessmentChoiceDto
-        {
-            Id =
-                choice.Id,
-
-            AssessmentQuestionId =
-                choice.AssessmentQuestionId,
-
-            ChoiceLabel =
-                choice.ChoiceLabel,
-
-            ChoiceText =
-                choice.ChoiceText,
-
-            DisplayOrder =
-                choice.DisplayOrder,
-        };
-    }
-
-
-    private static AssessmentAttemptDto
-        MapAttempt(
-            AssessmentAttempt attempt)
-    {
-        var questions =
-            attempt
-                .WrittenAssessment
-                .Questions
-                .OrderBy(
-                    x =>
-                        x.QuestionNumber)
-                .Select(
-                    MapQuestion)
-                .ToList();
-
-        return new AssessmentAttemptDto
-        {
-            Id =
-                attempt.Id,
-
-            WrittenAssessmentId =
-                attempt.WrittenAssessmentId,
-
-            AssessmentTitle =
-                attempt
-                    .WrittenAssessment
-                    .Title,
-
-            AttemptNumber =
-                attempt.AttemptNumber,
-
-            StartedAt =
-                attempt.StartedAt,
+            Reason =
+                string.IsNullOrWhiteSpace(request.Reason)
+                    ? null
+                    : request.Reason.Trim(),
 
             Status =
-                attempt.Status,
+                AssessmentRetakeRequestStatus.Pending,
 
-            Questions =
-                questions,
+            RequestedAt =
+                DateTime.UtcNow
         };
-    }
 
+    _db.AssessmentRetakeRequests.Add(
+        retakeRequest);
 
-    private static AssessmentResultDto
-        MapResult(
-            AssessmentAttempt attempt)
+    await _db.SaveChangesAsync();
+
+    // ==========================================================
+    // RETURN DTO
+    // ==========================================================
+
+    return new AssessmentRetakeRequestDto
     {
-        if (attempt.Result is null)
-        {
-            throw new InvalidOperationException(
-                "Assessment result is not available.");
-        }
+        Id =
+            retakeRequest.Id,
 
-        return new AssessmentResultDto
-        {
-            Id =
-                attempt.Result.Id,
-
-            AssessmentAttemptId =
-                attempt.Id,
-
-            WrittenAssessmentId =
-                attempt.WrittenAssessmentId,
-
-            AssessmentTitle =
-                attempt
-                    .WrittenAssessment
-                    .Title,
-
-            AttemptNumber =
-                attempt.AttemptNumber,
-
-            TotalQuestions =
-                attempt.Result
-                    .TotalQuestions,
-
-            CorrectAnswers =
-                attempt.Result
-                    .CorrectAnswers,
-
-            TotalPoints =
-                attempt.Result
-                    .TotalPoints,
-
-            EarnedPoints =
-                attempt.Result
-                    .EarnedPoints,
-
-            Percentage =
-                attempt.Result
-                    .Percentage,
-
-            IsPassed =
-                attempt.Result
-                    .IsPassed,
-
-            EvaluatedAt =
-                attempt.Result
-                    .EvaluatedAt,
-        };
-    }
-
-
-    private static AdminAssessmentQuestionDto
-    MapQuestionToAdminDto(
-        AssessmentQuestion question)
-{
-    return new AdminAssessmentQuestionDto
-    {
-        Id = question.Id,
+        ParticipantId =
+            retakeRequest.ParticipantId,
 
         WrittenAssessmentId =
-            question.WrittenAssessmentId,
+            retakeRequest.WrittenAssessmentId,
 
-        QuestionNumber =
-            question.QuestionNumber,
+        PreviousAttemptId =
+            retakeRequest.PreviousAttemptId,
 
-        QuestionText =
-            question.QuestionText,
+        AssessmentTitle =
+            assessment.Title,
 
-        Points =
-            question.Points,
+        AttemptNumber =
+            previousAttempt.AttemptNumber,
 
-        Choices =
-            question.Choices
-                .OrderBy(x => x.DisplayOrder)
-                .Select(MapChoiceToAdminDto)
-                .ToList()
+        Percentage =
+            previousAttempt.Result.Percentage,
+
+        IsPassed =
+            previousAttempt.Status ==
+                AssessmentAttemptStatus.Passed,
+
+        Reason =
+            retakeRequest.Reason,
+
+        Status =
+            retakeRequest.Status.ToString(),
+
+        RequestedAt =
+            retakeRequest.RequestedAt,
+
+        ReviewedAt =
+            retakeRequest.ReviewedAt,
+
+        AdminRemarks =
+            retakeRequest.AdminRemarks
     };
 }
 
-private static AdminAssessmentChoiceDto
-    MapChoiceToAdminDto(
-        AssessmentChoice choice)
+
+// ==========================================================
+// PARTICIPANT - GET MY RETAKE REQUESTS
+// ==========================================================
+
+public async Task<IReadOnlyList<AssessmentRetakeRequestDto>>
+    GetMyRetakeRequestsAsync(
+        Guid participantUserId)
 {
-    return new AdminAssessmentChoiceDto
+    // ==========================================================
+    // GET PARTICIPANT
+    // ==========================================================
+
+    var participant =
+        await _db.ParticipantProfiles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                x => x.UserId == participantUserId);
+
+    if (participant is null)
     {
-        Id = choice.Id,
-
-        AssessmentQuestionId =
-            choice.AssessmentQuestionId,
-
-        ChoiceLabel =
-            choice.ChoiceLabel,
-
-        ChoiceText =
-            choice.ChoiceText,
-
-        IsCorrect =
-            choice.IsCorrect,
-
-        DisplayOrder =
-            choice.DisplayOrder
-    };
-}
-
-private static string GetChoiceLabel(
-int index)
-{
-return index switch
-{
-0 => "A",
-1 => "B",
-2 => "C",
-3 => "D",
-_ => ((char)('A' + index))
-.ToString()
-};
-}
-public async Task<IReadOnlyList<ParticipantAssessmentDto>>
-    GetParticipantAssessmentsByBatchIdAsync(
-        Guid participantUserId,
-        Guid trainingBatchId)
-{
-    var enrollment =
-        await GetApprovedEnrollmentAsync(
-            participantUserId,
-            trainingBatchId);
-
-    if (enrollment is null)
-    {
-        return [];
+        throw new KeyNotFoundException(
+            "Participant profile not found.");
     }
 
-    var assessments =
-        await _db.WrittenAssessments
+    // ==========================================================
+    // GET REQUESTS
+    // ==========================================================
+
+    var requests =
+        await _db.AssessmentRetakeRequests
             .AsNoTracking()
-            .Include(x => x.TrainingBatch)
-            .Include(x => x.Questions)
-            .Include(x => x.Attempts)
+            .Include(x => x.WrittenAssessment)
+            .Include(x => x.PreviousAttempt)
                 .ThenInclude(x => x.Result)
-            .Where(x =>
-                x.TrainingBatchId ==
-                    trainingBatchId &&
-                x.IsPublished)
-            .OrderBy(x => x.CreatedAt)
+            .Where(
+                x =>
+                    x.ParticipantId ==
+                    participant.Id)
+            .OrderByDescending(
+                x => x.RequestedAt)
             .ToListAsync();
 
-    return assessments
-        .Select(assessment =>
-        {
-            var attempts =
-                assessment.Attempts
-                    .Where(x =>
-                        x.EnrollmentId ==
-                        enrollment.Id)
-                    .OrderByDescending(
-                        x => x.AttemptNumber)
-                    .ToList();
+    // ==========================================================
+    // MAP DTO
+    // ==========================================================
 
-            var latestResult =
-                attempts
-                    .Select(x => x.Result)
-                    .FirstOrDefault(
-                        x => x is not null);
-
-            return new ParticipantAssessmentDto
+    return requests
+        .Select(
+            x => new AssessmentRetakeRequestDto
             {
                 Id =
-                    assessment.Id,
+                    x.Id,
 
-                TrainingBatchId =
-                    assessment.TrainingBatchId,
+                ParticipantId =
+                    x.ParticipantId,
 
-                BatchCode =
-                    assessment.TrainingBatch.BatchCode,
+                WrittenAssessmentId =
+                    x.WrittenAssessmentId,
 
-                Title =
-                    assessment.Title,
+                PreviousAttemptId =
+                    x.PreviousAttemptId,
 
-                Description =
-                    assessment.Description,
+                AssessmentTitle =
+                    x.WrittenAssessment.Title,
 
-                PassingPercentage =
-                    assessment.PassingPercentage,
+                AttemptNumber =
+                    x.PreviousAttempt.AttemptNumber,
 
-                QuestionCount =
-                    assessment.Questions.Count,
+                Percentage =
+                    x.PreviousAttempt.Result != null
+                        ? x.PreviousAttempt.Result.Percentage
+                        : 0,
 
-                IsPublished =
-                    assessment.IsPublished,
+                IsPassed =
+                    x.PreviousAttempt.Status ==
+                        AssessmentAttemptStatus.Passed,
 
-                AttemptCount =
-                    attempts.Count,
+                Reason =
+                    x.Reason,
 
-                HasPassed =
-                    attempts.Any(
-                        x =>
-                            x.Status ==
-                            AssessmentAttemptStatus.Passed),
+                Status =
+                    x.Status.ToString(),
 
-                LatestPercentage =
-                    latestResult?.Percentage,
-            };
-        })
+                RequestedAt =
+                    x.RequestedAt,
+
+                ReviewedAt =
+                    x.ReviewedAt,
+
+                AdminRemarks =
+                    x.AdminRemarks
+            })
         .ToList();
 }
+
+
+// ==========================================================
+// ADMIN - GET RETAKE REQUESTS
+// ==========================================================
+
+public async Task<IReadOnlyList<AssessmentRetakeRequestDto>>
+    GetRetakeRequestsAsync()
+{
+    // ==========================================================
+    // GET ALL RETAKE REQUESTS
+    // ==========================================================
+
+    var requests =
+        await _db.AssessmentRetakeRequests
+            .AsNoTracking()
+            .Include(x => x.WrittenAssessment)
+            .Include(x => x.PreviousAttempt)
+                .ThenInclude(x => x.Result)
+            .OrderByDescending(
+                x => x.RequestedAt)
+            .ToListAsync();
+
+    // ==========================================================
+    // MAP DTO
+    // ==========================================================
+
+    return requests
+        .Select(
+            x => new AssessmentRetakeRequestDto
+            {
+                Id =
+                    x.Id,
+
+                ParticipantId =
+                    x.ParticipantId,
+
+                WrittenAssessmentId =
+                    x.WrittenAssessmentId,
+
+                PreviousAttemptId =
+                    x.PreviousAttemptId,
+
+                AssessmentTitle =
+                    x.WrittenAssessment.Title,
+
+                AttemptNumber =
+                    x.PreviousAttempt.AttemptNumber,
+
+                Percentage =
+                    x.PreviousAttempt.Result != null
+                        ? x.PreviousAttempt.Result.Percentage
+                        : 0,
+
+                IsPassed =
+                    x.PreviousAttempt.Status ==
+                        AssessmentAttemptStatus.Passed,
+
+                Reason =
+                    x.Reason,
+
+                Status =
+                    x.Status.ToString(),
+
+                RequestedAt =
+                    x.RequestedAt,
+
+                ReviewedAt =
+                    x.ReviewedAt,
+
+                AdminRemarks =
+                    x.AdminRemarks
+            })
+        .ToList();
+}
+
+
+// ==========================================================
+// ADMIN - REVIEW RETAKE REQUEST
+// ==========================================================
+
+public async Task<AssessmentRetakeRequestDto>
+    ReviewRetakeRequestAsync(
+        Guid adminUserId,
+        Guid requestId,
+        ReviewAssessmentRetakeRequest request)
+{
+    // ==========================================================
+    // GET RETAKE REQUEST
+    // ==========================================================
+
+    var retakeRequest =
+        await _db.AssessmentRetakeRequests
+            .Include(x => x.WrittenAssessment)
+            .Include(x => x.PreviousAttempt)
+                .ThenInclude(x => x.Result)
+            .FirstOrDefaultAsync(
+                x =>
+                    x.Id ==
+                    requestId);
+
+    if (retakeRequest is null)
+    {
+        throw new KeyNotFoundException(
+            "Retake request not found.");
+    }
+
+    // ==========================================================
+    // ONLY PENDING REQUEST CAN BE REVIEWED
+    // ==========================================================
+
+    if (retakeRequest.Status !=
+        AssessmentRetakeRequestStatus.Pending)
+    {
+        throw new InvalidOperationException(
+            "This retake request has already been reviewed.");
+    }
+
+    // ==========================================================
+    // VERIFY PREVIOUS ATTEMPT
+    // ==========================================================
+
+    if (retakeRequest.PreviousAttempt is null)
+    {
+        throw new InvalidOperationException(
+            "Previous assessment attempt not found.");
+    }
+
+    // ==========================================================
+    // PREVIOUS ATTEMPT MUST BE FAILED
+    // ==========================================================
+
+    if (retakeRequest.PreviousAttempt.Status !=
+        AssessmentAttemptStatus.Failed)
+    {
+        throw new InvalidOperationException(
+            "Only failed assessment attempts can be approved for retake.");
+    }
+
+    // ==========================================================
+    // UPDATE REQUEST STATUS
+    // ==========================================================
+
+    retakeRequest.Status =
+        request.Approve
+            ? AssessmentRetakeRequestStatus.Approved
+            : AssessmentRetakeRequestStatus.Rejected;
+
+    retakeRequest.ReviewedBy =
+        adminUserId;
+
+    retakeRequest.ReviewedAt =
+        DateTime.UtcNow;
+
+    retakeRequest.AdminRemarks =
+        string.IsNullOrWhiteSpace(
+            request.AdminRemarks)
+            ? null
+            : request.AdminRemarks.Trim();
+
+    await _db.SaveChangesAsync();
+
+    // ==========================================================
+    // RETURN DTO
+    // ==========================================================
+
+    return new AssessmentRetakeRequestDto
+    {
+        Id =
+            retakeRequest.Id,
+
+        ParticipantId =
+            retakeRequest.ParticipantId,
+
+        WrittenAssessmentId =
+            retakeRequest.WrittenAssessmentId,
+
+        PreviousAttemptId =
+            retakeRequest.PreviousAttemptId,
+
+        AssessmentTitle =
+            retakeRequest
+                .WrittenAssessment
+                .Title,
+
+        AttemptNumber =
+            retakeRequest
+                .PreviousAttempt
+                .AttemptNumber,
+
+        Percentage =
+            retakeRequest
+                .PreviousAttempt
+                .Result != null
+                ? retakeRequest
+                    .PreviousAttempt
+                    .Result
+                    .Percentage
+                : 0,
+
+        IsPassed =
+            retakeRequest
+                .PreviousAttempt
+                .Status ==
+                AssessmentAttemptStatus.Passed,
+
+        Reason =
+            retakeRequest.Reason,
+
+        Status =
+            retakeRequest.Status.ToString(),
+
+        RequestedAt =
+            retakeRequest.RequestedAt,
+
+        ReviewedAt =
+            retakeRequest.ReviewedAt,
+
+        AdminRemarks =
+            retakeRequest.AdminRemarks
+    };
+}
+
 }

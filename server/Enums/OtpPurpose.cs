@@ -1,7 +1,8 @@
 namespace server.Enums;
 
-
 public enum OtpPurpose
 {
-    EmailVerification
+    EmailVerification,
+    PasswordReset,
+    LoginTwoFactor
 }

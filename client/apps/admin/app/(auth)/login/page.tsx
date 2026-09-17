@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
+import Link from "next/link";
 import {
   Button,
   Input,
@@ -305,6 +305,22 @@ export default function LoginPage() {
             </button>
           </div>
         </div>
+
+        <div className="mb-5 flex justify-end">
+  <Link
+    href="/forgot-password"
+    className="
+      text-[10px]
+      font-bold
+      text-[#1670a8]
+      transition-colors
+      hover:text-[#126391]
+      hover:underline
+    "
+  >
+    Forgot password?
+  </Link>
+</div>
 
         {/* =================================================
             REMEMBER ME

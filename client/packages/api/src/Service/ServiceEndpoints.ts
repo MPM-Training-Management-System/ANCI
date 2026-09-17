@@ -1,35 +1,27 @@
 export const ServiceEndpoints = {
-  // =========================
-  // SERVICES
-  // =========================
-
+  // Services
   getAll: () => `/api/services`,
+  getById: (id: string) => `/api/services/${id}`,
+  create: () => `/api/services`,
+  update: (id: string) => `/api/services/${id}`,
+  delete: (id: string) => `/api/services/${id}`,
 
-  getById: (id: string) =>
-    `/api/services/${id}`,
+  // Service Requests
+  createRequest: () => `/api/services/requests`,
+  getRequests: () => `/api/services/requests`,
+  getRequestById: (id: string) => `/api/services/requests/${id}`,
+reviewRequest: (id: string) =>
+  `/api/services/requests/${id}/review`,
 
-  create: () =>
-    `/api/services`,
+getConsultations: () =>
+  `/api/services/consultations`,
 
-  update: (id: string) =>
-    `/api/services/${id}`,
+getConsultationById: (id: string) =>
+  `/api/services/consultations/${id}`,
 
-  delete: (id: string) =>
-    `/api/services/${id}`,
+createConsultation: () =>
+  `/api/services/consultations`,
 
-  // =========================
-  // SERVICE REQUESTS
-  // =========================
-
-  createRequest: () =>
-    `/api/services/requests`,
-
-  getRequests: () =>
-    `/api/services/requests`,
-
-  getRequestById: (id: string) =>
-    `/api/services/requests/${id}`,
-
-  updateRequestStatus: (id: string) =>
-    `/api/services/requests/${id}/status`,
+updateConsultation: (id: string) =>
+  `/api/services/consultations/${id}`,
 };
