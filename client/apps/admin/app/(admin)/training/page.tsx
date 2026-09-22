@@ -22,6 +22,7 @@ import {
   useTrainingProgramDocuments,
   useTrainingBatches,
   useTrainerAssignments,
+  useParticipation,
 } from "@repo/hooks";
 
 import {
@@ -55,6 +56,9 @@ import {
   type Requirement,
   type TrainingProgram,
 } from "./columns";
+
+import {api} from "@/lib/api"
+import { BookOpenCheck, CircleCheck, FilePenLine, Pencil, UsersRound } from "lucide-react";
 
 // ============================================================
 // DEFAULT REQUIREMENTS
@@ -104,6 +108,7 @@ type BatchFormState = {
   startTime: string;
   endTime: string;
   capacity: string;
+  requiredRecitations: string;
 };
 
 // ============================================================
@@ -635,6 +640,7 @@ export default function TrainingProgramsPage() {
       startTime: "",
       endTime: "",
       capacity: "",
+      requiredRecitations: "5",
     });
 
   // ==========================================================
@@ -664,6 +670,13 @@ export default function TrainingProgramsPage() {
       selected?.id ?? null,
       trainingProgramDocumentApi,
     );
+
+
+    const {
+  setting,
+  loadSetting,
+  saveSetting,
+} = useParticipation(api);
 
   // ==========================================================
   // SYNC PROGRAMS FROM API
@@ -1543,6 +1556,7 @@ export default function TrainingProgramsPage() {
           endTime: "",
 
           capacity: "",
+          requiredRecitations: "5",
         });
 
         setShowBatchForm(
@@ -1555,256 +1569,262 @@ export default function TrainingProgramsPage() {
   // ==========================================================
   // OPEN EDIT BATCH
   // ==========================================================
-
-  const openEditBatch =
-    useCallback(
-      (
-        batch: TrainingBatch,
-      ) => {
-        const program =
-          programs.find(
-            (item) =>
-              item.title ===
-              batch.programName,
-          );
-
-        if (!program) {
-          alert(
-            `Training program "${batch.programName}" could not be found.`,
-          );
-
-          return;
-        }
-
-        setSelectedBatch(
-          batch,
+const openEditBatch =
+  useCallback(
+    async (
+      batch: TrainingBatch,
+    ) => {
+      const program =
+        programs.find(
+          (item) =>
+            item.title ===
+            batch.programName,
         );
 
-        setBatchForm({
-          trainingProgramId:
-            program.id,
-
-          batchCode:
-            batch.batchCode,
-
-          location:
-            batch.location ??
-            "",
-
-          startDate:
-            toDateInputValue(
-              batch.startDate,
-            ),
-
-          endDate:
-            toDateInputValue(
-              batch.endDate,
-            ),
-
-          startTime: "",
-
-          endTime: "",
-
-          capacity:
-            String(
-              batch.capacity,
-            ),
-        });
-
-        setShowBatchForm(
-          true,
-        );
-      },
-      [programs],
-    );
-
-  // ==========================================================
-  // SAVE BATCH
-  // ==========================================================
-
-  const saveBatch =
-    useCallback(
-      async () => {
-        if (
-          isSavingBatchRef.current
-        ) {
-          console.warn(
-            "SAVE BATCH IGNORED: request already in progress.",
-          );
-
-          return;
-        }
-
-        if (
-          !batchForm.trainingProgramId
-        ) {
-          alert(
-            "Please select a training program.",
-          );
-
-          return;
-        }
-
-        if (
-          !batchForm.batchCode.trim()
-        ) {
-          alert(
-            "Batch code is required.",
-          );
-
-          return;
-        }
-
-        if (
-          !batchForm.startDate
-        ) {
-          alert(
-            "Start date is required.",
-          );
-
-          return;
-        }
-
-        if (
-          !batchForm.endDate
-        ) {
-          alert(
-            "End date is required.",
-          );
-
-          return;
-        }
-
-        const capacity =
-          Number(
-            batchForm.capacity,
-          );
-
-        if (
-          !Number.isFinite(
-            capacity,
-          ) ||
-          capacity <= 0
-        ) {
-          alert(
-            "Capacity must be greater than 0.",
-          );
-
-          return;
-        }
-
-        if (
-          batchForm.endDate <
-          batchForm.startDate
-        ) {
-          alert(
-            "End date cannot be earlier than start date.",
-          );
-
-          return;
-        }
-
-        const payload:
-          CreateTrainingBatchRequest =
-          {
-            trainingProgramId:
-              batchForm.trainingProgramId,
-
-            batchCode:
-              batchForm.batchCode.trim(),
-
-            location:
-              batchForm.location.trim() ||
-              null,
-
-            startDate:
-              `${batchForm.startDate}T00:00:00`,
-
-            endDate:
-              `${batchForm.endDate}T00:00:00`,
-
-            startTime:
-              batchForm.startTime
-                ? `${batchForm.startTime}:00`
-                : null,
-
-            endTime:
-              batchForm.endTime
-                ? `${batchForm.endTime}:00`
-                : null,
-
-            capacity,
-          };
-
-        console.log(
-          "========== SAVE TRAINING BATCH ==========",
+      if (!program) {
+        alert(
+          `Training program "${batch.programName}" could not be found.`,
         );
 
-        console.log(
-          "MODE:",
-          selectedBatch
-            ? "UPDATE"
-            : "CREATE",
-        );
+        return;
+      }
 
-        console.log(
-          "PAYLOAD:",
-          JSON.stringify(
-            payload,
-            null,
-            2,
+      let requiredRecitations = 5;
+
+      try {
+        const setting =
+          await loadSetting(batch.id);
+
+        if (setting) {
+          requiredRecitations =
+            setting.requiredRecitations;
+        }
+      } catch (error) {
+        console.error(
+          "Failed to load participation setting:",
+          error,
+        );
+      }
+
+      setSelectedBatch(batch);
+
+      setBatchForm({
+        trainingProgramId:
+          program.id,
+
+        batchCode:
+          batch.batchCode,
+
+        location:
+          batch.location ?? "",
+
+        startDate:
+          toDateInputValue(
+            batch.startDate,
           ),
+
+        endDate:
+          toDateInputValue(
+            batch.endDate,
+          ),
+
+        startTime: "",
+
+        endTime: "",
+
+        capacity:
+          String(
+            batch.capacity,
+          ),
+
+        requiredRecitations:
+          String(
+            requiredRecitations,
+          ),
+      });
+
+      setShowBatchForm(true);
+    },
+    [
+      programs,
+      loadSetting,
+    ],
+  );
+const saveBatch =
+  useCallback(
+    async () => {
+      if (isSavingBatchRef.current) {
+        console.warn(
+          "SAVE BATCH IGNORED: request already in progress.",
         );
 
-        console.log(
-          "==========================================",
+        return;
+      }
+
+      if (!batchForm.trainingProgramId) {
+        alert(
+          "Please select a training program.",
         );
 
-        isSavingBatchRef.current =
-          true;
+        return;
+      }
 
-        try {
-          if (!selectedBatch) {
-            const result =
-              await createBatch(
-                payload,
-              );
+      if (!batchForm.batchCode.trim()) {
+        alert(
+          "Batch code is required.",
+        );
 
-            if (!result) {
-              return;
-            }
+        return;
+      }
 
-            alert(
-              "Training batch created successfully.",
+      if (!batchForm.startDate) {
+        alert(
+          "Start date is required.",
+        );
+
+        return;
+      }
+
+      if (!batchForm.endDate) {
+        alert(
+          "End date is required.",
+        );
+
+        return;
+      }
+
+      const capacity =
+        Number(batchForm.capacity);
+
+      if (
+        !Number.isFinite(capacity) ||
+        capacity <= 0
+      ) {
+        alert(
+          "Capacity must be greater than 0.",
+        );
+
+        return;
+      }
+
+      const requiredRecitations =
+        Number(
+          batchForm.requiredRecitations,
+        );
+
+      if (
+        !Number.isInteger(
+          requiredRecitations,
+        ) ||
+        requiredRecitations < 1 ||
+        requiredRecitations > 100
+      ) {
+        alert(
+          "Required recitations must be between 1 and 100.",
+        );
+
+        return;
+      }
+
+      if (
+        batchForm.endDate <
+        batchForm.startDate
+      ) {
+        alert(
+          "End date cannot be earlier than start date.",
+        );
+
+        return;
+      }
+
+      const payload:
+        CreateTrainingBatchRequest = {
+        trainingProgramId:
+          batchForm.trainingProgramId,
+
+        batchCode:
+          batchForm.batchCode.trim(),
+
+        location:
+          batchForm.location.trim() ||
+          null,
+
+        startDate:
+          `${batchForm.startDate}T00:00:00`,
+
+        endDate:
+          `${batchForm.endDate}T00:00:00`,
+
+        startTime:
+          batchForm.startTime
+            ? `${batchForm.startTime}:00`
+            : null,
+
+        endTime:
+          batchForm.endTime
+            ? `${batchForm.endTime}:00`
+            : null,
+
+        capacity,
+      };
+
+      console.log(
+        "========== SAVE TRAINING BATCH ==========",
+      );
+
+      console.log(
+        "MODE:",
+        selectedBatch
+          ? "UPDATE"
+          : "CREATE",
+      );
+
+      console.log(
+        "PAYLOAD:",
+        JSON.stringify(
+          payload,
+          null,
+          2,
+        ),
+      );
+
+      console.log(
+        "REQUIRED RECITATIONS:",
+        requiredRecitations,
+      );
+
+      console.log(
+        "==========================================",
+      );
+
+      isSavingBatchRef.current =
+        true;
+
+      try {
+        // =====================================================
+        // CREATE
+        // =====================================================
+
+        if (!selectedBatch) {
+          const result =
+            await createBatch(
+              payload,
             );
 
-            setShowBatchForm(
-              false,
-            );
-
-            setSelectedBatch(
-              null,
-            );
-
+          if (!result) {
             return;
           }
 
-          const updatePayload:
-            UpdateTrainingBatchRequest =
-            payload;
-
-          const success =
-            await updateBatch(
-              selectedBatch.id,
-              updatePayload,
-            );
-
-          if (!success) {
-            return;
-          }
+          // Save Active Participation setting
+          await saveSetting(
+            result.id,
+            {
+              requiredRecitations,
+            },
+          );
 
           alert(
-            "Training batch updated successfully.",
+            "Training batch created successfully.",
           );
 
           setShowBatchForm(
@@ -1814,30 +1834,71 @@ export default function TrainingProgramsPage() {
           setSelectedBatch(
             null,
           );
-        } catch (error) {
-          console.error(
-            "SAVE TRAINING BATCH ERROR:",
-            error,
-          );
 
-          alert(
-            error instanceof Error
-              ? error.message
-              : "Unable to save training batch.",
-          );
-        } finally {
-          isSavingBatchRef.current =
-            false;
+          return;
         }
-      },
-      [
-        batchForm,
-        selectedBatch,
-        createBatch,
-        updateBatch,
-      ],
-    );
 
+        // =====================================================
+        // UPDATE
+        // =====================================================
+
+        const updatePayload:
+          UpdateTrainingBatchRequest =
+          payload;
+
+        const success =
+          await updateBatch(
+            selectedBatch.id,
+            updatePayload,
+          );
+
+        if (!success) {
+          return;
+        }
+
+        // Update Active Participation setting
+        await saveSetting(
+          selectedBatch.id,
+          {
+            requiredRecitations,
+          },
+        );
+
+        alert(
+          "Training batch updated successfully.",
+        );
+
+        setShowBatchForm(
+          false,
+        );
+
+        setSelectedBatch(
+          null,
+        );
+      } catch (error) {
+        console.error(
+          "SAVE TRAINING BATCH ERROR:",
+          error,
+        );
+
+        alert(
+          error instanceof Error
+            ? error.message
+            : "Unable to save training batch.",
+        );
+      } finally {
+        isSavingBatchRef.current =
+          false;
+      }
+    },
+    [
+      batchForm,
+      selectedBatch,
+      createBatch,
+      updateBatch,
+      saveSetting,
+    ],
+  );
   // ==========================================================
   // UPDATE BATCH STATUS
   // ==========================================================
@@ -1926,9 +1987,7 @@ export default function TrainingProgramsPage() {
       ],
     );
 
-  // ==========================================================
-  // RENDER
-  // ==========================================================
+
 
   return (
     <div className="space-y-6">
@@ -1950,6 +2009,8 @@ export default function TrainingProgramsPage() {
       <StatGrid>
 
         <StatCard
+        icon={BookOpenCheck}
+        variant="primary"
           title="Total Programs"
           value={
             totalPrograms
@@ -1958,6 +2019,8 @@ export default function TrainingProgramsPage() {
         />
 
         <StatCard
+        variant="success"
+        icon={CircleCheck}
           title="Active Programs"
           value={
             activePrograms
@@ -1966,6 +2029,8 @@ export default function TrainingProgramsPage() {
         />
 
         <StatCard
+        variant="warning"
+        icon={FilePenLine}
           title="Draft Programs"
           value={
             draftPrograms
@@ -1974,6 +2039,8 @@ export default function TrainingProgramsPage() {
         />
 
         <StatCard
+        variant="primary"
+        icon={UsersRound}
           title="Total Participants"
           value={
             totalParticipants
@@ -1982,31 +2049,6 @@ export default function TrainingProgramsPage() {
         />
 
       </StatGrid>
-
-      {/* INFO */}
-
-      <div className="flex items-start gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
-
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-sm font-bold text-blue-700">
-          i
-        </div>
-
-        <div>
-
-          <p className="text-sm font-semibold text-blue-900">
-            Enrollment requirements
-          </p>
-
-          <p className="mt-1 text-xs leading-5 text-blue-700">
-            Requirements configured
-            for a training program are
-            used during participant
-            enrollment.
-          </p>
-
-        </div>
-
-      </div>
 
       {/* ERRORS */}
 
@@ -2037,8 +2079,7 @@ export default function TrainingProgramsPage() {
       {/* PROGRAM TABLE */}
 
       <DataTable
-        title="Training Program List"
-        description="Manage programs and their enrollment configuration."
+        
         columns={columns}
         data={
           filteredPrograms
@@ -2644,13 +2685,9 @@ function ProgramDetailsModal({
         onClose
       }
     >
-
       <PageSection
       title="Training Program"
-      
       >
-
-
       </PageSection>
 
       {/* HEADER */}
@@ -2741,6 +2778,8 @@ function ProgramDetailsModal({
               title="Capacity"
               value={`${program.enrolled} / ${program.capacity}`}
             />
+
+         
 
             <Info
               title="Location"
@@ -3850,6 +3889,30 @@ function BatchFormModal({
             placeholder="AFS-001"
             required
           />
+
+          <FormInput
+  label="Required Recitations"
+  type="number"
+  value={
+    batchForm.requiredRecitations
+  }
+  onChange={(value) =>
+    setBatchForm(
+      (current) => ({
+        ...current,
+        requiredRecitations:
+          value,
+      }),
+    )
+  }
+  placeholder="5"
+  required
+/>
+
+<p className="text-xs text-gray-500">
+  Number of recitations required
+  to reach 100% Active Participation.
+</p>
 
           <FormInput
             label="Location"

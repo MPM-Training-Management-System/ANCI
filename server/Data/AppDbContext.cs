@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using server.Models.Assessment;
 using server.Models.Attendance;
 using server.Models.Auth;
+using server.Models.Canva;
 using server.Models.Learning;
 using server.Models.Otp;
 using server.Models.Participant;
@@ -34,6 +35,8 @@ public DbSet<TrainingProgramRequirement>
 
 public DbSet<ServiceRequirement> ServiceRequirements
     => Set<ServiceRequirement>();
+
+    
 
     public DbSet<AssessmentRetakeRequest> AssessmentRetakeRequests
     => Set<AssessmentRetakeRequest>();
@@ -108,6 +111,34 @@ public DbSet<AssessmentResult> AssessmentResults => Set<AssessmentResult>();
 public DbSet<AttendanceSession> AttendanceSessions => Set<AttendanceSession>();
 
 public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
+
+public DbSet<PracticalAssessment>
+    PracticalAssessments
+    => Set<PracticalAssessment>();
+
+public DbSet<PracticalAssessmentCriterion>
+    PracticalAssessmentCriteria
+    => Set<PracticalAssessmentCriterion>();
+
+public DbSet<PracticalAssessmentResult>
+    PracticalAssessmentResults
+    => Set<PracticalAssessmentResult>();
+
+public DbSet<PracticalAssessmentCriterionScore>
+    PracticalAssessmentCriterionScores
+    => Set<PracticalAssessmentCriterionScore>();
+public DbSet<ParticipationSetting>
+    ParticipationSettings
+    => Set<ParticipationSetting>();
+
+public DbSet<ParticipationRecord>
+    ParticipationRecords
+    => Set<ParticipationRecord>();
+
+    public DbSet<Certificate> Certificates => Set<Certificate>();
+
+    public DbSet<CanvaConnection> CanvaConnections => Set<CanvaConnection>();
+    
     // ==========================================
     // Model Configuration
     // ==========================================
@@ -176,6 +207,330 @@ public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
                     x => x.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+
+        modelBuilder.Entity<CanvaConnection>(entity =>
+{
+    entity.ToTable("CanvaConnections");
+
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.AccessToken)
+    .IsRequired()
+    .HasColumnType("text");
+
+entity.Property(x => x.RefreshToken)
+    .IsRequired()
+    .HasColumnType("text");
+
+    entity.Property(x => x.Scope)
+        .HasMaxLength(1000);
+
+    entity.Property(x => x.ExpiresAt)
+        .IsRequired();
+
+    entity.Property(x => x.CreatedAt)
+        .IsRequired();
+
+    entity.Property(x => x.UpdatedAt)
+        .IsRequired();
+});
+
+        modelBuilder.Entity<Certificate>(entity =>
+{
+    entity.ToTable("Certificates");
+
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.CertificateNumber)
+        .IsRequired()
+        .HasMaxLength(50);
+
+    entity.Property(x => x.Type)
+        .IsRequired();
+
+    entity.Property(x => x.IssuedAt)
+        .IsRequired();
+
+    entity.Property(x => x.VerificationCode)
+        .IsRequired()
+        .HasMaxLength(100);
+
+    entity.Property(x => x.PdfUrl)
+        .HasMaxLength(500);
+
+    entity.Property(x => x.CanvaDesignId)
+        .HasMaxLength(100);
+
+    entity.Property(x => x.IsRevoked)
+        .IsRequired();
+
+    entity.Property(x => x.RevocationReason)
+        .HasMaxLength(500);
+
+    entity.HasIndex(x => x.CertificateNumber)
+        .IsUnique();
+
+    entity.HasIndex(x => x.VerificationCode)
+        .IsUnique();
+
+    // One participation certificate per enrollment
+    // and one completion certificate per enrollment.
+    entity.HasIndex(x => new
+    {
+        x.EnrollmentId,
+        x.Type
+    })
+    .IsUnique();
+
+    entity.HasOne(x => x.Enrollment)
+        .WithMany()
+        .HasForeignKey(x => x.EnrollmentId)
+        .OnDelete(DeleteBehavior.Cascade);
+});
+// ==========================================================
+// PARTICIPATION SETTING
+// ==========================================================
+
+modelBuilder.Entity<ParticipationSetting>(entity =>
+{
+    entity.ToTable("ParticipationSettings");
+
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.RequiredRecitations)
+        .IsRequired();
+
+    entity.Property(x => x.CreatedAt)
+        .IsRequired();
+
+    entity.Property(x => x.UpdatedAt)
+        .IsRequired(false);
+
+    // One participation setting per training batch
+    entity.HasIndex(x => x.TrainingBatchId)
+        .IsUnique();
+
+    entity.HasOne(x => x.TrainingBatch)
+        .WithMany()
+        .HasForeignKey(x => x.TrainingBatchId)
+        .OnDelete(DeleteBehavior.Cascade);
+});
+
+
+// ==========================================================
+// PARTICIPATION RECORD
+// ==========================================================
+
+modelBuilder.Entity<ParticipationRecord>(entity =>
+{
+    entity.ToTable("ParticipationRecords");
+
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.RecordedByUserId)
+        .IsRequired();
+
+    entity.Property(x => x.RecordedAt)
+        .IsRequired();
+
+    entity.Property(x => x.Remarks)
+        .HasMaxLength(500);
+
+    // One recitation record per participant per session
+    entity.HasIndex(x => new
+    {
+        x.EnrollmentId,
+        x.TrainingSessionId
+    })
+    .IsUnique();
+
+    entity.HasIndex(x => x.EnrollmentId);
+
+    entity.HasIndex(x => x.TrainingSessionId);
+
+    entity.HasOne(x => x.Enrollment)
+        .WithMany()
+        .HasForeignKey(x => x.EnrollmentId)
+        .OnDelete(DeleteBehavior.Cascade);
+
+    entity.HasOne(x => x.TrainingSession)
+        .WithMany()
+        .HasForeignKey(x => x.TrainingSessionId)
+        .OnDelete(DeleteBehavior.Cascade);
+});
+
+        // ==========================================================
+// PRACTICAL ASSESSMENT
+// ==========================================================
+
+modelBuilder.Entity<PracticalAssessment>(entity =>
+{
+    entity.ToTable("PracticalAssessments");
+
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.Title)
+        .IsRequired()
+        .HasMaxLength(255);
+
+    entity.Property(x => x.Description)
+        .HasMaxLength(2000);
+
+    entity.Property(x => x.PassingPercentage)
+        .HasPrecision(5, 2)
+        .IsRequired();
+
+    entity.Property(x => x.IsPublished)
+        .IsRequired();
+
+    entity.Property(x => x.CreatedAt)
+        .IsRequired();
+
+    entity.Property(x => x.UpdatedAt)
+        .IsRequired(false);
+
+    entity.HasIndex(x => x.TrainingBatchId);
+
+    entity.HasOne(x => x.TrainingBatch)
+        .WithMany()
+        .HasForeignKey(x => x.TrainingBatchId)
+        .OnDelete(DeleteBehavior.Cascade);
+
+    entity.HasMany(x => x.Criteria)
+        .WithOne(x => x.PracticalAssessment)
+        .HasForeignKey(x => x.PracticalAssessmentId)
+        .OnDelete(DeleteBehavior.Cascade);
+
+    entity.HasMany(x => x.Results)
+        .WithOne(x => x.PracticalAssessment)
+        .HasForeignKey(x => x.PracticalAssessmentId)
+        .OnDelete(DeleteBehavior.Cascade);
+});
+
+// ==========================================================
+// PRACTICAL ASSESSMENT CRITERION
+// ==========================================================
+
+modelBuilder.Entity<PracticalAssessmentCriterion>(entity =>
+{
+    entity.ToTable("PracticalAssessmentCriteria");
+
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.Name)
+        .IsRequired()
+        .HasMaxLength(255);
+
+    entity.Property(x => x.Description)
+        .HasMaxLength(1000);
+
+    entity.Property(x => x.WeightPercentage)
+        .HasPrecision(5, 2)
+        .IsRequired();
+
+    entity.Property(x => x.DisplayOrder)
+        .IsRequired();
+
+    entity.HasIndex(x => new
+    {
+        x.PracticalAssessmentId,
+        x.DisplayOrder
+    });
+
+    entity.HasOne(x => x.PracticalAssessment)
+        .WithMany(x => x.Criteria)
+        .HasForeignKey(x => x.PracticalAssessmentId)
+        .OnDelete(DeleteBehavior.Cascade);
+});
+
+// ==========================================================
+// PRACTICAL ASSESSMENT RESULT
+// ==========================================================
+
+modelBuilder.Entity<PracticalAssessmentResult>(entity =>
+{
+    entity.ToTable("PracticalAssessmentResults");
+
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.TotalScore)
+        .HasPrecision(8, 2)
+        .IsRequired();
+
+    entity.Property(x => x.Percentage)
+        .HasPrecision(5, 2)
+        .IsRequired();
+
+    entity.Property(x => x.IsPassed)
+        .IsRequired();
+
+    entity.Property(x => x.TrainerRemarks)
+        .HasMaxLength(2000);
+
+    entity.Property(x => x.EvaluatedByUserId)
+        .IsRequired();
+
+    entity.Property(x => x.EvaluatedAt)
+        .IsRequired();
+
+    // One result per participant/enrollment
+    // for a practical assessment.
+    entity.HasIndex(x => new
+    {
+        x.PracticalAssessmentId,
+        x.EnrollmentId
+    })
+    .IsUnique();
+
+    entity.HasIndex(x => x.EnrollmentId);
+
+    entity.HasOne(x => x.PracticalAssessment)
+        .WithMany(x => x.Results)
+        .HasForeignKey(x => x.PracticalAssessmentId)
+        .OnDelete(DeleteBehavior.Cascade);
+
+    entity.HasOne(x => x.Enrollment)
+        .WithMany()
+        .HasForeignKey(x => x.EnrollmentId)
+        .OnDelete(DeleteBehavior.Restrict);
+
+    entity.HasMany(x => x.CriterionScores)
+        .WithOne(x => x.PracticalAssessmentResult)
+        .HasForeignKey(x => x.PracticalAssessmentResultId)
+        .OnDelete(DeleteBehavior.Cascade);
+});
+
+// ==========================================================
+// PRACTICAL ASSESSMENT CRITERION SCORE
+// ==========================================================
+
+modelBuilder.Entity<PracticalAssessmentCriterionScore>(entity =>
+{
+    entity.ToTable("PracticalAssessmentCriterionScores");
+
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.Score)
+        .HasPrecision(8, 2)
+        .IsRequired();
+
+    entity.HasIndex(x => new
+    {
+        x.PracticalAssessmentResultId,
+        x.PracticalAssessmentCriterionId
+    })
+    .IsUnique();
+
+    entity.HasOne(x => x.PracticalAssessmentResult)
+        .WithMany(x => x.CriterionScores)
+        .HasForeignKey(x => x.PracticalAssessmentResultId)
+        .OnDelete(DeleteBehavior.Cascade);
+
+    entity.HasOne(x => x.PracticalAssessmentCriterion)
+        .WithMany(x => x.Scores)
+        .HasForeignKey(x => x.PracticalAssessmentCriterionId)
+        .OnDelete(DeleteBehavior.Restrict);
+});
 
 
 

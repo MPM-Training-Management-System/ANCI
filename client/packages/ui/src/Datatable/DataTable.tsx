@@ -12,7 +12,6 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
-import { DataTableHeader } from "./DataTableHeader";
 import { DataTableToolbar } from "./DataTableToolbar";
 import { DataTablePagination } from "./DataTablePagination";
 import { DataTableLoading } from "./DataTableLoading";
@@ -31,7 +30,6 @@ export function DataTable<TData>({
   loading = false,
 
   searchable = true,
-
   searchPlaceholder = "Search...",
 
   showPagination = true,
@@ -41,7 +39,6 @@ export function DataTable<TData>({
   toolbar,
 
   emptyTitle = "No records found",
-
   emptyDescription = "There are no available records.",
 
   meta,
@@ -54,7 +51,6 @@ export function DataTable<TData>({
 
   const table = useReactTable({
     data,
-
     columns,
 
     state: {
@@ -65,166 +61,162 @@ export function DataTable<TData>({
     meta,
 
     onSortingChange: setSorting,
-
     onGlobalFilterChange: setGlobalFilter,
 
     getCoreRowModel: getCoreRowModel(),
-
     getSortedRowModel: getSortedRowModel(),
-
     getFilteredRowModel: getFilteredRowModel(),
-
     getPaginationRowModel: getPaginationRowModel(),
   });
 
   return (
-    <section
-      className="
-        mt-5
-        overflow-hidden
-        rounded-xl
-        border
-        border-gray-200
-        bg-white
-        shadow-sm
-      "
-    >
-      {/* HEADER */}
+    <section className="mt-5 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
 
-      <DataTableHeader
-        title={title}
-        description={description}
-        addButton={addButton}
-      />
+      {/* OPTIONAL TITLE */}
+      {(title || description) && (
+        <div className="border-b border-gray-200 px-6 py-5">
+          {title && (
+            <h2 className="text-base font-semibold text-gray-900">
+              {title}
+            </h2>
+          )}
+
+          {description && (
+            <p className="mt-1 text-sm text-gray-500">
+              {description}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* TOOLBAR */}
+      <div className="border-b border-gray-200 bg-white px-5 py-4">
+        <DataTableToolbar
+          searchable={searchable}
+          searchPlaceholder={searchPlaceholder}
+          value={globalFilter}
+          onChange={setGlobalFilter}
+        >
+          <div className="flex flex-wrap items-center gap-2">
 
-      <DataTableToolbar
-        searchable={searchable}
-        searchPlaceholder={searchPlaceholder}
-        value={globalFilter}
-        onChange={setGlobalFilter}
-      >
-        {addButton && (
-          <Button
-            variant="primary"
-            onClick={addButton.onClick}
-          >
-            {addButton.icon}
+            {toolbar}
 
-            {addButton.label}
-          </Button>
-        )}
+            {addButton && (
+              <Button
+                variant="primary"
+                onClick={addButton.onClick}
+                className="
+                  h-10
+                  rounded-md
+                  px-4
+                  text-sm
+                  font-medium
+                  shadow-sm
+                "
+              >
+                {addButton.icon}
+                <span>{addButton.label}</span>
+              </Button>
+            )}
 
-        {toolbar}
-      </DataTableToolbar>
+          </div>
+        </DataTableToolbar>
+      </div>
 
       {/* TABLE */}
-
       <div className="overflow-x-auto">
         <table className="min-w-full border-collapse">
-          {/* TABLE HEADER */}
 
+          {/* HEADER */}
           <thead className="bg-gray-50">
-            {table
-              .getHeaderGroups()
-              .map((group) => (
-                <tr key={group.id}>
-                  {group.headers.map(
-                    (header) => (
-                      <th
-                        key={header.id}
-                        className="
-                          border-b
-                          border-gray-200
-                          px-6
-                          py-3
-                          text-left
-                          text-xs
-                          font-semibold
-                          uppercase
-                          tracking-wider
-                          text-gray-500
-                        "
-                      >
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column
-                                .columnDef
-                                .header,
-                              header.getContext()
-                            )}
-                      </th>
-                    )
-                  )}
-                </tr>
-              ))}
+            {table.getHeaderGroups().map((group) => (
+              <tr key={group.id}>
+                {group.headers.map((header) => (
+                  <th
+                    key={header.id}
+                    className="
+                      whitespace-nowrap
+                      border-b
+                      border-gray-200
+                      px-5
+                      py-3
+                      text-left
+                      text-[11px]
+                      font-semibold
+                      uppercase
+                      tracking-wide
+                      text-gray-500
+                    "
+                  >
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                  </th>
+                ))}
+              </tr>
+            ))}
           </thead>
 
-          {/* TABLE BODY */}
+          {/* BODY */}
+          <tbody className="bg-white">
 
-          <tbody>
             {loading ? (
               <DataTableLoading
                 rows={8}
                 columns={columns.length}
               />
-            ) : table.getRowModel()
-                .rows.length === 0 ? (
+            ) : table.getRowModel().rows.length === 0 ? (
               <DataTableEmpty
                 columns={columns.length}
                 title={emptyTitle}
-                description={
-                  emptyDescription
-                }
+                description={emptyDescription}
               />
             ) : (
-              table
-                .getRowModel()
-                .rows.map((row) => (
-                  <tr
-                    key={row.id}
-                    className="
-                      transition-colors
-                      hover:bg-gray-50
-                    "
-                  >
-                    {row
-                      .getVisibleCells()
-                      .map((cell) => (
-                        <td
-                          key={cell.id}
-                          className="
-                            border-b
-                            border-gray-100
-                            px-6
-                            py-4
-                            text-sm
-                            text-gray-700
-                          "
-                        >
-                          {flexRender(
-                            cell.column
-                              .columnDef
-                              .cell,
-                            cell.getContext()
-                          )}
-                        </td>
-                      ))}
-                  </tr>
-                ))
+              table.getRowModel().rows.map((row) => (
+                <tr
+                  key={row.id}
+                  className="
+                    group
+                    transition-colors
+                    duration-150
+                    hover:bg-gray-50/80
+                  "
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <td
+                      key={cell.id}
+                      className="
+                        whitespace-nowrap
+                        border-b
+                        border-gray-100
+                        px-5
+                        py-3.5
+                        text-sm
+                        text-gray-700
+                      "
+                    >
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))
             )}
+
           </tbody>
         </table>
       </div>
 
       {/* PAGINATION */}
-
       {showPagination && (
-        <DataTablePagination
-          table={table}
-        />
+        <div className="border-t border-gray-200">
+          <DataTablePagination table={table} />
+        </div>
       )}
     </section>
   );

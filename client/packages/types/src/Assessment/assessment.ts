@@ -272,3 +272,93 @@ export interface AssessmentRetakeRequest {
 
   adminRemarks?: string | null;
 }
+
+
+// ==========================================================
+// PRACTICAL ASSESSMENT
+// ==========================================================
+
+export interface PracticalAssessmentCriterion {
+  id: string;
+  name: string;
+  description?: string | null;
+  weightPercentage: number;
+  displayOrder: number;
+}
+
+export interface PracticalAssessment {
+  id: string;
+  trainingBatchId: string;
+  title: string;
+  description?: string | null;
+  passingPercentage: number;
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt?: string | null;
+  criteria: PracticalAssessmentCriterion[];
+}
+
+
+// ==========================================================
+// CREATE / UPDATE
+// ==========================================================
+
+export interface CreatePracticalAssessmentCriterionRequest {
+  name: string;
+  description?: string | null;
+  weightPercentage: number;
+  displayOrder: number;
+}
+
+export interface CreatePracticalAssessmentRequest {
+  trainingBatchId: string;
+  title: string;
+  description?: string | null;
+  passingPercentage: number;
+  criteria: CreatePracticalAssessmentCriterionRequest[];
+}
+
+
+// ==========================================================
+// EVALUATION
+// ==========================================================
+
+export interface PracticalAssessmentCriterionScoreRequest {
+  criterionId: string;
+  score: number;
+}
+
+export interface EvaluatePracticalAssessmentRequest {
+  practicalAssessmentId: string;
+  enrollmentId: string;
+  trainerRemarks?: string | null;
+  criterionScores: PracticalAssessmentCriterionScoreRequest[];
+}
+
+
+// ==========================================================
+// RESULT
+// ==========================================================
+
+export interface PracticalAssessmentCriterionScore {
+  criterionId: string;
+  criterionName: string;
+  weightPercentage: number;
+  score: number;
+  weightedScore: number;
+}
+
+export interface PracticalAssessmentResult {
+  id: string;
+  practicalAssessmentId: string;
+  enrollmentId: string;
+  participantName: string;
+  assessmentTitle: string;
+  totalScore: number;
+  percentage: number;
+  isPassed: boolean;
+  trainerRemarks?: string | null;
+  evaluatedByUserId: string;
+  evaluatedAt: string;
+  criterionScores: PracticalAssessmentCriterionScore[];
+}

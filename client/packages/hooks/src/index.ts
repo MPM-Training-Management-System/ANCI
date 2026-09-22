@@ -19,3 +19,8 @@ export * from "./useWrittenAssessment";
 export * from "./useService";
 export * from "./useAdminUsers";
 export * from "./useForgotPassword";
+export * from "./usePracticalAssessment";
+export * from "./useParticipation";
+
+export * from "./useTrainingGrade";
+export * from "./useCertificates";

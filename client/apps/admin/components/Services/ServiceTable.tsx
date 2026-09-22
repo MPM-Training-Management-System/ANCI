@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import {
   DataTable,
@@ -8,227 +8,99 @@ import {
 
 import type { Service } from "@repo/types";
 
+import {
+  columns,
+  type ServiceTableMeta,
+} from "@/app/(admin)/services/columns";
+
 interface ServiceTableProps {
   services: Service[];
   isLoading: boolean;
-
-  search: string;
-  onSearchChange: (
-    value: string,
-  ) => void;
-
-  onClearSearch: () => void;
-
-  onEdit: (
-    service: Service,
-  ) => void;
-
-  onDelete: (
-    service: Service,
-  ) => void;
+  onEdit: (service: Service) => void;
+  onDelete: (service: Service) => void;
 }
 
 export function ServiceTable({
   services,
   isLoading,
-  search,
-  onSearchChange,
-  onClearSearch,
   onEdit,
   onDelete,
 }: ServiceTableProps) {
-  // ============================================================
-  // COLUMNS
-  // ============================================================
+  const [categoryFilter, setCategoryFilter] =
+    useState("All");
 
-  const columns = useMemo(
-    () => [
-      {
-        accessorKey: "serviceCode",
-        header: "Service Code",
-        cell: ({
-          row,
-        }: any) => (
-          <span className="font-mono text-xs font-semibold text-gray-600">
-            {row.original.serviceCode}
-          </span>
-        ),
-      },
+  const [statusFilter, setStatusFilter] =
+    useState<"All" | "Active" | "Inactive">("All");
 
-      {
-        accessorKey: "name",
-        header: "Service",
-        cell: ({
-          row,
-        }: any) => {
-          const service =
-            row.original as Service;
-
-          return (
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-gray-800">
-                {service.name}
-              </p>
-
-              {service.description && (
-                <p className="mt-1 max-w-md truncate text-xs text-gray-400">
-                  {service.description}
-                </p>
-              )}
-            </div>
-          );
-        },
-      },
-
-      {
-        accessorKey: "category",
-        header: "Category",
-        cell: ({
-          row,
-        }: any) => (
-          <span className="inline-flex rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-600">
-            {row.original.category}
-          </span>
-        ),
-      },
-
-      {
-        accessorKey:
-          "requiresTraining",
-        header: "Training",
-        cell: ({
-          row,
-        }: any) => {
-          const service =
-            row.original as Service;
-
-          return service.requiresTraining ? (
-            <span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-              Required
-            </span>
-          ) : (
-            <span className="inline-flex rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-500">
-              Not Required
-            </span>
-          );
-        },
-      },
-
-      {
-        accessorKey: "isActive",
-        header: "Status",
-        cell: ({
-          row,
-        }: any) => {
-          const service =
-            row.original as Service;
-
-          return service.isActive ? (
-            <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-              Active
-            </span>
-          ) : (
-            <span className="inline-flex rounded-full border border-gray-200 bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-500">
-              Inactive
-            </span>
-          );
-        },
-      },
-
-      {
-        id: "requirements",
-        header: "Requirements",
-        cell: ({
-          row,
-        }: any) => {
-          const service =
-            row.original as Service;
-
-          const count =
-            service.requirements?.length ??
-            0;
-
-          return (
-            <span className="text-xs font-semibold text-gray-600">
-              {count}
-            </span>
-          );
-        },
-      },
-
-      {
-        id: "actions",
-        header: "Actions",
-        cell: ({
-          row,
-        }: any) => {
-          const service =
-            row.original as Service;
-
-          return (
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() =>
-                  onEdit(service)
-                }
-                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-50"
-              >
-                Edit
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  onDelete(service)
-                }
-                className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
-              >
-                Delete
-              </button>
-            </div>
-          );
-        },
-      },
-    ],
-    [onEdit, onDelete],
-  );
-
-  // ============================================================
-  // SEARCH VALUE FOR DATATABLE
-  // ============================================================
-
-  const tableData = useMemo(() => {
-    return services.map(
-      (service) => ({
-        ...service,
-
-        searchValue: [
-          service.serviceCode,
-          service.name,
-          service.category,
-          service.description,
-          service.requiresTraining
-            ? "training"
-            : "no training",
-          service.isActive
-            ? "active"
-            : "inactive",
-        ]
-          .filter(Boolean)
-          .join(" "),
-      }),
-    );
+  const categories = useMemo(() => {
+    return Array.from(
+      new Set(
+        services
+          .map((service) => service.category)
+          .filter(Boolean),
+      ),
+    ).sort();
   }, [services]);
 
-  // ============================================================
-  // RENDER
-  // ============================================================
+  const filteredServices = useMemo(() => {
+    return services.filter((service) => {
+      const matchesCategory =
+        categoryFilter === "All" ||
+        service.category === categoryFilter;
+
+      const matchesStatus =
+        statusFilter === "All" ||
+        (statusFilter === "Active"
+          ? service.isActive
+          : !service.isActive);
+
+      return (
+        matchesCategory &&
+        matchesStatus
+      );
+    });
+  }, [
+    services,
+    categoryFilter,
+    statusFilter,
+  ]);
+
+  const tableData = useMemo(() => {
+    return filteredServices.map((service) => ({
+      ...service,
+      searchValue: [
+        service.serviceCode,
+        service.name,
+        service.category,
+        service.description ?? "",
+        service.requiresTraining
+          ? "training required"
+          : "training not required",
+        service.isActive
+          ? "active"
+          : "inactive",
+      ]
+        .filter(Boolean)
+        .join(" "),
+    }));
+  }, [filteredServices]);
+
+  const hasFilters =
+    categoryFilter !== "All" ||
+    statusFilter !== "All";
+
+  const clearFilters = () => {
+    setCategoryFilter("All");
+    setStatusFilter("All");
+  };
+
+  const meta: ServiceTableMeta = {
+    onEdit,
+    onDelete,
+  };
 
   return (
     <DataTable
-      title="Available Services"
-      description="Manage and maintain the services offered by the organization."
       columns={columns}
       data={tableData}
       searchable
@@ -237,39 +109,75 @@ export function ServiceTable({
       emptyTitle={
         isLoading
           ? "Loading services..."
-          : search
-            ? "No services found"
-            : "No services available"
+          : "No services found"
       }
       emptyDescription={
         isLoading
-          ? "Fetching services from the server."
-          : search
-            ? "Try using a different search keyword."
+          ? "Please wait while services are loaded."
+          : hasFilters
+            ? "No services match the selected filters."
             : "Create your first service to get started."
       }
+      meta={meta}
       toolbar={
         <div className="flex flex-wrap items-center gap-2">
-          <input
-            type="text"
-            value={search}
+          <select
+            value={categoryFilter}
             onChange={(event) =>
-              onSearchChange(
+              setCategoryFilter(
                 event.target.value,
               )
             }
-            placeholder="Search service..."
-            className="h-10 w-full min-w-[220px] rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none transition focus:bg-white"
-          />
-
-          <button
-            type="button"
-            onClick={onClearSearch}
-            disabled={!search}
-            className="h-10 rounded-xl border border-[#e7e9ec] bg-white px-3 text-xs font-semibold text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+            className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium text-gray-600 outline-none transition focus:border-gray-300 focus:bg-white"
           >
-            Clear
-          </button>
+            <option value="All">
+              All Categories
+            </option>
+
+            {categories.map((category) => (
+              <option
+                key={category}
+                value={category}
+              >
+                {category}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={statusFilter}
+            onChange={(event) =>
+              setStatusFilter(
+                event.target.value as
+                  | "All"
+                  | "Active"
+                  | "Inactive",
+              )
+            }
+            className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium text-gray-600 outline-none transition focus:border-gray-300 focus:bg-white"
+          >
+            <option value="All">
+              All Status
+            </option>
+
+            <option value="Active">
+              Active
+            </option>
+
+            <option value="Inactive">
+              Inactive
+            </option>
+          </select>
+
+          {hasFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-4 text-xs font-medium text-gray-600 transition hover:bg-white"
+            >
+              Clear
+            </button>
+          )}
         </div>
       }
     />

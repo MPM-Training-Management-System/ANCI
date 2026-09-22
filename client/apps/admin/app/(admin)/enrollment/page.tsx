@@ -8,6 +8,12 @@ import React, {
 
 import {
   DataTable,
+  PageSection,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   StatCard,
   StatGrid,
 } from "@repo/ui/index";
@@ -32,15 +38,10 @@ import {
 import { columns } from "./columns";
 
 
-// =========================================================
-// ENROLLMENT PAGE
-// =========================================================
+
 
 export default function EnrollmentPage() {
 
-  // =======================================================
-  // ENROLLMENT HOOK
-  // =======================================================
 
   const {
     pendingEnrollments,
@@ -54,9 +55,6 @@ export default function EnrollmentPage() {
   );
 
 
-  // =======================================================
-  // REQUIREMENTS
-  // =======================================================
 
   const [
     requirementsByBatch,
@@ -75,9 +73,7 @@ export default function EnrollmentPage() {
   ] = useState(false);
 
 
-  // =======================================================
-  // FILTER
-  // =======================================================
+
 
   const [
     statusFilter,
@@ -95,9 +91,6 @@ export default function EnrollmentPage() {
   );
 
 
-  // =======================================================
-  // SELECTED ENROLLMENT
-  // =======================================================
 
   const [
     selected,
@@ -107,9 +100,6 @@ export default function EnrollmentPage() {
   );
 
 
-  // =======================================================
-  // ADMIN DOCUMENTS
-  // =======================================================
 
   const [
     documents,
@@ -129,9 +119,6 @@ export default function EnrollmentPage() {
   ] = useState(false);
 
 
-  // =======================================================
-  // MODAL
-  // =======================================================
 
   const [
     modal,
@@ -144,19 +131,13 @@ export default function EnrollmentPage() {
   >(null);
 
 
-  // =======================================================
-  // REVIEW REMARKS
-  // =======================================================
+
 
   const [
     reviewRemarks,
     setReviewRemarks,
   ] = useState("");
 
-
-  // =======================================================
-  // NOTIFICATION
-  // =======================================================
 
   const [
     notification,
@@ -167,10 +148,6 @@ export default function EnrollmentPage() {
     message: string;
   } | null>(null);
 
-
-  // =======================================================
-  // DOCUMENT CONFIRMATION
-  // =======================================================
 
   const [
     documentConfirmation,
@@ -184,9 +161,7 @@ export default function EnrollmentPage() {
   } | null>(null);
 
 
-  // =======================================================
-  // LOAD ENROLLMENTS
-  // =======================================================
+
 
   useEffect(() => {
 
@@ -199,10 +174,9 @@ export default function EnrollmentPage() {
     loadPendingEnrollments,
   ]);
 
+  
 
-  // =======================================================
-  // LOAD REQUIREMENTS
-  // =======================================================
+
 
   useEffect(() => {
 
@@ -817,67 +791,12 @@ export default function EnrollmentPage() {
 
       )}
 
-
-      {/* =================================================
-          HEADER
-      ================================================= */}
-
-      <div>
-
-        <div className="mb-2 flex items-center gap-2 text-xs text-gray-400">
-
-          <span>
-            Operations
-          </span>
-
-          <span>
-            /
-          </span>
-
-          <span className="font-medium text-gray-600">
-            Enrollment
-          </span>
-
-        </div>
-
-
-        <h1 className="text-2xl font-bold tracking-tight text-[#17191c] sm:text-3xl">
-          Enrollment Management
-        </h1>
-
-
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
-          Review enrollment requests submitted
+      <PageSection
+      title="Enrollment Management"
+      description=" Review enrollment requests submitted
           by participants and manage their
-          admission into training programs.
-        </p>
-
-      </div>
-
-
-      {/* =================================================
-          INFO
-      ================================================= */}
-
-      <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
-
-        <p className="text-sm font-semibold text-blue-900">
-          Participant enrollment requests
-        </p>
-
-
-        <p className="mt-1 text-xs leading-5 text-blue-700">
-          Enrollment requests submitted by
-          participants are loaded directly from
-          the backend.
-        </p>
-
-      </div>
-
-
-      {/* =================================================
-          ERROR
-      ================================================= */}
+          admission into training programs."
+      ></PageSection>
 
       {error && (
 
@@ -896,14 +815,10 @@ export default function EnrollmentPage() {
 
       )}
 
-
-      {/* =================================================
-          STATISTICS
-      ================================================= */}
-
       <StatGrid>
 
         <StatCard
+        variant="primary"
           title="Total Applications"
           value={total}
           description="Enrollment requests"
@@ -911,6 +826,7 @@ export default function EnrollmentPage() {
 
 
         <StatCard
+        variant="warning"
           title="Pending Review"
           value={pending}
           description="Waiting for admin decision"
@@ -918,6 +834,7 @@ export default function EnrollmentPage() {
 
 
         <StatCard
+        variant="success"
           title="Approved"
           value={approved}
           description="Approved enrollments"
@@ -925,6 +842,7 @@ export default function EnrollmentPage() {
 
 
         <StatCard
+        variant="warning"
           title="Rejected"
           value={rejected}
           description="Rejected enrollments"
@@ -933,96 +851,82 @@ export default function EnrollmentPage() {
       </StatGrid>
 
 
-      {/* =================================================
-          TABLE
-      ================================================= */}
 
-      <DataTable
-        title="Enrollment Requests"
-        description="Applications submitted by participants."
-        columns={columns}
-        data={filteredEnrollments}
-        searchable
-        searchPlaceholder="Search participant or training..."
-        meta={tableMeta}
+     <DataTable
+  columns={columns}
+  data={filteredEnrollments}
+  searchable
+  searchPlaceholder="Search participant or training..."
+  meta={tableMeta}
+  toolbar={
+    <div className="flex flex-wrap gap-2">
+      {/* TRAINING FILTER */}
+      <Select
+        value={trainingFilter}
+        onValueChange={setTrainingFilter}
+      >
+        <SelectTrigger className="w-55">
+          <SelectValue placeholder="All Trainings" />
+        </SelectTrigger>
 
-        toolbar={
-
-          <div className="flex flex-wrap gap-2">
-
-            <select
-              value={trainingFilter}
-              onChange={
-                event =>
-                  setTrainingFilter(
-                    event.target.value
-                  )
-              }
-              className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-xs outline-none"
+        <SelectContent>
+          {trainings.map((training) => (
+            <SelectItem
+              key={training}
+              value={training}
             >
+              {training}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
-              {trainings.map(
-                training => (
-
-                  <option
-                    key={training}
-                    value={training}
-                  >
-                    {training}
-                  </option>
-
-                )
-              )}
-
-            </select>
-
-
-            <select
-              value={statusFilter}
-              onChange={
-                event =>
-                  setStatusFilter(
-                    event.target.value as
-                      | "All"
-                      | EnrollmentStatus
-                  )
-              }
-              className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-xs outline-none"
-            >
-
-              <option value="All">
-                All Status
-              </option>
-
-              <option value="Pending">
-                Pending
-              </option>
-
-              <option value="UnderReview">
-                Under Review
-              </option>
-
-              <option value="NeedsCorrection">
-                Needs Correction
-              </option>
-
-              <option value="Approved">
-                Approved
-              </option>
-
-              <option value="Rejected">
-                Rejected
-              </option>
-
-              <option value="Cancelled">
-                Cancelled
-              </option>
-
-            </select>
-
-          </div>
+      {/* STATUS FILTER */}
+      <Select
+        value={statusFilter}
+        onValueChange={(value) =>
+          setStatusFilter(
+            value as "All" | EnrollmentStatus
+          )
         }
-      />
+      >
+        <SelectTrigger className="w-45">
+          <SelectValue placeholder="All Status" />
+        </SelectTrigger>
+
+        <SelectContent>
+          <SelectItem value="All">
+            All Status
+          </SelectItem>
+
+          <SelectItem value="Pending">
+            Pending
+          </SelectItem>
+
+          <SelectItem value="UnderReview">
+            Under Review
+          </SelectItem>
+
+          <SelectItem value="NeedsCorrection">
+            Needs Correction
+          </SelectItem>
+
+          <SelectItem value="Approved">
+            Approved
+          </SelectItem>
+
+          <SelectItem value="Rejected">
+            Rejected
+          </SelectItem>
+
+          <SelectItem value="Cancelled">
+            Cancelled
+          </SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  }
+/>
 
 
       {/* =================================================

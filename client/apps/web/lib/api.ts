@@ -9,7 +9,9 @@ import {
   TrainerAssignmentApi,
   EnrollmentApi,
   ServiceApi,
-  AuthAPIs
+  AuthAPIs,
+  PracticalAssessmentApi,
+  ParticipantApi
 } from "@repo/api";
 import { auth } from "./auth";
 
@@ -24,8 +26,12 @@ export const apiClient = new ApiClient({
 
 export const trainerApi =
   new TrainerApi(apiClient);
-export const authApi =
+export const practicalAssessmentApi =
+  new PracticalAssessmentApi(apiClient);
+  export const authApi =
   new AuthApi(apiClient);
+    export const participantApi =
+  new ParticipantApi(apiClient);
 export const serviceApi =
   new ServiceApi(apiClient);
 export const trainerApplicationApi =

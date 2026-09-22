@@ -9,6 +9,7 @@ import {
 
 import {
   DataTable,
+  PageSection,
   StatCard,
   StatGrid,
 } from "@repo/ui/index";
@@ -27,6 +28,7 @@ import { adminUserApi } from "@/lib/api";
 
 import { columns } from "./columns";
 import type { UserTableMeta } from "./columns";
+import { GraduationCap, UserCheck, UserRound, UsersRound } from "lucide-react";
 
 type ModalType =
   | "view"
@@ -430,38 +432,25 @@ export default function UserManagementPage() {
    */
 
   return (
-    <div className="min-h-full space-y-6 p-6">
-      {/* ======================================================
-          PAGE HEADER
-          ====================================================== */}
-
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-          User Management
-        </h1>
-
-        <p className="text-sm text-gray-500">
-          Manage participant and trainer accounts.
-        </p>
-      </div>
-
-      {/* ======================================================
-          ERROR
-          ====================================================== */}
+    <div className="space-y-6">
+      <PageSection
+        title="User Management"
+        description="Manage participant and trainer accounts."
+      />
 
       {error && (
-        <div className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-          <p className="text-sm font-medium text-red-700">
-            {error}
-          </p>
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
+          <div className="flex items-center justify-between gap-4">
+            <p>{error}</p>
 
-          <button
-            type="button"
-            onClick={clearError}
-            className="text-xs font-semibold text-red-600 hover:text-red-800"
-          >
-            Dismiss
-          </button>
+            <button
+              type="button"
+              onClick={clearError}
+              className="shrink-0 font-semibold text-red-600 hover:text-red-800"
+            >
+              Dismiss
+            </button>
+          </div>
         </div>
       )}
 
@@ -471,24 +460,32 @@ export default function UserManagementPage() {
 
       <StatGrid>
         <StatCard
+          variant="primary"
+          icon={UsersRound}
           title="Total Users"
           value={totalUsers}
           description="All registered accounts"
         />
 
         <StatCard
+          icon={UserRound}
+          variant="success"
           title="Participants"
           value={totalParticipants}
           description="Participant accounts"
         />
 
         <StatCard
+          icon={GraduationCap}
+          variant="warning"
           title="Trainers"
           value={totalTrainers}
           description="Trainer accounts"
         />
 
         <StatCard
+          icon={UserCheck}
+          variant="success"
           title="Active Users"
           value={totalActive}
           description="Currently active"
@@ -496,53 +493,33 @@ export default function UserManagementPage() {
       </StatGrid>
 
       {/* ======================================================
-          FILTER BAR
+          USER TABLE
+          Same DataTable structure as Training Management
           ====================================================== */}
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-end">
-          {/* SEARCH */}
-
-          <div className="min-w-0 flex-1">
-            <label
-              htmlFor="user-search"
-              className="mb-1.5 block text-xs font-semibold text-gray-600"
-            >
-              Search users
-            </label>
-
-            <div className="relative">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                ⌕
-              </span>
-
-              <input
-                id="user-search"
-                type="text"
-                value={search}
-                onChange={(event) =>
-                  setSearch(
-                    event.target.value
-                  )
-                }
-                placeholder="Search name, email, code, or mobile..."
-                className="h-10 w-full rounded-lg border border-gray-200 bg-white pl-9 pr-3 text-sm text-gray-900 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
-              />
-            </div>
-          </div>
-
-          {/* ROLE */}
-
-          <div className="w-full xl:w-48">
-            <label
-              htmlFor="role-filter"
-              className="mb-1.5 block text-xs font-semibold text-gray-600"
-            >
-              Role
-            </label>
+      <DataTable
+        columns={columns}
+        data={filteredUsers}
+        searchable
+        searchPlaceholder="Search users..."
+        showPagination
+        emptyTitle={
+          isLoading
+            ? "Loading users..."
+            : "No users found"
+        }
+        emptyDescription={
+          isLoading
+            ? "Please wait while users are loaded."
+            : "No registered users match your current filters."
+        }
+        meta={tableMeta}
+        toolbar={
+          <div className="flex flex-wrap gap-2">
+          
+            {/* ROLE */}
 
             <select
-              id="role-filter"
               value={roleFilter}
               onChange={(event) =>
                 setRoleFilter(
@@ -551,7 +528,7 @@ export default function UserManagementPage() {
                     | UserRole
                 )
               }
-              className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
+              className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none focus:border-gray-300 focus:bg-white"
             >
               <option value="All">
                 All Roles
@@ -569,20 +546,10 @@ export default function UserManagementPage() {
                 Admin
               </option>
             </select>
-          </div>
 
-          {/* STATUS */}
-
-          <div className="w-full xl:w-48">
-            <label
-              htmlFor="status-filter"
-              className="mb-1.5 block text-xs font-semibold text-gray-600"
-            >
-              Status
-            </label>
+            {/* STATUS */}
 
             <select
-              id="status-filter"
               value={statusFilter}
               onChange={(event) =>
                 setStatusFilter(
@@ -591,10 +558,10 @@ export default function UserManagementPage() {
                     | UserStatus
                 )
               }
-              className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
+              className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none focus:border-gray-300 focus:bg-white"
             >
               <option value="All">
-                All Statuses
+                All Status
               </option>
 
               <option value="Pending">
@@ -621,35 +588,21 @@ export default function UserManagementPage() {
                 Rejected
               </option>
             </select>
+
+            {/* CLEAR */}
+
+            {hasFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-4 text-xs font-medium text-gray-600 transition hover:bg-white"
+              >
+                Clear
+              </button>
+            )}
           </div>
-
-          {/* CLEAR */}
-
-          {hasFilters && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="h-10 rounded-lg border border-gray-200 px-4 text-sm font-semibold text-gray-600 transition hover:bg-gray-50"
-            >
-              Clear
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* ======================================================
-          TABLE
-          ====================================================== */}
-
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <DataTable
-          columns={columns}
-          data={filteredUsers}
-          searchable={false}
-          searchPlaceholder="Search users..."
-          meta={tableMeta}
-        />
-      </div>
+        }
+      />
 
       {/* ======================================================
           VIEW MODAL

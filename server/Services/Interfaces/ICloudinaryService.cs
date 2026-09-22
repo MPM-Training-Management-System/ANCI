@@ -19,4 +19,9 @@ public interface ICloudinaryService
 Task DeleteDocumentAsync(
     string publicId
 );
+
+Task<(string Url, string PublicId)> UploadCertificatePdfAsync(
+    Stream fileStream,
+    string fileName,
+    string folder);
 }

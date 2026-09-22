@@ -1,21 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+
 import {
   Check,
   X,
   RotateCcw,
   UserRound,
   Mail,
-  Phone,
   BriefcaseBusiness,
   Award,
   CalendarDays,
   FileText,
   ShieldCheck,
   Clock3,
-  ChevronRight,
+  UsersRound,
 } from "lucide-react";
+
+import {
+  DataTable,
+  StatCard,
+  StatGrid,
+} from "@repo/ui/index";
 
 import {
   useTrainerApplications,
@@ -24,6 +30,10 @@ import {
 import {
   trainerApplicationApi,
 } from "@/lib/api";
+
+import { columns } from "./columns";
+import type { TrainerApplicationRow } from "./columns";
+import { TrainerApplication } from "@repo/types";
 
 export default function TrainerApplicationsPage() {
   const {
@@ -110,35 +120,54 @@ export default function TrainerApplicationsPage() {
   };
 
   // =========================================================
-  // LOADING
+  // FILTER
   // =========================================================
 
-  if (isLoading) {
-    return (
-      <div className="min-h-full bg-slate-50 p-6 lg:p-8">
-        <div className="mx-auto max-w-7xl">
-          <div className="rounded-2xl border border-slate-200 bg-white p-12 shadow-sm">
-            <div className="flex flex-col items-center justify-center">
-              <div className="mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-slate-800" />
+  const [statusFilter, setStatusFilter] =
+    useState("All");
 
-              <p className="text-sm font-medium text-slate-600">
-                Loading trainer applications...
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+  const filteredApplications = useMemo(() => {
+    if (statusFilter === "All") {
+      return applications;
+    }
+
+    return applications.filter(
+      (application) =>
+        application.status.toLowerCase() ===
+        statusFilter.toLowerCase(),
     );
-  }
+  }, [applications, statusFilter]);
+
+  // =========================================================
+  // STATISTICS
+  // =========================================================
+
+  const totalApplications = applications.length;
+  const pendingApplications = applications.filter(
+    (application) =>
+      application.status.toLowerCase() === "pending",
+  ).length;
+  const approvedApplications = applications.filter(
+    (application) =>
+      application.status.toLowerCase() === "approved",
+  ).length;
+  const needsReviewApplications = applications.filter(
+    (application) => {
+      const status = application.status.toLowerCase();
+
+      return (
+        status === "rejected" ||
+        status === "needscorrection" ||
+        status === "needs correction"
+      );
+    },
+  ).length;
 
   return (
-    <div>
-
+    <div className="min-h-full  lg:p-2">
       <div className="mx-auto max-w-7xl space-y-6">
-
-
+        {/* HEADER */}
         <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-
           <div>
             <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
               <ShieldCheck className="h-4 w-4" />
@@ -150,108 +179,54 @@ export default function TrainerApplicationsPage() {
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              Review trainer applications,
-              verify submitted information,
-              and manage application status.
+              Review trainer applications, verify submitted information, and manage application status.
             </p>
           </div>
 
           <button
             type="button"
             onClick={loadApplications}
-            className="
-              inline-flex
-              items-center
-              justify-center
-              gap-2
-              rounded-xl
-              border
-              border-slate-200
-              bg-white
-              px-4
-              py-2.5
-              text-sm
-              font-semibold
-              text-slate-700
-              shadow-sm
-              transition
-              hover:border-slate-300
-              hover:bg-slate-50
-              active:scale-[0.98]
-            "
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 active:scale-[0.98]"
           >
             <RotateCcw className="h-4 w-4" />
             Refresh
           </button>
-
         </div>
 
-
-        {/* =====================================================
-            SUMMARY CARDS
-        ===================================================== */}
-
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-
-          <SummaryCard
-            label="Total"
-            value={applications.length}
-            icon={<UserRound className="h-5 w-5" />}
+        {/* REUSABLE STAT CARDS */}
+        <StatGrid>
+          <StatCard
+            title="Total Applications"
+            value={totalApplications}
+            description="All submitted applications"
+            icon={UsersRound}
+            variant="primary"
           />
 
-          <SummaryCard
-            label="Pending"
-            value={
-              applications.filter(
-                (x) =>
-                  x.status.toLowerCase() ===
-                  "pending"
-              ).length
-            }
-            icon={<Clock3 className="h-5 w-5" />}
+          <StatCard
+            title="Pending"
+            value={pendingApplications}
+            description="Awaiting review"
+            icon={Clock3}
+            variant="warning"
           />
 
-          <SummaryCard
-            label="Approved"
-            value={
-              applications.filter(
-                (x) =>
-                  x.status.toLowerCase() ===
-                  "approved"
-              ).length
-            }
-            icon={<Check className="h-5 w-5" />}
+          <StatCard
+            title="Approved"
+            value={approvedApplications}
+            description="Approved applications"
+            icon={Check}
+            variant="success"
           />
 
-          <SummaryCard
-            label="Needs Review"
-            value={
-              applications.filter(
-                (x) => {
-                  const status =
-                    x.status.toLowerCase();
-
-                  return (
-                    status === "rejected" ||
-                    status ===
-                      "needscorrection" ||
-                    status ===
-                      "needs correction"
-                  );
-                }
-              ).length
-            }
-            icon={
-              <FileText className="h-5 w-5" />
-            }
+          <StatCard
+            title="Needs Review"
+            value={needsReviewApplications}
+            description="Rejected or needs correction"
+            icon={FileText}
+            variant="default"
           />
-
-        </div>
-
-
-        {/* =====================================================
-            ERROR
-        ===================================================== */}
+        </StatGrid>
 
         {error && (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
@@ -259,12 +234,10 @@ export default function TrainerApplicationsPage() {
               <div className="rounded-lg bg-red-100 p-2">
                 <X className="h-4 w-4 text-red-600" />
               </div>
-
               <div>
                 <p className="text-sm font-semibold text-red-800">
                   Unable to load applications
                 </p>
-
                 <p className="mt-1 text-sm text-red-600">
                   {error}
                 </p>
@@ -273,296 +246,55 @@ export default function TrainerApplicationsPage() {
           </div>
         )}
 
+        {/* REUSABLE DATATABLE */}
+        <DataTable
+          columns={columns}
+          data={filteredApplications as TrainerApplicationRow[]}
+          searchable
+          searchPlaceholder="Search trainer applications..."
+          showPagination
+          emptyTitle={
+            isLoading
+              ? "Loading trainer applications..."
+              : "No trainer applications"
+          }
+          emptyDescription={
+            isLoading
+              ? "Please wait while applications are loaded."
+              : statusFilter !== "All"
+                ? "No applications match the selected status."
+                : "There are currently no trainer applications waiting for review."
+          }
+          meta={{
+            onReview: (application: TrainerApplication) =>
+              openReview(
+                application as (typeof applications)[number],
+              ),
+          }}
+          toolbar={
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={statusFilter}
+                onChange={(event) =>
+                  setStatusFilter(event.target.value)
+                }
+                className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
+                aria-label="Filter trainer applications by status"
+              >
+                <option value="All">All Status</option>
+                <option value="Pending">Pending</option>
+                <option value="Approved">Approved</option>
+                <option value="NeedsCorrection">Needs Correction</option>
+                <option value="Rejected">Rejected</option>
+              </select>
 
-        {/* =====================================================
-            EMPTY STATE
-        ===================================================== */}
-
-        {!error &&
-          applications.length === 0 && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-16 text-center shadow-sm">
-
-              <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
-                <UserRound className="h-6 w-6 text-slate-400" />
+              <div className="flex h-10 items-center rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-500">
+                {filteredApplications.length} records
               </div>
-
-              <h2 className="text-lg font-bold text-slate-900">
-                No trainer applications
-              </h2>
-
-              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
-                There are currently no trainer
-                applications waiting for review.
-              </p>
-
             </div>
-          )}
-
-
-        {/* =====================================================
-            TABLE
-        ===================================================== */}
-
-        {applications.length > 0 && (
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-
-            <div className="border-b border-slate-100 px-6 py-5">
-
-              <div className="flex items-center justify-between">
-
-                <div>
-                  <h2 className="font-bold text-slate-900">
-                    Applications
-                  </h2>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    Select an application to
-                    review its details.
-                  </p>
-                </div>
-
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-                  {applications.length} records
-                </span>
-
-              </div>
-
-            </div>
-
-
-            <div className="overflow-x-auto">
-
-              <table className="w-full min-w-[900px]">
-
-                <thead className="border-b border-slate-100 bg-slate-50/70">
-
-                  <tr>
-
-                    <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                      Trainer
-                    </th>
-
-                    <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                      Specialization
-                    </th>
-
-                    <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                      Experience
-                    </th>
-
-                    <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                      Submitted
-                    </th>
-
-                    <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                      Status
-                    </th>
-
-                    <th className="px-6 py-4 text-right text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                      Action
-                    </th>
-
-                  </tr>
-
-                </thead>
-
-
-                <tbody className="divide-y divide-slate-100">
-
-                  {applications.map(
-                    (application) => (
-                      <tr
-                        key={
-                          application.id
-                        }
-                        className="
-                          group
-                          transition
-                          hover:bg-slate-50
-                        "
-                      >
-
-                        {/* TRAINER */}
-
-                        <td className="px-6 py-5">
-
-                          <div className="flex items-center gap-3">
-
-                            {application.profileImageUrl ? (
-                              <img
-                                src={
-                                  application.profileImageUrl
-                                }
-                                alt={
-                                  application.fullName
-                                }
-                                className="
-                                  h-11
-                                  w-11
-                                  rounded-xl
-                                  object-cover
-                                  ring-1
-                                  ring-slate-200
-                                "
-                              />
-                            ) : (
-                              <div className="
-                                flex
-                                h-11
-                                w-11
-                                shrink-0
-                                items-center
-                                justify-center
-                                rounded-xl
-                                bg-slate-100
-                                text-slate-500
-                              ">
-                                <UserRound className="h-5 w-5" />
-                              </div>
-                            )}
-
-                            <div className="min-w-0">
-
-                              <p className="truncate font-semibold text-slate-900">
-                                {
-                                  application.fullName
-                                }
-                              </p>
-
-                              <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-slate-500">
-                                <Mail className="h-3 w-3" />
-                                {
-                                  application.email
-                                }
-                              </p>
-
-                            </div>
-
-                          </div>
-
-                        </td>
-
-
-                        {/* SPECIALIZATION */}
-
-                        <td className="px-6 py-5">
-
-                          <div className="flex items-center gap-2 text-sm text-slate-700">
-                            <BriefcaseBusiness className="h-4 w-4 text-slate-400" />
-
-                            <span>
-                              {
-                                application.specialization
-                              }
-                            </span>
-                          </div>
-
-                        </td>
-
-
-                        {/* EXPERIENCE */}
-
-                        <td className="px-6 py-5">
-
-                          <span className="text-sm font-medium text-slate-700">
-                            {
-                              application.yearsOfExperience ??
-                              0
-                            }{" "}
-                            year
-                            {application.yearsOfExperience ===
-                            1
-                              ? ""
-                              : "s"}
-                          </span>
-
-                        </td>
-
-
-                        {/* SUBMITTED */}
-
-                        <td className="px-6 py-5">
-
-                          <div className="flex items-center gap-2 text-sm text-slate-600">
-
-                            <CalendarDays className="h-4 w-4 text-slate-400" />
-
-                            {formatDate(
-                              application.submittedAt ??
-                                application.createdAt
-                            )}
-
-                          </div>
-
-                        </td>
-
-
-                        {/* STATUS */}
-
-                        <td className="px-6 py-5">
-
-                          <StatusBadge
-                            status={
-                              application.status
-                            }
-                          />
-
-                        </td>
-
-
-                        {/* ACTION */}
-
-                        <td className="px-6 py-5 text-right">
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              openReview(
-                                application
-                              )
-                            }
-                            className="
-                              inline-flex
-                              items-center
-                              gap-1.5
-                              rounded-xl
-                              border
-                              border-slate-200
-                              bg-white
-                              px-3.5
-                              py-2
-                              text-sm
-                              font-semibold
-                              text-slate-700
-                              shadow-sm
-                              transition
-                              hover:border-slate-300
-                              hover:bg-slate-900
-                              hover:text-white
-                            "
-                          >
-                            Review
-
-                            <ChevronRight className="h-4 w-4" />
-                          </button>
-
-                        </td>
-
-                      </tr>
-                    )
-                  )}
-
-                </tbody>
-
-              </table>
-
-            </div>
-
-          </div>
-        )}
-
+          }
+        />
       </div>
-
 
       {/* =====================================================
           REVIEW MODAL
@@ -1186,50 +918,6 @@ export default function TrainerApplicationsPage() {
 
           </div>
         )}
-
-    </div>
-  );
-}
-
-
-// =========================================================
-// SUMMARY CARD
-// =========================================================
-
-function SummaryCard({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: number;
-  icon: React.ReactNode;
-}) {
-  return (
-    <div className="
-      rounded-2xl
-      border
-      border-slate-200
-      bg-white
-      p-5
-      shadow-sm
-    ">
-
-      <div className="flex items-center justify-between">
-
-        <div className="text-slate-400">
-          {icon}
-        </div>
-
-        <span className="text-2xl font-bold text-slate-900">
-          {value}
-        </span>
-
-      </div>
-
-      <p className="mt-3 text-xs font-bold uppercase tracking-wider text-slate-400">
-        {label}
-      </p>
 
     </div>
   );

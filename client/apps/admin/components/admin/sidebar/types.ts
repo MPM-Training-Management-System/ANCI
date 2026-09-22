@@ -1,18 +1,18 @@
 import { LucideIcon } from "lucide-react";
 
-export interface SidebarItemType {
-  title: string;
-  href: string;
-  icon: LucideIcon;
-  badge?: string | number;
-  disabled?: boolean;
-}
 
-export interface SidebarSectionType {
+
+export type SidebarItemType = {
+  title: string;
+  href?: string;
+  icon: LucideIcon;
+  children?: SidebarItemType[];
+};
+
+export type SidebarSectionType = {
   title: string;
   items: SidebarItemType[];
-}
-
+};
 export interface SidebarProps {
   collapsed: boolean;
   setCollapsed: React.Dispatch<React.SetStateAction<boolean>>;

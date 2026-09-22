@@ -20,62 +20,89 @@ export function StatCard({
     <div
       className={cn(
         statCardVariants({ variant }),
+        "rounded-2xl border border-[#e7e9ec] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)]",
         className
       )}
       {...props}
     >
-      <div className="flex items-start justify-between p-6">
-        <div className="space-y-2">
-          {loading ? (
-            <>
-              {/* Title */}
-              <Skeleton className="h-3 w-24" />
-
-              {/* Value */}
-              <Skeleton className="h-9 w-20" />
-
-              {/* Description */}
-              <Skeleton className="h-4 w-40" />
-            </>
-          ) : (
-            <>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {title}
-              </p>
-
-              <h2 className="text-3xl font-bold">
-                {value}
-              </h2>
-
-              {description && (
-                <p className="text-sm text-muted-foreground">
-                  {description}
-                </p>
-              )}
-            </>
-          )}
-        </div>
-
+      <div className="p-5">
         {loading ? (
-          <Skeleton className="h-12 w-12 rounded-lg" />
-        ) : (
-          Icon && (
-            <div className="rounded-lg bg-blue-50 p-3">
-              <Icon className="h-6 w-6 text-blue-600" />
+          <div className="space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-2">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-8 w-16" />
+              </div>
+
+              <Skeleton className="h-10 w-10 rounded-xl" />
             </div>
-          )
+
+            <Skeleton className="h-3 w-32" />
+          </div>
+        ) : (
+          <>
+            {/* HEADER + VALUE */}
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                {/* TITLE */}
+                <p className="text-xs font-medium text-gray-500">
+                  {title}
+                </p>
+
+                {/* VALUE */}
+                <p className="mt-2 text-2xl font-bold tracking-tight text-[#17191c]">
+                  {value}
+                </p>
+              </div>
+
+              {/* ICON */}
+              {Icon && (
+                <div
+                  className={cn(
+                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold",
+                    getIconStyles(variant)
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                </div>
+              )}
+            </div>
+
+            {/* DESCRIPTION */}
+            {description && (
+              <p className="mt-4 text-[11px] text-gray-400">
+                {description}
+              </p>
+            )}
+
+            {/* FOOTER / TREND */}
+            {footer && (
+              <div className="mt-3">
+                {footer}
+              </div>
+            )}
+          </>
         )}
       </div>
-
-      {footer && (
-        <div className="border-t px-6 py-3">
-          {loading ? (
-            <Skeleton className="h-4 w-full" />
-          ) : (
-            footer
-          )}
-        </div>
-      )}
     </div>
   );
+}
+
+function getIconStyles(
+  variant?: StatCardProps["variant"]
+) {
+  switch (variant) {
+    case "primary":
+      return "bg-blue-50 text-blue-700";
+
+    case "success":
+      return "bg-emerald-50 text-emerald-700";
+
+    case "warning":
+      return "bg-amber-50 text-amber-700";
+
+    case "default":
+    default:
+      return "bg-[#f4f5f6] text-gray-600";
+  }
 }

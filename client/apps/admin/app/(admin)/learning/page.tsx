@@ -21,7 +21,13 @@ import {
 import {
   useLearningMaterials,
 } from "@repo/hooks";
+import { PageSection, StatCard, StatGrid, DataTable,  Select, SelectTrigger, SelectValue, SelectContent, SelectItem} from "@repo/ui/index";
+import { BookCheck, BookOpen, FilePenLine, Layers3 } from "lucide-react";
 
+import {
+  columns,
+  type LearningMaterialTableMeta,
+} from "./columns";
 
 // ============================================================
 // TYPES
@@ -1016,6 +1022,22 @@ export default function Learning() {
     error;
 
 
+    const tableMeta: LearningMaterialTableMeta = {
+  batchMap,
+
+  onView: (material) => {
+    void viewMaterial(material);
+  },
+
+  onPublish: (material) => {
+    void publishMaterial(material);
+  },
+
+  onDelete: (material) => {
+    setSelected(material);
+    setShowDelete(true);
+  },
+};
   // ==========================================================
   // RENDER
   // ==========================================================
@@ -1023,42 +1045,13 @@ export default function Learning() {
   return (
     <div className="space-y-6">
 
-      {/* ======================================================
-          HEADER
-      ====================================================== */}
+    <PageSection
+    title="Learning Materials"
+    description=" Manage, review, and monitor learning
+            resources across training batches."
+    ></PageSection>
 
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-
-        <div>
-
-          <div className="mb-2 flex items-center gap-2 text-xs text-gray-400">
-
-            <span>
-              Training
-            </span>
-
-            <span>
-              /
-            </span>
-
-            <span className="font-medium text-gray-600">
-              Learning Materials
-            </span>
-
-          </div>
-
-          <h1 className="text-2xl font-bold tracking-tight text-[#17191c] sm:text-3xl">
-            Learning Materials
-          </h1>
-
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
-            Manage, review, and monitor learning
-            resources across training batches.
-          </p>
-
-        </div>
-
-      </div>
+     
 
 
       {/* ======================================================
@@ -1093,550 +1086,140 @@ export default function Learning() {
 
       )}
 
+      <StatGrid>
+        <StatCard
+        title="Total Materials"
+        description="All uploaded resources"
+        value={allMaterials.length}
+        variant="primary"
+        icon={BookOpen}
+        ></StatCard>
+        <StatCard
+        title="Published"
+        description="Available to participants"
+        value={publishedCount}
+        variant="success"
+        icon={BookCheck}
+        ></StatCard>
+        <StatCard
+        title="Draft"
+        description="Not yet published"
+        value={draftCount}
+        variant="warning"
+        icon={FilePenLine}
+        ></StatCard>
+        <StatCard
+        title="Training Batches"
+        description="Batches with training content"
+        value={batches.length}
+        variant="primary"
+        icon={Layers3}
+        ></StatCard>
+      </StatGrid>
+<DataTable
+  columns={columns}
+  data={filteredMaterials}
+  meta={tableMeta}
+  loading={isPageLoading}
+  searchable
+  toolbar={
+    <div className="flex flex-wrap items-center gap-2">
+      {/* =====================================================
+          TRAINING FILTER
+      ===================================================== */}
+      <Select
+        value={trainingFilter}
+        onValueChange={setTrainingFilter}
+      >
+        <SelectTrigger className="h-10 w-55 rounded-xl border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium text-gray-700">
+          <SelectValue placeholder="All Trainings" />
+        </SelectTrigger>
+
+        <SelectContent>
+          {trainings.map((training) => (
+            <SelectItem
+              key={training}
+              value={training}
+            >
+              {training}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {/* =====================================================
+          TYPE FILTER
+      ===================================================== */}
+      <Select
+        value={typeFilter}
+        onValueChange={setTypeFilter}
+      >
+        <SelectTrigger className="h-10 w-42 rounded-xl border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium text-gray-700">
+          <SelectValue placeholder="All Types" />
+        </SelectTrigger>
+
+        <SelectContent>
+          <SelectItem value="All Types">
+            All Types
+          </SelectItem>
+
+          <SelectItem value="PDF">
+            PDF
+          </SelectItem>
+
+          <SelectItem value="Presentation">
+            Presentation
+          </SelectItem>
+
+          <SelectItem value="Document">
+            Document
+          </SelectItem>
+
+          <SelectItem value="Video">
+            Video
+          </SelectItem>
+
+          <SelectItem value="Activity">
+            Activity
+          </SelectItem>
+
+          <SelectItem value="Other">
+            Other
+          </SelectItem>
+        </SelectContent>
+      </Select>
+
+      {/* =====================================================
+          STATUS FILTER
+      ===================================================== */}
+      <Select
+        value={statusFilter}
+        onValueChange={setStatusFilter}
+      >
+        <SelectTrigger className="h-10 w-40 rounded-xl border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium text-gray-700">
+          <SelectValue placeholder="All Status" />
+        </SelectTrigger>
+
+        <SelectContent>
+          <SelectItem value="All Status">
+            All Status
+          </SelectItem>
+
+          <SelectItem value="Published">
+            Published
+          </SelectItem>
+
+          <SelectItem value="Draft">
+            Draft
+          </SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  }
+/>
+
+      
 
-      {/* ======================================================
-          ADMIN INFO
-      ====================================================== */}
-
-      <div className="flex items-start gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
-
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-sm font-bold text-blue-700">
-          i
-        </div>
-
-        <div>
-
-          <p className="text-sm font-semibold text-blue-900">
-            Admin Learning Material Management
-          </p>
-
-          <p className="mt-1 text-xs leading-5 text-blue-700">
-            Admin can review uploaded materials,
-            manage publication status, inspect document
-            content, and manage generated learning
-            modules and sections.
-          </p>
-
-        </div>
-
-      </div>
-
-
-      {/* ======================================================
-          SUMMARY
-      ====================================================== */}
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-
-        <SummaryCard
-          label="Total Materials"
-          value={
-            isPageLoading
-              ? "—"
-              : allMaterials.length
-          }
-          description="All uploaded resources"
-          icon="▣"
-        />
-
-        <SummaryCard
-          label="Published"
-          value={
-            isPageLoading
-              ? "—"
-              : publishedCount
-          }
-          description="Available to participants"
-          icon="✓"
-          type="success"
-        />
-
-        <SummaryCard
-          label="Draft"
-          value={
-            isPageLoading
-              ? "—"
-              : draftCount
-          }
-          description="Not yet published"
-          icon="◷"
-          type="warning"
-        />
-
-        <SummaryCard
-          label="Training Batches"
-          value={
-            isPageLoading
-              ? "—"
-              : batches.length
-          }
-          description="Batches with training content"
-          icon="▤"
-          type="info"
-        />
-
-      </div>
-
-
-      {/* ======================================================
-          MATERIAL LIBRARY
-      ====================================================== */}
-
-      <section className="overflow-hidden rounded-2xl border border-[#e7e9ec] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-
-        {/* FILTERS */}
-
-        <div className="border-b border-[#eef0f2] p-5">
-
-          <div className="flex flex-col gap-4">
-
-            <div>
-
-              <h2 className="text-sm font-bold">
-                Material Library
-              </h2>
-
-              <p className="mt-1 text-xs text-gray-500">
-                Search and manage learning resources
-                from all training batches.
-              </p>
-
-            </div>
-
-
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
-
-              {/* SEARCH */}
-
-              <div className="relative">
-
-                <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-gray-400">
-                  ⌕
-                </span>
-
-                <input
-                  value={search}
-                  onChange={(event) =>
-                    setSearch(
-                      event.target.value,
-                    )
-                  }
-                  placeholder="Search materials..."
-                  className="h-10 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] pl-9 pr-4 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
-                />
-
-              </div>
-
-
-              {/* TRAINING */}
-
-              <select
-                value={trainingFilter}
-                onChange={(event) =>
-                  setTrainingFilter(
-                    event.target.value,
-                  )
-                }
-                className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none transition focus:border-gray-300 focus:bg-white"
-              >
-
-                {trainings.map(
-                  (training) => (
-
-                    <option
-                      key={training}
-                      value={training}
-                    >
-                      {training}
-                    </option>
-
-                  ),
-                )}
-
-              </select>
-
-
-              {/* TYPE */}
-
-              <select
-                value={typeFilter}
-                onChange={(event) =>
-                  setTypeFilter(
-                    event.target.value,
-                  )
-                }
-                className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none transition focus:border-gray-300 focus:bg-white"
-              >
-
-                <option value="All Types">
-                  All Types
-                </option>
-
-                <option value="PDF">
-                  PDF
-                </option>
-
-                <option value="Presentation">
-                  Presentation
-                </option>
-
-                <option value="Document">
-                  Document
-                </option>
-
-                <option value="Video">
-                  Video
-                </option>
-
-                <option value="Activity">
-                  Activity
-                </option>
-
-                <option value="Other">
-                  Other
-                </option>
-
-              </select>
-
-
-              {/* STATUS */}
-
-              <select
-                value={statusFilter}
-                onChange={(event) =>
-                  setStatusFilter(
-                    event.target.value,
-                  )
-                }
-                className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none transition focus:border-gray-300 focus:bg-white"
-              >
-
-                <option value="All Status">
-                  All Status
-                </option>
-
-                <option value="Published">
-                  Published
-                </option>
-
-                <option value="Draft">
-                  Draft
-                </option>
-
-              </select>
-
-            </div>
-
-          </div>
-
-        </div>
-
-
-        {/* TABLE */}
-
-        <div className="overflow-x-auto">
-
-          <table className="w-full min-w-[1100px]">
-
-            <thead>
-
-              <tr className="border-b border-[#eef0f2] bg-[#fafbfc]">
-
-                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Learning Material
-                </th>
-
-                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Training
-                </th>
-
-                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Batch
-                </th>
-
-                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Type
-                </th>
-
-                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Status
-                </th>
-
-                <th className="px-5 py-3 text-right text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Action
-                </th>
-
-              </tr>
-
-            </thead>
-
-
-            <tbody className="divide-y divide-[#f0f1f2]">
-
-              {isPageLoading ? (
-
-                <tr>
-
-                  <td
-                    colSpan={6}
-                    className="px-5 py-16 text-center"
-                  >
-
-                    <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100">
-
-                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-gray-800" />
-
-                    </div>
-
-                    <p className="mt-3 text-xs font-medium text-gray-500">
-                      Loading learning materials...
-                    </p>
-
-                  </td>
-
-                </tr>
-
-              ) : filteredMaterials.length === 0 ? (
-
-                <tr>
-
-                  <td
-                    colSpan={6}
-                  >
-                    <EmptyState />
-                  </td>
-
-                </tr>
-
-              ) : (
-
-                filteredMaterials.map(
-                  (material) => {
-
-                    const type =
-                      typeStyles[
-                        getMaterialType(
-                          material.materialType,
-                        )
-                      ];
-
-                    const batch =
-                      batchMap.get(
-                        material.trainingBatchId,
-                      );
-
-                    const status =
-                      material.isPublished
-                        ? "Published"
-                        : "Draft";
-
-                    return (
-
-                      <tr
-                        key={material.id}
-                        className="transition hover:bg-[#fafbfc]"
-                      >
-
-                        {/* MATERIAL */}
-
-                        <td className="px-5 py-4">
-
-                          <div className="flex items-center gap-3">
-
-                            <div
-                              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-[9px] font-bold ${type.className}`}
-                            >
-                              {type.icon}
-                            </div>
-
-                            <div className="min-w-0">
-
-                              <p className="max-w-[270px] truncate text-sm font-semibold">
-                                {material.title}
-                              </p>
-
-                              <p className="mt-0.5 max-w-[270px] truncate font-mono text-[10px] text-gray-400">
-                                {material.fileName ??
-                                  "No file uploaded"}
-                              </p>
-
-                            </div>
-
-                          </div>
-
-                        </td>
-
-
-                        {/* TRAINING */}
-
-                        <td className="px-5 py-4">
-
-                          <p className="max-w-[220px] text-xs font-semibold leading-5">
-                            {batch?.programName ??
-                              "Unknown Training"}
-                          </p>
-
-                        </td>
-
-
-                        {/* BATCH */}
-
-                        <td className="px-5 py-4">
-
-                          <div>
-
-                            <p className="font-mono text-xs font-semibold">
-                              {material.batchCode}
-                            </p>
-
-                            <p className="mt-0.5 text-[10px] text-gray-400">
-                              {formatDate(
-                                material.createdAt,
-                              )}
-                            </p>
-
-                          </div>
-
-                        </td>
-
-
-                        {/* TYPE */}
-
-                        <td className="px-5 py-4">
-
-                          <span className="text-xs font-semibold">
-                            {
-                              getMaterialType(
-                                material.materialType,
-                              )
-                            }
-                          </span>
-
-                        </td>
-
-
-                        {/* STATUS */}
-
-                        <td className="px-5 py-4">
-
-                          <span
-                            className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold ${
-                              status ===
-                              "Published"
-                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                : "border-amber-200 bg-amber-50 text-amber-700"
-                            }`}
-                          >
-                            {status}
-                          </span>
-
-                        </td>
-
-
-                        {/* ACTION */}
-
-                        <td className="px-5 py-4">
-
-                          <div className="flex justify-end gap-2">
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                void viewMaterial(
-                                  material,
-                                )
-                              }
-                              className="rounded-lg border border-[#e7e9ec] px-3 py-2 text-[11px] font-semibold text-gray-600 transition hover:bg-gray-50"
-                            >
-                              View
-                            </button>
-
-
-                            {!material.isPublished && (
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  void publishMaterial(
-                                    material,
-                                  )
-                                }
-                                disabled={
-                                  isSaving
-                                }
-                                className="rounded-lg bg-emerald-600 px-3 py-2 text-[11px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
-                              >
-                                Publish
-                              </button>
-
-                            )}
-
-
-                            <button
-                              type="button"
-                              onClick={() => {
-
-                                setSelected(
-                                  material,
-                                );
-
-                                setShowDelete(
-                                  true,
-                                );
-
-                              }}
-                              className="rounded-lg border border-red-100 px-3 py-2 text-[11px] font-semibold text-red-600 transition hover:bg-red-50"
-                            >
-                              Delete
-                            </button>
-
-                          </div>
-
-                        </td>
-
-                      </tr>
-
-                    );
-
-                  },
-                )
-
-              )}
-
-            </tbody>
-
-          </table>
-
-
-          {!isPageLoading && (
-
-            <div className="border-t border-[#eef0f2] px-5 py-4">
-
-              <p className="text-[11px] text-gray-400">
-
-                Showing{" "}
-
-                <span className="font-semibold text-gray-600">
-                  {filteredMaterials.length}
-                </span>{" "}
-
-                of{" "}
-
-                <span className="font-semibold text-gray-600">
-                  {allMaterials.length}
-                </span>{" "}
-
-                learning materials
-
-              </p>
-
-            </div>
-
-          )}
-
-        </div>
-
-      </section>
 
 
       {/* ======================================================

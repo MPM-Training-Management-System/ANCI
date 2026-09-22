@@ -475,4 +475,89 @@ public async Task DeleteDocumentAsync(
         );
     }
 }
+
+// =========================================================
+// UPLOAD CERTIFICATE PDF
+// =========================================================
+
+public async Task<(string Url, string PublicId)>
+    UploadCertificatePdfAsync(
+        Stream fileStream,
+        string fileName,
+        string folder)
+{
+    if (fileStream == null)
+    {
+        throw new ArgumentNullException(
+            nameof(fileStream)
+        );
+    }
+
+    if (fileStream.Length == 0)
+    {
+        throw new InvalidOperationException(
+            "The certificate PDF is empty."
+        );
+    }
+
+    var extension =
+        Path.GetExtension(fileName)
+            .ToLowerInvariant();
+
+    if (extension != ".pdf")
+    {
+        throw new InvalidOperationException(
+            "Only PDF files are allowed for certificate uploads."
+        );
+    }
+
+    // Make sure upload starts at the beginning
+    fileStream.Position = 0;
+
+    var uploadParams =
+        new ImageUploadParams
+        {
+            File =
+                new FileDescription(
+                    fileName,
+                    fileStream
+                ),
+
+            Folder =
+                folder,
+
+            UseFilename = false,
+
+            UniqueFilename = true,
+
+            Overwrite = false
+        };
+
+    var result =
+        await _cloudinary.UploadAsync(
+            uploadParams
+        );
+
+    if (result.Error != null)
+    {
+        throw new InvalidOperationException(
+            $"Cloudinary certificate PDF upload failed: {result.Error.Message}"
+        );
+    }
+
+    var secureUrl =
+        result.SecureUrl?.ToString();
+
+    if (string.IsNullOrWhiteSpace(secureUrl))
+    {
+        throw new InvalidOperationException(
+            "Cloudinary did not return a certificate PDF URL."
+        );
+    }
+
+    return (
+        secureUrl,
+        result.PublicId
+    );
+}
 }

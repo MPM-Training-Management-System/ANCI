@@ -7,3 +7,7 @@ export * from "./TrainingBatchEndpoint";
 export * from "./TrainerAssignmentApi";
 export * from "./TrainerAssignmentEndpoint";
 export * from "./TrainerAssignmentEndpoint";
+export * from "./TrainingGradeApi"
+export * from "./TrainingGradeEndpoints";
+export * from "./CertificateApi";
+export * from "./CertificateEndpoints";

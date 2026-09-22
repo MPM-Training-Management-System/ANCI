@@ -2,297 +2,416 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 
+import type {
+  Certificate,
+} from "@repo/types";
+
 import {
   Badge,
-  UserCell,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@repo/ui/index";
 
-import type {
-  CertificationRecord,
-  CertificationTableMeta,
-} from "./type";
+import {
+  Eye,
+  ExternalLink,
+  Download,
+} from "lucide-react";
 
-export const columns: ColumnDef<CertificationRecord>[] =
-  [
-    {
-      accessorKey: "participantName",
+/*
+|--------------------------------------------------------------------------
+| TABLE META
+|--------------------------------------------------------------------------
+*/
 
-      header: "Participant",
+export interface CertificateTableMeta {
+  onView: (certificate: Certificate) => void;
+  onOpenPdf: (certificate: Certificate) => void;
+  onDownload: (certificate: Certificate) => void;
+}
 
-      cell: ({ row }) => {
-        const record = row.original;
+/*
+|--------------------------------------------------------------------------
+| COLUMNS
+|--------------------------------------------------------------------------
+*/
 
-        return (
-          <UserCell
-            name={record.participantName}
-            email={record.participantId}
-          />
-        );
-      },
+export const columns: ColumnDef<Certificate>[] = [
+  /*
+   * ============================================================
+   * PARTICIPANT
+   * ============================================================
+   */
+
+  {
+    accessorKey: "participantName",
+
+    header: "Participant",
+
+    cell: ({ row }) => {
+      const certificate = row.original;
+
+      return (
+        <div className="min-w-0">
+          <p className="max-w-[220px] truncate text-sm font-semibold text-gray-900">
+            {certificate.participantName ||
+              "Unknown Participant"}
+          </p>
+        </div>
+      );
     },
+  },
 
-    {
-      accessorKey: "training",
+  /*
+   * ============================================================
+   * TRAINING
+   * ============================================================
+   */
 
-      header: "Training",
+  {
+    accessorKey: "trainingName",
 
-      cell: ({ row }) => {
-        const record = row.original;
+    header: "Training",
 
-        return (
-          <div className="min-w-[190px]">
-            <p className="font-medium text-gray-900">
-              {record.training}
-            </p>
+    cell: ({ row }) => {
+      const certificate = row.original;
 
-            <p className="mt-1 text-xs text-gray-500">
-              {record.batch}
-            </p>
-          </div>
-        );
-      },
+      return (
+        <div className="min-w-0">
+          <p className="max-w-[220px] truncate text-sm text-gray-700">
+            {certificate.trainingName ||
+              "Unknown Training"}
+          </p>
+        </div>
+      );
     },
+  },
 
-    {
-      id: "assessment",
+  /*
+   * ============================================================
+   * BATCH
+   * ============================================================
+   */
 
-      header: "Assessment",
+  {
+    accessorKey: "batchCode",
 
-      cell: ({ row }) => {
-        const record = row.original;
+    header: "Batch",
 
-        let variant:
-          | "success"
-          | "error"
-          | "warning";
+    cell: ({ row }) => {
+      const batchCode =
+        row.original.batchCode;
 
-        if (
-          record.assessmentResult ===
-          "Passed"
-        ) {
-          variant = "success";
-        } else if (
-          record.assessmentResult ===
-          "Failed"
-        ) {
-          variant = "error";
-        } else {
-          variant = "warning";
-        }
-
-        return (
-          <div className="space-y-1">
-            <p className="font-semibold text-gray-900">
-              {record.assessmentScore !== null
-                ? `${record.assessmentScore}/100`
-                : "Pending"}
-            </p>
-
-            <Badge variant={variant}>
-              {record.assessmentResult}
-            </Badge>
-          </div>
-        );
-      },
+      return (
+        <span className="whitespace-nowrap font-mono text-xs text-gray-600">
+          {batchCode || "Not specified"}
+        </span>
+      );
     },
+  },
 
-    {
-      accessorKey: "attendance",
+  /*
+   * ============================================================
+   * CERTIFICATE TYPE
+   * ============================================================
+   */
 
-      header: "Attendance",
+  {
+    accessorKey: "type",
 
-      cell: ({ row }) => {
-        const record = row.original;
+    header: "Certificate",
 
-        const percentage = Math.min(
-          Math.max(record.attendance, 0),
-          100
-        );
+    cell: ({ row }) => {
+      return (
+        <CertificateTypeBadge
+          type={row.original.type}
+        />
+      );
+    },
+  },
 
-        return (
-          <div className="w-[130px]">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-semibold">
-                {record.attendance}%
-              </span>
+  /*
+   * ============================================================
+   * CERTIFICATE NUMBER
+   * ============================================================
+   */
 
-              <span className="text-[10px] text-gray-400">
-                Min. {record.requiredAttendance}%
-              </span>
-            </div>
+  {
+    accessorKey: "certificateNumber",
 
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100">
-              <div
-                className="h-full rounded-full bg-[#191c1e]"
-                style={{
-                  width: `${percentage}%`,
+    header: "Certificate No.",
+
+    cell: ({ row }) => {
+      const certificateNumber =
+        row.original.certificateNumber;
+
+      return (
+        <span className="whitespace-nowrap font-mono text-xs text-gray-600">
+          {certificateNumber || "—"}
+        </span>
+      );
+    },
+  },
+
+  /*
+   * ============================================================
+   * ISSUED
+   * ============================================================
+   */
+
+  {
+    accessorKey: "issuedAt",
+
+    header: "Issued",
+
+    cell: ({ row }) => {
+      return (
+        <span className="whitespace-nowrap text-xs text-gray-500">
+          {formatDate(
+            row.original.issuedAt
+          )}
+        </span>
+      );
+    },
+  },
+
+  /*
+   * ============================================================
+   * STATUS
+   * ============================================================
+   */
+
+  {
+    accessorKey: "isRevoked",
+
+    header: "Status",
+
+    cell: ({ row }) => {
+      return (
+        <CertificateStatusBadge
+          isRevoked={
+            row.original.isRevoked
+          }
+        />
+      );
+    },
+  },
+
+  /*
+   * ============================================================
+   * ACTIONS
+   * ============================================================
+   */
+
+  {
+    id: "actions",
+
+    header: "Actions",
+
+    enableSorting: false,
+    enableColumnFilter: false,
+
+    cell: ({ row, table }) => {
+      const certificate = row.original;
+
+      const meta =
+        table.options.meta as
+          | CertificateTableMeta
+          | undefined;
+
+      if (!meta) {
+        return null;
+      }
+
+      return (
+        <div
+          className="flex items-center justify-end"
+          onClick={(event) => {
+            event.stopPropagation();
+          }}
+        >
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
                 }}
-              />
-            </div>
-          </div>
-        );
-      },
-    },
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+                aria-label={`Actions for ${
+                  certificate.participantName ||
+                  "certificate"
+                }`}
+              >
+                <span className="text-lg leading-none">
+                  ⋯
+                </span>
+              </button>
+            </DropdownMenuTrigger>
 
-    {
-      id: "completion",
-
-      header: "Completion",
-
-      cell: ({ row }) => {
-        const record = row.original;
-
-        return (
-          <div className="min-w-[120px]">
-            <p className="text-sm font-semibold">
-              {record.completedSessions}/
-              {record.totalSessions}
-            </p>
-
-            <p className="mt-1 text-xs text-gray-500">
-              {record.completionStatus}
-            </p>
-          </div>
-        );
-      },
-    },
-
-    {
-      id: "certificate",
-
-      header: "Certificate",
-
-      cell: ({ row }) => {
-        const record = row.original;
-
-        if (!record.certificateNo) {
-          return (
-            <span className="text-sm text-gray-400">
-              Not generated
-            </span>
-          );
-        }
-
-        return (
-          <div className="min-w-[140px]">
-            <p className="font-mono text-xs font-semibold">
-              {record.certificateNo}
-            </p>
-
-            <p className="mt-1 font-mono text-[10px] text-gray-400">
-              {record.verificationCode}
-            </p>
-          </div>
-        );
-      },
-    },
-
-    {
-      accessorKey: "certificateStatus",
-
-      header: "Status",
-
-      cell: ({ row }) => {
-        const status =
-          row.original.certificateStatus;
-
-        let variant:
-          | "trainer"
-          | "active"
-          | "inactive"
-          | "warning"
-          | "success"
-          | "error"
-          | "neutral"
-          | "admin"
-          | "participant"
-          | "pending";
-
-        switch (status) {
-          case "Issued":
-            variant = "success";
-            break;
-
-          case "Generated":
-            variant = "neutral";
-            break;
-
-          case "Eligible":
-            variant = "participant";
-            break;
-
-          case "Pending Review":
-            variant = "pending";
-            break;
-
-          default:
-            variant = "error";
-        }
-
-        return (
-          <Badge variant={variant}>
-            {status}
-          </Badge>
-        );
-      },
-    },
-
-    {
-      id: "actions",
-
-      header: "Actions",
-
-      cell: ({ row, table }) => {
-        const record = row.original;
-
-        const meta =
-          table.options.meta as
-            | CertificationTableMeta
-            | undefined;
-
-        return (
-          <div className="flex min-w-[180px] items-center gap-2">
-
-            <button
-              type="button"
-              onClick={() =>
-                meta?.onView?.(record)
-              }
-              className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-50"
+            <DropdownMenuContent
+              align="end"
+              className="w-44"
+              onClick={(event) => {
+                event.stopPropagation();
+              }}
             >
-              View
-            </button>
+              {/* VIEW */}
 
-            {record.certificateStatus ===
-              "Eligible" && (
-              <button
-                type="button"
-                onClick={() =>
-                  meta?.onGenerate?.(record)
-                }
-                className="rounded-lg bg-[#191c1e] px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90"
+              <DropdownMenuItem
+                disabled={!certificate.pdfUrl}
+                onSelect={() => {
+                  meta.onView(
+                    certificate
+                  );
+                }}
               >
-                Generate
-              </button>
-            )}
+                <Eye className="mr-2 h-4 w-4" />
 
-            {(record.certificateStatus ===
-              "Generated" ||
-              record.certificateStatus ===
-                "Issued") && (
-              <button
-                type="button"
-                onClick={() =>
-                  meta?.onCertificate?.(record)
-                }
-                className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-50"
+                View Certificate
+              </DropdownMenuItem>
+
+              {/* OPEN PDF */}
+
+              <DropdownMenuItem
+                disabled={!certificate.pdfUrl}
+                onSelect={() => {
+                  meta.onOpenPdf(
+                    certificate
+                  );
+                }}
               >
-                View
-              </button>
-            )}
+                <ExternalLink className="mr-2 h-4 w-4" />
 
-          </div>
-        );
-      },
+                Open PDF
+              </DropdownMenuItem>
+
+              {/* DOWNLOAD */}
+
+              <DropdownMenuItem
+                disabled={!certificate.pdfUrl}
+                onSelect={() => {
+                  meta.onDownload(
+                    certificate
+                  );
+                }}
+              >
+                <Download className="mr-2 h-4 w-4" />
+
+                Download
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
+              {/* CERTIFICATE STATUS */}
+
+              {certificate.isRevoked ? (
+                <DropdownMenuItem disabled>
+                  Certificate Revoked
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem disabled>
+                  Certificate Active
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      );
     },
-  ];
+  },
+];
+
+/*
+|--------------------------------------------------------------------------
+| CERTIFICATE TYPE BADGE
+|--------------------------------------------------------------------------
+*/
+
+function CertificateTypeBadge({
+  type,
+}: {
+  type: Certificate["type"];
+}) {
+  switch (type) {
+    case "Completion":
+      return (
+        <Badge variant="success">
+          Completion
+        </Badge>
+      );
+
+    case "Participation":
+      return (
+        <Badge variant="neutral">
+          Participation
+        </Badge>
+      );
+
+    default:
+      return (
+        <Badge variant="neutral">
+          {type}
+        </Badge>
+      );
+  }
+}
+
+/*
+|--------------------------------------------------------------------------
+| CERTIFICATE STATUS BADGE
+|--------------------------------------------------------------------------
+*/
+
+function CertificateStatusBadge({
+  isRevoked,
+}: {
+  isRevoked: boolean;
+}) {
+  if (isRevoked) {
+    return (
+      <Badge variant="error">
+        Revoked
+      </Badge>
+    );
+  }
+
+  return (
+    <Badge variant="success">
+      Active
+    </Badge>
+  );
+}
+
+/*
+|--------------------------------------------------------------------------
+| DATE
+|--------------------------------------------------------------------------
+*/
+
+function formatDate(
+  value: string
+) {
+  if (!value) {
+    return "Not specified";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString(
+    "en-US",
+    {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }
+  );
+}

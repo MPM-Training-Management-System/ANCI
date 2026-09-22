@@ -1,1798 +1,1032 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import {
-  DataTable,
-  StatCard,
-  StatGrid,
-} from "@repo/ui/index";
+  Award,
+  BookOpen,
+  Calculator,
+  CheckCircle2,
+  ClipboardCheck,
+  Loader2,
+  MessageCircle,
+  Search,
+  Users,
+} from "lucide-react";
+
+import type {
+  TrainingGrade,
+} from "@repo/types";
 
 import {
-  columns,
-  type PracticalGrade,
-  type TrainingOption,
-  type GradingStatus,
-  type GradeResult,
-} from "./columns";
-
-/* =========================================================
-   TRAINING OPTIONS
-========================================================= */
-
-const trainingOptions: TrainingOption[] = [
-  {
-    name: "Computer Systems Servicing NC II",
-    code: "CSS-NCII",
-  },
-  {
-    name: "Electrical Installation and Maintenance NC II",
-    code: "EIM-NCII",
-  },
-  {
-    name: "Web Development Fundamentals",
-    code: "WEB-DEV",
-  },
-];
-
-/* =========================================================
-   MOCK DATA
-========================================================= */
-
-const initialGrades: PracticalGrade[] = [
-  {
-    id: "GRD-001",
-    participantId: "P-001",
-    participantName: "Juan Dela Cruz",
-    participantEmail: "juan.delacruz@email.com",
-
-    assessmentId: "ASM-002",
-    assessmentTitle: "PC Assembly Practical Assessment",
-
-    training: "Computer Systems Servicing NC II",
-    trainingCode: "CSS-NCII",
-
-    attemptNumber: 1,
-
-    passingScore: 75,
-
-    status: "Pending",
-    result: "Pending",
-
-    criteria: [
-      {
-        id: "C-001",
-        name: "Hardware Installation",
-        maxScore: 20,
-        score: 0,
-        remarks: "",
-      },
-      {
-        id: "C-002",
-        name: "Cable Management",
-        maxScore: 20,
-        score: 0,
-        remarks: "",
-      },
-      {
-        id: "C-003",
-        name: "OS Installation",
-        maxScore: 20,
-        score: 0,
-        remarks: "",
-      },
-      {
-        id: "C-004",
-        name: "Troubleshooting",
-        maxScore: 20,
-        score: 0,
-        remarks: "",
-      },
-      {
-        id: "C-005",
-        name: "Safety Procedures",
-        maxScore: 20,
-        score: 0,
-        remarks: "",
-      },
-    ],
-
-    totalScore: 0,
-    totalMaxScore: 100,
-    percentage: 0,
-
-    trainerRemarks: "",
-
-    gradedAt: null,
-
-    submittedAt: "August 16, 2026 · 9:30 AM",
-  },
-
-  {
-    id: "GRD-002",
-    participantId: "P-002",
-    participantName: "Maria Santos",
-    participantEmail: "maria.santos@email.com",
-
-    assessmentId: "ASM-002",
-    assessmentTitle: "PC Assembly Practical Assessment",
-
-    training: "Computer Systems Servicing NC II",
-    trainingCode: "CSS-NCII",
-
-    attemptNumber: 1,
-
-    passingScore: 75,
-
-    status: "Graded",
-    result: "Passed",
-
-    criteria: [
-      {
-        id: "C-006",
-        name: "Hardware Installation",
-        maxScore: 20,
-        score: 18,
-        remarks:
-          "Installed all major components correctly.",
-      },
-      {
-        id: "C-007",
-        name: "Cable Management",
-        maxScore: 20,
-        score: 16,
-        remarks:
-          "Minor cable organization issues.",
-      },
-      {
-        id: "C-008",
-        name: "OS Installation",
-        maxScore: 20,
-        score: 19,
-        remarks:
-          "Completed the installation properly.",
-      },
-      {
-        id: "C-009",
-        name: "Troubleshooting",
-        maxScore: 20,
-        score: 17,
-        remarks:
-          "Identified and resolved the issue.",
-      },
-      {
-        id: "C-010",
-        name: "Safety Procedures",
-        maxScore: 20,
-        score: 18,
-        remarks:
-          "Followed laboratory safety procedures.",
-      },
-    ],
-
-    totalScore: 88,
-    totalMaxScore: 100,
-    percentage: 88,
-
-    trainerRemarks:
-      "Good practical performance.",
-
-    gradedAt: "August 16, 2026 · 11:15 AM",
-
-    submittedAt:
-      "August 16, 2026 · 10:20 AM",
-  },
-
-  {
-    id: "GRD-003",
-    participantId: "P-003",
-    participantName: "Pedro Garcia",
-    participantEmail: "pedro.garcia@email.com",
-
-    assessmentId: "ASM-002",
-    assessmentTitle: "PC Assembly Practical Assessment",
-
-    training: "Computer Systems Servicing NC II",
-    trainingCode: "CSS-NCII",
-
-    attemptNumber: 1,
-
-    passingScore: 75,
-
-    status: "Graded",
-    result: "Failed",
-
-    criteria: [
-      {
-        id: "C-011",
-        name: "Hardware Installation",
-        maxScore: 20,
-        score: 14,
-        remarks:
-          "Required trainer assistance.",
-      },
-      {
-        id: "C-012",
-        name: "Cable Management",
-        maxScore: 20,
-        score: 11,
-        remarks:
-          "Cable arrangement needs improvement.",
-      },
-      {
-        id: "C-013",
-        name: "OS Installation",
-        maxScore: 20,
-        score: 16,
-        remarks:
-          "Completed with some guidance.",
-      },
-      {
-        id: "C-014",
-        name: "Troubleshooting",
-        maxScore: 20,
-        score: 12,
-        remarks:
-          "Needs more troubleshooting practice.",
-      },
-      {
-        id: "C-015",
-        name: "Safety Procedures",
-        maxScore: 20,
-        score: 15,
-        remarks:
-          "Generally followed safety procedures.",
-      },
-    ],
-
-    totalScore: 68,
-    totalMaxScore: 100,
-    percentage: 68,
-
-    trainerRemarks:
-      "Additional practical training is recommended.",
-
-    gradedAt: "August 16, 2026 · 1:10 PM",
-
-    submittedAt:
-      "August 16, 2026 · 12:30 PM",
-  },
-
-  {
-    id: "GRD-004",
-    participantId: "P-004",
-    participantName: "Angela Bautista",
-    participantEmail:
-      "angela.bautista@email.com",
-
-    assessmentId: "ASM-002",
-    assessmentTitle: "PC Assembly Practical Assessment",
-
-    training: "Computer Systems Servicing NC II",
-    trainingCode: "CSS-NCII",
-
-    attemptNumber: 2,
-
-    passingScore: 75,
-
-    status: "Pending",
-    result: "Pending",
-
-    criteria: [
-      {
-        id: "C-016",
-        name: "Hardware Installation",
-        maxScore: 20,
-        score: 0,
-        remarks: "",
-      },
-      {
-        id: "C-017",
-        name: "Cable Management",
-        maxScore: 20,
-        score: 0,
-        remarks: "",
-      },
-      {
-        id: "C-018",
-        name: "OS Installation",
-        maxScore: 20,
-        score: 0,
-        remarks: "",
-      },
-      {
-        id: "C-019",
-        name: "Troubleshooting",
-        maxScore: 20,
-        score: 0,
-        remarks: "",
-      },
-      {
-        id: "C-020",
-        name: "Safety Procedures",
-        maxScore: 20,
-        score: 0,
-        remarks: "",
-      },
-    ],
-
-    totalScore: 0,
-    totalMaxScore: 100,
-    percentage: 0,
-
-    trainerRemarks: "",
-
-    gradedAt: null,
-
-    submittedAt:
-      "August 17, 2026 · 9:05 AM",
-  },
-];
-
-/* =========================================================
-   PAGE
-========================================================= */
-
-export default function TrainerGradingPage() {
-  const [
-    selectedTraining,
-    setSelectedTraining,
-  ] = useState(
-    "Computer Systems Servicing NC II",
-  );
-
-  const [grades, setGrades] =
-    useState<PracticalGrade[]>(
-      initialGrades,
-    );
-
-  const [search, setSearch] = useState("");
-
-  const [
-    assessmentFilter,
-    setAssessmentFilter,
-  ] = useState("All");
-
-  const [
-    statusFilter,
-    setStatusFilter,
-  ] = useState<"All" | GradingStatus>("All");
-
-  const [
-    resultFilter,
-    setResultFilter,
-  ] = useState<"All" | GradeResult>("All");
-
-  const [
-    selectedGrade,
-    setSelectedGrade,
-  ] = useState<PracticalGrade | null>(
-    null,
-  );
-
-  const [
-    showGradingModal,
-    setShowGradingModal,
-  ] = useState(false);
-
-  const [
-    showReviewModal,
-    setShowReviewModal,
-  ] = useState(false);
-
-  /* =======================================================
-     TRAINING GRADES
-  ======================================================= */
-
-  const trainingGrades = useMemo(() => {
-    return grades.filter(
-      (grade) =>
-        grade.training === selectedTraining,
-    );
-  }, [grades, selectedTraining]);
-
-  /* =======================================================
-     ASSESSMENTS
-  ======================================================= */
-
-  const assessmentOptions = useMemo(() => {
-    const map = new Map<string, string>();
-
-    trainingGrades.forEach((grade) => {
-      map.set(
-        grade.assessmentId,
-        grade.assessmentTitle,
-      );
-    });
-
-    return Array.from(map.entries()).sort(
-      (a, b) =>
-        a[1].localeCompare(
-          b[1],
-          undefined,
-          {
-            sensitivity: "base",
-          },
-        ),
-    );
-  }, [trainingGrades]);
-
-  /* =======================================================
-     FILTERED DATA
-  ======================================================= */
-
-  const filteredGrades = useMemo(() => {
-    const query =
-      search.toLowerCase().trim();
-
-    return trainingGrades
-      .filter((grade) => {
-        if (
-          assessmentFilter === "All"
-        ) {
-          return true;
-        }
-
-        return (
-          grade.assessmentId ===
-          assessmentFilter
-        );
-      })
-
-      .filter((grade) => {
-        if (statusFilter === "All") {
-          return true;
-        }
-
-        return (
-          grade.status === statusFilter
-        );
-      })
-
-      .filter((grade) => {
-        if (resultFilter === "All") {
-          return true;
-        }
-
-        return (
-          grade.result === resultFilter
-        );
-      })
-
-      .filter((grade) => {
-        if (!query) {
-          return true;
-        }
-
-        return (
-          grade.participantName
-            .toLowerCase()
-            .includes(query) ||
-          grade.participantEmail
-            .toLowerCase()
-            .includes(query) ||
-          grade.assessmentTitle
-            .toLowerCase()
-            .includes(query)
-        );
-      })
-
-      .sort((a, b) =>
-        getLastName(
-          a.participantName,
-        ).localeCompare(
-          getLastName(
-            b.participantName,
-          ),
-          undefined,
-          {
-            sensitivity: "base",
-          },
-        ),
-      );
-  }, [
-    trainingGrades,
-    search,
-    assessmentFilter,
-    statusFilter,
-    resultFilter,
-  ]);
-
-  /* =======================================================
-     STATISTICS
-  ======================================================= */
-
-  const pendingCount =
-    trainingGrades.filter(
-      (grade) =>
-        grade.status === "Pending",
-    ).length;
-
-  const gradedCount =
-    trainingGrades.filter(
-      (grade) =>
-        grade.status === "Graded",
-    ).length;
-
-  const passedCount =
-    trainingGrades.filter(
-      (grade) =>
-        grade.result === "Passed",
-    ).length;
-
-  const failedCount =
-    trainingGrades.filter(
-      (grade) =>
-        grade.result === "Failed",
-    ).length;
-
-  /* =======================================================
-     MODALS
-  ======================================================= */
-
-  function openGrading(
-    grade: PracticalGrade,
-  ) {
-    setSelectedGrade(
-      cloneGrade(grade),
-    );
-
-    setShowGradingModal(true);
-  }
-
-  function openReview(
-    grade: PracticalGrade,
-  ) {
-    setSelectedGrade(
-      cloneGrade(grade),
-    );
-
-    setShowReviewModal(true);
-  }
-
-  /* =======================================================
-     SAVE GRADE
-  ======================================================= */
-
-  function saveGrade(
-    updatedGrade: PracticalGrade,
-  ) {
-    const totalScore =
-      updatedGrade.criteria.reduce(
-        (total, criterion) =>
-          total + criterion.score,
-        0,
-      );
-
-    const totalMaxScore =
-      updatedGrade.criteria.reduce(
-        (total, criterion) =>
-          total + criterion.maxScore,
-        0,
-      );
-
-    const percentage =
-      totalMaxScore > 0
-        ? Number(
-            (
-              (totalScore /
-                totalMaxScore) *
-              100
-            ).toFixed(2),
-          )
-        : 0;
-
-    const result: GradeResult =
-      percentage >=
-      updatedGrade.passingScore
-        ? "Passed"
-        : "Failed";
-
-    const finalGrade: PracticalGrade =
-      {
-        ...updatedGrade,
-
-        status: "Graded",
-
-        result,
-
-        totalScore,
-
-        totalMaxScore,
-
-        percentage,
-
-        gradedAt:
-          getCurrentDateTime(),
-      };
-
-    setGrades((current) =>
-      current.map((grade) =>
-        grade.id === finalGrade.id
-          ? finalGrade
-          : grade,
-      ),
-    );
-
-    setSelectedGrade(null);
-    setShowGradingModal(false);
-  }
-
-  /* =======================================================
-     CLEAR FILTERS
-  ======================================================= */
-
-  function clearFilters() {
-    setSearch("");
-    setAssessmentFilter("All");
-    setStatusFilter("All");
-    setResultFilter("All");
-  }
-
-  const hasFilters =
-    search ||
-    assessmentFilter !== "All" ||
-    statusFilter !== "All" ||
-    resultFilter !== "All";
-
-  /* =======================================================
-     TABLE META
-  ======================================================= */
-
-  const tableMeta = {
-    onGrade: openGrading,
-    onReview: openReview,
-  };
-
-  /* =======================================================
-     RENDER
-  ======================================================= */
-
-  return (
-    <div className="space-y-6">
-      {/* ===================================================
-          HEADER
-      =================================================== */}
-
-      <div>
-        <div className="mb-2 flex items-center gap-2 text-xs text-gray-400">
-          <span>Trainer</span>
-          <span>/</span>
-          <span>Assessments</span>
-          <span>/</span>
-
-          <span className="font-medium text-gray-600">
-            Grading
-          </span>
-        </div>
-
-        <h1 className="text-2xl font-bold tracking-tight text-[#17191c] sm:text-3xl">
-          Grading
-        </h1>
-
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
-          Grade submitted practical
-          assessments by evaluating
-          each criterion and recording
-          the participant's final
-          performance.
-        </p>
-      </div>
-
-      {/* ===================================================
-          INFORMATION
-      =================================================== */}
-
-      <div className="flex items-start gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-sm font-bold text-emerald-700">
-          ✓
-        </div>
-
-        <div>
-          <p className="text-sm font-semibold text-emerald-900">
-            Practical assessment
-            grading
-          </p>
-
-          <p className="mt-1 text-xs leading-5 text-emerald-700">
-            Enter a score for each
-            criterion. The system
-            automatically calculates
-            the total score,
-            percentage, and Passed
-            or Failed result.
-          </p>
-        </div>
-      </div>
-
-      {/* ===================================================
-          TRAINING
-      =================================================== */}
-
-      <section className="rounded-2xl border border-[#e7e9ec] bg-white p-5">
-        <div className="max-w-xl">
-          <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-            Training Program
-          </label>
-
-          <select
-            value={selectedTraining}
-            onChange={(event) => {
-              setSelectedTraining(
-                event.target.value,
-              );
-
-              setSearch("");
-              setAssessmentFilter(
-                "All",
-              );
-              setStatusFilter("All");
-              setResultFilter("All");
-            }}
-            className="h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none transition focus:border-gray-300 focus:bg-white"
-          >
-            {trainingOptions.map(
-              (training) => (
-                <option
-                  key={training.code}
-                  value={training.name}
-                >
-                  {training.name}
-                </option>
-              ),
-            )}
-          </select>
-        </div>
-      </section>
-
-      {/* ===================================================
-          STATS
-      =================================================== */}
-
-      <StatGrid >
-        <StatCard
-          title="Pending"
-          value={pendingCount}
-          variant="warning"
-        />
-
-        <StatCard
-          title="Graded"
-          value={gradedCount}
-        />
-
-        <StatCard
-          title="Passed"
-          value={passedCount}
-          variant="success"
-        />
-
-        <StatCard
-          title="Failed"
-          value={failedCount}
-          variant="warning"
-        />
-      </StatGrid>
-
-      {/* ===================================================
-          TABLE
-      =================================================== */}
-
-      <section className="overflow-hidden rounded-2xl border border-[#e7e9ec] bg-white">
-        {/* TOOLBAR */}
-
-        <div className="border-b border-[#eef0f2] p-5">
-          <div className="flex flex-col gap-4">
-            <div>
-              <h2 className="text-sm font-bold">
-                Practical Assessment
-                Submissions
-              </h2>
-
-              <p className="mt-1 text-xs text-gray-500">
-                Participants are sorted
-                alphabetically by last
-                name.
-              </p>
-            </div>
-
-            {/* FILTERS */}
-
-            <div className="flex flex-col gap-2 xl:flex-row">
-              {/* SEARCH */}
-
-              <div className="relative min-w-0 flex-1 xl:max-w-sm">
-                <input
-                  value={search}
-                  onChange={(event) =>
-                    setSearch(
-                      event.target.value,
-                    )
-                  }
-                  placeholder="Search participant or assessment..."
-                  className="h-10 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
-                />
-
-                {search && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setSearch("")
-                    }
-                    className="absolute right-2.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-xs text-gray-400 hover:bg-gray-200"
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-
-              {/* ASSESSMENT */}
-
-              <select
-                value={assessmentFilter}
-                onChange={(event) =>
-                  setAssessmentFilter(
-                    event.target.value,
-                  )
-                }
-                className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none focus:border-gray-300 focus:bg-white"
-              >
-                <option value="All">
-                  All Assessments
-                </option>
-
-                {assessmentOptions.map(
-                  ([id, title]) => (
-                    <option
-                      key={id}
-                      value={id}
-                    >
-                      {title}
-                    </option>
-                  ),
-                )}
-              </select>
-
-              {/* STATUS */}
-
-              <select
-                value={statusFilter}
-                onChange={(event) =>
-                  setStatusFilter(
-                    event.target.value as
-                      | "All"
-                      | GradingStatus,
-                  )
-                }
-                className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none focus:border-gray-300 focus:bg-white"
-              >
-                <option value="All">
-                  All Status
-                </option>
-
-                <option value="Pending">
-                  Pending
-                </option>
-
-                <option value="Graded">
-                  Graded
-                </option>
-              </select>
-
-              {/* RESULT */}
-
-              <select
-                value={resultFilter}
-                onChange={(event) =>
-                  setResultFilter(
-                    event.target.value as
-                      | "All"
-                      | GradeResult,
-                  )
-                }
-                className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none focus:border-gray-300 focus:bg-white"
-              >
-                <option value="All">
-                  All Results
-                </option>
-
-                <option value="Passed">
-                  Passed
-                </option>
-
-                <option value="Failed">
-                  Failed
-                </option>
-
-                <option value="Pending">
-                  Pending
-                </option>
-              </select>
-            </div>
-
-            {/* FILTER STATUS */}
-
-            {hasFilters && (
-              <div className="flex items-center gap-2">
-                <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[9px] font-semibold text-gray-500">
-                  {filteredGrades.length}{" "}
-                  result
-                  {filteredGrades.length !==
-                  1
-                    ? "s"
-                    : ""}
-                </span>
-
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="text-[10px] font-semibold text-gray-500 underline underline-offset-2 hover:text-gray-800"
-                >
-                  Clear filters
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* =================================================
-            DATA TABLE
-        ================================================= */}
-
-        <div className="overflow-x-auto">
-          <DataTable
-            columns={columns}
-            data={filteredGrades}
-           meta={tableMeta}
-          />
-        </div>
-
-        {/* EMPTY */}
-
-        {filteredGrades.length ===
-          0 && <EmptyResults />}
-
-        {/* FOOTER */}
-
-        <div className="flex flex-col gap-2 border-t border-[#eef0f2] bg-[#fafbfc] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-[10px] text-gray-400">
-            Results are sorted
-            alphabetically by
-            participant last name.
-          </p>
-
-          <p className="text-[10px] font-medium text-gray-500">
-            {filteredGrades.length}{" "}
-            displayed
-          </p>
-        </div>
-      </section>
-
-      {/* ===================================================
-          GRADING MODAL
-      =================================================== */}
-
-      {showGradingModal &&
-        selectedGrade && (
-          <GradingModal
-            grade={selectedGrade}
-            onClose={() => {
-              setShowGradingModal(
-                false,
-              );
-              setSelectedGrade(null);
-            }}
-            onSave={saveGrade}
-          />
-        )}
-
-      {/* ===================================================
-          REVIEW MODAL
-      =================================================== */}
-
-      {showReviewModal &&
-        selectedGrade && (
-          <ReviewGradeModal
-            grade={selectedGrade}
-            onClose={() => {
-              setShowReviewModal(
-                false,
-              );
-              setSelectedGrade(null);
-            }}
-          />
-        )}
-    </div>
-  );
+  useEnrollments,
+  useTrainingGrade,
+} from "@repo/hooks";
+
+import {
+  apiClient,
+  enrollmentApi,
+} from "@/lib/api";
+
+// =========================================================
+// TYPES
+// =========================================================
+
+type GradeMap = Record<
+  string,
+  TrainingGrade
+>;
+
+// =========================================================
+// HELPERS
+// =========================================================
+
+function formatPercentage(
+  value: number,
+) {
+  return `${value.toFixed(2)}%`;
 }
 
-/* =========================================================
-   GRADING MODAL
-========================================================= */
 
-function GradingModal({
-  grade,
-  onClose,
-  onSave,
+// =========================================================
+// PROGRESS CELL
+// =========================================================
+
+function ProgressCell({
+  percentage,
+  weight,
+  weightedScore,
 }: {
-  grade: PracticalGrade;
-  onClose: () => void;
-  onSave: (
-    grade: PracticalGrade,
-  ) => void;
+  percentage: number;
+  weight: number;
+  weightedScore: number;
 }) {
-  const [current, setCurrent] =
-    useState<PracticalGrade>(
-      cloneGrade(grade),
-    );
-
-  const totalScore =
-    current.criteria.reduce(
-      (total, criterion) =>
-        total + criterion.score,
-      0,
-    );
-
-  const totalMaxScore =
-    current.criteria.reduce(
-      (total, criterion) =>
-        total + criterion.maxScore,
-      0,
-    );
-
-  const percentage =
-    totalMaxScore > 0
-      ? Number(
-          (
-            (totalScore /
-              totalMaxScore) *
-            100
-          ).toFixed(2),
-        )
-      : 0;
-
-  const result: GradeResult =
-    percentage >=
-    current.passingScore
-      ? "Passed"
-      : "Failed";
-
-  function updateScore(
-    criterionId: string,
-    value: number,
-  ) {
-    setCurrent((previous) => ({
-      ...previous,
-
-      criteria:
-        previous.criteria.map(
-          (criterion) => {
-            if (
-              criterion.id !==
-              criterionId
-            ) {
-              return criterion;
-            }
-
-            const safeValue =
-              Math.max(
-                0,
-                Math.min(
-                  Number.isFinite(
-                    value,
-                  )
-                    ? value
-                    : 0,
-                  criterion.maxScore,
-                ),
-              );
-
-            return {
-              ...criterion,
-              score: safeValue,
-            };
-          },
-        ),
-    }));
-  }
-
-  function updateRemarks(
-    criterionId: string,
-    remarks: string,
-  ) {
-    setCurrent((previous) => ({
-      ...previous,
-
-      criteria:
-        previous.criteria.map(
-          (criterion) =>
-            criterion.id ===
-            criterionId
-              ? {
-                  ...criterion,
-                  remarks,
-                }
-              : criterion,
-        ),
-    }));
-  }
-
-  function handleSave() {
-    onSave({
-      ...current,
-
-      totalScore,
-
-      totalMaxScore,
-
-      percentage,
-
-      status: "Graded",
-
-      result,
-
-      gradedAt:
-        getCurrentDateTime(),
-    });
-  }
-
-  return (
-    <div
-      className="fixed inset-0 z-[150] flex items-center justify-center bg-black/45 p-3 backdrop-blur-sm sm:p-5"
-      onMouseDown={(event) => {
-        if (
-          event.target ===
-          event.currentTarget
-        ) {
-          onClose();
-        }
-      }}
-    >
-      <div className="flex max-h-[94vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-        {/* HEADER */}
-
-        <div className="flex shrink-0 items-start justify-between border-b border-[#eef0f2] px-6 py-5">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-600">
-              Practical Assessment
-            </p>
-
-            <h2 className="mt-1 text-lg font-bold">
-              Grade Assessment
-            </h2>
-
-            <p className="mt-1 text-xs text-gray-500">
-              {current.participantName}{" "}
-              ·{" "}
-              {current.assessmentTitle}
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-lg text-gray-500 transition hover:bg-gray-200"
-          >
-            ×
-          </button>
-        </div>
-
-        {/* BODY */}
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-          {/* PARTICIPANT */}
-
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <InfoCard
-              label="Participant"
-              value={
-                current.participantName
-              }
-            />
-
-            <InfoCard
-              label="Attempt"
-              value={`#${current.attemptNumber}`}
-            />
-
-            <InfoCard
-              label="Passing"
-              value={`${current.passingScore}%`}
-            />
-
-            <InfoCard
-              label="Submitted"
-              value={
-                current.submittedAt
-              }
-            />
-          </div>
-
-          {/* CRITERIA */}
-
-          <div className="mt-6">
-            <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h3 className="text-sm font-bold">
-                  Assessment Criteria
-                </h3>
-
-                <p className="mt-1 text-[10px] text-gray-400">
-                  Enter the score
-                  achieved for each
-                  criterion.
-                </p>
-              </div>
-
-              <span className="text-[10px] text-gray-400">
-                Maximum:{" "}
-                {totalMaxScore}{" "}
-                points
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              {current.criteria.map(
-                (
-                  criterion,
-                  index,
-                ) => (
-                  <div
-                    key={
-                      criterion.id
-                    }
-                    className="rounded-2xl border border-[#e7e9ec] p-5"
-                  >
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-[10px] font-bold text-emerald-700">
-                        {index + 1}
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                          <p className="text-xs font-semibold">
-                            {
-                              criterion.name
-                            }
-                          </p>
-
-                          <span className="text-[9px] font-semibold text-gray-400">
-                            Maximum Score:{" "}
-                            {
-                              criterion.maxScore
-                            }
-                          </span>
-                        </div>
-
-                        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                          {/* SCORE */}
-
-                          <div className="w-full sm:max-w-[180px]">
-                            <label className="mb-1.5 block text-[9px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                              Score
-                            </label>
-
-                            <input
-                              type="number"
-                              min={0}
-                              max={
-                                criterion.maxScore
-                              }
-                              value={
-                                criterion.score
-                              }
-                              onChange={(
-                                event,
-                              ) =>
-                                updateScore(
-                                  criterion.id,
-                                  Number(
-                                    event
-                                      .target
-                                      .value,
-                                  ),
-                                )
-                              }
-                              className="h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-semibold outline-none transition focus:border-gray-300 focus:bg-white"
-                            />
-                          </div>
-
-                          {/* REMARKS */}
-
-                          <div className="flex-1">
-                            <label className="mb-1.5 block text-[9px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                              Remarks
-                            </label>
-
-                            <input
-                              value={
-                                criterion.remarks
-                              }
-                              onChange={(
-                                event,
-                              ) =>
-                                updateRemarks(
-                                  criterion.id,
-                                  event
-                                    .target
-                                    .value,
-                                )
-                              }
-                              placeholder="Add remarks..."
-                              className="h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-gray-100">
-                          <div
-                            className="h-full rounded-full bg-emerald-500 transition-all"
-                            style={{
-                              width: `${Math.min(
-                                100,
-                                (criterion.score /
-                                  criterion.maxScore) *
-                                  100,
-                              )}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ),
-              )}
-            </div>
-          </div>
-
-          {/* OVERALL REMARKS */}
-
-          <div className="mt-6">
-            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-              Overall Trainer Remarks
-            </label>
-
-            <textarea
-              value={
-                current.trainerRemarks
-              }
-              onChange={(event) =>
-                setCurrent(
-                  (previous) => ({
-                    ...previous,
-                    trainerRemarks:
-                      event.target
-                        .value,
-                  }),
-                )
-              }
-              rows={4}
-              placeholder="Add overall remarks for this participant..."
-              className="w-full resize-none rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 py-3 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
-            />
-          </div>
-
-          {/* RESULT */}
-
-          <div className="mt-6 rounded-2xl border border-[#e7e9ec] bg-[#fafbfc] p-5">
-            <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="text-[9px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Calculated Result
-                </p>
-
-                <p className="mt-1 text-sm text-gray-500">
-                  Based on the scores
-                  entered above.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-5">
-                <div className="text-right">
-                  <p className="text-[9px] text-gray-400">
-                    Total
-                  </p>
-
-                  <p className="text-xl font-bold">
-                    {totalScore}/
-                    {totalMaxScore}
-                  </p>
-                </div>
-
-                <div className="h-10 w-px bg-gray-200" />
-
-                <div className="text-right">
-                  <p className="text-[9px] text-gray-400">
-                    Percentage
-                  </p>
-
-                  <p className="text-xl font-bold">
-                    {percentage}%
-                  </p>
-                </div>
-
-                <ResultBadge
-                  result={result}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* FOOTER */}
-
-        <div className="flex shrink-0 flex-col gap-3 border-t border-[#eef0f2] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-[10px] text-gray-400">
-            Saving the grade will
-            finalize this assessment
-            attempt.
-          </p>
-
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-xl border border-[#e7e9ec] px-5 py-2.5 text-[11px] font-semibold text-gray-600 transition hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-
-            <button
-              type="button"
-              onClick={handleSave}
-              className="rounded-xl bg-[#191c1e] px-5 py-2.5 text-[11px] font-semibold text-white transition hover:opacity-90"
-            >
-              Save Grade
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+  const progress = Math.min(
+    Math.max(percentage, 0),
+    100,
   );
-}
 
-/* =========================================================
-   REVIEW MODAL
-========================================================= */
-
-function ReviewGradeModal({
-  grade,
-  onClose,
-}: {
-  grade: PracticalGrade;
-  onClose: () => void;
-}) {
   return (
-    <div
-      className="fixed inset-0 z-[140] flex items-center justify-center bg-black/45 p-3 backdrop-blur-sm sm:p-5"
-      onMouseDown={(event) => {
-        if (
-          event.target ===
-          event.currentTarget
-        ) {
-          onClose();
-        }
-      }}
-    >
-      <div className="flex max-h-[94vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-        {/* HEADER */}
+    <div className="min-w-[145px]">
 
-        <div className="flex shrink-0 items-start justify-between border-b border-[#eef0f2] px-6 py-5">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusBadge
-                status={grade.status}
-                result={grade.result}
-              />
+      <div className="mb-1.5 flex items-center justify-between gap-2">
 
-              <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[9px] font-bold text-emerald-700">
-                Practical
-              </span>
-            </div>
+        <span className="text-sm font-semibold text-gray-900">
+          {formatPercentage(percentage)}
+        </span>
 
-            <h2 className="mt-3 text-lg font-bold">
-              {grade.participantName}
-            </h2>
+        <span className="text-[11px] text-gray-400">
+          {weight}%
+        </span>
 
-            <p className="mt-1 text-xs text-gray-500">
-              {grade.assessmentTitle}
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-lg text-gray-500 transition hover:bg-gray-200"
-          >
-            ×
-          </button>
-        </div>
-
-        {/* BODY */}
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-          {/* SUMMARY */}
-
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <InfoCard
-              label="Total Score"
-              value={`${grade.totalScore}/${grade.totalMaxScore}`}
-            />
-
-            <InfoCard
-              label="Percentage"
-              value={`${grade.percentage}%`}
-            />
-
-            <InfoCard
-              label="Passing"
-              value={`${grade.passingScore}%`}
-            />
-
-            <InfoCard
-              label="Attempt"
-              value={`#${grade.attemptNumber}`}
-            />
-          </div>
-
-          {/* CRITERIA */}
-
-          <div className="mt-6">
-            <h3 className="text-sm font-bold">
-              Criteria Results
-            </h3>
-
-            <div className="mt-4 space-y-3">
-              {grade.criteria.map(
-                (
-                  criterion,
-                  index,
-                ) => (
-                  <div
-                    key={
-                      criterion.id
-                    }
-                    className="rounded-2xl border border-[#e7e9ec] p-5"
-                  >
-                    <div className="flex gap-4">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-[10px] font-bold text-emerald-700">
-                        {index + 1}
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <p className="text-xs font-semibold">
-                              {
-                                criterion.name
-                              }
-                            </p>
-
-                            <p className="mt-1 text-[10px] leading-5 text-gray-400">
-                              {criterion.remarks ||
-                                "No remarks."}
-                            </p>
-                          </div>
-
-                          <div className="shrink-0 text-right">
-                            <p className="text-sm font-bold">
-                              {
-                                criterion.score
-                              }
-                              /
-                              {
-                                criterion.maxScore
-                              }
-                            </p>
-
-                            <p className="mt-1 text-[9px] text-gray-400">
-                              {Math.round(
-                                (criterion.score /
-                                  criterion.maxScore) *
-                                  100,
-                              )}
-                              %
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-gray-100">
-                          <div
-                            className="h-full rounded-full bg-emerald-500"
-                            style={{
-                              width: `${Math.min(
-                                100,
-                                (criterion.score /
-                                  criterion.maxScore) *
-                                  100,
-                              )}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ),
-              )}
-            </div>
-          </div>
-
-          {/* REMARKS */}
-
-          {grade.trainerRemarks && (
-            <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
-              <p className="text-[9px] font-bold uppercase tracking-[0.08em] text-blue-500">
-                Trainer Remarks
-              </p>
-
-              <p className="mt-2 text-xs leading-6 text-blue-800">
-                {grade.trainerRemarks}
-              </p>
-            </div>
-          )}
-
-          {/* DATE */}
-
-          {grade.gradedAt && (
-            <p className="mt-5 text-[10px] text-gray-400">
-              Graded on{" "}
-              {grade.gradedAt}
-            </p>
-          )}
-        </div>
-
-        {/* FOOTER */}
-
-        <div className="flex shrink-0 justify-end border-t border-[#eef0f2] px-6 py-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl bg-[#191c1e] px-5 py-2.5 text-[11px] font-semibold text-white transition hover:opacity-90"
-          >
-            Close
-          </button>
-        </div>
       </div>
-    </div>
-  );
-}
 
-/* =========================================================
-   INFO CARD
-========================================================= */
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
 
-function InfoCard({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-xl bg-[#f8f9fa] p-4">
-      <p className="text-[9px] font-bold uppercase tracking-[0.08em] text-gray-400">
-        {label}
+        <div
+          className="h-full rounded-full bg-gray-800 transition-all"
+          style={{
+            width: `${progress}%`,
+          }}
+        />
+
+      </div>
+
+      <p className="mt-1 text-[11px] text-gray-400">
+        Contribution: {weightedScore.toFixed(2)}
       </p>
 
-      <p className="mt-1 truncate text-xs font-bold text-gray-700">
-        {value}
-      </p>
     </div>
   );
 }
 
-/* =========================================================
-   STATUS
-========================================================= */
 
-function StatusBadge({
-  status,
-  result,
+// =========================================================
+// GRADE STATUS
+// =========================================================
+
+function GradeStatus({
+  grade,
 }: {
-  status: GradingStatus;
-  result: GradeResult;
+  grade: TrainingGrade;
 }) {
-  if (status === "Pending") {
-    return (
-      <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[9px] font-bold text-amber-700">
-        Pending Grade
-      </span>
-    );
-  }
+  const complete =
+    grade.attendancePercentage >= 100 &&
+    grade.participationPercentage >= 100 &&
+    grade.examPercentage >= 100 &&
+    grade.practicalPercentage >= 100;
 
-  return <ResultBadge result={result} />;
-}
-
-function ResultBadge({
-  result,
-}: {
-  result: GradeResult;
-}) {
-  if (result === "Passed") {
+  if (complete) {
     return (
-      <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[9px] font-bold text-emerald-700">
-        Passed
-      </span>
-    );
-  }
-
-  if (result === "Failed") {
-    return (
-      <span className="inline-flex rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[9px] font-bold text-red-700">
-        Failed
+      <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+        <CheckCircle2 className="h-3.5 w-3.5" />
+        Complete
       </span>
     );
   }
 
   return (
-    <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[9px] font-bold text-amber-700">
-      Pending
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
+      <span className="h-1.5 w-1.5 rounded-full bg-gray-400" />
+      In Progress
     </span>
   );
 }
 
-/* =========================================================
-   EMPTY
-========================================================= */
 
-function EmptyResults() {
+// =========================================================
+// MAIN PAGE
+// =========================================================
+
+export default function TrainingGradePage() {
+
+  // =======================================================
+  // ENROLLMENTS
+  // =======================================================
+
+  const {
+    trainerEnrollments,
+    loadTrainerEnrollments,
+    isLoading: enrollmentsLoading,
+  } = useEnrollments(
+    enrollmentApi,
+  );
+
+
+  // =======================================================
+  // TRAINING GRADE HOOK
+  // =======================================================
+
+  const {
+    grade,
+    isLoading: gradeLoading,
+    error: gradeError,
+    loadGrade,
+  } = useTrainingGrade(
+    apiClient,
+  );
+
+
+  // =======================================================
+  // STATE
+  // =======================================================
+
+  const [
+    grades,
+    setGrades,
+  ] = useState<GradeMap>({});
+
+  const [
+    search,
+    setSearch,
+  ] = useState("");
+
+  const [
+    selectedBatch,
+    setSelectedBatch,
+  ] = useState("all");
+
+
+  // =======================================================
+  // LOAD TRAINER ENROLLMENTS
+  // =======================================================
+
+  useEffect(() => {
+
+    loadTrainerEnrollments().catch(() => {
+      // Hook handles the error.
+    });
+
+  }, [
+    loadTrainerEnrollments,
+  ]);
+
+
+  // =======================================================
+  // LOAD GRADES
+  // =======================================================
+
+  useEffect(() => {
+
+    if (
+      trainerEnrollments.length === 0
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadAllGrades = async () => {
+
+      const results =
+        await Promise.allSettled(
+          trainerEnrollments.map(
+            enrollment =>
+              loadGrade(
+                enrollment.id,
+              ),
+          ),
+        );
+
+      if (cancelled) {
+        return;
+      }
+
+      const nextGrades: GradeMap = {};
+
+      results.forEach(
+        result => {
+
+          if (
+            result.status === "fulfilled"
+          ) {
+
+            const data =
+              result.value;
+
+            nextGrades[
+              data.enrollmentId
+            ] = data;
+
+          }
+
+        },
+      );
+
+      setGrades(
+        current => ({
+          ...current,
+          ...nextGrades,
+        }),
+      );
+
+    };
+
+    loadAllGrades();
+
+    return () => {
+      cancelled = true;
+    };
+
+  }, [
+    trainerEnrollments,
+    loadGrade,
+  ]);
+
+
+  // =======================================================
+  // CURRENT GRADE
+  //
+  // useTrainingGrade keeps the latest loaded grade.
+  // Keep it synchronized into the table.
+  // =======================================================
+
+  useEffect(() => {
+
+    if (!grade) {
+      return;
+    }
+
+    setGrades(
+      current => ({
+        ...current,
+        [grade.enrollmentId]: grade,
+      }),
+    );
+
+  }, [
+    grade,
+  ]);
+
+
+  // =======================================================
+  // BATCH OPTIONS
+  // =======================================================
+
+  const batchOptions =
+    useMemo(() => {
+
+      const unique =
+        new Map<
+          string,
+          string
+        >();
+
+      Object.values(
+        grades,
+      ).forEach(
+        item => {
+
+          if (
+            item.trainingBatchId
+          ) {
+
+            unique.set(
+              item.trainingBatchId,
+              item.batchCode,
+            );
+
+          }
+
+        },
+      );
+
+      return Array.from(
+        unique.entries(),
+      ).map(
+        ([id, code]) => ({
+          id,
+          code,
+        }),
+      );
+
+    }, [
+      grades,
+    ]);
+
+
+  // =======================================================
+  // FILTERED GRADES
+  // =======================================================
+
+  const filteredGrades =
+    useMemo(() => {
+
+      const query =
+        search
+          .trim()
+          .toLowerCase();
+
+      return Object.values(
+        grades,
+      ).filter(
+        item => {
+
+          const matchesSearch =
+            !query ||
+            item.participantName
+              .toLowerCase()
+              .includes(query) ||
+            item.batchCode
+              .toLowerCase()
+              .includes(query);
+
+          const matchesBatch =
+            selectedBatch === "all" ||
+            item.trainingBatchId ===
+              selectedBatch;
+
+          return (
+            matchesSearch &&
+            matchesBatch
+          );
+
+        },
+      );
+
+    }, [
+      grades,
+      search,
+      selectedBatch,
+    ]);
+
+
+  // =======================================================
+  // STATS
+  // =======================================================
+
+  const totalParticipants =
+    filteredGrades.length;
+
+  const completedParticipants =
+    filteredGrades.filter(
+      item =>
+        item.attendancePercentage >= 100 &&
+        item.participationPercentage >= 100 &&
+        item.examPercentage >= 100 &&
+        item.practicalPercentage >= 100,
+    ).length;
+
+  const averageGrade =
+    filteredGrades.length > 0
+      ? filteredGrades.reduce(
+          (
+            total,
+            item,
+          ) =>
+            total +
+            item.overallGrade,
+          0,
+        ) /
+        filteredGrades.length
+      : 0;
+
+
+  // =======================================================
+  // RENDER
+  // =======================================================
+
   return (
-    <div className="px-6 py-16 text-center">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-lg text-gray-400">
-        ?
+    <div className="min-h-screen bg-gray-50">
+
+      {/* ===================================================
+          PAGE HEADER
+      =================================================== */}
+
+      <div className="border-b border-gray-200 bg-white">
+
+        <div className="mx-auto max-w-[1600px] px-6 py-6">
+
+          <div className="flex flex-col gap-1">
+
+            <div className="flex items-center gap-3">
+
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-900 text-white">
+
+                <Calculator className="h-5 w-5" />
+
+              </div>
+
+              <div>
+
+                <h1 className="text-xl font-bold text-gray-900">
+                  Grade Calculation
+                </h1>
+
+                <p className="text-sm text-gray-500">
+                  Monitor participant progress and calculated grades.
+                </p>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
       </div>
 
-      <h3 className="mt-4 text-sm font-bold">
-        No submissions found
-      </h3>
 
-      <p className="mt-1 text-xs text-gray-500">
-        Try changing your search or
-        filters.
-      </p>
+      {/* ===================================================
+          CONTENT
+      =================================================== */}
+
+      <div className="mx-auto max-w-[1600px] px-6 py-6">
+
+
+        {/* =================================================
+            SUMMARY
+        ================================================= */}
+
+        <div className="mb-6 grid gap-4 sm:grid-cols-3">
+
+          {/* TOTAL */}
+
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+
+            <div className="flex items-center justify-between">
+
+              <div>
+
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                  Participants
+                </p>
+
+                <p className="mt-1 text-2xl font-bold text-gray-900">
+                  {totalParticipants}
+                </p>
+
+              </div>
+
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100">
+                <Users className="h-5 w-5 text-gray-500" />
+              </div>
+
+            </div>
+
+          </div>
+
+
+          {/* COMPLETED */}
+
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+
+            <div className="flex items-center justify-between">
+
+              <div>
+
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                  Completed
+                </p>
+
+                <p className="mt-1 text-2xl font-bold text-gray-900">
+                  {completedParticipants}
+                </p>
+
+              </div>
+
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100">
+                <CheckCircle2 className="h-5 w-5 text-gray-500" />
+              </div>
+
+            </div>
+
+          </div>
+
+
+          {/* AVERAGE */}
+
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+
+            <div className="flex items-center justify-between">
+
+              <div>
+
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                  Average Grade
+                </p>
+
+                <p className="mt-1 text-2xl font-bold text-gray-900">
+                  {averageGrade.toFixed(2)}%
+                </p>
+
+              </div>
+
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100">
+                <Award className="h-5 w-5 text-gray-500" />
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        {/* =================================================
+            TABLE CARD
+        ================================================= */}
+
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+
+
+          {/* TABLE HEADER */}
+
+          <div className="border-b border-gray-200 p-4">
+
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+
+              <div>
+
+                <h2 className="font-semibold text-gray-900">
+                  Participant Grades
+                </h2>
+
+                <p className="mt-0.5 text-xs text-gray-500">
+                  Attendance 20% · Participation 20% · Exam 30% · Practical 30%
+                </p>
+
+              </div>
+
+
+              <div className="flex flex-col gap-2 sm:flex-row">
+
+
+                {/* SEARCH */}
+
+                <div className="relative">
+
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={event =>
+                      setSearch(
+                        event.target.value,
+                      )
+                    }
+                    placeholder="Search participant..."
+                    className="h-9 w-full rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-3 text-sm outline-none transition focus:border-gray-400 focus:bg-white sm:w-64"
+                  />
+
+                </div>
+
+
+                {/* BATCH */}
+
+                <select
+                  value={selectedBatch}
+                  onChange={event =>
+                    setSelectedBatch(
+                      event.target.value,
+                    )
+                  }
+                  className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none focus:border-gray-400"
+                >
+
+                  <option value="all">
+                    All Batches
+                  </option>
+
+                  {batchOptions.map(
+                    batch => (
+
+                      <option
+                        key={batch.id}
+                        value={batch.id}
+                      >
+                        {batch.code}
+                      </option>
+
+                    ),
+                  )}
+
+                </select>
+
+              </div>
+
+            </div>
+
+          </div>
+
+
+          {/* =================================================
+              TABLE
+          ================================================= */}
+
+          <div className="overflow-x-auto">
+
+            <table className="w-full min-w-[1250px] border-collapse">
+
+              <thead>
+
+                <tr className="border-b border-gray-200 bg-gray-50">
+
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Participant
+                  </th>
+
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Attendance
+                    <span className="ml-1 font-normal">
+                      20%
+                    </span>
+                  </th>
+
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Participation
+                    <span className="ml-1 font-normal">
+                      20%
+                    </span>
+                  </th>
+
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Exam
+                    <span className="ml-1 font-normal">
+                      30%
+                    </span>
+                  </th>
+
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Practical
+                    <span className="ml-1 font-normal">
+                      30%
+                    </span>
+                  </th>
+
+                  <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Overall
+                  </th>
+
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+  Status
+</th>
+
+                </tr>
+
+              </thead>
+
+
+              <tbody>
+
+                {enrollmentsLoading ? (
+
+                  <tr>
+
+                    <td
+                      colSpan={7}
+                      className="px-5 py-16"
+                    >
+
+                      <div className="flex flex-col items-center justify-center">
+
+                        <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+
+                        <p className="mt-3 text-sm text-gray-500">
+                          Loading participants...
+                        </p>
+
+                      </div>
+
+                    </td>
+
+                  </tr>
+
+                ) : gradeLoading &&
+                  Object.keys(grades).length === 0 ? (
+
+                  <tr>
+
+                    <td
+                      colSpan={7}
+                      className="px-5 py-16"
+                    >
+
+                      <div className="flex flex-col items-center justify-center">
+
+                        <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+
+                        <p className="mt-3 text-sm text-gray-500">
+                          Calculating grades...
+                        </p>
+
+                      </div>
+
+                    </td>
+
+                  </tr>
+
+                ) : filteredGrades.length === 0 ? (
+
+                  <tr>
+
+                    <td
+                      colSpan={7}
+                      className="px-5 py-16 text-center"
+                    >
+
+                      <Calculator className="mx-auto h-8 w-8 text-gray-300" />
+
+                      <p className="mt-3 text-sm font-medium text-gray-700">
+                        No grade records found
+                      </p>
+
+                      <p className="mt-1 text-xs text-gray-400">
+                        Grade records will appear once participants have assessment data.
+                      </p>
+
+                    </td>
+
+                  </tr>
+
+                ) : (
+
+                  filteredGrades.map(
+                    item => (
+
+                      <tr
+                        key={
+                          item.enrollmentId
+                        }
+                        className="border-b border-gray-100 transition hover:bg-gray-50"
+                      >
+
+                        {/* PARTICIPANT */}
+
+                        <td className="px-5 py-4">
+
+                          <div className="flex items-center gap-3">
+
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100">
+
+                              <Users className="h-4 w-4 text-gray-500" />
+
+                            </div>
+
+                            <div className="min-w-0">
+
+                              <p className="truncate text-sm font-semibold text-gray-900">
+                                {item.participantName}
+                              </p>
+
+                              <p className="mt-0.5 text-xs text-gray-400">
+                                {item.batchCode}
+                              </p>
+
+                            </div>
+
+                          </div>
+
+                        </td>
+
+
+                        {/* ATTENDANCE */}
+
+                        <td className="px-5 py-4">
+
+                          <ProgressCell
+                            percentage={
+                              item.attendancePercentage
+                            }
+                            weight={
+                              item.attendanceWeight
+                            }
+                            weightedScore={
+                              item.attendanceWeightedScore
+                            }
+                          />
+
+                        </td>
+
+
+                        {/* PARTICIPATION */}
+
+                        <td className="px-5 py-4">
+
+                          <ProgressCell
+                            percentage={
+                              item.participationPercentage
+                            }
+                            weight={
+                              item.participationWeight
+                            }
+                            weightedScore={
+                              item.participationWeightedScore
+                            }
+                          />
+
+                        </td>
+
+
+                        {/* EXAM */}
+
+                        <td className="px-5 py-4">
+
+                          <ProgressCell
+                            percentage={
+                              item.examPercentage
+                            }
+                            weight={
+                              item.examWeight
+                            }
+                            weightedScore={
+                              item.examWeightedScore
+                            }
+                          />
+
+                        </td>
+
+
+                        {/* PRACTICAL */}
+
+                        <td className="px-5 py-4">
+
+                          <ProgressCell
+                            percentage={
+                              item.practicalPercentage
+                            }
+                            weight={
+                              item.practicalWeight
+                            }
+                            weightedScore={
+                              item.practicalWeightedScore
+                            }
+                          />
+
+                        </td>
+
+
+                       {/* OVERALL */}
+
+<td className="px-5 py-4 text-right">
+
+  <span className="text-lg font-bold text-gray-900">
+    {item.overallGrade.toFixed(2)}
+  </span>
+
+  <span className="text-sm text-gray-400">
+    %
+  </span>
+
+</td>
+
+
+{/* STATUS */}
+
+<td className="px-5 py-4">
+
+  {item.isPassed ? (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+      <CheckCircle2 className="h-3.5 w-3.5" />
+      Passed
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700">
+      <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+      Failed
+    </span>
+  )}
+
+</td>
+
+                      </tr>
+
+                    ),
+                  )
+
+                )}
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+
+          {/* =================================================
+              TABLE FOOTER
+          ================================================= */}
+
+          <div className="flex items-center justify-between border-t border-gray-200 bg-gray-50 px-5 py-3">
+
+            <p className="text-xs text-gray-500">
+
+              Showing{" "}
+              <span className="font-medium text-gray-700">
+                {filteredGrades.length}
+              </span>{" "}
+              participant
+              {filteredGrades.length !== 1
+                ? "s"
+                : ""}
+
+            </p>
+
+            <div className="flex items-center gap-4 text-xs text-gray-400">
+
+              <span className="inline-flex items-center gap-1.5">
+                <ClipboardCheck className="h-3.5 w-3.5" />
+                Attendance
+              </span>
+
+              <span className="inline-flex items-center gap-1.5">
+                <MessageCircle className="h-3.5 w-3.5" />
+                Participation
+              </span>
+
+              <span className="inline-flex items-center gap-1.5">
+                <BookOpen className="h-3.5 w-3.5" />
+                Exam
+              </span>
+
+              <span className="inline-flex items-center gap-1.5">
+                <Award className="h-3.5 w-3.5" />
+                Practical
+              </span>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        {/* =================================================
+            GRADE FORMULA
+        ================================================= */}
+
+        <div className="mt-4 rounded-xl border border-gray-200 bg-white px-5 py-4">
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+
+            <div>
+
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                Grade Formula
+              </p>
+
+              <p className="mt-1 text-sm text-gray-600">
+                Attendance × 20% + Participation × 20% + Exam × 30% + Practical × 30%
+              </p>
+
+            </div>
+
+            <div className="text-xs text-gray-400">
+              Total Weight: 100%
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
     </div>
-  );
-}
-
-/* =========================================================
-   HELPERS
-========================================================= */
-
-function cloneGrade(
-  grade: PracticalGrade,
-): PracticalGrade {
-  return {
-    ...grade,
-
-    criteria: grade.criteria.map(
-      (criterion) => ({
-        ...criterion,
-      }),
-    ),
-  };
-}
-
-function getLastName(
-  fullName: string,
-) {
-  const parts = fullName
-    .trim()
-    .split(/\s+/);
-
-  return (
-    parts[parts.length - 1] ?? ""
-  );
-}
-
-function getCurrentDateTime() {
-  return new Date().toLocaleString(
-    "en-US",
-    {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    },
   );
 }

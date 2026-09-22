@@ -9,6 +9,7 @@ import {
 
 import {
   DataTable,
+  PageSection,
   StatCard,
   StatGrid,
 } from "@repo/ui/index";
@@ -27,6 +28,7 @@ import {
   columns,
   type AdminAttendanceRecord,
 } from "./column";
+import { CircleCheck, CircleX, ClipboardCheck, Clock3 } from "lucide-react";
 
 export default function AttendanceManagementPage() {
   // ============================================================
@@ -401,54 +403,17 @@ export default function AttendanceManagementPage() {
 
   return (
     <div className="space-y-6">
-      {/* ======================================================
-          HEADER
-      ====================================================== */}
-
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <div className="mb-2 flex items-center gap-2 text-xs text-gray-400">
-            <span>
-              Administration
-            </span>
-
-            <span>/</span>
-
-            <span className="font-medium text-gray-600">
-              Attendance
-            </span>
-          </div>
-
-          <h1 className="text-2xl font-bold tracking-tight text-[#17191c] sm:text-3xl">
-            Attendance Management
-          </h1>
-
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-500">
-            Monitor participant attendance
+      <PageSection
+      title="Attendance Management"
+      description=" Monitor participant attendance
             across training batches and
             review real-time attendance
-            records.
-          </p>
-        </div>
+            records.">
 
-        <button
-          type="button"
-          onClick={
-            handleExport
-          }
-          disabled={
-            filteredRecords.length ===
-            0
-          }
-          className="rounded-xl bg-[#17191c] px-5 py-3 text-xs font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Export Attendance
-        </button>
-      </div>
+      </PageSection>
+      
 
-      {/* ======================================================
-          ALERTS
-      ====================================================== */}
+       
 
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
@@ -492,241 +457,129 @@ export default function AttendanceManagementPage() {
         </div>
       )}
 
-      {/* ======================================================
-          TRAINING BATCH SELECTOR
-      ====================================================== */}
 
-      <div className="rounded-2xl border border-[#e7e9ec] bg-white p-5 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-              Training Batch
-            </p>
+     <StatGrid>
+  <StatCard
+    title="Total Records"
+    variant="primary"
+    value={totalRecords}
+    description="Attendance records"
+    icon={ClipboardCheck}
+  />
 
-            <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <select
-                value={
-                  selectedBatchId
-                }
-                onChange={(
-                  event,
-                ) => {
-                  setSelectedBatchId(
-                    event.target
-                      .value,
-                  );
-                  setSearch("");
-                  setSuccessMessage(
-                    null,
-                  );
-                }}
-                disabled={
-                  isLoadingBatches ||
-                  batches.length ===
-                    0
-                }
-                className="h-11 w-full max-w-xl rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-4 text-sm font-semibold text-gray-700 outline-none transition focus:bg-white focus:ring-1 focus:ring-gray-300 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {batches.length ===
-                  0 && (
-                  <option value="">
-                    {isLoadingBatches
-                      ? "Loading training batches..."
-                      : "No training batches available"}
-                  </option>
-                )}
+  <StatCard
+    title="Present"
+    value={presentCount}
+    description="Present participants"
+    icon={CircleCheck}
+    variant="success"
+  />
 
-                {batches.map(
-                  (
-                    batch,
-                  ) => (
-                    <option
-                      key={
-                        batch.id
-                      }
-                      value={
-                        batch.id
-                      }
-                    >
-                      {getBatchLabel(
-                        batch,
-                      )}
-                    </option>
-                  ),
-                )}
-              </select>
+  <StatCard
+    title="Late"
+    value={lateCount}
+    description="Late participants"
+    icon={Clock3}
+    variant="warning"
+  />
 
-              <button
-                type="button"
-                onClick={
-                  handleRefresh
-                }
-                disabled={
-                  isLoadingAttendance ||
-                  !selectedBatchId
-                }
-                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-xs font-semibold text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isLoadingAttendance
-                  ? "Refreshing..."
-                  : "Refresh"}
-              </button>
-            </div>
+  <StatCard
+  variant="warning"
+    title="Absent"
+    value={absentCount}
+    description="Absent participants"
+    icon={CircleX}
+  />
+</StatGrid>
 
-            {selectedBatch && (
-              <p className="mt-2 text-xs text-gray-400">
-                Batch ID:{" "}
-                <span className="font-mono">
-                  {selectedBatch.id}
-                </span>
-              </p>
-            )}
-          </div>
-
-          <div className="rounded-xl bg-gray-50 px-4 py-3">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-              Records Loaded
-            </p>
-
-            <p className="mt-1 text-xl font-bold text-gray-800">
-              {totalRecords}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* ======================================================
-          STATS
-      ====================================================== */}
-
-      <StatGrid>
-        <StatCard
-          title="Total Records"
-          value={
-            totalRecords
-          }
-          description="Attendance records"
-        />
-
-        <StatCard
-          title="Present"
-          value={
-            presentCount
-          }
-          description="Present participants"
-        />
-
-        <StatCard
-          title="Late"
-          value={
-            lateCount
-          }
-          description="Late participants"
-        />
-
-        <StatCard
-          title="Absent"
-          value={
-            absentCount
-          }
-          description="Absent participants"
-        />
-      </StatGrid>
-
-      {/* ======================================================
-          DATA TABLE
-      ====================================================== */}
-
-      <DataTable
-        title="Participant Attendance"
-        description={
-          selectedBatch
-            ? `Attendance records for ${getBatchLabel(
-                selectedBatch,
-              )}.`
-            : "Select a training batch to view attendance."
-        }
-        columns={
-          columns
-        }
-        data={
-          filteredRecords.map(
-            (
-              record,
-            ) =>
-              ({
-                ...record,
-                searchValue:
-                  [
-                    record.participantName,
-                    record.status,
-                    record.method,
-                    record.id,
-                  ]
-                    .filter(Boolean)
-                    .join(" "),
-              }) as AdminAttendanceRecord,
-          )
-        }
-        searchable
-        searchPlaceholder="Participant, status, method..."
-        showPagination
-        emptyTitle={
-          isLoadingAttendance
-            ? "Loading attendance..."
-            : selectedBatchId
-              ? "No attendance records found"
-              : "Select a training batch"
-        }
-        emptyDescription={
-          isLoadingAttendance
-            ? "Fetching attendance records from the server."
-            : selectedBatchId
-              ? "There are no attendance records for this training batch yet."
-              : "Choose a training batch above to load attendance."
-        }
-        meta={{
-          onView:
-            handleView,
+     <DataTable
+  columns={columns}
+  data={filteredRecords.map(
+    (record) =>
+      ({
+        ...record,
+        searchValue: [
+          record.participantName,
+          record.status,
+          record.method,
+          record.id,
+        ]
+          .filter(Boolean)
+          .join(" "),
+      }) as AdminAttendanceRecord,
+  )}
+  searchable
+  searchPlaceholder="Participant, status, method..."
+  showPagination
+  emptyTitle={
+    isLoadingAttendance
+      ? "Loading attendance..."
+      : selectedBatchId
+        ? "No attendance records found"
+        : "Select a training batch"
+  }
+  emptyDescription={
+    isLoadingAttendance
+      ? "Fetching attendance records from the server."
+      : selectedBatchId
+        ? "There are no attendance records for this training batch yet."
+        : "Choose a training batch above to load attendance."
+  }
+  meta={{
+    onView: handleView,
+  }}
+  toolbar={
+    <div className="flex w-full flex-wrap items-center gap-2">
+      {/* TRAINING BATCH */}
+      <select
+        value={selectedBatchId}
+        onChange={(event) => {
+          setSelectedBatchId(event.target.value);
+          setSearch("");
+          setSuccessMessage(null);
         }}
-        toolbar={
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative">
-              <input
-                type="text"
-                value={
-                  search
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setSearch(
-                    event.target
-                      .value,
-                  )
-                }
-                placeholder="Search participant..."
-                className="h-10 w-full min-w-[220px] rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none transition focus:bg-white"
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                setSearch(
-                  "",
-                )
-              }
-              disabled={
-                !search
-              }
-              className="h-10 rounded-xl border border-[#e7e9ec] bg-white px-3 text-xs font-semibold text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Clear
-            </button>
-          </div>
+        disabled={
+          isLoadingBatches ||
+          batches.length === 0
         }
-      />
+        className="h-10 min-w-[220px] max-w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-semibold text-gray-700 outline-none transition focus:bg-white focus:ring-1 focus:ring-gray-300 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {batches.length === 0 && (
+          <option value="">
+            {isLoadingBatches
+              ? "Loading training batches..."
+              : "No training batches available"}
+          </option>
+        )}
+
+        {batches.map((batch) => (
+          <option
+            key={batch.id}
+            value={batch.id}
+          >
+            {getBatchLabel(batch)}
+          </option>
+        ))}
+      </select>
+
+      {/* REFRESH */}
+      <button
+        type="button"
+        onClick={handleRefresh}
+        disabled={
+          isLoadingAttendance ||
+          !selectedBatchId
+        }
+        className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {isLoadingAttendance
+          ? "Refreshing..."
+          : "Refresh"}
+      </button>
+    </div>
+  }
+/>
+    
 
       {/* ======================================================
           DETAILS MODAL

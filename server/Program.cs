@@ -19,6 +19,7 @@ using server.Services.DocumentExtraction;
 using server.Services.Service;
 using System.Text.Json.Serialization;
 using server.Services.Email;
+using QuestPDF.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(options =>
@@ -47,9 +48,13 @@ builder.Services.AddScoped<
     LearningMaterialAiService
 >();
 builder.Services.AddScoped<
+    IPracticalAssessmentService,
+    PracticalAssessmentService>();
+builder.Services.AddScoped<
     IOpenCodeService,
     OpenCodeService
 >();
+builder.Services.AddScoped<IParticipationService, ParticipationService>();
 builder.Services.AddScoped<
     IDocumentTextExtractionService,
     DocumentTextExtractionService>();
@@ -67,8 +72,16 @@ builder.Services.AddScoped<
     AdminProfileService
 >();
 builder.Services.AddScoped<
+    ITrainingGradeService,
+    TrainingGradeService
+>();
+builder.Services.AddScoped<
     IEnrollmentDocumentService,
     EnrollmentDocumentService
+>();
+builder.Services.AddScoped<
+    ICertificateService,
+    CertificateService
 >();
 
 builder.Services.AddScoped
@@ -116,12 +129,19 @@ builder.Services.AddScoped<
     IAdminUserService,
     AdminUserService
 >();
+
 builder.Services.Configure<CloudinarySettings>(
     builder.Configuration.GetSection("Cloudinary")
 );
 
 builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
 builder.Services.AddScoped<PasswordService>();
+
+
+builder.Services.AddMemoryCache();
+
+builder.Services.AddHttpClient();
+
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(
@@ -245,6 +265,11 @@ builder.Services.AddScoped<
     ServiceConsultationService
 >();
 
+builder.Services.AddScoped<ICertificatePdfService, CertificatePdfService>();
+
+QuestPDF.Settings.License =
+    LicenseType.Community;
+
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -288,6 +313,7 @@ app.UseCors("FrontendPolicy");
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 

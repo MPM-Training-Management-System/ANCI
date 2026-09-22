@@ -8,6 +8,15 @@ import type {
   UserStatus,
 } from "@repo/types";
 
+import {
+  Badge,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@repo/ui/index";
+
 export interface UserTableMeta {
   onView: (user: AdminUserList) => void;
   onEdit: (user: AdminUserList) => void;
@@ -16,6 +25,12 @@ export interface UserTableMeta {
 }
 
 export const columns: ColumnDef<AdminUserList>[] = [
+  /*
+   * ============================================================
+   * USER
+   * ============================================================
+   */
+
   {
     accessorKey: "fullName",
     header: "User",
@@ -25,7 +40,7 @@ export const columns: ColumnDef<AdminUserList>[] = [
 
       return (
         <div className="flex items-center gap-3">
-          {/* Avatar */}
+          {/* AVATAR */}
           <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gray-100">
             {user.profileImageUrl ? (
               <img
@@ -34,13 +49,13 @@ export const columns: ColumnDef<AdminUserList>[] = [
                 className="h-full w-full object-cover"
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-xs font-bold text-gray-500">
+              <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-gray-500">
                 {getInitials(user.fullName)}
               </div>
             )}
           </div>
 
-          {/* Name */}
+          {/* NAME */}
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-gray-900">
               {user.fullName || "Unnamed User"}
@@ -55,6 +70,12 @@ export const columns: ColumnDef<AdminUserList>[] = [
     },
   },
 
+  /*
+   * ============================================================
+   * EMAIL
+   * ============================================================
+   */
+
   {
     accessorKey: "email",
     header: "Email",
@@ -68,21 +89,27 @@ export const columns: ColumnDef<AdminUserList>[] = [
             {user.email || "No email"}
           </p>
 
-          <p
-            className={`text-[10px] font-semibold ${
-              user.isEmailVerified
-                ? "text-emerald-600"
-                : "text-gray-400"
-            }`}
-          >
-            {user.isEmailVerified
-              ? "Verified"
-              : "Not verified"}
+          <p className="mt-0.5 text-[10px] font-medium">
+            {user.isEmailVerified ? (
+              <span className="text-emerald-600">
+                Verified
+              </span>
+            ) : (
+              <span className="text-gray-400">
+                Not verified
+              </span>
+            )}
           </p>
         </div>
       );
     },
   },
+
+  /*
+   * ============================================================
+   * MOBILE
+   * ============================================================
+   */
 
   {
     accessorKey: "mobileNumber",
@@ -99,6 +126,12 @@ export const columns: ColumnDef<AdminUserList>[] = [
     },
   },
 
+  /*
+   * ============================================================
+   * ROLE
+   * ============================================================
+   */
+
   {
     accessorKey: "role",
     header: "Role",
@@ -112,6 +145,12 @@ export const columns: ColumnDef<AdminUserList>[] = [
     },
   },
 
+  /*
+   * ============================================================
+   * STATUS
+   * ============================================================
+   */
+
   {
     accessorKey: "status",
     header: "Status",
@@ -124,6 +163,12 @@ export const columns: ColumnDef<AdminUserList>[] = [
       );
     },
   },
+
+  /*
+   * ============================================================
+   * CREATED
+   * ============================================================
+   */
 
   {
     accessorKey: "createdAt",
@@ -146,6 +191,7 @@ export const columns: ColumnDef<AdminUserList>[] = [
 
   {
     id: "actions",
+
     header: "Actions",
 
     enableSorting: false,
@@ -159,80 +205,76 @@ export const columns: ColumnDef<AdminUserList>[] = [
           | UserTableMeta
           | undefined;
 
-      /*
-       * If meta is missing, don't crash the table.
-       */
-
       if (!meta) {
         return null;
       }
 
       return (
         <div
-          className="flex items-center justify-end gap-1"
+          className="flex items-center justify-end"
           onClick={(event) => {
             event.stopPropagation();
           }}
         >
-          {/* VIEW */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+              
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+                aria-label={`Actions for ${user.fullName}`}
+              >
+                <span className="text-lg leading-none">⋯</span>
+              </button>
+            </DropdownMenuTrigger>
 
-          <button
-            type="button"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
+            <DropdownMenuContent
+              align="end"
+              className="w-40"
+              onClick={(event) => {
+                event.stopPropagation();
+              }}
+            >
+              <DropdownMenuItem
+                onSelect={() => {
+                  meta.onView(user);
+                }}
+              >
+                View
+              </DropdownMenuItem>
 
-              meta.onView(user);
-            }}
-            className="rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-[10px] font-semibold text-gray-700 transition hover:bg-gray-50"
-          >
-            View
-          </button>
+              <DropdownMenuItem
+                onSelect={() => {
+                  meta.onEdit(user);
+                }}
+              >
+                Edit
+              </DropdownMenuItem>
 
-          {/* EDIT */}
+              <DropdownMenuItem
+                onSelect={() => {
+                  meta.onStatus(user);
+                }}
+              >
+                Change Status
+              </DropdownMenuItem>
 
-          <button
-            type="button"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
+              <DropdownMenuSeparator />
 
-              meta.onEdit(user);
-            }}
-            className="rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-[10px] font-semibold text-gray-700 transition hover:bg-gray-50"
-          >
-            Edit
-          </button>
-
-          {/* STATUS */}
-
-          <button
-            type="button"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-
-              meta.onStatus(user);
-            }}
-            className="rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-[10px] font-semibold text-gray-700 transition hover:bg-gray-50"
-          >
-            Status
-          </button>
-
-          {/* DELETE */}
-
-          <button
-            type="button"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-
-              meta.onDelete(user);
-            }}
-            className="rounded-lg border border-red-200 bg-white px-2.5 py-2 text-[10px] font-semibold text-red-600 transition hover:bg-red-50"
-          >
-            Delete
-          </button>
+              <DropdownMenuItem
+                onSelect={() => {
+                  meta.onDelete(user);
+                }}
+                className="text-red-600 focus:bg-red-50 focus:text-red-600"
+              >
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       );
     },
@@ -250,30 +292,12 @@ function RoleBadge({
 }: {
   role: UserRole;
 }) {
-  let className =
-    "border-gray-200 bg-gray-50 text-gray-600";
-
-  if (role === "Participant") {
-    className =
-      "border-blue-100 bg-blue-50 text-blue-700";
-  }
-
-  if (role === "Trainer") {
-    className =
-      "border-purple-100 bg-purple-50 text-purple-700";
-  }
-
-  if (role === "Admin") {
-    className =
-      "border-gray-200 bg-gray-100 text-gray-700";
-  }
+  const variant = getRoleVariant(role);
 
   return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold ${className}`}
-    >
+    <Badge variant={variant}>
       {role}
-    </span>
+    </Badge>
   );
 }
 
@@ -288,46 +312,63 @@ function StatusBadge({
 }: {
   status: UserStatus;
 }) {
-  let className =
-    "border-gray-200 bg-gray-50 text-gray-600";
-
-  if (
-    status === "Active" ||
-    status === "Approved"
-  ) {
-    className =
-      "border-emerald-100 bg-emerald-50 text-emerald-700";
-  }
-
-  if (status === "Pending") {
-    className =
-      "border-amber-100 bg-amber-50 text-amber-700";
-  }
-
-  if (status === "Rejected") {
-    className =
-      "border-red-100 bg-red-50 text-red-700";
-  }
-
-  if (status === "Suspended") {
-    className =
-      "border-orange-100 bg-orange-50 text-orange-700";
-  }
-
-  if (status === "Inactive") {
-    className =
-      "border-gray-200 bg-gray-50 text-gray-500";
-  }
+  const variant = getStatusVariant(status);
 
   return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold ${className}`}
-    >
+    <Badge variant={variant}>
       {status}
-    </span>
+    </Badge>
   );
 }
 
+/*
+|--------------------------------------------------------------------------
+| ROLE VARIANT
+|--------------------------------------------------------------------------
+*/
+function getRoleVariant(role: UserRole) {
+  switch (role) {
+    case "Participant":
+      return "participant";
+
+    case "Trainer":
+      return "trainer";
+
+    case "Admin":
+      return "admin";
+
+    default:
+      return "neutral";
+  }
+}
+
+/*
+|--------------------------------------------------------------------------
+| STATUS VARIANT
+|--------------------------------------------------------------------------
+*/
+function getStatusVariant(
+  status: UserStatus
+) {
+  switch (status) {
+    case "Active":
+    case "Approved":
+      return "success";
+
+    case "Pending":
+      return "warning";
+
+    case "Rejected":
+    case "Suspended":
+      return "error";
+
+    case "Inactive":
+      return "neutral";
+
+    default:
+      return "neutral";
+  }
+}
 /*
 |--------------------------------------------------------------------------
 | INITIALS

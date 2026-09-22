@@ -275,6 +275,145 @@ namespace server.Migrations
                     b.ToTable("AssessmentRetakeRequests", (string)null);
                 });
 
+            modelBuilder.Entity("server.Models.Assessment.PracticalAssessment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<bool>("IsPublished")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal>("PassingPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<Guid>("TrainingBatchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TrainingBatchId");
+
+                    b.ToTable("PracticalAssessments", (string)null);
+                });
+
+            modelBuilder.Entity("server.Models.Assessment.PracticalAssessmentCriterion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<Guid>("PracticalAssessmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("WeightPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PracticalAssessmentId", "DisplayOrder");
+
+                    b.ToTable("PracticalAssessmentCriteria", (string)null);
+                });
+
+            modelBuilder.Entity("server.Models.Assessment.PracticalAssessmentCriterionScore", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PracticalAssessmentCriterionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PracticalAssessmentResultId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Score")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("numeric(8,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PracticalAssessmentCriterionId");
+
+                    b.HasIndex("PracticalAssessmentResultId", "PracticalAssessmentCriterionId")
+                        .IsUnique();
+
+                    b.ToTable("PracticalAssessmentCriterionScores", (string)null);
+                });
+
+            modelBuilder.Entity("server.Models.Assessment.PracticalAssessmentResult", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("EnrollmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("EvaluatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("EvaluatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsPassed")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal>("Percentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<Guid>("PracticalAssessmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("TotalScore")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("numeric(8,2)");
+
+                    b.Property<string>("TrainerRemarks")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EnrollmentId");
+
+                    b.HasIndex("PracticalAssessmentId", "EnrollmentId")
+                        .IsUnique();
+
+                    b.ToTable("PracticalAssessmentResults", (string)null);
+                });
+
             modelBuilder.Entity("server.Models.Assessment.WrittenAssessment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -463,6 +602,38 @@ namespace server.Migrations
                         .IsUnique();
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("server.Models.Canva.CanvaConnection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AccessToken")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RefreshToken")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Scope")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("CanvaConnections", (string)null);
                 });
 
             modelBuilder.Entity("server.Models.Learning.LearningMaterial", b =>
@@ -1157,6 +1328,123 @@ namespace server.Migrations
                     b.ToTable("TrainerProfiles");
                 });
 
+            modelBuilder.Entity("server.Models.Training.Certificate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CanvaDesignId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("CertificateNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("EnrollmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsRevoked")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("IssuedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PdfUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("RevocationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("VerificationCode")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CertificateNumber")
+                        .IsUnique();
+
+                    b.HasIndex("VerificationCode")
+                        .IsUnique();
+
+                    b.HasIndex("EnrollmentId", "Type")
+                        .IsUnique();
+
+                    b.ToTable("Certificates", (string)null);
+                });
+
+            modelBuilder.Entity("server.Models.Training.ParticipationRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("EnrollmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("RecordedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("RecordedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Remarks")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid>("TrainingSessionId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EnrollmentId");
+
+                    b.HasIndex("TrainingSessionId");
+
+                    b.HasIndex("EnrollmentId", "TrainingSessionId")
+                        .IsUnique();
+
+                    b.ToTable("ParticipationRecords", (string)null);
+                });
+
+            modelBuilder.Entity("server.Models.Training.ParticipationSetting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("RequiredRecitations")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TrainingBatchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TrainingBatchId")
+                        .IsUnique();
+
+                    b.ToTable("ParticipationSettings", (string)null);
+                });
+
             modelBuilder.Entity("server.Models.Training.TrainingBatch", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1478,6 +1766,66 @@ namespace server.Migrations
                     b.Navigation("WrittenAssessment");
                 });
 
+            modelBuilder.Entity("server.Models.Assessment.PracticalAssessment", b =>
+                {
+                    b.HasOne("server.Models.Training.TrainingBatch", "TrainingBatch")
+                        .WithMany()
+                        .HasForeignKey("TrainingBatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TrainingBatch");
+                });
+
+            modelBuilder.Entity("server.Models.Assessment.PracticalAssessmentCriterion", b =>
+                {
+                    b.HasOne("server.Models.Assessment.PracticalAssessment", "PracticalAssessment")
+                        .WithMany("Criteria")
+                        .HasForeignKey("PracticalAssessmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PracticalAssessment");
+                });
+
+            modelBuilder.Entity("server.Models.Assessment.PracticalAssessmentCriterionScore", b =>
+                {
+                    b.HasOne("server.Models.Assessment.PracticalAssessmentCriterion", "PracticalAssessmentCriterion")
+                        .WithMany("Scores")
+                        .HasForeignKey("PracticalAssessmentCriterionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("server.Models.Assessment.PracticalAssessmentResult", "PracticalAssessmentResult")
+                        .WithMany("CriterionScores")
+                        .HasForeignKey("PracticalAssessmentResultId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PracticalAssessmentCriterion");
+
+                    b.Navigation("PracticalAssessmentResult");
+                });
+
+            modelBuilder.Entity("server.Models.Assessment.PracticalAssessmentResult", b =>
+                {
+                    b.HasOne("server.Models.Participant.Enrollment", "Enrollment")
+                        .WithMany()
+                        .HasForeignKey("EnrollmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("server.Models.Assessment.PracticalAssessment", "PracticalAssessment")
+                        .WithMany("Results")
+                        .HasForeignKey("PracticalAssessmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Enrollment");
+
+                    b.Navigation("PracticalAssessment");
+                });
+
             modelBuilder.Entity("server.Models.Assessment.WrittenAssessment", b =>
                 {
                     b.HasOne("server.Models.Training.TrainingBatch", "TrainingBatch")
@@ -1719,6 +2067,47 @@ namespace server.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("server.Models.Training.Certificate", b =>
+                {
+                    b.HasOne("server.Models.Participant.Enrollment", "Enrollment")
+                        .WithMany()
+                        .HasForeignKey("EnrollmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Enrollment");
+                });
+
+            modelBuilder.Entity("server.Models.Training.ParticipationRecord", b =>
+                {
+                    b.HasOne("server.Models.Participant.Enrollment", "Enrollment")
+                        .WithMany()
+                        .HasForeignKey("EnrollmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("server.Models.Training.TrainingSession", "TrainingSession")
+                        .WithMany()
+                        .HasForeignKey("TrainingSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Enrollment");
+
+                    b.Navigation("TrainingSession");
+                });
+
+            modelBuilder.Entity("server.Models.Training.ParticipationSetting", b =>
+                {
+                    b.HasOne("server.Models.Training.TrainingBatch", "TrainingBatch")
+                        .WithMany()
+                        .HasForeignKey("TrainingBatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TrainingBatch");
+                });
+
             modelBuilder.Entity("server.Models.Training.TrainingBatch", b =>
                 {
                     b.HasOne("server.Models.Training.TrainingProgram", "TrainingProgram")
@@ -1780,6 +2169,23 @@ namespace server.Migrations
                     b.Navigation("Answers");
 
                     b.Navigation("Choices");
+                });
+
+            modelBuilder.Entity("server.Models.Assessment.PracticalAssessment", b =>
+                {
+                    b.Navigation("Criteria");
+
+                    b.Navigation("Results");
+                });
+
+            modelBuilder.Entity("server.Models.Assessment.PracticalAssessmentCriterion", b =>
+                {
+                    b.Navigation("Scores");
+                });
+
+            modelBuilder.Entity("server.Models.Assessment.PracticalAssessmentResult", b =>
+                {
+                    b.Navigation("CriterionScores");
                 });
 
             modelBuilder.Entity("server.Models.Assessment.WrittenAssessment", b =>

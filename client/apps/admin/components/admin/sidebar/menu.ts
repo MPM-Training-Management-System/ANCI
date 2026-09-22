@@ -1,29 +1,27 @@
 import {
   LayoutDashboard,
   Users,
-  BriefcaseBusiness,
-  UserRound,
-  ClipboardCheck,
-  FileBarChart2,
-  CalendarDays,
-  Megaphone,
-  Bell,
-  MessageSquare,
-  Settings,
-  BookOpen,
+  Wrench,
   UserCheck,
+  GraduationCap,
+  ClipboardList,
+  CalendarDays,
+  ClipboardCheck,
+  Award,
+  BookOpen,
+  FileBarChart2,
+  BarChart3,
+  Settings,
+  MessageSquareText,
 } from "lucide-react";
 
-import { SidebarSectionType } from "./types";
+import type { SidebarSectionType } from "./types";
 
 export const sidebarMenu: SidebarSectionType[] = [
-  // =========================================================
-  // MAIN
-  // =========================================================
+
 
   {
     title: "MAIN",
-
     items: [
       {
         title: "Dashboard",
@@ -33,125 +31,121 @@ export const sidebarMenu: SidebarSectionType[] = [
     ],
   },
 
-  // =========================================================
-  // MANAGEMENT
-  // =========================================================
 
-  {
-    title: "MANAGEMENT",
 
+    {
+    title: "SERVICE MANAGEMENT",
     items: [
       {
-        title: "User",
-        href: "/user",
-        icon: UserRound,
-      },
-
-       {
         title: "Services",
-        href: "/services",
-        icon: UserRound,
-      },
-
-      // -------------------------------------------------------
-      // TRAINER APPLICATIONS
-      // -------------------------------------------------------
-
-      {
-        title: "Trainer Applications",
-        href: "/trainer-applications",
-        icon: UserCheck,
-      },
-
-      {
-        title: "Training",
-        href: "/training",
-        icon: Users,
-      },
-
-      {
-        title: "Attendance",
-        href: "/attendance",
-        icon: BriefcaseBusiness,
-      },
-
-      {
-        title: "Assessment",
-        href: "/assessment",
-        icon: BriefcaseBusiness,
-      },
-
-      {
-        title: "Certificate",
-        href: "/certificate",
-        icon: ClipboardCheck,
-      },
-
-      {
-        title: "Learning Materials",
-        href: "/learning",
-        icon: BookOpen,
-      },
-
-      {
-        title: "Enrollment",
-        href: "/enrollment",
-        icon: CalendarDays,
+        icon: Wrench,
+        children: [
+          {
+            title: "Services",
+            href: "/services",
+            icon: Wrench,
+          },
+          {
+            title: "Requests",
+            href: "/services/requests",
+            icon: ClipboardList,
+          },
+          {
+            title: "Consultations",
+            href: "/services/consultations",
+            icon: MessageSquareText,
+          },
+          {
+            title: "Training",
+            href: "/services/training",
+            icon: GraduationCap,
+          },
+        ],
       },
     ],
   },
 
-  // =========================================================
-  // REPORTS
-  // =========================================================
+  {
+    title: "TRAINING MANAGEMENT",
+    items: [
+      {
+        title: "Training Management",
+        icon: GraduationCap,
+        children: [
+          {
+            title: "Users",
+            href: "/user",
+            icon: Users,
+          },
+           {
+            title: "Grades",
+            href: "/grade",
+            icon: BarChart3,
+          },
+          {
+            title: "Trainer Applications",
+            href: "/trainer-applications",
+            icon: UserCheck,
+          },
+          {
+            title: "Training",
+            href: "/training",
+            icon: GraduationCap,
+          },
+          {
+            title: "Enrollment",
+            href: "/enrollment",
+            icon: ClipboardList,
+          },
+          {
+            title: "Attendance",
+            href: "/attendance",
+            icon: CalendarDays,
+          },
+          {
+            title: "Assessment",
+            href: "/assessment",
+            icon: ClipboardCheck,
+          },
+          {
+            title: "Certificates",
+            href: "/certificate",
+            icon: Award,
+          },
+          {
+            title: "Learning Materials",
+            href: "/learning",
+            icon: BookOpen,
+          },
+        ],
+      },
+    ],
+  },
+
+
 
   {
     title: "REPORTS",
-
     items: [
       {
         title: "Reports",
-        href: "/report",
         icon: FileBarChart2,
+        children: [
+         
+          {
+            title: "Reports",
+            href: "/report",
+            icon: FileBarChart2,
+          },
+        ],
       },
     ],
   },
 
-  // =========================================================
-  // COMMUNICATION
-  // =========================================================
 
-  {
-    title: "COMMUNICATION",
-
-    items: [
-      {
-        title: "Announcements",
-        href: "/announcement",
-        icon: Megaphone,
-      },
-
-      {
-        title: "Notifications",
-        href: "/notification",
-        icon: Bell,
-      },
-
-      {
-        title: "Messages",
-        href: "/message",
-        icon: MessageSquare,
-      },
-    ],
-  },
-
-  // =========================================================
-  // SETTINGS
-  // =========================================================
 
   {
     title: "SETTINGS",
-
     items: [
       {
         title: "Settings",

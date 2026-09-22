@@ -4,38 +4,45 @@ import type { ColumnDef } from "@tanstack/react-table";
 
 import {
   Badge,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
   UserCell,
 } from "@repo/ui/index";
 
-import type {
-  Enrollment,
-} from "@repo/types";
+import type { Enrollment } from "@repo/types";
+
+export interface EnrollmentTableMeta {
+  onView: (enrollment: Enrollment) => void;
+  onApprove: (enrollment: Enrollment) => void;
+  onReject: (enrollment: Enrollment) => void;
+}
 
 export const columns: ColumnDef<Enrollment>[] = [
   {
     accessorKey: "participantName",
-
     header: "Participant",
-
     cell: ({ row }) => {
       const item = row.original;
 
       return (
-
-           <UserCell
-        name={item.participant.fullName}
-        email={item.participant.email}
-        image={item.participant.profileImageUrl ?? undefined}
-      />
+        <UserCell
+          name={item.participant.fullName}
+          email={item.participant.email}
+          image={
+            item.participant.profileImageUrl ??
+            undefined
+          }
+        />
       );
     },
   },
 
   {
     accessorKey: "programName",
-
     header: "Training",
-
     cell: ({ row }) => (
       <div className="min-w-[220px]">
         <p className="font-semibold text-gray-900">
@@ -51,9 +58,7 @@ export const columns: ColumnDef<Enrollment>[] = [
 
   {
     accessorKey: "batchCode",
-
     header: "Batch",
-
     cell: ({ row }) => (
       <span className="rounded-lg bg-gray-100 px-2.5 py-1.5 font-mono text-[10px] font-semibold text-gray-600">
         {row.original.batchCode}
@@ -63,9 +68,7 @@ export const columns: ColumnDef<Enrollment>[] = [
 
   {
     accessorKey: "enrolledAt",
-
     header: "Applied",
-
     cell: ({ row }) => {
       const date = new Date(
         row.original.enrolledAt
@@ -85,23 +88,30 @@ export const columns: ColumnDef<Enrollment>[] = [
 
   {
     accessorKey: "status",
-
     header: "Status",
-
     cell: ({ row }) => {
-      const status =
-        row.original.status;
+      const status = row.original.status;
 
       const variant =
         status === "Approved"
           ? "success"
           : status === "Rejected"
             ? "error"
-            : "pending";
+            : status === "Cancelled"
+              ? "error"
+              : status === "NeedsCorrection"
+                ? "warning"
+                : status === "UnderReview"
+                  ? "pending"
+                  : "pending";
 
       return (
         <Badge variant={variant}>
-          {status}
+          {status === "UnderReview"
+            ? "Under Review"
+            : status === "NeedsCorrection"
+              ? "Needs Correction"
+              : status}
         </Badge>
       );
     },
@@ -109,22 +119,16 @@ export const columns: ColumnDef<Enrollment>[] = [
 
   {
     id: "requirements",
-
     header: "Requirements",
-
     cell: ({ row }) => {
-      const documents =
-        row.original.documents;
+      const documents = row.original.documents;
 
-      const total =
-        documents.length;
+      const total = documents.length;
 
-      const approved =
-        documents.filter(
-          document =>
-            document.status ===
-            "Approved"
-        ).length;
+      const approved = documents.filter(
+        (document) =>
+          document.status === "Approved"
+      ).length;
 
       const percentage =
         total > 0
@@ -160,54 +164,87 @@ export const columns: ColumnDef<Enrollment>[] = [
 
   {
     id: "actions",
-
     header: "Actions",
+    enableSorting: false,
+    enableColumnFilter: false,
 
     cell: ({ row, table }) => {
-      const item =
-        row.original;
+      const item = row.original;
 
       const meta =
         table.options.meta as
-          | {
-              onView?: (
-                enrollment: Enrollment
-              ) => void;
-
-              onApprove?: (
-                enrollment: Enrollment
-              ) => void;
-
-              onReject?: (
-                enrollment: Enrollment
-              ) => void;
-            }
+          | EnrollmentTableMeta
           | undefined;
 
-      return (
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() =>
-              meta?.onView?.(item)
-            }
-            className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-          >
-            View
-          </button>
+      if (!meta) {
+        return null;
+      }
 
-          {item.status ===
-            "Pending" && (
-            <button
-              type="button"
-              onClick={() =>
-                meta?.onApprove?.(item)
-              }
-              className="rounded-lg bg-[#191c1e] px-3 py-2 text-xs font-semibold text-white hover:opacity-90"
+      return (
+        <div
+          className="flex items-center justify-end"
+          onClick={(event) => {
+            event.stopPropagation();
+          }}
+        >
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+                aria-label={`Actions for ${item.participant.fullName}`}
+              >
+                <span className="text-lg leading-none">
+                  ⋯
+                </span>
+              </button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent
+              align="end"
+              className="w-40"
+              onClick={(event) => {
+                event.stopPropagation();
+              }}
             >
-              Review
-            </button>
-          )}
+              <DropdownMenuItem
+                onSelect={() => {
+                  meta.onView(item);
+                }}
+              >
+                View
+              </DropdownMenuItem>
+
+              {item.status === "Pending" && (
+                <DropdownMenuItem
+                  onSelect={() => {
+                    meta.onApprove(item);
+                  }}
+                >
+                  Review
+                </DropdownMenuItem>
+              )}
+
+              {item.status === "Pending" && (
+                <>
+                  <DropdownMenuSeparator />
+
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      meta.onReject(item);
+                    }}
+                    className="text-red-600 focus:bg-red-50 focus:text-red-600"
+                  >
+                    Reject
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       );
     },
