@@ -20,6 +20,8 @@ public class Service
 
     public DateTime UpdatedAt { get; set; }
 
+    public string? ImageUrl { get; set; }
+
     // Navigation
     public ICollection<ServiceRequirement> Requirements { get; set; }
         = new List<ServiceRequirement>();

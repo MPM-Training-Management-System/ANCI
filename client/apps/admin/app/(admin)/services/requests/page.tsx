@@ -6,6 +6,7 @@ import type {
   ServiceRequest,
   ServiceRequestResolutionType,
   ServiceRequestStatus,
+  ServiceConsultation,
 } from "@repo/types";
 
 import { serviceApi } from "@/lib/api";
@@ -13,6 +14,13 @@ import { useService } from "@repo/hooks";
 
 import { ServiceRequestTable } from "@/components/Services/ServiceRequestTable";
 import { ServiceRequestReviewModal } from "@/components/Services/ServiceRequestReviewModal";
+import { ServiceConsultationModal } from "@/components/Services/ServiceConsultationModal";
+
+import {
+  PageSection,
+  StatCard,
+  StatGrid,
+} from "@repo/ui/index";
 
 export default function ServiceRequestsPage() {
   const {
@@ -23,13 +31,36 @@ export default function ServiceRequestsPage() {
 
     getServiceRequests,
     reviewServiceRequest,
+    createConsultation,
   } = useService(serviceApi);
+
+  // =========================
+  // REQUEST REVIEW MODAL
+  // =========================
 
   const [isReviewOpen, setIsReviewOpen] =
     useState(false);
 
   const [selectedRequest, setSelectedRequest] =
     useState<ServiceRequest | null>(null);
+
+  // =========================
+  // CONSULTATION MODAL
+  // =========================
+
+  const [
+    isConsultationOpen,
+    setIsConsultationOpen,
+  ] = useState(false);
+
+  const [
+    selectedConsultation,
+    setSelectedConsultation,
+  ] = useState<ServiceConsultation | null>(null);
+
+  // =========================
+  // LOAD REQUESTS
+  // =========================
 
   useEffect(() => {
     void getServiceRequests();
@@ -38,12 +69,20 @@ export default function ServiceRequestsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // =========================
+  // OPEN REQUEST REVIEW
+  // =========================
+
   const handleReview = (
     request: ServiceRequest,
   ) => {
     setSelectedRequest(request);
     setIsReviewOpen(true);
   };
+
+  // =========================
+  // CLOSE REQUEST REVIEW
+  // =========================
 
   const handleCloseReview = () => {
     if (isUpdatingRequest) {
@@ -53,6 +92,19 @@ export default function ServiceRequestsPage() {
     setIsReviewOpen(false);
     setSelectedRequest(null);
   };
+
+  // =========================
+  // CLOSE CONSULTATION
+  // =========================
+
+  const handleCloseConsultation = () => {
+    setIsConsultationOpen(false);
+    setSelectedConsultation(null);
+  };
+
+  // =========================
+  // REVIEW REQUEST
+  // =========================
 
   const handleRequestReview = async (
     status: ServiceRequestStatus,
@@ -65,9 +117,12 @@ export default function ServiceRequestsPage() {
       return;
     }
 
+    const requestBeingReviewed =
+      selectedRequest;
+
     const result =
       await reviewServiceRequest(
-        selectedRequest.id,
+        requestBeingReviewed.id,
         {
           status,
           resolutionType,
@@ -80,11 +135,102 @@ export default function ServiceRequestsPage() {
       return;
     }
 
+    // Close review modal first.
     setIsReviewOpen(false);
     setSelectedRequest(null);
 
     await getServiceRequests();
+
+    // =====================================
+    // APPROVED + CONSULTATION
+    // =====================================
+
+    if (
+      status === "Approved" &&
+      resolutionType === "Consultation"
+    ) {
+      const consultation: ServiceConsultation = {
+        id: "",
+        serviceRequestId:
+          requestBeingReviewed.id,
+
+        serviceName:
+          requestBeingReviewed.serviceName ??
+          null,
+
+        applicantName:
+          requestBeingReviewed.applicantName,
+
+        applicantEmail:
+          requestBeingReviewed.applicantEmail,
+
+        // Empty because admin will schedule it
+        // inside the consultation modal.
+        scheduledAt: "",
+
+        endedAt: null,
+
+        meetingLink: "",
+
+        notes: adminRemarks.trim() || null,
+
+        status: "Scheduled",
+
+        createdAt:
+          new Date().toISOString(),
+
+        updatedAt:
+          new Date().toISOString(),
+      };
+
+      setSelectedConsultation(
+        consultation,
+      );
+
+      setIsConsultationOpen(true);
+    }
   };
+
+  // =========================
+  // SAVE CONSULTATION
+  // =========================
+
+  const handleConsultationSubmit = async (
+    scheduledAt: string,
+    meetingLink: string,
+    notes: string,
+    status: any,
+  ) => {
+    if (!selectedConsultation) {
+      return;
+    }
+
+    const result =
+      await createConsultation({
+        serviceRequestId:
+          selectedConsultation.serviceRequestId,
+
+        scheduledAt,
+
+        meetingLink,
+
+        notes:
+          notes.trim() || null,
+      });
+
+    if (!result) {
+      return;
+    }
+
+    setIsConsultationOpen(false);
+    setSelectedConsultation(null);
+
+    await getServiceRequests();
+  };
+
+  // =========================
+  // STATS
+  // =========================
 
   const totalRequests =
     serviceRequests.length;
@@ -95,17 +241,30 @@ export default function ServiceRequestsPage() {
         request.status === "Pending",
     ).length;
 
+  // =========================
+  // UI
+  // =========================
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-[#17191c]">
-          Service Requests
-        </h1>
+      <PageSection
+        title="Service Requests"
+        description="Review and manage service requests."
+      />
 
-        <p className="mt-1 text-sm text-gray-500">
-          Review and manage service requests.
-        </p>
-      </div>
+      <StatGrid>
+        <StatCard
+          title="Total Request"
+          value={totalRequests}
+          variant="primary"
+        />
+
+        <StatCard
+          title="Pending"
+          value={pendingRequests}
+          variant="warning"
+        />
+      </StatGrid>
 
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
@@ -114,28 +273,6 @@ export default function ServiceRequestsPage() {
           </p>
         </div>
       )}
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl border border-gray-200 bg-white p-4">
-          <p className="text-xs font-semibold text-gray-500">
-            Total Requests
-          </p>
-
-          <p className="mt-1 text-2xl font-bold text-[#17191c]">
-            {totalRequests}
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-gray-200 bg-white p-4">
-          <p className="text-xs font-semibold text-gray-500">
-            Pending
-          </p>
-
-          <p className="mt-1 text-2xl font-bold text-[#17191c]">
-            {pendingRequests}
-          </p>
-        </div>
-      </div>
 
       <section className="overflow-hidden rounded-2xl border border-[#e7e9ec] bg-white shadow-sm">
         <div className="p-5 sm:p-6">
@@ -147,12 +284,28 @@ export default function ServiceRequestsPage() {
         </div>
       </section>
 
+      {/* =========================
+          REQUEST REVIEW MODAL
+      ========================== */}
+
       <ServiceRequestReviewModal
         open={isReviewOpen}
         request={selectedRequest}
         isSubmitting={isUpdatingRequest}
         onClose={handleCloseReview}
         onSubmit={handleRequestReview}
+      />
+
+      {/* =========================
+          CONSULTATION MODAL
+      ========================== */}
+
+      <ServiceConsultationModal
+        open={isConsultationOpen}
+        consultation={selectedConsultation}
+        isSubmitting={false}
+        onClose={handleCloseConsultation}
+        onSubmit={handleConsultationSubmit}
       />
     </div>
   );

@@ -17,7 +17,10 @@ public class ServicesController : ControllerBase
         _service = service;
     }
 
+    // =========================================================
     // GET: api/services
+    // =========================================================
+
     [HttpGet]
     public async Task<ActionResult<List<ServiceDto>>> GetAll()
     {
@@ -26,7 +29,10 @@ public class ServicesController : ControllerBase
         return Ok(services);
     }
 
+    // =========================================================
     // GET: api/services/{id}
+    // =========================================================
+
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<ServiceDto>> GetById(Guid id)
     {
@@ -43,11 +49,14 @@ public class ServicesController : ControllerBase
         return Ok(service);
     }
 
+    // =========================================================
     // POST: api/services
+    // =========================================================
+
     [Authorize(Roles = "Admin")]
     [HttpPost]
     public async Task<ActionResult<ServiceDto>> Create(
-        [FromBody] CreateServiceDto dto)
+        [FromForm] CreateServiceDto dto)
     {
         try
         {
@@ -68,12 +77,15 @@ public class ServicesController : ControllerBase
         }
     }
 
+    // =========================================================
     // PUT: api/services/{id}
+    // =========================================================
+
     [Authorize(Roles = "Admin")]
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<ServiceDto>> Update(
         Guid id,
-        [FromBody] UpdateServiceDto dto)
+        [FromForm] UpdateServiceDto dto)
     {
         try
         {
@@ -98,7 +110,10 @@ public class ServicesController : ControllerBase
         }
     }
 
+    // =========================================================
     // DELETE: api/services/{id}
+    // =========================================================
+
     [Authorize(Roles = "Admin")]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
@@ -128,100 +143,69 @@ public class ServicesController : ControllerBase
             });
         }
     }
-// POST: api/services/requests
-[AllowAnonymous]
-[HttpPost("requests")]
-public async Task<ActionResult<ServiceRequestDto>> CreateRequest(
-    [FromBody] CreateServiceRequestDto dto)
-{
-    try
+
+    // =========================================================
+    // POST: api/services/requests
+    // =========================================================
+
+    [AllowAnonymous]
+    [HttpPost("requests")]
+    public async Task<ActionResult<ServiceRequestDto>> CreateRequest(
+        [FromBody] CreateServiceRequestDto dto)
     {
-        Guid? userId = null;
-
-        var userIdClaim = User.FindFirstValue(
-            ClaimTypes.NameIdentifier
-        );
-
-        if (Guid.TryParse(userIdClaim, out var parsedUserId))
+        try
         {
-            userId = parsedUserId;
-        }
+            Guid? userId = null;
 
-        var request = await _service.CreateRequestAsync(
-            userId,
-            dto
-        );
-
-        return Ok(request);
-    }
-    catch (InvalidOperationException ex)
-    {
-        return BadRequest(new
-        {
-            message = ex.Message
-        });
-    }
-}
-
-    [HttpGet("requests")]
-[Authorize(Roles = "Admin")]
-public async Task<IActionResult> GetRequests()
-{
-    var requests = await _service.GetRequestsAsync();
-
-    return Ok(requests);
-}
-
-[HttpGet("requests/{id:guid}")]
-[Authorize(Roles = "Admin")]
-public async Task<IActionResult> GetRequest(
-    Guid id
-)
-{
-    var request = await _service.GetRequestByIdAsync(id);
-
-    if (request == null)
-    {
-        return NotFound(new
-        {
-            message = "Service request not found."
-        });
-    }
-
-    return Ok(request);
-}
-// PUT: api/services/requests/{id}/review
-[HttpPut("requests/{id:guid}/review")]
-[Authorize(Roles = "Admin")]
-public async Task<IActionResult> ReviewRequest(
-    Guid id,
-    [FromBody] ReviewServiceRequestDto dto)
-{
-    try
-    {
-        var adminUserIdClaim =
-            User.FindFirstValue(
+            var userIdClaim = User.FindFirstValue(
                 ClaimTypes.NameIdentifier
             );
 
-        if (!Guid.TryParse(
-                adminUserIdClaim,
-                out var adminUserId))
-        {
-            return Unauthorized(new
+            if (Guid.TryParse(userIdClaim, out var parsedUserId))
             {
-                message = "Invalid admin identity."
-            });
-        }
+                userId = parsedUserId;
+            }
 
-        var request =
-            await _service.ReviewRequestAsync(
-                id,
-                adminUserId,
+            var request = await _service.CreateRequestAsync(
+                userId,
                 dto
             );
 
-        if (request is null)
+            return Ok(request);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+    }
+
+    // =========================================================
+    // GET: api/services/requests
+    // =========================================================
+
+    [HttpGet("requests")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetRequests()
+    {
+        var requests = await _service.GetRequestsAsync();
+
+        return Ok(requests);
+    }
+
+    // =========================================================
+    // GET: api/services/requests/{id}
+    // =========================================================
+
+    [HttpGet("requests/{id:guid}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetRequest(Guid id)
+    {
+        var request = await _service.GetRequestByIdAsync(id);
+
+        if (request == null)
         {
             return NotFound(new
             {
@@ -231,12 +215,57 @@ public async Task<IActionResult> ReviewRequest(
 
         return Ok(request);
     }
-    catch (InvalidOperationException ex)
+
+    // =========================================================
+    // PUT: api/services/requests/{id}/review
+    // =========================================================
+
+    [HttpPut("requests/{id:guid}/review")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> ReviewRequest(
+        Guid id,
+        [FromBody] ReviewServiceRequestDto dto)
     {
-        return BadRequest(new
+        try
         {
-            message = ex.Message
-        });
+            var adminUserIdClaim =
+                User.FindFirstValue(
+                    ClaimTypes.NameIdentifier
+                );
+
+            if (!Guid.TryParse(
+                    adminUserIdClaim,
+                    out var adminUserId))
+            {
+                return Unauthorized(new
+                {
+                    message = "Invalid admin identity."
+                });
+            }
+
+            var request =
+                await _service.ReviewRequestAsync(
+                    id,
+                    adminUserId,
+                    dto
+                );
+
+            if (request is null)
+            {
+                return NotFound(new
+                {
+                    message = "Service request not found."
+                });
+            }
+
+            return Ok(request);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
     }
-}
 }

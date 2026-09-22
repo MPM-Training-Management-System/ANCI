@@ -8,6 +8,6 @@ export interface StatCardProps
   description?: string;
   icon?: LucideIcon;
   footer?: ReactNode;
-  variant?: "default" | "primary" | "success" | "warning";
+  variant?: "default" | "primary" | "success" | "warning" | "danger";
   loading?: boolean;
 }

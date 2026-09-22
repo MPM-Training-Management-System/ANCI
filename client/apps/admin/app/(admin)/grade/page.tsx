@@ -107,7 +107,7 @@ export default function GradeCalculationPage() {
         <StatCard
           title="Failed"
           value={failedCount}
-          variant="warning"
+          variant="danger"
         />
 
         <StatCard

@@ -224,7 +224,7 @@ export default function TrainerApplicationsPage() {
             value={needsReviewApplications}
             description="Rejected or needs correction"
             icon={FileText}
-            variant="default"
+            variant="danger"
           />
         </StatGrid>
 

@@ -1,9 +1,11 @@
 using Microsoft.EntityFrameworkCore;
+
 using server.Data;
 using server.DTOs.Service;
 using server.Enums;
 using server.Models.Service;
 using server.Services.Email;
+using server.Services.Interfaces;
 
 namespace server.Services.Service;
 
@@ -11,13 +13,16 @@ public class ServiceService : IService
 {
     private readonly ApplicationDbContext _context;
     private readonly IServiceEmailService _serviceEmailService;
+    private readonly ICloudinaryService _cloudinaryService;
 
     public ServiceService(
         ApplicationDbContext context,
-        IServiceEmailService serviceEmailService)
+        IServiceEmailService serviceEmailService,
+        ICloudinaryService cloudinaryService)
     {
         _context = context;
         _serviceEmailService = serviceEmailService;
+        _cloudinaryService = cloudinaryService;
     }
 
     // =========================================================
@@ -41,6 +46,9 @@ public class ServiceService : IService
                 IsActive = x.IsActive,
                 CreatedAt = x.CreatedAt,
                 UpdatedAt = x.UpdatedAt,
+
+                // Cloudinary URL
+                ImageUrl = x.ImageUrl,
 
                 Requirements = x.Requirements
                     .OrderBy(r => r.DisplayOrder)
@@ -75,6 +83,9 @@ public class ServiceService : IService
                 CreatedAt = x.CreatedAt,
                 UpdatedAt = x.UpdatedAt,
 
+                // Cloudinary URL
+                ImageUrl = x.ImageUrl,
+
                 Requirements = x.Requirements
                     .OrderBy(r => r.DisplayOrder)
                     .Select(r => new ServiceRequirementDto
@@ -90,11 +101,44 @@ public class ServiceService : IService
             .FirstOrDefaultAsync();
     }
 
+    // =========================================================
+    // CREATE SERVICE
+    // =========================================================
+
     public async Task<ServiceDto> CreateAsync(
         CreateServiceDto dto)
     {
         var serviceCode =
             dto.ServiceCode.Trim().ToUpper();
+
+        // =====================================================
+        // VALIDATION
+        // =====================================================
+
+        if (string.IsNullOrWhiteSpace(dto.ServiceCode))
+        {
+            throw new InvalidOperationException(
+                "Service code is required."
+            );
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.Name))
+        {
+            throw new InvalidOperationException(
+                "Service name is required."
+            );
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.Category))
+        {
+            throw new InvalidOperationException(
+                "Service category is required."
+            );
+        }
+
+        // =====================================================
+        // CHECK DUPLICATE SERVICE CODE
+        // =====================================================
 
         var exists = await _context.Services
             .AnyAsync(x =>
@@ -107,20 +151,67 @@ public class ServiceService : IService
             );
         }
 
+        // =====================================================
+        // UPLOAD IMAGE TO CLOUDINARY
+        // =====================================================
+
+        string? imageUrl = null;
+
+        if (dto.Image != null && dto.Image.Length > 0)
+        {
+            await using var stream =
+                dto.Image.OpenReadStream();
+
+            imageUrl =
+                await _cloudinaryService.UploadImageAsync(
+                    stream,
+                    dto.Image.FileName,
+                    "ace-nextgen/services"
+                );
+        }
+
+        // =====================================================
+        // CREATE SERVICE
+        // =====================================================
+
         var now = DateTime.UtcNow;
 
-        var service = new Models.Service.Service
-        {
-            Id = Guid.NewGuid(),
-            ServiceCode = serviceCode,
-            Name = dto.Name.Trim(),
-            Description = dto.Description?.Trim(),
-            Category = dto.Category.Trim(),
-            RequiresTraining = dto.RequiresTraining,
-            IsActive = true,
-            CreatedAt = now,
-            UpdatedAt = now
-        };
+        var service =
+            new Models.Service.Service
+            {
+                Id = Guid.NewGuid(),
+
+                ServiceCode =
+                    serviceCode,
+
+                Name =
+                    dto.Name.Trim(),
+
+                Description =
+                    dto.Description?.Trim(),
+
+                Category =
+                    dto.Category.Trim(),
+
+                ImageUrl =
+                    imageUrl,
+
+                RequiresTraining =
+                    dto.RequiresTraining,
+
+                IsActive =
+                    true,
+
+                CreatedAt =
+                    now,
+
+                UpdatedAt =
+                    now
+            };
+
+        // =====================================================
+        // REQUIREMENTS
+        // =====================================================
 
         foreach (
             var requirementDto in dto.Requirements
@@ -130,17 +221,28 @@ public class ServiceService : IService
                 new ServiceRequirement
                 {
                     Id = Guid.NewGuid(),
-                    ServiceId = service.Id,
-                    Name = requirementDto.Name.Trim(),
+
+                    ServiceId =
+                        service.Id,
+
+                    Name =
+                        requirementDto.Name.Trim(),
+
                     Description =
                         requirementDto.Description?.Trim(),
+
                     IsRequired =
                         requirementDto.IsRequired,
+
                     DisplayOrder =
                         requirementDto.DisplayOrder
                 }
             );
         }
+
+        // =====================================================
+        // SAVE
+        // =====================================================
 
         _context.Services.Add(service);
 
@@ -148,6 +250,10 @@ public class ServiceService : IService
 
         return (await GetByIdAsync(service.Id))!;
     }
+
+    // =========================================================
+    // UPDATE SERVICE
+    // =========================================================
 
     public async Task<ServiceDto?> UpdateAsync(
         Guid id,
@@ -161,6 +267,74 @@ public class ServiceService : IService
         {
             return null;
         }
+
+        // =====================================================
+        // REMOVE IMAGE
+        // =====================================================
+
+        if (dto.RemoveImage)
+        {
+            if (!string.IsNullOrWhiteSpace(service.ImageUrl))
+            {
+                try
+                {
+                    await _cloudinaryService
+                        .DeleteImageAsync(
+                            service.ImageUrl
+                        );
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(
+                        $"Failed to delete service image from Cloudinary: {ex.Message}"
+                    );
+                }
+            }
+
+            service.ImageUrl = null;
+        }
+
+        // =====================================================
+        // UPLOAD NEW IMAGE
+        // =====================================================
+
+        if (dto.Image != null && dto.Image.Length > 0)
+        {
+            // Delete old image first
+            if (!string.IsNullOrWhiteSpace(service.ImageUrl))
+            {
+                try
+                {
+                    await _cloudinaryService
+                        .DeleteImageAsync(
+                            service.ImageUrl
+                        );
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(
+                        $"Failed to delete old service image from Cloudinary: {ex.Message}"
+                    );
+                }
+            }
+
+            await using var stream =
+                dto.Image.OpenReadStream();
+
+            var newImageUrl =
+                await _cloudinaryService.UploadImageAsync(
+                    stream,
+                    dto.Image.FileName,
+                    "ace-nextgen/services"
+                );
+
+            service.ImageUrl =
+                newImageUrl;
+        }
+
+        // =====================================================
+        // UPDATE SERVICE INFORMATION
+        // =====================================================
 
         service.Name =
             dto.Name.Trim();
@@ -180,7 +354,10 @@ public class ServiceService : IService
         service.UpdatedAt =
             DateTime.UtcNow;
 
-        // Remove existing requirements
+        // =====================================================
+        // REMOVE OLD REQUIREMENTS
+        // =====================================================
+
         var existingRequirements =
             service.Requirements.ToList();
 
@@ -191,19 +368,29 @@ public class ServiceService : IService
             );
         }
 
-        // Add updated requirements
+        // =====================================================
+        // ADD NEW REQUIREMENTS
+        // =====================================================
+
         var newRequirements =
             dto.Requirements
                 .OrderBy(x => x.DisplayOrder)
                 .Select(x => new ServiceRequirement
                 {
                     Id = Guid.NewGuid(),
-                    ServiceId = service.Id,
-                    Name = x.Name.Trim(),
+
+                    ServiceId =
+                        service.Id,
+
+                    Name =
+                        x.Name.Trim(),
+
                     Description =
                         x.Description?.Trim(),
+
                     IsRequired =
                         x.IsRequired,
+
                     DisplayOrder =
                         x.DisplayOrder
                 })
@@ -213,10 +400,18 @@ public class ServiceService : IService
             newRequirements
         );
 
+        // =====================================================
+        // SAVE
+        // =====================================================
+
         await _context.SaveChangesAsync();
 
         return await GetByIdAsync(id);
     }
+
+    // =========================================================
+    // DELETE SERVICE
+    // =========================================================
 
     public async Task<bool> DeleteAsync(Guid id)
     {
@@ -228,9 +423,14 @@ public class ServiceService : IService
             return false;
         }
 
-        var hasRequests = await _context.ServiceRequests
-            .AnyAsync(x =>
-                x.ServiceId == id);
+        // =====================================================
+        // CHECK SERVICE REQUESTS
+        // =====================================================
+
+        var hasRequests =
+            await _context.ServiceRequests
+                .AnyAsync(x =>
+                    x.ServiceId == id);
 
         if (hasRequests)
         {
@@ -238,6 +438,31 @@ public class ServiceService : IService
                 "This service cannot be deleted because it already has service requests."
             );
         }
+
+        // =====================================================
+        // DELETE CLOUDINARY IMAGE
+        // =====================================================
+
+        if (!string.IsNullOrWhiteSpace(service.ImageUrl))
+        {
+            try
+            {
+                await _cloudinaryService
+                    .DeleteImageAsync(
+                        service.ImageUrl
+                    );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(
+                    $"Failed to delete service image from Cloudinary: {ex.Message}"
+                );
+            }
+        }
+
+        // =====================================================
+        // DELETE SERVICE
+        // =====================================================
 
         _context.Services.Remove(service);
 
@@ -272,29 +497,24 @@ public class ServiceService : IService
         var applicantEmail =
             dto.ApplicantEmail.Trim();
 
-        if (string.IsNullOrWhiteSpace(
-                applicantName))
+        if (string.IsNullOrWhiteSpace(applicantName))
         {
             throw new ArgumentException(
                 "Applicant name is required."
             );
         }
 
-        if (string.IsNullOrWhiteSpace(
-                applicantEmail))
+        if (string.IsNullOrWhiteSpace(applicantEmail))
         {
             throw new ArgumentException(
                 "Applicant email is required."
             );
         }
 
-        // Prevent duplicate pending requests.
-        //
-        // If the applicant is a registered user,
-        // check using UserId.
-        //
-        // If the request is from the public landing page,
-        // check using email instead.
+        // =====================================================
+        // PREVENT DUPLICATE PENDING REQUESTS
+        // =====================================================
+
         var existingPendingRequest =
             await _context.ServiceRequests
                 .AnyAsync(x =>
@@ -322,6 +542,10 @@ public class ServiceService : IService
                 "You already have a pending request for this service."
             );
         }
+
+        // =====================================================
+        // CREATE REQUEST
+        // =====================================================
 
         var request = new ServiceRequest
         {
@@ -359,8 +583,6 @@ public class ServiceService : IService
 
         try
         {
-            // Load the navigation property so the
-            // email service has access to Service.Name.
             request.Service = service;
 
             await _serviceEmailService
@@ -370,8 +592,6 @@ public class ServiceService : IService
         }
         catch (Exception ex)
         {
-            // The service request was already saved successfully.
-            // Email failure should not cause the request to fail.
             Console.WriteLine(
                 $"Failed to send service request email: {ex.Message}"
             );
@@ -419,6 +639,10 @@ public class ServiceService : IService
                 request.ReviewedByUserId
         };
     }
+
+    // =========================================================
+    // GET REQUESTS
+    // =========================================================
 
     public async Task<List<ServiceRequestDto>>
         GetRequestsAsync()
@@ -473,6 +697,10 @@ public class ServiceService : IService
             })
             .ToListAsync();
     }
+
+    // =========================================================
+    // GET REQUEST BY ID
+    // =========================================================
 
     public async Task<ServiceRequestDto?>
         GetRequestByIdAsync(Guid id)
@@ -549,8 +777,10 @@ public class ServiceService : IService
             return null;
         }
 
-        // Save previous status so we only send
-        // an email when the status actually changes.
+        // =====================================================
+        // PREVIOUS STATUS
+        // =====================================================
+
         var previousStatus =
             request.Status;
 
@@ -558,7 +788,6 @@ public class ServiceService : IService
         // RESOLUTION
         // =====================================================
 
-        // A rejected request does not need a resolution.
         if (
             dto.Status ==
             ServiceRequestStatus.Rejected
@@ -569,7 +798,6 @@ public class ServiceService : IService
         }
         else
         {
-            // Resolution is required when approving a request.
             if (!dto.ResolutionType.HasValue)
             {
                 throw new InvalidOperationException(
@@ -603,7 +831,7 @@ public class ServiceService : IService
         await _context.SaveChangesAsync();
 
         // =====================================================
-        // EMAIL: STATUS CHANGE
+        // EMAIL
         // =====================================================
 
         if (
@@ -613,16 +841,6 @@ public class ServiceService : IService
         {
             try
             {
-                // IMPORTANT:
-                //
-                // This now uses IServiceEmailService.
-                //
-                // For:
-                // Approved + Training
-                //
-                // ServiceEmailService will automatically
-                // call SendTrainingApprovalAsync()
-                // and send the NEW branded training email.
                 await _serviceEmailService
                     .SendRequestStatusChangedAsync(
                         request,
@@ -631,9 +849,6 @@ public class ServiceService : IService
             }
             catch (Exception ex)
             {
-                // The status update already succeeded.
-                // Do not roll back the request because
-                // of email failure.
                 Console.WriteLine(
                     $"Failed to send service status email: {ex.Message}"
                 );

@@ -38,28 +38,116 @@ export class ServiceApi {
     );
   }
 
-  async create(request: CreateService): Promise<Service> {
-    return this.api.request<Service>(
-      ServiceEndpoints.create(),
-      {
-        method: "POST",
-        body: request,
-      }
-    );
+ async create(request: CreateService): Promise<Service> {
+  const formData = new FormData();
+
+  formData.append("serviceCode", request.serviceCode);
+  formData.append("name", request.name);
+  formData.append("description", request.description ?? "");
+  formData.append("category", request.category);
+  formData.append(
+    "requiresTraining",
+    String(request.requiresTraining)
+  );
+
+  if (request.image) {
+    formData.append("image", request.image);
   }
 
-  async update(
-    id: string,
-    request: UpdateService
-  ): Promise<Service> {
-    return this.api.request<Service>(
-      ServiceEndpoints.update(id),
-      {
-        method: "PUT",
-        body: request,
-      }
+  request.requirements.forEach((requirement, index) => {
+    formData.append(
+      `requirements[${index}].name`,
+      requirement.name
     );
+
+    formData.append(
+      `requirements[${index}].description`,
+      requirement.description ?? ""
+    );
+
+    formData.append(
+      `requirements[${index}].isRequired`,
+      String(requirement.isRequired)
+    );
+
+    formData.append(
+      `requirements[${index}].displayOrder`,
+      String(requirement.displayOrder)
+    );
+  });
+
+  return this.api.request<Service>(
+    ServiceEndpoints.create(),
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+}
+async update(
+  id: string,
+  request: UpdateService
+): Promise<Service> {
+  const formData = new FormData();
+
+  formData.append("name", request.name);
+  formData.append("description", request.description ?? "");
+  formData.append("category", request.category);
+  formData.append(
+    "requiresTraining",
+    String(request.requiresTraining)
+  );
+  formData.append(
+    "isActive",
+    String(request.isActive)
+  );
+
+  if (request.image) {
+    formData.append("image", request.image);
   }
+
+  formData.append(
+    "removeImage",
+    String(request.removeImage ?? false)
+  );
+
+  request.requirements.forEach((requirement, index) => {
+    if (requirement.id) {
+      formData.append(
+        `requirements[${index}].id`,
+        requirement.id
+      );
+    }
+
+    formData.append(
+      `requirements[${index}].name`,
+      requirement.name
+    );
+
+    formData.append(
+      `requirements[${index}].description`,
+      requirement.description ?? ""
+    );
+
+    formData.append(
+      `requirements[${index}].isRequired`,
+      String(requirement.isRequired)
+    );
+
+    formData.append(
+      `requirements[${index}].displayOrder`,
+      String(requirement.displayOrder)
+    );
+  });
+
+  return this.api.request<Service>(
+    ServiceEndpoints.update(id),
+    {
+      method: "PUT",
+      body: formData,
+    }
+  );
+}
 
   async delete(id: string): Promise<void> {
     await this.api.request<void>(

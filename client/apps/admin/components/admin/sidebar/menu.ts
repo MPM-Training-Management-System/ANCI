@@ -77,16 +77,17 @@ export const sidebarMenu: SidebarSectionType[] = [
             href: "/user",
             icon: Users,
           },
-           {
-            title: "Grades",
-            href: "/grade",
-            icon: BarChart3,
-          },
           {
             title: "Trainer Applications",
             href: "/trainer-applications",
             icon: UserCheck,
           },
+           {
+            title: "Grades",
+            href: "/grade",
+            icon: BarChart3,
+          },
+          
           {
             title: "Training",
             href: "/training",

@@ -842,7 +842,7 @@ export default function EnrollmentPage() {
 
 
         <StatCard
-        variant="warning"
+        variant="danger"
           title="Rejected"
           value={rejected}
           description="Rejected enrollments"

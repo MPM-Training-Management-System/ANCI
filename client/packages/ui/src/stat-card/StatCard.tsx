@@ -95,6 +95,9 @@ function getIconStyles(
     case "primary":
       return "bg-blue-50 text-blue-700";
 
+    case "danger":
+      return "bg-blue-50 text-blue-700";
+
     case "success":
       return "bg-emerald-50 text-emerald-700";
 

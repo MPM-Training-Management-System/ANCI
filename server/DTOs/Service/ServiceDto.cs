@@ -13,5 +13,7 @@ public class ServiceDto
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
+    public string? ImageUrl { get; set; }
+
     public List<ServiceRequirementDto> Requirements { get; set; } = new();
 }

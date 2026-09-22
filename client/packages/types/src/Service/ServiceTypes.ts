@@ -26,10 +26,15 @@ export interface Service {
   name: string;
   description?: string | null;
   category: string;
+
+  // Service image
+  imageUrl?: string | null;
+
   requiresTraining: boolean;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+
   requirements: ServiceRequirement[];
 }
 
@@ -45,6 +50,7 @@ export interface CreateService {
   name: string;
   description?: string | null;
   category: string;
+  image?: File | null;
   requiresTraining: boolean;
   requirements: CreateServiceRequirement[];
 }
@@ -61,6 +67,8 @@ export interface UpdateService {
   name: string;
   description?: string | null;
   category: string;
+  image?: File | null;
+  removeImage?: boolean;
   requiresTraining: boolean;
   isActive: boolean;
   requirements: UpdateServiceRequirement[];
@@ -75,6 +83,7 @@ export interface CreateServiceRequest {
   applicantEmail: string;
   remarks?: string | null;
 }
+
 export interface ServiceRequest {
   id: string;
   serviceId: string;

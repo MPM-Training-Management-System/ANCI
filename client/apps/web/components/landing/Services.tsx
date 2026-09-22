@@ -1,9 +1,6 @@
 "use client";
 
-import Image, {
-  StaticImageData,
-} from "next/image";
-
+import Image from "next/image";
 import {
   useEffect,
   useMemo,
@@ -34,10 +31,6 @@ import type {
   Service,
 } from "@repo/types";
 
-import Governance from "@/assets/image/governance.jpg";
-import Mediation from "@/assets/image/train.jpg";
-import Sport from "@/assets/image/sport.jpg";
-
 import { serviceApi } from "@/lib/api";
 
 import {
@@ -48,36 +41,6 @@ import {
 } from "@repo/ui/index";
 
 /* ============================================================
-   IMAGE FALLBACKS
-
-   Your backend Service model does not currently contain an
-   image URL, so we keep the existing landing-page images as
-   visual fallbacks.
-
-   New services will receive the default image.
-============================================================ */
-
-const serviceImages: Record<
-  string,
-  StaticImageData
-> = {
-  governance: Governance,
-  mediation: Mediation,
-  "mediation & peace": Mediation,
-  "sports development": Sport,
-};
-
-const getServiceImage = (
-  service: Service,
-): StaticImageData => {
-  const name = service.name
-    .trim()
-    .toLowerCase();
-
-  return serviceImages[name] ?? Governance;
-};
-
-/* ============================================================
    WORKFLOW
 ============================================================ */
 
@@ -85,15 +48,13 @@ const workflowSteps = [
   {
     number: "01",
     title: "Request",
-    description:
-      "Submit the service you need.",
+    description: "Submit the service you need.",
     icon: Send,
   },
   {
     number: "02",
     title: "Review",
-    description:
-      "Our team reviews your request.",
+    description: "Our team reviews your request.",
     icon: FileCheck2,
   },
   {
@@ -220,15 +181,13 @@ export default function Services() {
      ACTIVE SERVICES ONLY
   ========================================================== */
 
-  const activeServices =
-    useMemo(
-      () =>
-        services.filter(
-          (service) =>
-            service.isActive,
-        ),
-      [services],
-    );
+  const activeServices = useMemo(
+    () =>
+      services.filter(
+        (service) => service.isActive,
+      ),
+    [services],
+  );
 
   /* ==========================================================
      OPEN REQUEST MODAL
@@ -259,7 +218,6 @@ export default function Services() {
     }
 
     setIsRequestOpen(false);
-
     setSelectedService(null);
 
     setApplicantName("");
@@ -274,99 +232,82 @@ export default function Services() {
      SUBMIT SERVICE REQUEST
   ========================================================== */
 
-  const handleSubmitRequest =
-    async (
-      event: React.FormEvent<HTMLFormElement>,
-    ) => {
-      event.preventDefault();
+  const handleSubmitRequest = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
 
-      if (!selectedService) {
-        return;
-      }
+    if (!selectedService) {
+      return;
+    }
 
-      const name =
-        applicantName.trim();
+    const name = applicantName.trim();
+    const email = applicantEmail.trim();
+    const message = remarks.trim();
 
-      const email =
-        applicantEmail.trim();
+    /* --------------------------------------------------------
+       VALIDATION
+    -------------------------------------------------------- */
 
-      const message =
-        remarks.trim();
+    if (!name) {
+      setSubmitError(
+        "Please enter your name.",
+      );
+      return;
+    }
 
-      /* ------------------------------------------------------
-         VALIDATION
-      ------------------------------------------------------ */
+    if (!email) {
+      setSubmitError(
+        "Please enter your email address.",
+      );
+      return;
+    }
 
-      if (!name) {
-        setSubmitError(
-          "Please enter your name.",
-        );
+    if (
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+        email,
+      )
+    ) {
+      setSubmitError(
+        "Please enter a valid email address.",
+      );
+      return;
+    }
 
-        return;
-      }
+    setIsSubmitting(true);
+    setSubmitError(null);
+    setSubmitSuccess(false);
 
-      if (!email) {
-        setSubmitError(
-          "Please enter your email address.",
-        );
+    try {
+      const request: CreateServiceRequest = {
+        serviceId: selectedService.id,
+        applicantName: name,
+        applicantEmail: email,
+        remarks: message || null,
+      };
 
-        return;
-      }
+      await serviceApi.createRequest(
+        request,
+      );
 
-      if (
-        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-          email,
-        )
-      ) {
-        setSubmitError(
-          "Please enter a valid email address.",
-        );
+      setSubmitSuccess(true);
 
-        return;
-      }
+      setApplicantName("");
+      setApplicantEmail("");
+      setRemarks("");
+    } catch (error) {
+      console.error(
+        "Failed to submit service request:",
+        error,
+      );
 
-      setIsSubmitting(true);
-      setSubmitError(null);
-      setSubmitSuccess(false);
-
-      try {
-        const request: CreateServiceRequest =
-          {
-            serviceId:
-              selectedService.id,
-
-            applicantName:
-              name,
-
-            applicantEmail:
-              email,
-
-            remarks:
-              message || null,
-          };
-
-        await serviceApi.createRequest(
-          request,
-        );
-
-        setSubmitSuccess(true);
-
-        setApplicantName("");
-        setApplicantEmail("");
-        setRemarks("");
-      } catch (error) {
-        console.error(
-          "Failed to submit service request:",
-          error,
-        );
-
-        setSubmitError(
-          "We couldn't submit your request. Please try again.",
-        );
-      } finally {
-        setIsSubmitting(false);
-      }
-    };
+      setSubmitError(
+        "We couldn't submit your request. Please try again.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   /* ==========================================================
      RENDER
@@ -395,8 +336,7 @@ export default function Services() {
           style={{
             backgroundImage:
               "linear-gradient(#002b5c 1px, transparent 1px), linear-gradient(90deg, #002b5c 1px, transparent 1px)",
-            backgroundSize:
-              "40px 40px",
+            backgroundSize: "40px 40px",
           }}
         />
 
@@ -556,7 +496,6 @@ export default function Services() {
                 >
                   <span className="relative flex h-2 w-2">
                     <span className="absolute h-full w-full animate-ping rounded-full bg-green-400 opacity-60" />
-
                     <span className="relative h-2 w-2 rounded-full bg-green-500" />
                   </span>
 
@@ -571,18 +510,12 @@ export default function Services() {
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
                   {workflowSteps.map(
-                    (
-                      step,
-                      index,
-                    ) => {
-                      const Icon =
-                        step.icon;
+                    (step, index) => {
+                      const Icon = step.icon;
 
                       return (
                         <div
-                          key={
-                            step.number
-                          }
+                          key={step.number}
                           className="
                             group/step
                             relative
@@ -619,22 +552,16 @@ export default function Services() {
                             </div>
 
                             <span className="text-[10px] font-extrabold text-gray-300">
-                              {
-                                step.number
-                              }
+                              {step.number}
                             </span>
                           </div>
 
                           <h4 className="mt-5 text-sm font-extrabold text-[#002b5c]">
-                            {
-                              step.title
-                            }
+                            {step.title}
                           </h4>
 
                           <p className="mt-1 text-xs leading-5 text-gray-400">
-                            {
-                              step.description
-                            }
+                            {step.description}
                           </p>
 
                           {index <
@@ -680,7 +607,6 @@ export default function Services() {
 
                 <div className="flex items-center gap-2 text-xs font-bold text-primary">
                   Start with a request
-
                   <ArrowRight className="h-3.5 w-3.5" />
                 </div>
               </div>
@@ -732,14 +658,13 @@ export default function Services() {
                 ERROR
             =================================================== */}
 
-            {!isLoading &&
-              loadError && (
-                <div className="rounded-[28px] border border-red-200 bg-red-50 p-8 text-center">
-                  <p className="text-sm font-semibold text-red-700">
-                    {loadError}
-                  </p>
-                </div>
-              )}
+            {!isLoading && loadError && (
+              <div className="rounded-[28px] border border-red-200 bg-red-50 p-8 text-center">
+                <p className="text-sm font-semibold text-red-700">
+                  {loadError}
+                </p>
+              </div>
+            )}
 
             {/* ==================================================
                 NO SERVICES
@@ -747,8 +672,7 @@ export default function Services() {
 
             {!isLoading &&
               !loadError &&
-              activeServices.length ===
-                0 && (
+              activeServices.length === 0 && (
                 <div className="rounded-[28px] border border-gray-200 bg-white p-10 text-center shadow-sm">
                   <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
                     <Layers3 className="h-6 w-6 text-primary" />
@@ -772,36 +696,21 @@ export default function Services() {
 
             {!isLoading &&
               !loadError &&
-              activeServices.length >
-                0 && (
+              activeServices.length > 0 && (
                 <div className="grid gap-7 lg:grid-cols-3">
                   {activeServices.map(
-                    (
-                      service,
-                      index,
-                    ) => {
-                      const image =
-                        getServiceImage(
-                          service,
-                        );
-
-                      const requirements =
-                        [
-                          ...service.requirements,
-                        ].sort(
-                          (
-                            a,
-                            b,
-                          ) =>
-                            a.displayOrder -
-                            b.displayOrder,
-                        );
+                    (service, index) => {
+                      const requirements = [
+                        ...service.requirements,
+                      ].sort(
+                        (a, b) =>
+                          a.displayOrder -
+                          b.displayOrder,
+                      );
 
                       return (
                         <Card
-                          key={
-                            service.id
-                          }
+                          key={service.id}
                           className="
                             group
                             relative
@@ -821,14 +730,13 @@ export default function Services() {
                         >
                           {/* Image */}
 
-                          <div className="relative h-60 overflow-hidden">
+                          <div className="relative h-60 overflow-hidden bg-gray-100">
                             <Image
                               src={
-                                image
+                                service.imageUrl ||
+                                "/images/service-placeholder.jpg"
                               }
-                              alt={
-                                service.name
-                              }
+                              alt={service.name}
                               fill
                               sizes="
                                 (max-width: 768px) 100vw,
@@ -868,12 +776,8 @@ export default function Services() {
                               "
                             >
                               {String(
-                                index +
-                                  1,
-                              ).padStart(
-                                2,
-                                "0",
-                              )}
+                                index + 1,
+                              ).padStart(2, "0")}
                             </div>
 
                             {/* Category */}
@@ -911,25 +815,19 @@ export default function Services() {
                             {/* Code */}
 
                             <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-primary">
-                              {
-                                service.serviceCode
-                              }
+                              {service.serviceCode}
                             </p>
 
                             {/* Name */}
 
                             <CardTitle className="mt-2 text-2xl font-extrabold text-[#002b5c]">
-                              {
-                                service.name
-                              }
+                              {service.name}
                             </CardTitle>
 
                             {/* Category */}
 
                             <p className="mt-2 text-xs font-semibold text-gray-400">
-                              {
-                                service.category
-                              }
+                              {service.category}
                             </p>
 
                             {/* Description */}
@@ -949,10 +847,7 @@ export default function Services() {
                                 </p>
 
                                 {requirements
-                                  .slice(
-                                    0,
-                                    4,
-                                  )
+                                  .slice(0, 4)
                                   .map(
                                     (
                                       requirement,
@@ -1009,8 +904,7 @@ export default function Services() {
                                     +
                                     {requirements.length -
                                       4}{" "}
-                                    more
-                                    requirement
+                                    more requirement
                                     {requirements.length -
                                       4 !==
                                     1
@@ -1254,46 +1148,36 @@ export default function Services() {
                       "Learning",
                       "Assessment",
                       "Certificate",
-                    ].map(
-                      (
-                        item,
-                        index,
-                      ) => (
+                    ].map((item, index) => (
+                      <div
+                        key={item}
+                        className="flex items-center"
+                      >
                         <div
-                          key={
-                            item
-                          }
-                          className="flex items-center"
+                          className="
+                            rounded-full
+                            border
+                            border-white/10
+                            bg-white/10
+                            px-3
+                            py-2
+                            text-[9px]
+                            font-semibold
+                            text-white/70
+                            transition-all
+                            duration-300
+                            hover:bg-white/20
+                            hover:text-white
+                          "
                         >
-                          <div
-                            className="
-                              rounded-full
-                              border
-                              border-white/10
-                              bg-white/10
-                              px-3
-                              py-2
-                              text-[9px]
-                              font-semibold
-                              text-white/70
-                              transition-all
-                              duration-300
-                              hover:bg-white/20
-                              hover:text-white
-                            "
-                          >
-                            {
-                              item
-                            }
-                          </div>
-
-                          {index <
-                            5 && (
-                            <ChevronRight className="mx-1 h-3 w-3 text-white/20" />
-                          )}
+                          {item}
                         </div>
-                      ),
-                    )}
+
+                        {index < 5 && (
+                          <ChevronRight className="mx-1 h-3 w-3 text-white/20" />
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
 
@@ -1328,12 +1212,9 @@ export default function Services() {
                   );
                 } else {
                   document
-                    .getElementById(
-                      "services",
-                    )
+                    .getElementById("services")
                     ?.scrollIntoView({
-                      behavior:
-                        "smooth",
+                      behavior: "smooth",
                     });
                 }
               }}
@@ -1408,9 +1289,7 @@ export default function Services() {
                 onClick={
                   handleCloseRequest
                 }
-                disabled={
-                  isSubmitting
-                }
+                disabled={isSubmitting}
                 className="
                   absolute
                   right-5
@@ -1548,19 +1427,13 @@ export default function Services() {
                         value={
                           applicantName
                         }
-                        onChange={(
-                          event,
-                        ) =>
+                        onChange={(event) =>
                           setApplicantName(
-                            event
-                              .target
-                              .value,
+                            event.target.value,
                           )
                         }
                         placeholder="Enter your full name"
-                        maxLength={
-                          200
-                        }
+                        maxLength={200}
                         disabled={
                           isSubmitting
                         }
@@ -1609,19 +1482,13 @@ export default function Services() {
                         value={
                           applicantEmail
                         }
-                        onChange={(
-                          event,
-                        ) =>
+                        onChange={(event) =>
                           setApplicantEmail(
-                            event
-                              .target
-                              .value,
+                            event.target.value,
                           )
                         }
                         placeholder="you@example.com"
-                        maxLength={
-                          320
-                        }
+                        maxLength={320}
                         disabled={
                           isSubmitting
                         }
@@ -1659,6 +1526,7 @@ export default function Services() {
                       className="mb-2 block text-sm font-bold text-[#002b5c]"
                     >
                       Message / Remarks
+
                       <span className="ml-1 font-normal text-gray-400">
                         (Optional)
                       </span>
@@ -1669,25 +1537,15 @@ export default function Services() {
 
                       <textarea
                         id="service-remarks"
-                        value={
-                          remarks
-                        }
-                        onChange={(
-                          event,
-                        ) =>
+                        value={remarks}
+                        onChange={(event) =>
                           setRemarks(
-                            event
-                              .target
-                              .value,
+                            event.target.value,
                           )
                         }
                         placeholder="Tell us briefly about the service you need..."
-                        rows={
-                          5
-                        }
-                        maxLength={
-                          2000
-                        }
+                        rows={5}
+                        maxLength={2000}
                         disabled={
                           isSubmitting
                         }
@@ -1752,9 +1610,7 @@ export default function Services() {
 
                   <button
                     type="submit"
-                    disabled={
-                      isSubmitting
-                    }
+                    disabled={isSubmitting}
                     className="
                       mt-7
                       flex
@@ -1782,13 +1638,11 @@ export default function Services() {
                     {isSubmitting ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-
                         Submitting...
                       </>
                     ) : (
                       <>
                         Submit Service Request
-
                         <ArrowRight className="h-4 w-4" />
                       </>
                     )}

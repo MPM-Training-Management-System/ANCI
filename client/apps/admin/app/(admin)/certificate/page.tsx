@@ -578,14 +578,14 @@ export default function CertificatesPage() {
               completionCount
             }
             icon={GraduationCap}
-            variant="primary"
+            variant="success"
           />
 
           <StatCard
             title="Active Certificates"
             value={activeCount}
             icon={BadgeCheck}
-            variant="primary"
+            variant="success"
           />
         </StatGrid>
 

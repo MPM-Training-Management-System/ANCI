@@ -484,7 +484,7 @@ export default function AttendanceManagementPage() {
   />
 
   <StatCard
-  variant="warning"
+  variant="danger"
     title="Absent"
     value={absentCount}
     description="Absent participants"

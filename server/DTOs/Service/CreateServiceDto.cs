@@ -8,6 +8,8 @@ public class CreateServiceDto
     public string Category { get; set; } = string.Empty;
     public bool RequiresTraining { get; set; }
 
+    public IFormFile? Image { get; set; }
+
     public List<CreateServiceRequirementDto> Requirements { get; set; } = new();
 }
 

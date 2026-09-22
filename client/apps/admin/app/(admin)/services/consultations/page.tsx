@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type {
   ServiceConsultation,
@@ -12,6 +12,12 @@ import { useService } from "@repo/hooks";
 
 import { ServiceConsultationTable } from "@/components/Services/ServiceConsultationTable";
 import { ServiceConsultationModal } from "@/components/Services/ServiceConsultationModal";
+
+import {
+  PageSection,
+  StatCard,
+  StatGrid,
+} from "@repo/ui/index";
 
 export default function ServiceConsultationsPage() {
   const {
@@ -44,12 +50,50 @@ export default function ServiceConsultationsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // =========================
+  // STATISTICS
+  // =========================
+
+  const consultationStats = useMemo(() => {
+    return {
+      total: consultations.length,
+
+      scheduled: consultations.filter(
+        (consultation) =>
+          consultation.status === "Scheduled",
+      ).length,
+
+      inProgress: consultations.filter(
+        (consultation) =>
+          consultation.status === "InProgress",
+      ).length,
+
+      completed: consultations.filter(
+        (consultation) =>
+          consultation.status === "Completed",
+      ).length,
+
+      cancelled: consultations.filter(
+        (consultation) =>
+          consultation.status === "Cancelled",
+      ).length,
+    };
+  }, [consultations]);
+
+  // =========================
+  // EDIT
+  // =========================
+
   const handleEdit = (
     consultation: ServiceConsultation,
   ) => {
     setSelectedConsultation(consultation);
     setIsConsultationOpen(true);
   };
+
+  // =========================
+  // CLOSE
+  // =========================
 
   const handleClose = () => {
     if (isSubmittingConsultation) {
@@ -59,6 +103,10 @@ export default function ServiceConsultationsPage() {
     setIsConsultationOpen(false);
     setSelectedConsultation(null);
   };
+
+  // =========================
+  // SUBMIT
+  // =========================
 
   const handleSubmit = async (
     scheduledAt: string,
@@ -78,9 +126,13 @@ export default function ServiceConsultationsPage() {
       result = await createConsultation({
         serviceRequestId:
           selectedConsultation.serviceRequestId,
+
         scheduledAt,
+
         meetingLink,
-        notes: notes.trim() || null,
+
+        notes:
+          notes.trim() || null,
       });
     } else {
       result = await updateConsultation(
@@ -88,7 +140,8 @@ export default function ServiceConsultationsPage() {
         {
           scheduledAt,
           meetingLink,
-          notes: notes.trim() || null,
+          notes:
+            notes.trim() || null,
           status,
         },
       );
@@ -106,15 +159,54 @@ export default function ServiceConsultationsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-[#17191c]">
-          Consultations
-        </h1>
+      {/* =========================
+          HEADER
+      ========================== */}
 
-        <p className="mt-1 text-sm text-gray-500">
-          Manage scheduled service consultations.
-        </p>
-      </div>
+      <PageSection
+        title="Consultations"
+        description="Manage and monitor service consultations."
+      />
+
+      {/* =========================
+          STATISTICS
+      ========================== */}
+
+      <StatGrid>
+        <StatCard
+          title="Total Consultations"
+          value={consultationStats.total}
+          variant="primary"
+        />
+
+        <StatCard
+          title="Scheduled"
+          value={consultationStats.scheduled}
+          variant="warning"
+        />
+
+        <StatCard
+          title="In Progress"
+          value={consultationStats.inProgress}
+          variant="primary"
+        />
+
+        <StatCard
+          title="Completed"
+          value={consultationStats.completed}
+          variant="success"
+        />
+
+        <StatCard
+          title="Cancelled"
+          value={consultationStats.cancelled}
+          variant="danger"
+        />
+      </StatGrid>
+
+      {/* =========================
+          ERROR
+      ========================== */}
 
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
@@ -124,20 +216,34 @@ export default function ServiceConsultationsPage() {
         </div>
       )}
 
+      {/* =========================
+          TABLE
+      ========================== */}
+
       <section className="overflow-hidden rounded-2xl border border-[#e7e9ec] bg-white shadow-sm">
         <div className="p-5 sm:p-6">
           <ServiceConsultationTable
             consultations={consultations}
-            isLoading={isLoadingConsultations}
+            isLoading={
+              isLoadingConsultations
+            }
             onEdit={handleEdit}
           />
         </div>
       </section>
 
+      {/* =========================
+          CONSULTATION MODAL
+      ========================== */}
+
       <ServiceConsultationModal
         open={isConsultationOpen}
-        consultation={selectedConsultation}
-        isSubmitting={isSubmittingConsultation}
+        consultation={
+          selectedConsultation
+        }
+        isSubmitting={
+          isSubmittingConsultation
+        }
         onClose={handleClose}
         onSubmit={handleSubmit}
       />

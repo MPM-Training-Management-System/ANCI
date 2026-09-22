@@ -7,6 +7,10 @@ public class UpdateServiceDto
     public string Category { get; set; } = string.Empty;
     public bool RequiresTraining { get; set; }
     public bool IsActive { get; set; }
+    public IFormFile? Image { get; set; }
+
+     public bool RemoveImage { get; set; }
+
 
     public List<UpdateServiceRequirementDto> Requirements { get; set; } = new();
 }
