@@ -1,27 +1,28 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import {
+  BookOpen,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  Clock3,
-  MapPin,
-  RefreshCw,
-  Users,
-  BookOpen,
-  CheckCircle2,
-  PlayCircle,
   CircleAlert,
-  X,
+  Clock3,
+  RefreshCw,
 } from "lucide-react";
 
 import type {
   TrainingBatch,
-  TrainerAssignment,
   TrainingSession,
 } from "@repo/types";
+
+import { Button, PageSection, PageSkeleton } from "@repo/ui/index";
 
 import {
   trainerAssignmentApi,
@@ -30,222 +31,170 @@ import {
 
 import { useTrainerAssignments } from "@repo/hooks";
 
-type TrainingDetails = {
-  batch: TrainingBatch;
-  assignment: TrainerAssignment;
-  sessions: TrainingSession[];
-};
+// ============================================================
+// HELPERS
+// ============================================================
 
-/* =========================================================
-   DATE HELPERS
-========================================================= */
-
-function formatDate(date: string) {
-  if (!date) return "—";
-
-  const parsed = new Date(String(date));
-
-  if (Number.isNaN(parsed.getTime())) {
-    return String(date);
-  }
-
-  return parsed.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-function formatDateRange(
-  startDate: string,
-  endDate: string,
-) {
-  if (!startDate && !endDate) {
-    return "Schedule not set";
-  }
-
-  if (startDate && endDate) {
-    return `${formatDate(startDate)} – ${formatDate(endDate)}`;
-  }
-
-  return formatDate(startDate || endDate);
-}
-
-function getSessionTime(
-  startTime?: string | null,
-  endTime?: string | null,
-) {
-  if (!startTime && !endTime) {
-    return "Time not set";
-  }
-
-  if (startTime && endTime) {
-    return `${startTime} – ${endTime}`;
-  }
-
-  return startTime || endTime || "Time not set";
-}
-
-function getStatusConfig(status: string) {
-  switch (status) {
-    case "Published":
-      return {
-        label: "Published",
-        className:
-          "bg-blue-50 text-blue-700 border-blue-200",
-        icon: CheckCircle2,
-      };
-
-    case "Ongoing":
-      return {
-        label: "Ongoing",
-        className:
-          "bg-emerald-50 text-emerald-700 border-emerald-200",
-        icon: PlayCircle,
-      };
-
-    case "Completed":
-      return {
-        label: "Completed",
-        className:
-          "bg-slate-100 text-slate-700 border-slate-200",
-        icon: CheckCircle2,
-      };
-
-    case "Cancelled":
-      return {
-        label: "Cancelled",
-        className:
-          "bg-red-50 text-red-700 border-red-200",
-        icon: CircleAlert,
-      };
-
-    default:
-      return {
-        label: status || "Draft",
-        className:
-          "bg-amber-50 text-amber-700 border-amber-200",
-        icon: CircleAlert,
-      };
-  }
-}
-
-/* =========================================================
-   CALENDAR HELPERS
-========================================================= */
-
-function toDateKey(date: Date) {
+const toDateKey = (date: Date) => {
   const year = date.getFullYear();
-
   const month = String(
     date.getMonth() + 1,
   ).padStart(2, "0");
-
   const day = String(
     date.getDate(),
   ).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
-}
+};
 
-function getSessionDateKey(
-  sessionDate: string,
-) {
-  if (!sessionDate) {
+const getSessionDateKey = (
+  value: string,
+) => {
+  const dateValue = String(value);
+
+  // YYYY-MM-DD
+  const dateOnlyMatch =
+    dateValue.match(
+      /^(\d{4})-(\d{1,2})-(\d{1,2})$/,
+    );
+
+  if (dateOnlyMatch) {
+    const year = Number(dateOnlyMatch[1]);
+    const month = Number(dateOnlyMatch[2]);
+    const day = Number(dateOnlyMatch[3]);
+
+    if (
+      !Number.isNaN(year) &&
+      !Number.isNaN(month) &&
+      !Number.isNaN(day)
+    ) {
+      return `${year}-${String(month).padStart(
+        2,
+        "0",
+      )}-${String(day).padStart(2, "0")}`;
+    }
+  }
+
+  const parsed = new Date(dateValue);
+
+  if (Number.isNaN(parsed.getTime())) {
     return "";
   }
 
-  const value = String(sessionDate);
+  return toDateKey(parsed);
+};
 
-  /*
-   * Handles normal ISO/API date strings such as:
-   * 2026-09-05
-   * 2026-09-05T00:00:00
-   */
-  const datePart = value.slice(0, 10);
-
-  if (
-    /^\d{4}-\d{2}-\d{2}$/.test(
-      datePart,
-    )
-  ) {
-    return datePart;
+const formatDate = (value: string) => {
+  if (!value) {
+    return "No date";
   }
 
-  const date = new Date(value);
+  const dateValue = String(value);
 
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  return toDateKey(date);
-}
-
-function isSameDate(
-  first: Date,
-  second: Date,
-) {
-  return (
-    first.getFullYear() ===
-      second.getFullYear() &&
-    first.getMonth() ===
-      second.getMonth() &&
-    first.getDate() ===
-      second.getDate()
+  const match = dateValue.match(
+    /^(\d{4})-(\d{1,2})-(\d{1,2})/,
   );
-}
 
-function getCalendarDays(
-  currentMonth: Date,
-) {
-  const year =
-    currentMonth.getFullYear();
+  if (match) {
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
 
-  const month =
-    currentMonth.getMonth();
+    if (
+      !Number.isNaN(year) &&
+      !Number.isNaN(month) &&
+      !Number.isNaN(day)
+    ) {
+      const parsedDate = new Date(
+        year,
+        month - 1,
+        day,
+      );
+
+      return parsedDate.toLocaleDateString(
+        "en-US",
+        {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        },
+      );
+    }
+  }
+
+  const parsedDate = new Date(dateValue);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "Invalid date";
+  }
+
+  return parsedDate.toLocaleDateString(
+    "en-US",
+    {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    },
+  );
+};
+
+const getSessionTime = (
+  startTime?: string | null,
+  endTime?: string | null,
+) => {
+  if (!startTime && !endTime) {
+    return "Time not set";
+  }
+
+  if (startTime && endTime) {
+    return `${startTime} - ${endTime}`;
+  }
+
+  return startTime ?? endTime ?? "Time not set";
+};
+
+const getCalendarDays = (
+  month: Date,
+) => {
+  const year = month.getFullYear();
+  const monthIndex = month.getMonth();
 
   const firstDay = new Date(
     year,
-    month,
+    monthIndex,
     1,
   );
 
-  const startDay =
+  const firstDayOfWeek =
     firstDay.getDay();
 
-  const daysInMonth =
-    new Date(
-      year,
-      month + 1,
-      0,
-    ).getDate();
+  const daysInMonth = new Date(
+    year,
+    monthIndex + 1,
+    0,
+  ).getDate();
 
   const previousMonthDays =
     new Date(
       year,
-      month,
+      monthIndex,
       0,
     ).getDate();
 
-  const days: {
-    date: Date;
-    isCurrentMonth: boolean;
-  }[] = [];
+  const days: Date[] = [];
 
   for (
-    let index = startDay - 1;
+    let index = firstDayOfWeek - 1;
     index >= 0;
     index--
   ) {
-    days.push({
-      date: new Date(
+    days.push(
+      new Date(
         year,
-        month - 1,
-        previousMonthDays -
-          index,
+        monthIndex - 1,
+        previousMonthDays - index,
       ),
-      isCurrentMonth: false,
-    });
+    );
   }
 
   for (
@@ -253,65 +202,41 @@ function getCalendarDays(
     day <= daysInMonth;
     day++
   ) {
-    days.push({
-      date: new Date(
+    days.push(
+      new Date(
         year,
-        month,
+        monthIndex,
         day,
       ),
-      isCurrentMonth: true,
-    });
+    );
   }
 
-  let nextDay = 1;
+  let nextMonthDay = 1;
 
   while (days.length < 42) {
-    days.push({
-      date: new Date(
+    days.push(
+      new Date(
         year,
-        month + 1,
-        nextDay,
+        monthIndex + 1,
+        nextMonthDay,
       ),
-      isCurrentMonth: false,
-    });
+    );
 
-    nextDay++;
+    nextMonthDay++;
   }
 
   return days;
-}
+};
 
-function formatMonthYear(
-  date: Date,
-) {
-  return date.toLocaleDateString(
-    "en-US",
-    {
-      month: "long",
-      year: "numeric",
-    },
-  );
-}
-
-function formatSelectedDate(
-  date: Date,
-) {
-  return date.toLocaleDateString(
-    "en-US",
-    {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    },
-  );
-}
-
-/* =========================================================
-   PAGE
-========================================================= */
+// ============================================================
+// COMPONENT
+// ============================================================
 
 export default function TrainerMyTrainingPage() {
+  // ============================================================
+  // ASSIGNMENTS
+  // ============================================================
+
   const {
     myAssignments,
     isLoadingMyAssignments,
@@ -323,6 +248,10 @@ export default function TrainerMyTrainingPage() {
       loadAll: false,
     },
   );
+
+  // ============================================================
+  // TRAINING BATCHES
+  // ============================================================
 
   const [
     trainingBatches,
@@ -337,16 +266,16 @@ export default function TrainerMyTrainingPage() {
   const [
     batchError,
     setBatchError,
-  ] = useState<string | null>(
-    null,
-  );
+  ] = useState<string | null>(null);
+
+  // ============================================================
+  // SCHEDULE
+  // ============================================================
 
   const [
-    selectedTraining,
-    setSelectedTraining,
-  ] = useState<TrainingDetails | null>(
-    null,
-  );
+    sessions,
+    setSessions,
+  ] = useState<TrainingSession[]>([]);
 
   const [
     isLoadingDetails,
@@ -356,18 +285,11 @@ export default function TrainerMyTrainingPage() {
   const [
     detailsError,
     setDetailsError,
-  ] = useState<string | null>(
-    null,
-  );
+  ] = useState<string | null>(null);
 
-  const [
-    search,
-    setSearch,
-  ] = useState("");
-
-  /* =======================================================
-     CALENDAR STATE
-  ======================================================= */
+  // ============================================================
+  // CALENDAR
+  // ============================================================
 
   const [
     currentMonth,
@@ -383,9 +305,9 @@ export default function TrainerMyTrainingPage() {
     new Date(),
   );
 
-  /* =======================================================
-     LOAD TRAINING BATCHES
-  ======================================================= */
+  // ============================================================
+  // LOAD TRAINING BATCHES
+  // ============================================================
 
   const loadTrainingBatches =
     useCallback(async () => {
@@ -396,13 +318,10 @@ export default function TrainerMyTrainingPage() {
         const result =
           await trainingBatchApi.getAssigned();
 
-        const normalized =
+        setTrainingBatches(
           Array.isArray(result)
             ? result
-            : [];
-
-        setTrainingBatches(
-          normalized,
+            : [],
         );
       } catch (error) {
         console.error(
@@ -422,9 +341,9 @@ export default function TrainerMyTrainingPage() {
       }
     }, []);
 
-  /* =======================================================
-     LOAD PAGE
-  ======================================================= */
+  // ============================================================
+  // LOAD PAGE
+  // ============================================================
 
   const loadPage =
     useCallback(async () => {
@@ -437,221 +356,179 @@ export default function TrainerMyTrainingPage() {
       loadTrainingBatches,
     ]);
 
+  // ============================================================
+  // INITIAL LOAD
+  // ============================================================
+
   useEffect(() => {
     void loadPage();
   }, [loadPage]);
 
-  /* =======================================================
-     MY TRAININGS
-  ======================================================= */
+  // ============================================================
+  // CURRENT TRAINING
+  // ============================================================
 
-  const myTrainings =
+  const currentTraining =
     useMemo(() => {
       if (
         !myAssignments.length ||
         !trainingBatches.length
       ) {
-        return [];
+        return null;
       }
 
-      const assignedBatchIds =
-        new Set(
-          myAssignments
-            .filter(
-              (assignment) =>
-                assignment.isActive,
-            )
-            .map(
-              (assignment) =>
-                assignment.trainingBatchId,
-            ),
+      const activeAssignments =
+        myAssignments.filter(
+          (assignment) =>
+            assignment.isActive,
         );
 
-      return trainingBatches
-        .filter((batch) =>
-          assignedBatchIds.has(
-            batch.id,
-          ),
-        )
-        .map((batch) => {
-          const assignment =
-            myAssignments.find(
-              (item) =>
-                item.trainingBatchId ===
-                  batch.id &&
-                item.isActive,
-            );
+      for (
+        const assignment of activeAssignments
+      ) {
+        const batch =
+          trainingBatches.find(
+            (item) =>
+              item.id ===
+              assignment.trainingBatchId,
+          );
 
+        if (batch) {
           return {
             batch,
-            assignment: assignment!,
+            assignment,
           };
-        })
-        .filter(
-          (item) =>
-            item.assignment,
-        );
+        }
+      }
+
+      return null;
     }, [
       myAssignments,
       trainingBatches,
     ]);
 
-  /* =======================================================
-     FILTER
-  ======================================================= */
+  // ============================================================
+  // LOAD CURRENT TRAINING SCHEDULE
+  // ============================================================
 
-  const filteredTrainings =
-    useMemo(() => {
-      const keyword =
-        search
-          .trim()
-          .toLowerCase();
-
-      if (!keyword) {
-        return myTrainings;
-      }
-
-      return myTrainings.filter(
-        ({ batch }) =>
-          batch.programName
-            ?.toLowerCase()
-            .includes(keyword) ||
-          batch.batchCode
-            ?.toLowerCase()
-            .includes(keyword) ||
-          batch.location
-            ?.toLowerCase()
-            .includes(keyword) ||
-          batch.status
-            ?.toLowerCase()
-            .includes(keyword),
-      );
-    }, [
-      myTrainings,
-      search,
-    ]);
-
-  /* =======================================================
-     STATS
-  ======================================================= */
-
-  const stats =
-    useMemo(() => {
-      const assigned =
-        myTrainings.length;
-
-      const ongoing =
-        myTrainings.filter(
-          ({ batch }) =>
-            batch.status ===
-            "Ongoing",
-        ).length;
-
-      const upcoming =
-        myTrainings.filter(
-          ({ batch }) =>
-            batch.status ===
-            "Published",
-        ).length;
-
-      const completed =
-        myTrainings.filter(
-          ({ batch }) =>
-            batch.status ===
-            "Completed",
-        ).length;
-
-      return {
-        assigned,
-        ongoing,
-        upcoming,
-        completed,
-      };
-    }, [myTrainings]);
-
-  /* =======================================================
-     OPEN TRAINING
-  ======================================================= */
-
-  const openTraining =
+  const loadCurrentTrainingSchedule =
     useCallback(
       async (
         batch: TrainingBatch,
-        assignment: TrainerAssignment,
       ) => {
         try {
-          setSelectedTraining({
-            batch,
-            assignment,
-            sessions: [],
-          });
-
-          setIsLoadingDetails(
-            true,
-          );
-
+          setIsLoadingDetails(true);
           setDetailsError(null);
 
-          const sessions =
+          const result =
             await trainingBatchApi.getSchedule(
               batch.id,
             );
 
           const normalizedSessions =
-            Array.isArray(sessions)
-              ? sessions
+            Array.isArray(result)
+              ? result
               : [];
 
-          setSelectedTraining({
-            batch,
-            assignment,
-            sessions:
-              normalizedSessions,
-          });
+          setSessions(
+            normalizedSessions,
+          );
 
-          /*
-           * FIX:
-           * Convert sessionDate safely
-           * before passing it to Date.
-           */
-          const firstSession = normalizedSessions[0];
+          // Automatically open the first
+          // available session date.
+          const firstSession =
+            normalizedSessions[0];
 
-if (firstSession) {
-  const firstSessionDate = String(
-    firstSession.sessionDate,
-  );
+          if (firstSession) {
+            const sessionDate =
+              String(
+                firstSession.sessionDate,
+              );
 
-  const parsedFirstSessionDate = new Date(
-    firstSessionDate,
-  );
+            // Safely handle YYYY-MM-DD
+            const match =
+              sessionDate.match(
+                /^(\d{4})-(\d{1,2})-(\d{1,2})/,
+              );
 
-  if (!Number.isNaN(parsedFirstSessionDate.getTime())) {
-    setCurrentMonth(
-      new Date(
-        parsedFirstSessionDate.getFullYear(),
-        parsedFirstSessionDate.getMonth(),
-        1,
-      ),
-    );
+            if (match) {
+              const year = Number(
+                match[1],
+              );
 
-    setSelectedDate(parsedFirstSessionDate);
-  }
-} else {
-  const today = new Date();
+              const month = Number(
+                match[2],
+              );
 
-  setCurrentMonth(
-    new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      1,
-    ),
-  );
+              const day = Number(
+                match[3],
+              );
 
-  setSelectedDate(today);
-}
+              if (
+                !Number.isNaN(year) &&
+                !Number.isNaN(month) &&
+                !Number.isNaN(day)
+              ) {
+                const parsedDate =
+                  new Date(
+                    year,
+                    month - 1,
+                    day,
+                  );
+
+                setCurrentMonth(
+                  new Date(
+                    year,
+                    month - 1,
+                    1,
+                  ),
+                );
+
+                setSelectedDate(
+                  parsedDate,
+                );
+              }
+            } else {
+              const parsedDate =
+                new Date(
+                  sessionDate,
+                );
+
+              if (
+                !Number.isNaN(
+                  parsedDate.getTime(),
+                )
+              ) {
+                setCurrentMonth(
+                  new Date(
+                    parsedDate.getFullYear(),
+                    parsedDate.getMonth(),
+                    1,
+                  ),
+                );
+
+                setSelectedDate(
+                  parsedDate,
+                );
+              }
+            }
+          } else {
+            const today =
+              new Date();
+
+            setCurrentMonth(
+              new Date(
+                today.getFullYear(),
+                today.getMonth(),
+                1,
+              ),
+            );
+
+            setSelectedDate(today);
+          }
         } catch (error) {
           console.error(
-            "LOAD TRAINING DETAILS ERROR:",
+            "LOAD TRAINING SCHEDULE ERROR:",
             error,
           );
 
@@ -661,88 +538,87 @@ if (firstSession) {
               : "Unable to load training schedule.",
           );
 
-          setSelectedTraining({
-            batch,
-            assignment,
-            sessions: [],
-          });
+          setSessions([]);
         } finally {
-          setIsLoadingDetails(
-            false,
-          );
+          setIsLoadingDetails(false);
         }
       },
       [],
     );
 
-  /* =======================================================
-     CLOSE
-  ======================================================= */
+  // ============================================================
+  // LOAD SCHEDULE WHEN CURRENT TRAINING CHANGES
+  // ============================================================
 
-  const closeDetails =
-    useCallback(() => {
-      setSelectedTraining(null);
+  useEffect(() => {
+    if (
+      isLoadingMyAssignments ||
+      isLoadingBatches
+    ) {
+      return;
+    }
+
+    if (!currentTraining) {
+      setSessions([]);
       setDetailsError(null);
-    }, []);
+      return;
+    }
 
-  /* =======================================================
-     CALENDAR
-  ======================================================= */
+    void loadCurrentTrainingSchedule(
+      currentTraining.batch,
+    );
+  }, [
+    currentTraining?.batch.id,
+    isLoadingMyAssignments,
+    isLoadingBatches,
+    loadCurrentTrainingSchedule,
+  ]);
 
-  const calendarDays =
-    useMemo(
-      () =>
-        getCalendarDays(
-          currentMonth,
-        ),
-      [currentMonth],
+  // ============================================================
+  // CALENDAR DATA
+  // ============================================================
+
+  const calendarDays = useMemo(
+    () =>
+      getCalendarDays(
+        currentMonth,
+      ),
+    [currentMonth],
+  );
+
+  const sessionsByDate = useMemo(() => {
+    const map = new Map<
+      string,
+      TrainingSession[]
+    >();
+
+    sessions.forEach(
+      (session) => {
+        const key =
+          getSessionDateKey(
+            String(
+              session.sessionDate,
+            ),
+          );
+
+        if (!key) {
+          return;
+        }
+
+        const existing =
+          map.get(key) ?? [];
+
+        existing.push(session);
+
+        map.set(
+          key,
+          existing,
+        );
+      },
     );
 
-  const sessionsByDate =
-    useMemo(() => {
-      const map =
-        new Map<
-          string,
-          TrainingSession[]
-        >();
-
-      if (
-        !selectedTraining
-      ) {
-        return map;
-      }
-
-      selectedTraining.sessions.forEach(
-        (session) => {
-          const key =
-            getSessionDateKey(
-              String(
-                session.sessionDate,
-              ),
-            );
-
-          if (!key) {
-            return;
-          }
-
-          const existing =
-            map.get(key) ?? [];
-
-          existing.push(
-            session,
-          );
-
-          map.set(
-            key,
-            existing,
-          );
-        },
-      );
-
-      return map;
-    }, [
-      selectedTraining,
-    ]);
+    return map;
+  }, [sessions]);
 
   const selectedDateKey =
     toDateKey(selectedDate);
@@ -752,9 +628,9 @@ if (firstSession) {
       selectedDateKey,
     ) ?? [];
 
-  /* =======================================================
-     CALENDAR NAVIGATION
-  ======================================================= */
+  // ============================================================
+  // CALENDAR NAVIGATION
+  // ============================================================
 
   const goToPreviousMonth =
     () => {
@@ -792,74 +668,91 @@ if (firstSession) {
       ),
     );
 
-    setSelectedDate(
-      today,
-    );
+    setSelectedDate(today);
   };
 
-  /* =======================================================
-     LOADING
-  ======================================================= */
+  // ============================================================
+  // REFRESH
+  // ============================================================
 
-  const isLoading =
-    isLoadingMyAssignments ||
-    isLoadingBatches;
+  const handleRefresh =
+    async () => {
+      setSessions([]);
+      setDetailsError(null);
+
+      await loadPage();
+    };
+
+  // ============================================================
+  // ERRORS
+  // ============================================================
 
   const pageError =
-    assignmentError ||
+    assignmentError ??
     batchError;
 
-  /* =======================================================
-     RENDER
-  ======================================================= */
+  // ============================================================
+  // LOADING
+  // ============================================================
+
+  if (
+    isLoadingMyAssignments &&
+    trainingBatches.length === 0 &&
+    myAssignments.length === 0
+  ) {
+    return (
+      <PageSkeleton
+        statCards={0}
+        showHeader
+        showTable={false}
+      />
+    );
+  }
+
+  // ============================================================
+  // UI
+  // ============================================================
 
   return (
-    <div className="h-screen overflow-y-auto bg-[#f7f8fa] px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl space-y-6 pb-10">
-
-        {/* =================================================
-            HEADER
-        ================================================= */}
-
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="mb-2 flex items-center gap-2 text-sm text-slate-500">
-              <BookOpen className="h-4 w-4" />
-              Trainer Portal
-            </div>
-
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-              My Training
-            </h1>
-
-            <p className="mt-1 text-sm text-slate-500 sm:text-base">
-              View and manage the training batches assigned to you.
-            </p>
-          </div>
-
-          <button
+    <div className="min-h-screen p-6">
+      <div className="mx-auto max-w-7xl space-y-6 p-6">
+       <PageSection
+       title=" My Training Schedule"
+       description=" View your current training
+              sessions and schedule."
+        actions={
+              <Button
             type="button"
-            onClick={() =>
-              void loadPage()
+            onClick={handleRefresh}
+            disabled={
+              isLoadingMyAssignments ||
+              isLoadingBatches ||
+              isLoadingDetails
             }
-            disabled={isLoading}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+        
           >
             <RefreshCw
               className={`h-4 w-4 ${
-                isLoading
+                isLoadingMyAssignments ||
+                isLoadingBatches ||
+                isLoadingDetails
                   ? "animate-spin"
                   : ""
               }`}
             />
-
             Refresh
-          </button>
+          </Button>
+        }
+       ></PageSection>
+
+       
+
+        
         </div>
 
-        {/* =================================================
-            ERROR
-        ================================================= */}
+        {/* ====================================================== */}
+        {/* ERROR */}
+        {/* ====================================================== */}
 
         {pageError && (
           <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -867,7 +760,7 @@ if (firstSession) {
 
             <div>
               <p className="font-semibold">
-                Unable to load your trainings
+                Unable to load training data
               </p>
 
               <p className="mt-1">
@@ -877,904 +770,423 @@ if (firstSession) {
           </div>
         )}
 
-        {/* =================================================
-            STATS
-        ================================================= */}
+        {/* ====================================================== */}
+        {/* NO CURRENT TRAINING */}
+        {/* ====================================================== */}
 
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <StatCard
-            label="Assigned"
-            value={stats.assigned}
-            icon={
-              <BookOpen className="h-5 w-5" />
-            }
-          />
+        {!isLoadingMyAssignments &&
+          !isLoadingBatches &&
+          !currentTraining && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+              <CalendarDays className="mx-auto h-12 w-12 text-slate-300" />
 
-          <StatCard
-            label="Upcoming"
-            value={stats.upcoming}
-            icon={
-              <CalendarDays className="h-5 w-5" />
-            }
-          />
-
-          <StatCard
-            label="Ongoing"
-            value={stats.ongoing}
-            icon={
-              <PlayCircle className="h-5 w-5" />
-            }
-          />
-
-          <StatCard
-            label="Completed"
-            value={stats.completed}
-            icon={
-              <CheckCircle2 className="h-5 w-5" />
-            }
-          />
-        </div>
-
-        {/* =================================================
-            SEARCH
-        ================================================= */}
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="font-semibold text-slate-900">
-                My Assigned Trainings
+              <h2 className="mt-4 text-lg font-semibold text-slate-900">
+                No Current Training
               </h2>
 
-              <p className="mt-1 text-sm text-slate-500">
-                These are the training batches assigned specifically to you.
-              </p>
-            </div>
-
-            <div className="w-full sm:w-72">
-              <input
-                type="text"
-                value={search}
-                onChange={(event) =>
-                  setSearch(
-                    event.target.value,
-                  )
-                }
-                placeholder="Search training..."
-                className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* =================================================
-            LOADING
-        ================================================= */}
-
-        {isLoading && (
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {[1, 2, 3].map(
-              (item) => (
-                <div
-                  key={item}
-                  className="h-72 animate-pulse rounded-2xl border border-slate-200 bg-white"
-                />
-              ),
-            )}
-          </div>
-        )}
-
-        {/* =================================================
-            EMPTY
-        ================================================= */}
-
-        {!isLoading &&
-          filteredTrainings.length ===
-            0 && (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
-                <BookOpen className="h-7 w-7 text-slate-400" />
-              </div>
-
-              <h3 className="mt-4 text-lg font-semibold text-slate-900">
-                No assigned trainings
-              </h3>
-
               <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
-                You currently don't have any active training batches assigned
-                to you. Trainings assigned by an administrator will appear
-                here.
+                You currently do not have an
+                active training assignment.
               </p>
             </div>
           )}
 
-        {/* =================================================
-            TRAINING CARDS
-        ================================================= */}
+        {/* ====================================================== */}
+        {/* SCHEDULE ONLY */}
+        {/* ====================================================== */}
 
-        {!isLoading &&
-          filteredTrainings.length >
-            0 && (
-            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-              {filteredTrainings.map(
-                ({
-                  batch,
-                  assignment,
-                }) => {
-                  const status =
-                    getStatusConfig(
-                      batch.status,
-                    );
+        {currentTraining && (
+          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            {/* Schedule Header */}
+            <div className="border-b border-slate-200 p-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CalendarDays className="h-5 w-5 text-blue-600" />
 
-                  const StatusIcon =
-                    status.icon;
-
-                  return (
-                    <div
-                      key={batch.id}
-                      className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
-                    >
-                      <div className="border-b border-slate-100 p-5">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                              Training Program
-                            </p>
-
-                            <h3 className="mt-1 line-clamp-2 text-lg font-bold text-slate-900">
-                              {
-                                batch.programName
-                              }
-                            </h3>
-                          </div>
-
-                          <span
-                            className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${status.className}`}
-                          >
-                            <StatusIcon className="h-3.5 w-3.5" />
-
-                            {status.label}
-                          </span>
-                        </div>
-
-                        <div className="mt-3 inline-flex items-center rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                          Batch{" "}
-                          {
-                            batch.batchCode
-                          }
-                        </div>
-                      </div>
-
-                      <div className="flex-1 space-y-4 p-5">
-                        <InfoRow
-                          icon={
-                            <CalendarDays className="h-4 w-4" />
-                          }
-                          label="Training Period"
-                          value={formatDateRange(
-                            batch.startDate,
-                            batch.endDate,
-                          )}
-                        />
-
-                        <InfoRow
-                          icon={
-                            <MapPin className="h-4 w-4" />
-                          }
-                          label="Location"
-                          value={
-                            batch.location ||
-                            "Location not set"
-                          }
-                        />
-
-                        <InfoRow
-                          icon={
-                            <Users className="h-4 w-4" />
-                          }
-                          label="Participants"
-                          value={`${batch.enrolledCount} / ${batch.capacity}`}
-                        />
-
-                        <div className="rounded-xl bg-slate-50 p-3">
-                          <p className="text-xs font-medium text-slate-400">
-                            Assigned
-                          </p>
-
-                          <p className="mt-1 text-sm font-medium text-slate-700">
-                            {formatDate(
-                              assignment.assignedAt,
-                            )}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="border-t border-slate-100 p-4">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            void openTraining(
-                              batch,
-                              assignment,
-                            )
-                          }
-                          className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-                        >
-                          View Training
-
-                          <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                },
-              )}
-            </div>
-          )}
-      </div>
-
-      {/* ===================================================
-          TRAINING DETAILS MODAL
-      =================================================== */}
-
-      {selectedTraining && (
-        <div className="fixed inset-0 z-500 overflow-y-auto bg-slate-950/50 p-3 backdrop-blur-sm sm:p-4">
-          <div className="flex min-h-full items-center justify-center py-4 sm:py-6">
-            <div className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-
-              {/* MODAL HEADER */}
-
-              <div className="flex shrink-0 items-start justify-between border-b border-slate-200 p-4 sm:p-6">
-                <div className="min-w-0 pr-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                      Batch{" "}
-                      {
-                        selectedTraining
-                          .batch
-                          .batchCode
-                      }
-                    </span>
-
-                    <span
-                      className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${
-                        getStatusConfig(
-                          selectedTraining
-                            .batch
-                            .status,
-                        ).className
-                      }`}
-                    >
-                      {
-                        selectedTraining
-                          .batch
-                          .status
-                      }
-                    </span>
+                    <h2 className="text-lg font-semibold text-slate-900">
+                      Training Schedule
+                    </h2>
                   </div>
 
-                  <h2 className="mt-3 text-xl font-bold text-slate-900 sm:text-2xl">
-                    {
-                      selectedTraining
-                        .batch
-                        .programName
-                    }
-                  </h2>
-
                   <p className="mt-1 text-sm text-slate-500">
-                    Assigned on{" "}
-                    {formatDate(
-                      selectedTraining
-                        .assignment
-                        .assignedAt,
-                    )}
+                    {currentTraining.batch.programName}
+
+                    {currentTraining.batch.batchCode
+                      ? ` • Batch ${currentTraining.batch.batchCode}`
+                      : ""}
                   </p>
                 </div>
 
                 <button
                   type="button"
-                  onClick={
-                    closeDetails
-                  }
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
-                  aria-label="Close training details"
+                  onClick={goToToday}
+                  className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                 >
-                  <X className="h-5 w-5" />
+                  Today
                 </button>
               </div>
+            </div>
 
-              {/* MODAL BODY */}
+            <div className="p-5">
+              {/* ================================================== */}
+              {/* SCHEDULE ERROR */}
+              {/* ================================================== */}
 
-              <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+              {detailsError && (
+                <div className="mb-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                  <CircleAlert className="mt-0.5 h-5 w-5 shrink-0" />
 
-                {/* SUMMARY */}
+                  <div>
+                    <p className="font-semibold">
+                      Unable to load schedule
+                    </p>
 
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <DetailCard
-                    icon={
-                      <CalendarDays className="h-5 w-5" />
-                    }
-                    label="Training Period"
-                    value={formatDateRange(
-                      selectedTraining
-                        .batch
-                        .startDate,
-                      selectedTraining
-                        .batch
-                        .endDate,
-                    )}
-                  />
-
-                  <DetailCard
-                    icon={
-                      <MapPin className="h-5 w-5" />
-                    }
-                    label="Location"
-                    value={
-                      selectedTraining
-                        .batch
-                        .location ||
-                      "Not set"
-                    }
-                  />
-
-                  <DetailCard
-                    icon={
-                      <Users className="h-5 w-5" />
-                    }
-                    label="Participants"
-                    value={`${selectedTraining.batch.enrolledCount} / ${selectedTraining.batch.capacity}`}
-                  />
-
-                  <DetailCard
-                    icon={
-                      <BookOpen className="h-5 w-5" />
-                    }
-                    label="Assignment"
-                    value="Active"
-                  />
-                </div>
-
-                {/* =================================================
-                    TRAINING SCHEDULE
-                ================================================= */}
-
-                <div className="mt-6">
-                  <div className="mb-4">
-                    <h3 className="text-lg font-bold text-slate-900">
-                      Training Schedule
-                    </h3>
-
-                    <p className="mt-1 text-sm text-slate-500">
-                      Calendar view of the approved training sessions.
+                    <p className="mt-1">
+                      {detailsError}
                     </p>
                   </div>
+                </div>
+              )}
 
-                  {isLoadingDetails && (
-                    <div className="space-y-3">
-                      {[1, 2, 3].map(
-                        (item) => (
+              {/* ================================================== */}
+              {/* LOADING */}
+              {/* ================================================== */}
+
+              {isLoadingDetails ? (
+                <div className="flex min-h-[400px] items-center justify-center">
+                  <div className="flex flex-col items-center gap-3 text-slate-500">
+                    <RefreshCw className="h-7 w-7 animate-spin" />
+
+                    <p className="text-sm">
+                      Loading training schedule...
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {/* ================================================= */}
+                  {/* CALENDAR */}
+                  {/* ================================================= */}
+
+                  <div className="overflow-hidden rounded-xl border border-slate-200">
+                    {/* Calendar Navigation */}
+                    <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
+                      <button
+                        type="button"
+                        onClick={
+                          goToPreviousMonth
+                        }
+                        className="rounded-lg p-2 text-slate-600 transition hover:bg-white hover:text-slate-900"
+                        aria-label="Previous month"
+                      >
+                        <ChevronLeft className="h-5 w-5" />
+                      </button>
+
+                      <h3 className="text-base font-semibold text-slate-900">
+                        {currentMonth.toLocaleDateString(
+                          "en-US",
+                          {
+                            month:
+                              "long",
+                            year:
+                              "numeric",
+                          },
+                        )}
+                      </h3>
+
+                      <button
+                        type="button"
+                        onClick={
+                          goToNextMonth
+                        }
+                        className="rounded-lg p-2 text-slate-600 transition hover:bg-white hover:text-slate-900"
+                        aria-label="Next month"
+                      >
+                        <ChevronRight className="h-5 w-5" />
+                      </button>
+                    </div>
+
+                    {/* Week Days */}
+                    <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
+                      {[
+                        "Sun",
+                        "Mon",
+                        "Tue",
+                        "Wed",
+                        "Thu",
+                        "Fri",
+                        "Sat",
+                      ].map(
+                        (
+                          day,
+                        ) => (
                           <div
-                            key={item}
-                            className="h-20 animate-pulse rounded-xl bg-slate-100"
-                          />
+                            key={day}
+                            className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500"
+                          >
+                            {day}
+                          </div>
                         ),
                       )}
                     </div>
-                  )}
 
-                  {!isLoadingDetails &&
-                    detailsError && (
-                      <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                        {detailsError}
-                      </div>
-                    )}
+                    {/* Calendar Days */}
+                    <div className="grid grid-cols-7">
+                      {calendarDays.map(
+                        (day) => {
+                          const dayKey =
+                            toDateKey(
+                              day,
+                            );
 
-                  {!isLoadingDetails &&
-                    !detailsError && (
-                      <>
-                        {/* CALENDAR */}
+                          const daySessions =
+                            sessionsByDate.get(
+                              dayKey,
+                            ) ?? [];
 
-                        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+                          const isCurrentMonth =
+                            day.getMonth() ===
+                              currentMonth.getMonth() &&
+                            day.getFullYear() ===
+                              currentMonth.getFullYear();
 
-                          {/* CALENDAR HEADER */}
+                          const isSelected =
+                            dayKey ===
+                            selectedDateKey;
 
-                          <div className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                              <h4 className="text-lg font-bold text-slate-900">
-                                {formatMonthYear(
-                                  currentMonth,
-                                )}
-                              </h4>
+                          const isToday =
+                            dayKey ===
+                            toDateKey(
+                              new Date(),
+                            );
 
-                              <p className="mt-0.5 text-xs text-slate-500">
-                                Click a date to view its training session.
-                              </p>
-                            </div>
+                          return (
+                            <button
+                              type="button"
+                              key={dayKey}
+                              onClick={() =>
+                                setSelectedDate(
+                                  day,
+                                )
+                              }
+                              className={`relative min-h-[95px] border-b border-r border-slate-200 p-2 text-left transition hover:bg-slate-50 ${
+                                !isCurrentMonth
+                                  ? "bg-slate-50/60 text-slate-300"
+                                  : "bg-white"
+                              } ${
+                                isSelected
+                                  ? "ring-2 ring-inset ring-blue-500"
+                                  : ""
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span
+                                  className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-medium ${
+                                    isToday
+                                      ? "bg-blue-600 text-white"
+                                      : isCurrentMonth
+                                        ? "text-slate-700"
+                                        : "text-slate-300"
+                                  }`}
+                                >
+                                  {day.getDate()}
+                                </span>
 
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={
-                                  goToPreviousMonth
-                                }
-                                className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50"
-                                aria-label="Previous month"
-                              >
-                                <ChevronLeft className="h-4 w-4" />
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={
-                                  goToToday
-                                }
-                                className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-                              >
-                                Today
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={
-                                  goToNextMonth
-                                }
-                                className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50"
-                                aria-label="Next month"
-                              >
-                                <ChevronRight className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* CALENDAR GRID */}
-
-                          <div className="overflow-x-auto">
-                            <div className="min-w-[680px]">
-
-                              {/* WEEKDAYS */}
-
-                              <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
-                                {[
-                                  "Sun",
-                                  "Mon",
-                                  "Tue",
-                                  "Wed",
-                                  "Thu",
-                                  "Fri",
-                                  "Sat",
-                                ].map(
-                                  (
-                                    day,
-                                  ) => (
-                                    <div
-                                      key={
-                                        day
-                                      }
-                                      className="px-2 py-3 text-center text-xs font-bold uppercase tracking-wide text-slate-500"
-                                    >
-                                      {
-                                        day
-                                      }
-                                    </div>
-                                  ),
-                                )}
-                              </div>
-
-                              {/* DAYS */}
-
-                              <div className="grid grid-cols-7">
-                                {calendarDays.map(
-                                  ({
-                                    date,
-                                    isCurrentMonth,
-                                  }) => {
-                                    const key =
-                                      toDateKey(
-                                        date,
-                                      );
-
-                                    const daySessions =
-                                      sessionsByDate.get(
-                                        key,
-                                      ) ??
-                                      [];
-
-                                    const hasSessions =
-                                      daySessions.length >
-                                      0;
-
-                                    const isSelected =
-                                      isSameDate(
-                                        date,
-                                        selectedDate,
-                                      );
-
-                                    const isToday =
-                                      isSameDate(
-                                        date,
-                                        new Date(),
-                                      );
-
-                                    return (
-                                      <button
-                                        key={
-                                          key
-                                        }
-                                        type="button"
-                                        onClick={() =>
-                                          setSelectedDate(
-                                            date,
-                                          )
-                                        }
-                                        className={`relative min-h-[92px] border-b border-r border-slate-200 p-2 text-left transition sm:min-h-[105px] ${
-                                          isCurrentMonth
-                                            ? "bg-white"
-                                            : "bg-slate-50/70"
-                                        } ${
-                                          isSelected
-                                            ? "bg-slate-100"
-                                            : "hover:bg-slate-50"
-                                        }`}
-                                      >
-                                        <div className="flex items-center justify-between">
-                                          <span
-                                            className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
-                                              isToday
-                                                ? "bg-slate-900 text-white"
-                                                : isCurrentMonth
-                                                  ? "text-slate-700"
-                                                  : "text-slate-400"
-                                            }`}
-                                          >
-                                            {
-                                              date.getDate()
-                                            }
-                                          </span>
-
-                                          {hasSessions && (
-                                            <span className="hidden text-[10px] font-semibold text-slate-400 sm:block">
-                                              {
-                                                daySessions.length
-                                              }{" "}
-                                              {daySessions.length ===
-                                              1
-                                                ? "session"
-                                                : "sessions"}
-                                            </span>
-                                          )}
-                                        </div>
-
-                                        {hasSessions && (
-                                          <div className="mt-2 space-y-1">
-                                            {daySessions
-                                              .slice(
-                                                0,
-                                                2,
-                                              )
-                                              .map(
-                                                (
-                                                  session,
-                                                ) => (
-                                                  <div
-                                                    key={
-                                                      session.id
-                                                    }
-                                                    className={`rounded-md px-2 py-1 ${
-                                                      isSelected
-                                                        ? "bg-slate-900 text-white"
-                                                        : "bg-blue-50 text-blue-700"
-                                                    }`}
-                                                  >
-                                                    <p className="truncate text-[10px] font-bold sm:text-xs">
-                                                      Session{" "}
-                                                      {
-                                                        session.sessionNumber
-                                                      }
-                                                    </p>
-
-                                                    <p
-                                                      className={`truncate text-[9px] sm:text-[10px] ${
-                                                        isSelected
-                                                          ? "text-slate-300"
-                                                          : "text-blue-600"
-                                                      }`}
-                                                    >
-                                                      {
-                                                        session.startTime
-                                                      }{" "}
-                                                      –
-                                                      {
-                                                        session.endTime
-                                                      }
-                                                    </p>
-                                                  </div>
-                                                ),
-                                              )}
-
-                                            {daySessions.length >
-                                              2 && (
-                                              <p className="px-1 text-[9px] font-semibold text-slate-400">
-                                                +
-                                                {daySessions.length -
-                                                  2}{" "}
-                                                more
-                                              </p>
-                                            )}
-                                          </div>
-                                        )}
-                                      </button>
-                                    );
-                                  },
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* LEGEND */}
-
-                          <div className="flex flex-wrap items-center gap-4 border-t border-slate-200 px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <span className="h-3 w-3 rounded-full bg-blue-500" />
-
-                              <span className="text-xs text-slate-500">
-                                Training session
-                              </span>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-900 text-[9px] font-bold text-white">
-                                {
-                                  new Date().getDate()
-                                }
-                              </span>
-
-                              <span className="text-xs text-slate-500">
-                                Today
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* SELECTED DATE */}
-
-                        <div className="mt-5">
-                          <div className="mb-3">
-                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                              Selected Date
-                            </p>
-
-                            <h4 className="mt-1 text-lg font-bold text-slate-900">
-                              {formatSelectedDate(
-                                selectedDate,
-                              )}
-                            </h4>
-                          </div>
-
-                          {selectedDaySessions.length ===
-                            0 && (
-                            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
-                              <CalendarDays className="mx-auto h-7 w-7 text-slate-400" />
-
-                              <p className="mt-2 text-sm font-semibold text-slate-700">
-                                No training session
-                              </p>
-
-                              <p className="mt-1 text-xs text-slate-500">
-                                There is no scheduled training on this date.
-                              </p>
-                            </div>
-                          )}
-
-                          {selectedDaySessions.length >
-                            0 && (
-                            <div className="space-y-3">
-                              {selectedDaySessions.map(
-                                (
-                                  session,
-                                ) => (
-                                  <div
-                                    key={
-                                      session.id
+                                {daySessions.length >
+                                  0 && (
+                                  <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">
+                                    {
+                                      daySessions.length
                                     }
-                                    className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
-                                  >
-                                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                                      <div className="flex items-start gap-3">
-                                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-sm font-bold text-white">
+                                  </span>
+                                )}
+                              </div>
+
+                              {daySessions.length >
+                                0 && (
+                                <div className="mt-2 space-y-1">
+                                  {daySessions
+                                    .slice(
+                                      0,
+                                      2,
+                                    )
+                                    .map(
+                                      (
+                                        session,
+                                      ) => (
+                                        <div
+                                          key={
+                                            session.id
+                                          }
+                                          className="truncate rounded bg-blue-50 px-1.5 py-1 text-[10px] font-medium text-blue-700"
+                                        >
+                                          Session{" "}
                                           {
                                             session.sessionNumber
                                           }
                                         </div>
+                                      ),
+                                    )}
 
-                                        <div className="min-w-0">
-                                          <p className="font-bold text-slate-900">
-                                            Session{" "}
-                                            {
-                                              session.sessionNumber
-                                            }
-                                          </p>
+                                  {daySessions.length >
+                                    2 && (
+                                    <div className="text-[10px] text-slate-400">
+                                      +
+                                      {daySessions.length -
+                                        2}{" "}
+                                      more
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </button>
+                          );
+                        },
+                      )}
+                    </div>
+                  </div>
 
-                                          <p className="mt-1 text-sm text-slate-500">
-                                            {formatDate(
-                                              String(
-                                                session.sessionDate,
-                                              ),
-                                            )}
-                                          </p>
-                                        </div>
-                                      </div>
+                  {/* ================================================= */}
+                  {/* SELECTED DATE */}
+                  {/* ================================================= */}
 
-                                      <div className="flex flex-wrap gap-2">
-                                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium text-slate-600">
-                                          <Clock3 className="h-3.5 w-3.5" />
+                  <div>
+                    <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h3 className="text-base font-semibold text-slate-900">
+                          {formatDate(
+                            selectedDateKey,
+                          )}
+                        </h3>
 
-                                          {getSessionTime(
-                                            session.startTime,
-                                            session.endTime,
-                                          )}
-                                        </span>
+                        <p className="text-sm text-slate-500">
+                          Scheduled sessions
+                          for this date
+                        </p>
+                      </div>
 
-                                        <span className="rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700">
-                                          {
-                                            session.durationHours
-                                          }{" "}
-                                          hrs
-                                        </span>
+                      <div className="text-sm text-slate-500">
+                        {selectedDaySessions.length}{" "}
+                        {selectedDaySessions.length ===
+                        1
+                          ? "session"
+                          : "sessions"}
+                      </div>
+                    </div>
 
-                                        <span className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
-                                          {
-                                            session.status
-                                          }
-                                        </span>
-                                      </div>
+                    {selectedDaySessions.length ===
+                    0 ? (
+                      <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+                        <CalendarDays className="mx-auto h-10 w-10 text-slate-300" />
+
+                        <p className="mt-3 text-sm font-medium text-slate-600">
+                          No session scheduled
+                        </p>
+
+                        <p className="mt-1 text-xs text-slate-400">
+                          Select another date
+                          from the calendar.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {selectedDaySessions.map(
+                          (session) => (
+                            <div
+                              key={
+                                session.id
+                              }
+                              className="rounded-xl border border-slate-200 bg-white p-4 transition hover:border-blue-200 hover:shadow-sm"
+                            >
+                              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                                      <CalendarDays className="h-5 w-5" />
+                                    </div>
+
+                                    <div>
+                                      <p className="font-semibold text-slate-900">
+                                        Session{" "}
+                                        {
+                                          session.sessionNumber
+                                        }
+                                      </p>
+
+                                      <p className="text-xs text-slate-500">
+                                        {formatDate(
+                                          String(
+                                            session.sessionDate,
+                                          ),
+                                        )}
+                                      </p>
                                     </div>
                                   </div>
-                                ),
-                              )}
-                            </div>
-                          )}
-                        </div>
+                                </div>
 
-                        {/* SUMMARY */}
+                                <div className="flex flex-wrap items-center gap-3 text-sm">
+                                  <div className="flex items-center gap-1.5 text-slate-600">
+                                    <Clock3 className="h-4 w-4 text-slate-400" />
 
-                        {selectedTraining
-                          .sessions
-                          .length > 0 && (
-                          <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                            <div className="flex items-center justify-between gap-3">
-                              <div>
-                                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                                  Schedule Summary
-                                </p>
+                                    <span>
+                                      {getSessionTime(
+                                        session.startTime,
+                                        session.endTime,
+                                      )}
+                                    </span>
+                                  </div>
 
-                                <p className="mt-1 text-sm font-semibold text-slate-800">
-                                  {
-                                    selectedTraining
-                                      .sessions
-                                      .length
-                                  }{" "}
-                                  training{" "}
-                                  {selectedTraining
-                                    .sessions
-                                    .length ===
-                                  1
-                                    ? "session"
-                                    : "sessions"}{" "}
-                                  approved
-                                </p>
-                              </div>
+                                  {session.durationHours !=
+                                    null && (
+                                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                                      {
+                                        session.durationHours
+                                      }{" "}
+                                      hours
+                                    </span>
+                                  )}
 
-                              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-600 shadow-sm">
-                                <CalendarDays className="h-5 w-5" />
+                                  {session.status && (
+                                    <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium capitalize text-blue-700">
+                                      {
+                                        session.status
+                                      }
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
+                          ),
                         )}
-                      </>
+                      </div>
                     )}
+                  </div>
+
+                  {/* ================================================= */}
+                  {/* SCHEDULE SUMMARY */}
+                  {/* ================================================= */}
+
+                  <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                      <Clock3 className="h-4 w-4 text-slate-400" />
+
+                      <span>
+                        Total scheduled
+                        sessions
+                      </span>
+                    </div>
+
+                    <span className="font-semibold text-slate-900">
+                      {sessions.length}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* =========================================================
-   STAT CARD
-========================================================= */
-
-function StatCard({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: number;
-  icon: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium text-slate-500">
-            {label}
-          </p>
-
-          <p className="mt-1 text-2xl font-bold text-slate-900">
-            {value}
-          </p>
-        </div>
-
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-          {icon}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* =========================================================
-   INFO ROW
-========================================================= */
-
-function InfoRow({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="flex items-start gap-3">
-      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-        {icon}
+          </section>
+        )}
       </div>
 
-      <div className="min-w-0">
-        <p className="text-xs font-medium text-slate-400">
-          {label}
-        </p>
-
-        <p className="mt-0.5 truncate text-sm font-medium text-slate-700">
-          {value}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-/* =========================================================
-   DETAIL CARD
-========================================================= */
-
-function DetailCard({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-      <div className="flex items-center gap-2 text-slate-500">
-        {icon}
-
-        <span className="text-xs font-medium">
-          {label}
-        </span>
-      </div>
-
-      <p className="mt-2 text-sm font-semibold text-slate-900">
-        {value}
-      </p>
-    </div>
   );
 }

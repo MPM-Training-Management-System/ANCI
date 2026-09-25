@@ -1,1368 +1,159 @@
 "use client";
 
 import {
+  useEffect,
+  useMemo,
   useState,
-  type FormEvent,
 } from "react";
+
+import {
+  Bell,
+  CheckCircle2,
+  ChevronRight,
+  CircleUserRound,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Loader2,
+  LockKeyhole,
+  Mail,
+  RefreshCw,
+  Save,
+  ShieldCheck,
+  UserRound,
+  X,
+} from "lucide-react";
+
 import type {
-  TrainerNotificationSettings,
-  TrainerPreferenceSettings,
-  
-  TrainerSystemSettings,
-} from "./type";
-import type { TrainerProfile } from "@repo/types";
-import { useTrainerMe } from "@repo/hooks";
-import { trainerApi } from "@/lib/api";
+  UpdateTrainerProfileRequest,
+} from "@repo/types";
+
+import {
+  authAPIs,
+  trainerApi,
+} from "@/lib/api";
+
+import {
+  useForgotPassword,
+  useTrainerMe,
+} from "@repo/hooks";
+
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+function formatDate(
+  value?: string | null
+) {
+  if (!value) {
+    return "Not provided";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString(
+    "en-US",
+    {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    }
+  );
+}
+
+function formatStatus(
+  status?: string | null
+) {
+  if (!status) {
+    return "Unknown";
+  }
+
+  return status
+    .replace(/([a-z])([A-Z])/g, "$1 $2");
+}
+
+
+// ============================================================
+// PAGE
+// ============================================================
 
 export default function TrainerSettingsPage() {
- const {
-  profile,
-  isLoading,
-  error,
-  refetch
- } = useTrainerMe(trainerApi)
+  // ==========================================================
+  // TRAINER PROFILE
+  // ==========================================================
+
+  const {
+    profile,
+    isLoading,
+    isUpdating,
+    error,
+    updateError,
+    updateSuccess,
+    refetch,
+    updateProfile,
+    resetUpdateState,
+  } = useTrainerMe(trainerApi);
 
 
+  // ==========================================================
+  // PASSWORD
+  // ==========================================================
 
-  /* =======================================================
-     NOTIFICATIONS
-  ======================================================= */
+  const {
+    forgotPassword,
+    verifyResetOtp,
+    resetPassword,
+    isLoading: isPasswordLoading,
+    error: passwordError,
+    success: passwordSuccess,
+    reset: resetPasswordState,
+  } = useForgotPassword(authAPIs);
 
-  const [
-    notifications,
-    setNotifications,
-  ] =
-    useState<TrainerNotificationSettings>({
-      assignmentAlerts: true,
-      scheduleAlerts: true,
-      attendanceAlerts: true,
-      assessmentAlerts: true,
-      announcementAlerts: true,
-      emailNotifications: true,
-    });
 
-  /* =======================================================
-     TRAINER PREFERENCES
-  ======================================================= */
-
-  const [
-    preferences,
-    setPreferences,
-  ] =
-    useState<TrainerPreferenceSettings>({
-      availability: "Available",
-      preferredSession: "Morning",
-      defaultAttendanceMode: "Manual",
-      allowParticipantMessages: true,
-      showProfileToParticipants: true,
-    });
-
-  /* =======================================================
-     SYSTEM
-  ======================================================= */
+  // ==========================================================
+  // UI STATE
+  // ==========================================================
 
   const [
-    systemSettings,
-    setSystemSettings,
-  ] =
-    useState<TrainerSystemSettings>({
-      timezone: "Asia/Manila",
-      dateFormat: "MMM DD, YYYY",
-      language: "English",
-    });
-
-
-
-  const [
-    profileModal,
-    setProfileModal,
+    isEditProfileOpen,
+    setIsEditProfileOpen,
   ] = useState(false);
 
   const [
-    passwordModal,
-    setPasswordModal,
+    isPasswordModalOpen,
+    setIsPasswordModalOpen,
   ] = useState(false);
 
   const [
-    logoutModal,
-    setLogoutModal,
+    passwordStep,
+    setPasswordStep,
+  ] = useState<
+    "email" | "otp" | "password" | "success"
+  >("email");
+
+  const [
+    showNewPassword,
+    setShowNewPassword,
   ] = useState(false);
 
-
-
-  const [saved, setSaved] =
-    useState(false);
-
-    if (isLoading) {
-  return (
-    <main className="flex min-h-[400px] items-center justify-center">
-      <p className="text-sm text-gray-500">
-        Loading trainer profile...
-      </p>
-    </main>
-  );
-}
-
-console.log(profile);
-
-if (error) {
-  return (
-    <main className="flex min-h-[400px] flex-col items-center justify-center gap-3">
-      <p className="text-sm font-semibold text-red-600">
-        Failed to load trainer profile.
-      </p>
-
-      <button
-        type="button"
-        onClick={refetch}
-        className="rounded-xl bg-gray-900 px-4 py-2 text-xs font-bold text-white"
-      >
-        Try Again
-      </button>
-    </main>
-  );
-}
-
-if (!profile) {
-  return (
-    <main className="flex min-h-[400px] items-center justify-center">
-      <p className="text-sm text-gray-500">
-        Trainer profile not found.
-      </p>
-    </main>
-  );
-}
-
-  function showSaved() {
-    setSaved(true);
-
-    window.setTimeout(() => {
-      setSaved(false);
-    }, 2500);
-  }
-
-  /* =======================================================
-     NOTIFICATION TOGGLE
-  ======================================================= */
-
-  function toggleNotification(
-    key: keyof TrainerNotificationSettings,
-  ) {
-    setNotifications(
-      (current) => ({
-        ...current,
-        [key]: !current[key],
-      }),
-    );
-
-    showSaved();
-  }
-
-  /* =======================================================
-     PREFERENCE TOGGLE
-  ======================================================= */
-
-  function togglePreference(
-    key:
-      | "allowParticipantMessages"
-      | "showProfileToParticipants",
-  ) {
-    setPreferences(
-      (current) => ({
-        ...current,
-        [key]: !current[key],
-      }),
-    );
-
-    showSaved();
-  }
-
-  /* =======================================================
-     PROFILE SAVE
-  ======================================================= */
-
-  function handleProfileSave(
-    updated: TrainerProfile,
-  ) {
-    
-    setProfileModal(false);
-    showSaved();
-  }
-
-  /* =======================================================
-     PASSWORD SAVE
-  ======================================================= */
-
-  function handlePasswordSave(
-    event: FormEvent<HTMLFormElement>,
-  ) {
-    event.preventDefault();
-
-    setPasswordModal(false);
-    showSaved();
-  }
-  
-  
-  return (
-    <main className="mx-auto w-full max-w-7xl space-y-6 pb-12">
-
-      {/* =================================================
-          HEADER
-      ================================================= */}
-
-      <section className="relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
-
-        <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-gray-100 blur-3xl" />
-
-        <div className="relative">
-
-          <div className="mb-3 flex items-center gap-2">
-
-            <span className="h-2 w-2 rounded-full bg-gray-900" />
-
-            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-400">
-              Trainer Portal
-            </span>
-
-          </div>
-
-          <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
-
-            <div>
-
-              <h1 className="text-3xl font-bold tracking-tight text-gray-950">
-                Settings
-              </h1>
-
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
-                Manage your trainer profile,
-                notifications, availability,
-                training preferences, and
-                account security.
-              </p>
-
-            </div>
-
-            <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-3">
-
-              
-
-              <div>
-
-                <p className="text-sm font-bold text-gray-900">
-                  {profile.firstName}{" "}
-                  {profile.lastName}
-                </p>
-
-                <p className="mt-0.5 text-[10px] text-gray-500">
-                  {profile.userCode}
-                </p>
-
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </section>
-
-      {saved && (
-        <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700">
-            ✓
-          </div>
-
-          <div>
-
-            <p className="text-xs font-bold text-emerald-800">
-              Changes saved
-            </p>
-
-            <p className="text-[10px] text-emerald-600">
-              Your trainer settings have been updated.
-            </p>
-
-          </div>
-
-        </div>
-      )}
-
-      {/* =================================================
-          PROFILE + SECURITY
-      ======================================= ========== */}
-
-      <section className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
-
-        {/* PROFILE */}
-
-        <SettingsCard
-          eyebrow="Account"
-          title="Trainer Profile"
-          description="Your trainer identity and professional information."
-        >
-
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-
-            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-gray-100">
-  {profile.profileImageUrl ? (
-    <img
-      src={profile.profileImageUrl}
-      alt={profile.fullName ?? "Trainer Profile"}
-      className="h-full w-full object-cover"
-    />
-  ) : (
-    <div className="flex h-full w-full items-center justify-center text-xl font-bold text-gray-500">
-      {(profile.fullName ?? "?")
-        .charAt(0)
-        .toUpperCase()}
-    </div>
-  )}
-</div>
-
-            <div className="min-w-0 flex-1">
-
-              <h3 className="text-lg font-bold text-gray-900">
-                {profile.fullName}{" "}
-                {profile.lastName}
-              </h3>
-
-              <p className="mt-1 text-xs text-gray-500">
-                {profile.email}
-              </p>
-
-              <div className="mt-3 flex flex-wrap gap-2">
-
-                <span className="rounded-full bg-gray-100 px-3 py-1 text-[10px] font-bold text-gray-600">
-                  Trainer
-                </span>
-
-                <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-bold text-emerald-600">
-                  Active
-                </span>
-
-              </div>
-
-            </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                setProfileModal(true)
-              }
-              className="rounded-xl border border-gray-200 px-4 py-2.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-50"
-            >
-              Edit Profile
-            </button>
-
-          </div>
-
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-
-            <InfoBox
-              label="Trainer ID"
-              value={profile.userCode}
-            />
-
-            <InfoBox
-              label="Specialization"
-              value={
-                profile.specialization
-              }
-            />
-
-          </div>
-
-        </SettingsCard>
-
-        {/* SECURITY */}
-
-        <SettingsCard
-          eyebrow="Security"
-          title="Account Security"
-          description="Protect your trainer account and personal information."
-        >
-
-          <div className="space-y-3">
-
-            <button
-              type="button"
-              onClick={() =>
-                setPasswordModal(true)
-              }
-              className="flex w-full items-center justify-between rounded-xl border border-gray-200 p-4 text-left transition hover:bg-gray-50"
-            >
-
-              <div>
-
-                <p className="text-xs font-bold text-gray-900">
-                  Change Password
-                </p>
-
-                <p className="mt-1 text-[10px] text-gray-500">
-                  Update your account password
-                </p>
-
-              </div>
-
-              <span className="text-lg text-gray-300">
-                →
-              </span>
-
-            </button>
-
-            <div className="flex items-center justify-between rounded-xl border border-gray-200 p-4">
-
-              <div>
-
-                <p className="text-xs font-bold text-gray-900">
-                  Two-Factor Authentication
-                </p>
-
-                <p className="mt-1 text-[10px] text-gray-500">
-                  Add additional protection to your account
-                </p>
-
-              </div>
-
-              <span className="rounded-full bg-amber-50 px-3 py-1 text-[9px] font-bold text-amber-600">
-                Not Enabled
-              </span>
-
-            </div>
-
-          </div>
-
-        </SettingsCard>
-
-      </section>
-
-      {/* =================================================
-          NOTIFICATIONS
-      ================================================= */}
-
-      <SettingsCard
-        eyebrow="Preferences"
-        title="Notifications"
-        description="Choose which trainer events should generate notifications."
-      >
-
-        <div className="grid gap-x-8 gap-y-1 md:grid-cols-2">
-
-          <SettingToggle
-            title="Training Assignments"
-            description="Notify me when I am assigned to a training program."
-            enabled={
-              notifications.assignmentAlerts
-            }
-            onChange={() =>
-              toggleNotification(
-                "assignmentAlerts",
-              )
-            }
-          />
-
-          <SettingToggle
-            title="Schedule Alerts"
-            description="Notify me about upcoming training schedules and changes."
-            enabled={
-              notifications.scheduleAlerts
-            }
-            onChange={() =>
-              toggleNotification(
-                "scheduleAlerts",
-              )
-            }
-          />
-
-          <SettingToggle
-            title="Attendance Alerts"
-            description="Notify me about attendance records and missing submissions."
-            enabled={
-              notifications.attendanceAlerts
-            }
-            onChange={() =>
-              toggleNotification(
-                "attendanceAlerts",
-              )
-            }
-          />
-
-          <SettingToggle
-            title="Assessment Alerts"
-            description="Notify me when assessment results or evaluations require attention."
-            enabled={
-              notifications.assessmentAlerts
-            }
-            onChange={() =>
-              toggleNotification(
-                "assessmentAlerts",
-              )
-            }
-          />
-
-          <SettingToggle
-            title="Announcements"
-            description="Receive important announcements from administrators."
-            enabled={
-              notifications.announcementAlerts
-            }
-            onChange={() =>
-              toggleNotification(
-                "announcementAlerts",
-              )
-            }
-          />
-
-          <SettingToggle
-            title="Email Notifications"
-            description="Receive trainer notifications through email."
-            enabled={
-              notifications.emailNotifications
-            }
-            onChange={() =>
-              toggleNotification(
-                "emailNotifications",
-              )
-            }
-          />
-
-        </div>
-
-      </SettingsCard>
-
-      {/* =================================================
-          TRAINER PREFERENCES
-      ================================================= */}
-
-      <SettingsCard
-        eyebrow="Trainer Preferences"
-        title="Training Preferences"
-        description="Configure your availability and default training behavior."
-      >
-
-        <div className="grid gap-6 lg:grid-cols-2">
-
-          {/* AVAILABILITY */}
-
-          <div className="space-y-4">
-
-            <SelectSetting
-              label="Availability Status"
-              value={
-                preferences.availability
-              }
-              options={[
-                "Available",
-                "Limited Availability",
-                "Unavailable",
-              ]}
-              onChange={(value) => {
-                setPreferences(
-                  (current) => ({
-                    ...current,
-                    availability:
-                      value,
-                  }),
-                );
-
-                showSaved();
-              }}
-            />
-
-            <SelectSetting
-              label="Preferred Training Session"
-              value={
-                preferences.preferredSession
-              }
-              options={[
-                "Morning",
-                "Afternoon",
-                "Evening",
-                "Any Session",
-              ]}
-              onChange={(value) => {
-                setPreferences(
-                  (current) => ({
-                    ...current,
-                    preferredSession:
-                      value,
-                  }),
-                );
-
-                showSaved();
-              }}
-            />
-
-            <SelectSetting
-              label="Default Attendance Mode"
-              value={
-                preferences.defaultAttendanceMode
-              }
-              options={[
-                "Manual",
-                "QR Code",
-                "Biometric",
-              ]}
-              onChange={(value) => {
-                setPreferences(
-                  (current) => ({
-                    ...current,
-                    defaultAttendanceMode:
-                      value,
-                  }),
-                );
-
-                showSaved();
-              }}
-            />
-
-          </div>
-
-          {/* TRAINER VISIBILITY */}
-
-          <div>
-
-            <SettingToggle
-              title="Participant Messages"
-              description="Allow participants enrolled in your training to send you messages."
-              enabled={
-                preferences.allowParticipantMessages
-              }
-              onChange={() =>
-                togglePreference(
-                  "allowParticipantMessages",
-                )
-              }
-            />
-
-            <SettingToggle
-              title="Show Trainer Profile"
-              description="Allow participants to view your trainer profile and specialization."
-              enabled={
-                preferences.showProfileToParticipants
-              }
-              onChange={() =>
-                togglePreference(
-                  "showProfileToParticipants",
-                )
-              }
-            />
-
-          </div>
-
-        </div>
-
-      </SettingsCard>
-
-      {/* =================================================
-          PROFESSIONAL INFORMATION
-      ================================================= */}
-
-      <SettingsCard
-        eyebrow="Professional"
-        title="Trainer Information"
-        description="Information used by the training management system when assigning programs."
-      >
-
-        <div className="grid gap-4 md:grid-cols-3">
-
-          <InfoBox
-            label="Trainer ID"
-            value={profile.userCode}
-          />
-
-          <InfoBox
-            label="Specialization"
-            value={
-              profile.specialization
-            }
-          />
-
-          <InfoBox
-            label="Current Status"
-            value="Active"
-            success
-          />
-
-        </div>
-
-        <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
-
-          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-            Assignment Note
-          </p>
-
-          <p className="mt-2 text-xs leading-5 text-gray-600">
-            Your specialization and availability
-            are used by administrators when assigning
-            you to training programs. Keep this
-            information updated to ensure appropriate
-            training assignments.
-          </p>
-
-        </div>
-
-      </SettingsCard>
-
-      {/* =================================================
-          SYSTEM PREFERENCES
-      ================================================= */}
-
-      <SettingsCard
-        eyebrow="System"
-        title="System Preferences"
-        description="Configure how information is displayed in your trainer portal."
-      >
-
-        <div className="grid gap-4 md:grid-cols-3">
-
-          <SelectSetting
-            label="Timezone"
-            value={
-              systemSettings.timezone
-            }
-            options={[
-              "Asia/Manila",
-              "Asia/Singapore",
-              "Asia/Tokyo",
-              "UTC",
-            ]}
-            onChange={(value) => {
-              setSystemSettings(
-                (current) => ({
-                  ...current,
-                  timezone: value,
-                }),
-              );
-
-              showSaved();
-            }}
-          />
-
-          <SelectSetting
-            label="Date Format"
-            value={
-              systemSettings.dateFormat
-            }
-            options={[
-              "MMM DD, YYYY",
-              "DD/MM/YYYY",
-              "MM/DD/YYYY",
-              "YYYY-MM-DD",
-            ]}
-            onChange={(value) => {
-              setSystemSettings(
-                (current) => ({
-                  ...current,
-                  dateFormat: value,
-                }),
-              );
-
-              showSaved();
-            }}
-          />
-
-          <SelectSetting
-            label="Language"
-            value={
-              systemSettings.language
-            }
-            options={[
-              "English",
-              "Filipino",
-            ]}
-            onChange={(value) => {
-              setSystemSettings(
-                (current) => ({
-                  ...current,
-                  language: value,
-                }),
-              );
-
-              showSaved();
-            }}
-          />
-
-        </div>
-
-      </SettingsCard>
-
-      {/* =================================================
-          SESSION
-      ================================================= */}
-
-      <section className="grid gap-6 lg:grid-cols-2">
-
-        <SettingsCard
-          eyebrow="Session"
-          title="Current Session"
-          description="Information about your current trainer session."
-        >
-
-          <div className="space-y-3">
-
-            <InfoRow
-              label="Signed in as"
-              value={profile.email}
-            />
-
-            <InfoRow
-              label="Trainer ID"
-              value={profile.userCode}
-            />
-
-            <InfoRow
-              label="Role"
-              value="Trainer"
-            />
-
-            <InfoRow
-              label="Session status"
-              value="Active"
-              success
-            />
-
-          </div>
-
-        </SettingsCard>
-
-        <SettingsCard
-          eyebrow="Information"
-          title="Portal Information"
-          description="Current ANCI trainer portal information."
-        >
-
-          <div className="grid gap-3 sm:grid-cols-2">
-
-            <InfoBox
-              label="Application"
-              value="ANCI Training Management"
-            />
-
-            <InfoBox
-              label="Portal"
-              value="Trainer Portal"
-            />
-
-            <InfoBox
-              label="Version"
-              value="1.0.0"
-            />
-
-            <InfoBox
-              label="Environment"
-              value="Production"
-            />
-
-          </div>
-
-        </SettingsCard>
-
-      </section>
-
-      {/* =================================================
-          DANGER ZONE
-      ================================================= */}
-
-      <section className="overflow-hidden rounded-2xl border border-red-200 bg-white shadow-sm">
-
-        <div className="border-b border-red-100 bg-red-50/50 px-5 py-4">
-
-          <p className="text-[10px] font-bold uppercase tracking-widest text-red-400">
-            Account
-          </p>
-
-          <h2 className="mt-1 text-base font-bold text-red-900">
-            Sign Out
-          </h2>
-
-          <p className="mt-1 text-xs text-red-600">
-            End your current trainer portal session.
-          </p>
-
-        </div>
-
-        <div className="flex flex-col justify-between gap-4 p-5 sm:flex-row sm:items-center">
-
-          <div>
-
-            <p className="text-sm font-bold text-gray-900">
-              Sign out of trainer portal
-            </p>
-
-            <p className="mt-1 text-xs text-gray-500">
-              You will need to sign in again to access
-              your trainer account.
-            </p>
-
-          </div>
-
-          <button
-            type="button"
-            onClick={() =>
-              setLogoutModal(true)
-            }
-            className="rounded-xl border border-red-200 px-4 py-2.5 text-xs font-bold text-red-600 transition hover:bg-red-50"
-          >
-            Sign Out
-          </button>
-
-        </div>
-
-      </section>
-
-      {/* =================================================
-          PROFILE MODAL
-      ================================================= */}
-
-      {profileModal && (
-        <ProfileModal
-          profile={profile}
-          onClose={() =>
-            setProfileModal(false)
-          }
-          onSave={handleProfileSave}
-        />
-      )}
-
-      {/* =================================================
-          PASSWORD MODAL
-      ================================================= */}
-
-      {passwordModal && (
-        <PasswordModal
-          onClose={() =>
-            setPasswordModal(false)
-          }
-          onSave={
-            handlePasswordSave
-          }
-        />
-      )}
-
-      {/* =================================================
-          LOGOUT MODAL
-      ================================================= */}
-
-      {logoutModal && (
-        <ConfirmModal
-          title="Sign out?"
-          description="You will be signed out of the ANCI trainer portal and will need to sign in again."
-          confirmText="Sign Out"
-          onClose={() =>
-            setLogoutModal(false)
-          }
-          onConfirm={() => {
-            setLogoutModal(false);
-
-            // Replace with your actual auth logout:
-            // await auth.logout();
-
-            window.location.href =
-              "/login";
-          }}
-        />
-      )}
-
-    </main>
-  );
-}
-
-/* =========================================================
-   SETTINGS CARD
-========================================================= */
-
-function SettingsCard({
-  eyebrow,
-  title,
-  description,
-  children,
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-
-      <div className="border-b border-gray-100 px-5 py-4 sm:px-6">
-
-        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
-          {eyebrow}
-        </p>
-
-        <h2 className="mt-1 text-base font-bold text-gray-900">
-          {title}
-        </h2>
-
-        <p className="mt-1 text-xs leading-5 text-gray-500">
-          {description}
-        </p>
-
-      </div>
-
-      <div className="p-5 sm:p-6">
-        {children}
-      </div>
-
-    </section>
-  );
-}
-
-/* =========================================================
-   TOGGLE
-========================================================= */
-
-function SettingToggle({
-  title,
-  description,
-  enabled,
-  onChange,
-}: {
-  title: string;
-  description: string;
-  enabled: boolean;
-  onChange: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onChange}
-      className="flex w-full items-center justify-between gap-4 border-b border-gray-100 py-4 text-left last:border-b-0"
-    >
-
-      <div className="min-w-0">
-
-        <p className="text-xs font-bold text-gray-900">
-          {title}
-        </p>
-
-        <p className="mt-1 max-w-xl text-[10px] leading-5 text-gray-500">
-          {description}
-        </p>
-
-      </div>
-
-      <span
-        className={[
-          "relative h-6 w-11 shrink-0 rounded-full transition",
-          enabled
-            ? "bg-gray-900"
-            : "bg-gray-200",
-        ].join(" ")}
-      >
-
-        <span
-          className={[
-            "absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition",
-            enabled
-              ? "left-6"
-              : "left-1",
-          ].join(" ")}
-        />
-
-      </span>
-
-    </button>
-  );
-}
-
-/* =========================================================
-   SELECT
-========================================================= */
-
-function SelectSetting({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  options: string[];
-  onChange: (
-    value: string,
-  ) => void;
-}) {
-  return (
-    <div>
-
-      <label className="text-xs font-bold text-gray-900">
-        {label}
-      </label>
-
-      <select
-        value={value}
-        onChange={(event) =>
-          onChange(
-            event.target.value,
-          )
-        }
-        className="mt-2 h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-xs font-medium text-gray-700 outline-none transition focus:border-gray-400 focus:bg-white"
-      >
-
-        {options.map(
-          (option) => (
-            <option
-              key={option}
-              value={option}
-            >
-              {option}
-            </option>
-          ),
-        )}
-
-      </select>
-
-    </div>
-  );
-}
-
-/* =========================================================
-   INFO BOX
-========================================================= */
-
-function InfoBox({
-  label,
-  value,
-  success = false,
-}: {
-  label: string;
-  value: string;
-  success?: boolean;
-}) {
-  return (
-    <div className="rounded-xl bg-gray-50 p-4">
-
-      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-        {label}
-      </p>
-
-      <div className="mt-2 flex items-center gap-2">
-
-        {success && (
-          <span className="h-2 w-2 rounded-full bg-emerald-500" />
-        )}
-
-        <p
-          className={[
-            "text-xs font-bold",
-            success
-              ? "text-emerald-600"
-              : "text-gray-900",
-          ].join(" ")}
-        >
-          {value}
-        </p>
-
-      </div>
-
-    </div>
-  );
-}
-
-/* =========================================================
-   INFO ROW
-========================================================= */
-
-function InfoRow({
-  label,
-  value,
-  success = false,
-}: {
-  label: string;
-  value: string;
-  success?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4 border-b border-gray-100 pb-3 last:border-b-0 last:pb-0">
-
-      <span className="text-[10px] font-medium text-gray-500">
-        {label}
-      </span>
-
-      <span
-        className={[
-          "text-right text-[10px] font-bold",
-          success
-            ? "text-emerald-600"
-            : "text-gray-900",
-        ].join(" ")}
-      >
-        {value}
-      </span>
-
-    </div>
-  );
-}
-
-/* =========================================================
-   PROFILE MODAL
-========================================================= */
-
-function ProfileModal({
-  profile,
-  onClose,
-  onSave,
-}: {
-  profile: TrainerProfile;
-  onClose: () => void;
-  onSave: (
-    profile: TrainerProfile,
-  ) => void;
-}) {
   const [
-    form,
-    setForm,
-  ] = useState(profile);
+    showConfirmPassword,
+    setShowConfirmPassword,
+  ] = useState(false);
 
-  function update(
-    key: keyof TrainerProfile,
-    value: string,
-  ) {
-    setForm(
-      (current) => ({
-        ...current,
-        [key]: value,
-      }),
-    );
-  }
-
-  return (
-    <ModalShell
-      title="Edit Trainer Profile"
-      description="Update your trainer information."
-      onClose={onClose}
-    >
-
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          onSave(form);
-        }}
-        className="space-y-5"
-      >
-
-        <div className="grid gap-4 sm:grid-cols-2">
-
-          <FormInput
-            label="First Name"
-            value={form.firstName}
-            onChange={(value) =>
-              update(
-                "firstName",
-                value,
-              )
-            }
-          />
-
-          <FormInput
-            label="Last Name"
-            value={form.lastName}
-            onChange={(value) =>
-              update(
-                "lastName",
-                value,
-              )
-            }
-          />
-
-          <FormInput
-            label="Email Address"
-            type="email"
-            value={form.email}
-            onChange={(value) =>
-              update(
-                "email",
-                value,
-              )
-            }
-          />
-
-          <FormInput
-            label="Mobile Number"
-            value={
-              form.userCode
-            }
-            onChange={(value) =>
-              update(
-                "mobileNumber",
-                value,
-              )
-            }
-          />
-
-        </div>
-
-        <div>
-
-          <label className="text-xs font-bold text-gray-900">
-            Specialization
-          </label>
-
-          <textarea
-            value={
-              form.specialization
-            }
-            onChange={(event) =>
-              update(
-                "specialization",
-                event.target.value,
-              )
-            }
-            rows={3}
-            className="mt-2 w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs font-medium text-gray-800 outline-none transition focus:border-gray-400 focus:bg-white"
-          />
-
-        </div>
-
-        <div className="rounded-xl bg-gray-50 p-4">
-
-          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-            Trainer ID
-          </p>
-
-          <p className="mt-1 text-xs font-bold text-gray-900">
-            {form.userCode}
-          </p>
-
-          <p className="mt-1 text-[10px] text-gray-500">
-            Trainer ID is assigned by the system.
-          </p>
-
-        </div>
-
-        <ModalActions
-          onCancel={onClose}
-          submitText="Save Changes"
-        />
-
-      </form>
-
-    </ModalShell>
-  );
-}
-
-/* =========================================================
-   PASSWORD MODAL
-========================================================= */
-
-function PasswordModal({
-  onClose,
-  onSave,
-}: {
-  onClose: () => void;
-  onSave: (
-    event: FormEvent<HTMLFormElement>,
-  ) => void;
-}) {
   const [
-    currentPassword,
-    setCurrentPassword,
+    email,
+    setEmail,
+  ] = useState("");
+
+  const [
+    otpCode,
+    setOtpCode,
   ] = useState("");
 
   const [
@@ -1376,277 +167,1812 @@ function PasswordModal({
   ] = useState("");
 
   const [
-    error,
-    setError,
+    notifications,
+    setNotifications,
+  ] = useState({
+    email: true,
+    reminders: true,
+    announcements: true,
+  });
+
+
+  // ==========================================================
+  // EDIT FORM STATE
+  // ==========================================================
+
+  const [
+    firstName,
+    setFirstName,
   ] = useState("");
 
-  function submit(
-    event: FormEvent<HTMLFormElement>,
-  ) {
-    event.preventDefault();
+  const [
+    middleName,
+    setMiddleName,
+  ] = useState("");
 
-    if (!currentPassword) {
-      setError(
-        "Enter your current password.",
-      );
+  const [
+    lastName,
+    setLastName,
+  ] = useState("");
+
+  const [
+    birthDate,
+    setBirthDate,
+  ] = useState("");
+
+  const [
+    address,
+    setAddress,
+  ] = useState("");
+
+  const [
+    gender,
+    setGender,
+  ] = useState("");
+
+  const [
+    mobileNumber,
+    setMobileNumber,
+  ] = useState("");
+
+  const [
+    specialization,
+    setSpecialization,
+  ] = useState("");
+
+  const [
+    bio,
+    setBio,
+  ] = useState("");
+
+  const [
+    yearsOfExperience,
+    setYearsOfExperience,
+  ] = useState("");
+
+
+  // ==========================================================
+  // DERIVED DATA
+  // ==========================================================
+
+  const displayName =
+    profile?.fullName?.trim() ||
+    "Trainer";
+
+  const profileEmail =
+    profile?.email?.trim() ||
+    "No email available";
+
+  const profileImage =
+    profile?.profileImageUrl ||
+    null;
+
+  const initials = useMemo(() => {
+    const first =
+      profile?.firstName?.trim()?.charAt(0) ||
+      "";
+
+    const last =
+      profile?.lastName?.trim()?.charAt(0) ||
+      "";
+
+    const value =
+      `${first}${last}`.toUpperCase();
+
+    return value || "T";
+  }, [
+    profile?.firstName,
+    profile?.lastName,
+  ]);
+
+
+  // ==========================================================
+  // SYNC PROFILE → EDIT FORM
+  // ==========================================================
+
+  useEffect(() => {
+    if (!profile) {
       return;
     }
 
-    if (newPassword.length < 8) {
-      setError(
-        "New password must contain at least 8 characters.",
+    setFirstName(
+      profile.firstName ?? ""
+    );
+
+    setMiddleName(
+      profile.middleName ?? ""
+    );
+
+    setLastName(
+      profile.lastName ?? ""
+    );
+
+    setBirthDate(
+      profile.birthDate
+        ? profile.birthDate.substring(0, 10)
+        : ""
+    );
+
+    setAddress(
+      profile.address ?? ""
+    );
+
+    setGender(
+      profile.gender ?? ""
+    );
+
+    setMobileNumber(
+      profile.mobileNumber ?? ""
+    );
+
+    setSpecialization(
+      profile.specialization ?? ""
+    );
+
+    setBio(
+      profile.bio ?? ""
+    );
+
+    setYearsOfExperience(
+      profile.yearsOfExperience !== null &&
+      profile.yearsOfExperience !== undefined
+        ? String(profile.yearsOfExperience)
+        : ""
+    );
+  }, [profile]);
+
+
+  // ==========================================================
+  // OPEN EDIT PROFILE
+  // ==========================================================
+
+  const openEditProfile = () => {
+    resetUpdateState();
+
+    if (profile) {
+      setFirstName(
+        profile.firstName ?? ""
       );
+
+      setMiddleName(
+        profile.middleName ?? ""
+      );
+
+      setLastName(
+        profile.lastName ?? ""
+      );
+
+      setBirthDate(
+        profile.birthDate
+          ? profile.birthDate.substring(0, 10)
+          : ""
+      );
+
+      setAddress(
+        profile.address ?? ""
+      );
+
+      setGender(
+        profile.gender ?? ""
+      );
+
+      setMobileNumber(
+        profile.mobileNumber ?? ""
+      );
+
+      setSpecialization(
+        profile.specialization ?? ""
+      );
+
+      setBio(
+        profile.bio ?? ""
+      );
+
+      setYearsOfExperience(
+        profile.yearsOfExperience !== null &&
+        profile.yearsOfExperience !== undefined
+          ? String(
+              profile.yearsOfExperience
+            )
+          : ""
+      );
+    }
+
+    setIsEditProfileOpen(true);
+  };
+
+
+  // ==========================================================
+  // CLOSE EDIT PROFILE
+  // ==========================================================
+
+  const closeEditProfile = () => {
+    if (isUpdating) {
       return;
     }
 
-    if (
-      newPassword !==
-      confirmPassword
-    ) {
-      setError(
-        "Passwords do not match.",
-      );
+    setIsEditProfileOpen(false);
+    resetUpdateState();
+  };
+
+
+  // ==========================================================
+  // SAVE PROFILE
+  // ==========================================================
+
+  const handleUpdateProfile =
+    async () => {
+      resetUpdateState();
+
+      const parsedYears =
+        yearsOfExperience.trim() === ""
+          ? undefined
+          : Number(yearsOfExperience);
+
+      if (
+        parsedYears !== undefined &&
+        (
+          Number.isNaN(parsedYears) ||
+          parsedYears < 0 ||
+          parsedYears > 100
+        )
+      ) {
+        return;
+      }
+
+      const payload:
+        UpdateTrainerProfileRequest = {
+          firstName:
+            firstName.trim() || undefined,
+
+          middleName:
+            middleName.trim() || undefined,
+
+          lastName:
+            lastName.trim() || undefined,
+
+          birthDate:
+            birthDate || null,
+
+          address:
+            address.trim() || undefined,
+
+          gender:
+            gender.trim() || undefined,
+
+          mobileNumber:
+            mobileNumber.trim() || undefined,
+
+          specialization:
+            specialization.trim() || undefined,
+
+          bio:
+            bio.trim() || undefined,
+
+          yearsOfExperience:
+            parsedYears,
+        };
+
+      const updated =
+        await updateProfile(
+          payload
+        );
+
+      if (updated) {
+        setIsEditProfileOpen(false);
+      }
+    };
+
+
+  // ==========================================================
+  // OPEN PASSWORD MODAL
+  // ==========================================================
+
+  const openPasswordModal = () => {
+    resetPasswordState();
+
+    setEmail(
+      profile?.email ?? ""
+    );
+
+    setOtpCode("");
+    setNewPassword("");
+    setConfirmPassword("");
+
+    setPasswordStep("email");
+
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
+
+    setIsPasswordModalOpen(true);
+  };
+
+
+  // ==========================================================
+  // CLOSE PASSWORD MODAL
+  // ==========================================================
+
+  const closePasswordModal = () => {
+    if (isPasswordLoading) {
       return;
     }
 
-    setError("");
+    setIsPasswordModalOpen(false);
 
-    onSave(event);
-  }
+    resetPasswordState();
+
+    setEmail(
+      profile?.email ?? ""
+    );
+
+    setOtpCode("");
+    setNewPassword("");
+    setConfirmPassword("");
+
+    setPasswordStep("email");
+
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
+  };
+
+
+  // ==========================================================
+  // SEND OTP
+  // ==========================================================
+
+  const handleSendOtp =
+    async () => {
+      if (!email.trim()) {
+        return;
+      }
+
+      const response =
+        await forgotPassword({
+          email: email.trim(),
+        });
+
+      if (response?.success) {
+        setPasswordStep("otp");
+      }
+    };
+
+
+  // ==========================================================
+  // VERIFY OTP
+  // ==========================================================
+
+  const handleVerifyOtp =
+    async () => {
+      if (!email.trim() || !otpCode.trim()) {
+        return;
+      }
+
+      const response =
+        await verifyResetOtp({
+          email: email.trim(),
+          otpCode: otpCode.trim(),
+        });
+
+      if (response?.success) {
+        setPasswordStep("password");
+      }
+    };
+
+
+  // ==========================================================
+  // RESET PASSWORD
+  // ==========================================================
+
+  const handleResetPassword =
+    async () => {
+      if (
+        !email.trim() ||
+        !otpCode.trim() ||
+        !newPassword ||
+        !confirmPassword
+      ) {
+        return;
+      }
+
+      if (
+        newPassword !==
+        confirmPassword
+      ) {
+        return;
+      }
+
+      const response =
+        await resetPassword({
+          email: email.trim(),
+          otpCode: otpCode.trim(),
+          newPassword,
+          confirmPassword,
+        });
+
+      if (response?.success) {
+        setPasswordStep("success");
+      }
+    };
+
+
+  // ==========================================================
+  // RENDER
+  // ==========================================================
 
   return (
-    <ModalShell
-      title="Change Password"
-      description="Update your trainer account password."
-      onClose={onClose}
-    >
+    <div className="min-h-screen bg-gray-50">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
 
-      <form
-        onSubmit={submit}
-        className="space-y-5"
-      >
+        {/* =====================================================
+            HEADER
+        ====================================================== */}
 
-        <FormInput
-          label="Current Password"
-          type="password"
-          value={currentPassword}
-          onChange={setCurrentPassword}
-        />
+        <div className="mb-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
+              <ShieldCheck className="h-6 w-6" />
+            </div>
 
-        <FormInput
-          label="New Password"
-          type="password"
-          value={newPassword}
-          onChange={setNewPassword}
-        />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Settings
+              </h1>
 
-        <FormInput
-          label="Confirm New Password"
-          type="password"
-          value={confirmPassword}
-          onChange={setConfirmPassword}
-        />
+              <p className="text-sm text-gray-500">
+                Manage your trainer profile,
+                password, and preferences.
+              </p>
+            </div>
+          </div>
+        </div>
+
+
+        {/* =====================================================
+            PROFILE CARD
+        ====================================================== */}
+
+        <section className="mb-6 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+
+          <div className="h-24 bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600" />
+
+          <div className="px-5 pb-5 sm:px-6">
+            <div className="-mt-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+
+              <div className="flex items-end gap-4">
+
+                {/* PROFILE IMAGE */}
+
+                <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full border-4 border-white bg-blue-100 shadow-sm ring-1 ring-gray-200">
+
+                  {isLoading ? (
+                    <div className="h-full w-full animate-pulse bg-gray-200" />
+                  ) : profileImage ? (
+                    <img
+                      src={profileImage}
+                      alt={displayName}
+                      className="h-full w-full object-cover"
+                      onError={(event) => {
+                        event.currentTarget.style.display =
+                          "none";
+                      }}
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-blue-100 text-blue-700">
+                      <span className="text-xl font-bold">
+                        {initials}
+                      </span>
+                    </div>
+                  )}
+
+                </div>
+
+
+                {/* PROFILE NAME */}
+
+                <div className="pb-1">
+                  <h2 className="text-xl font-bold text-gray-900">
+                    {isLoading
+                      ? "Loading..."
+                      : displayName}
+                  </h2>
+
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <span className="flex items-center gap-1 text-sm text-gray-500">
+                      <Mail className="h-3.5 w-3.5" />
+                      {profileEmail}
+                    </span>
+
+                    {profile?.isActive && (
+                      <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">
+                        Active
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+
+
+              {/* REFRESH */}
+
+              <button
+                type="button"
+                onClick={() => refetch()}
+                disabled={isLoading}
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${
+                    isLoading
+                      ? "animate-spin"
+                      : ""
+                  }`}
+                />
+
+                Refresh
+              </button>
+
+            </div>
+          </div>
+        </section>
+
+
+        {/* =====================================================
+            ERROR
+        ====================================================== */}
 
         {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-medium text-red-600">
-            {error}
+          <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            <X className="mt-0.5 h-5 w-5 shrink-0" />
+
+            <div>
+              <p className="font-semibold">
+                Unable to load profile
+              </p>
+
+              <p className="mt-1">
+                {error}
+              </p>
+            </div>
           </div>
         )}
 
-        <ModalActions
-          onCancel={onClose}
-          submitText="Update Password"
-        />
 
-      </form>
+        {/* =====================================================
+            MAIN GRID
+        ====================================================== */}
 
-    </ModalShell>
-  );
-}
+        <div className="grid gap-6 lg:grid-cols-3">
 
-/* =========================================================
-   CONFIRM MODAL
-========================================================= */
+          {/* ===================================================
+              LEFT / MAIN
+          ==================================================== */}
 
-function ConfirmModal({
-  title,
-  description,
-  confirmText,
-  onClose,
-  onConfirm,
-}: {
-  title: string;
-  description: string;
-  confirmText: string;
-  onClose: () => void;
-  onConfirm: () => void;
-}) {
-  return (
-    <ModalShell
-      title={title}
-      description={description}
-      onClose={onClose}
-    >
+          <div className="space-y-6 lg:col-span-2">
 
-      <div className="flex items-center justify-center py-4">
+            {/* =================================================
+                ACCOUNT
+            ================================================== */}
 
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-xl font-bold text-red-600">
-          !
-        </div>
+            <section className="rounded-2xl border border-gray-200 bg-white shadow-sm">
 
-      </div>
+              <div className="border-b border-gray-100 px-5 py-4 sm:px-6">
+                <div className="flex items-center gap-3">
+                  <CircleUserRound className="h-5 w-5 text-blue-600" />
 
-      <ModalActions
-        onCancel={onClose}
-        onSubmit={onConfirm}
-        submitText={confirmText}
-        danger
-      />
+                  <div>
+                    <h3 className="font-semibold text-gray-900">
+                      Account
+                    </h3>
 
-    </ModalShell>
-  );
-}
+                    <p className="text-xs text-gray-500">
+                      Manage your trainer information.
+                    </p>
+                  </div>
+                </div>
+              </div>
 
-/* =========================================================
-   MODAL SHELL
-========================================================= */
 
-function ModalShell({
-  title,
-  description,
-  children,
-  onClose,
-}: {
-  title: string;
-  description: string;
-  children: React.ReactNode;
-  onClose: () => void;
-}) {
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-3 backdrop-blur-sm sm:p-6">
+              <div className="divide-y divide-gray-100">
 
-      <div className="flex max-h-[calc(100dvh-24px)] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-h-[90dvh]">
+                {/* PROFILE */}
 
-        {/* HEADER */}
+                <button
+                  type="button"
+                  onClick={openEditProfile}
+                  className="flex w-full items-center justify-between px-5 py-4 text-left transition hover:bg-gray-50 sm:px-6"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                      <UserRound className="h-5 w-5" />
+                    </div>
 
-        <div className="flex shrink-0 items-start justify-between border-b border-gray-200 px-5 py-4">
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        Profile Information
+                      </p>
 
-          <div className="pr-4">
+                      <p className="text-sm text-gray-500">
+                        Update your personal and professional information.
+                      </p>
+                    </div>
+                  </div>
 
-            <h2 className="text-lg font-bold text-gray-900">
-              {title}
-            </h2>
+                  <ChevronRight className="h-5 w-5 text-gray-400" />
+                </button>
 
-            <p className="mt-1 text-xs leading-5 text-gray-500">
-              {description}
-            </p>
+
+                {/* PASSWORD */}
+
+                <button
+                  type="button"
+                  onClick={openPasswordModal}
+                  className="flex w-full items-center justify-between px-5 py-4 text-left transition hover:bg-gray-50 sm:px-6"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
+                      <KeyRound className="h-5 w-5" />
+                    </div>
+
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        Change Password
+                      </p>
+
+                      <p className="text-sm text-gray-500">
+                        Change your account password using email verification.
+                      </p>
+                    </div>
+                  </div>
+
+                  <ChevronRight className="h-5 w-5 text-gray-400" />
+                </button>
+
+              </div>
+            </section>
+
+
+            {/* =================================================
+                PROFILE SUMMARY
+            ================================================== */}
+
+            <section className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+
+              <div className="border-b border-gray-100 px-5 py-4 sm:px-6">
+                <h3 className="font-semibold text-gray-900">
+                  Profile Information
+                </h3>
+
+                <p className="mt-1 text-xs text-gray-500">
+                  Your current trainer information.
+                </p>
+              </div>
+
+
+              <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
+
+                <InfoItem
+                  label="Full Name"
+                  value={displayName}
+                />
+
+                <InfoItem
+                  label="Email"
+                  value={profileEmail}
+                />
+
+                <InfoItem
+                  label="Mobile Number"
+                  value={
+                    profile?.mobileNumber ||
+                    "Not provided"
+                  }
+                />
+
+                <InfoItem
+                  label="Gender"
+                  value={
+                    profile?.gender ||
+                    "Not provided"
+                  }
+                />
+
+                <InfoItem
+                  label="Birth Date"
+                  value={formatDate(
+                    profile?.birthDate
+                  )}
+                />
+
+                <InfoItem
+                  label="Years of Experience"
+                  value={
+                    profile?.yearsOfExperience !==
+                      null &&
+                    profile?.yearsOfExperience !==
+                      undefined
+                      ? `${profile.yearsOfExperience} year${
+                          profile.yearsOfExperience === 1
+                            ? ""
+                            : "s"
+                        }`
+                      : "Not provided"
+                  }
+                />
+
+                <InfoItem
+                  label="Specialization"
+                  value={
+                    profile?.specialization ||
+                    "Not provided"
+                  }
+                />
+
+                <InfoItem
+                  label="Address"
+                  value={
+                    profile?.address ||
+                    "Not provided"
+                  }
+                />
+
+                <div className="sm:col-span-2">
+                  <InfoItem
+                    label="Bio"
+                    value={
+                      profile?.bio ||
+                      "No bio provided."
+                    }
+                  />
+                </div>
+
+              </div>
+            </section>
 
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xl text-gray-500 transition hover:bg-gray-200"
-          >
-            ×
-          </button>
 
+          {/* ===================================================
+              RIGHT
+          ==================================================== */}
+
+          <div className="space-y-6">
+
+            {/* =================================================
+                NOTIFICATIONS
+            ================================================== */}
+
+            <section className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+
+              <div className="border-b border-gray-100 px-5 py-4">
+                <div className="flex items-center gap-3">
+                  <Bell className="h-5 w-5 text-blue-600" />
+
+                  <div>
+                    <h3 className="font-semibold text-gray-900">
+                      Notifications
+                    </h3>
+
+                    <p className="text-xs text-gray-500">
+                      Manage notification preferences.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+
+              <div className="space-y-4 p-5">
+
+                <ToggleRow
+                  label="Email Notifications"
+                  description="Receive important account updates."
+                  checked={notifications.email}
+                  onChange={(checked) =>
+                    setNotifications(
+                      (current) => ({
+                        ...current,
+                        email: checked,
+                      })
+                    )
+                  }
+                />
+
+                <ToggleRow
+                  label="Training Reminders"
+                  description="Receive reminders for upcoming sessions."
+                  checked={notifications.reminders}
+                  onChange={(checked) =>
+                    setNotifications(
+                      (current) => ({
+                        ...current,
+                        reminders: checked,
+                      })
+                    )
+                  }
+                />
+
+                <ToggleRow
+                  label="Announcements"
+                  description="Receive system announcements."
+                  checked={notifications.announcements}
+                  onChange={(checked) =>
+                    setNotifications(
+                      (current) => ({
+                        ...current,
+                        announcements: checked,
+                      })
+                    )
+                  }
+                />
+
+              </div>
+            </section>
+
+
+            {/* =================================================
+                SECURITY
+            ================================================== */}
+
+            <section className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+
+              <div className="border-b border-gray-100 px-5 py-4">
+                <div className="flex items-center gap-3">
+                  <LockKeyhole className="h-5 w-5 text-purple-600" />
+
+                  <div>
+                    <h3 className="font-semibold text-gray-900">
+                      Security
+                    </h3>
+
+                    <p className="text-xs text-gray-500">
+                      Protect your account.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+
+              <div className="p-5">
+
+                <div className="rounded-xl bg-gray-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <ShieldCheck className="mt-0.5 h-5 w-5 text-green-600" />
+
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        Account Security
+                      </p>
+
+                      <p className="mt-1 text-xs leading-5 text-gray-500">
+                        Keep your password private and update it regularly.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+
+                <button
+                  type="button"
+                  onClick={openPasswordModal}
+                  className="mt-4 flex w-full items-center justify-between rounded-lg border border-gray-200 px-4 py-3 text-left transition hover:bg-gray-50"
+                >
+                  <span className="flex items-center gap-3">
+                    <KeyRound className="h-4 w-4 text-gray-500" />
+
+                    <span className="text-sm font-medium text-gray-700">
+                      Change Password
+                    </span>
+                  </span>
+
+                  <ChevronRight className="h-4 w-4 text-gray-400" />
+                </button>
+
+              </div>
+            </section>
+
+
+            {/* =================================================
+                ACCOUNT STATUS
+            ================================================== */}
+
+            <section className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+
+              <div className="border-b border-gray-100 px-5 py-4">
+                <h3 className="font-semibold text-gray-900">
+                  Account Status
+                </h3>
+              </div>
+
+              <div className="space-y-4 p-5">
+
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                    Account
+                  </p>
+
+                  <div className="mt-2 flex items-center gap-2">
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full ${
+                        profile?.isActive
+                          ? "bg-green-500"
+                          : "bg-gray-400"
+                      }`}
+                    />
+
+                    <span className="text-sm font-medium text-gray-700">
+                      {profile?.isActive
+                        ? "Active"
+                        : "Inactive"}
+                    </span>
+                  </div>
+                </div>
+
+
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                    Activated
+                  </p>
+
+                  <p className="mt-1 text-sm text-gray-700">
+                    {formatDate(
+                      profile?.activatedAt
+                    )}
+                  </p>
+                </div>
+
+              </div>
+            </section>
+
+          </div>
         </div>
-
-        {/* SCROLLABLE BODY */}
-
-        <div className="min-h-0 flex-1 overflow-y-auto p-5">
-          {children}
-        </div>
-
       </div>
 
+
+      {/* ========================================================
+          EDIT PROFILE MODAL
+      ========================================================= */}
+
+      {isEditProfileOpen && (
+        <ModalOverlay
+          onClose={closeEditProfile}
+        >
+          <div className="w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+
+            {/* HEADER */}
+
+            <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4 sm:px-6">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">
+                  Edit Profile
+                </h2>
+
+                <p className="mt-1 text-sm text-gray-500">
+                  Update your trainer information.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeEditProfile}
+                disabled={isUpdating}
+                className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 disabled:opacity-50"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+
+            {/* BODY */}
+
+            <div className="max-h-[70vh] overflow-y-auto p-5 sm:p-6">
+
+              {updateError && (
+                <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                  <p className="font-semibold">
+                    Unable to update profile
+                  </p>
+
+                  <p className="mt-1">
+                    {updateError}
+                  </p>
+                </div>
+              )}
+
+              {updateSuccess && (
+                <div className="mb-5 flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+                  <CheckCircle2 className="h-5 w-5" />
+
+                  <span>
+                    Profile updated successfully.
+                  </span>
+                </div>
+              )}
+
+
+              <div className="grid gap-5 sm:grid-cols-2">
+
+                <FormField
+                  label="First Name"
+                  value={firstName}
+                  onChange={setFirstName}
+                  placeholder="Enter first name"
+                />
+
+                <FormField
+                  label="Middle Name"
+                  value={middleName}
+                  onChange={setMiddleName}
+                  placeholder="Enter middle name"
+                />
+
+                <FormField
+                  label="Last Name"
+                  value={lastName}
+                  onChange={setLastName}
+                  placeholder="Enter last name"
+                />
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Birth Date
+                  </label>
+
+                  <input
+                    type="date"
+                    value={birthDate}
+                    onChange={(event) =>
+                      setBirthDate(
+                        event.target.value
+                      )
+                    }
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+
+
+                <FormField
+                  label="Mobile Number"
+                  value={mobileNumber}
+                  onChange={setMobileNumber}
+                  placeholder="Enter mobile number"
+                />
+
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Gender
+                  </label>
+
+                  <select
+                    value={gender}
+                    onChange={(event) =>
+                      setGender(
+                        event.target.value
+                      )
+                    }
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  >
+                    <option value="">
+                      Select gender
+                    </option>
+
+                    <option value="Male">
+                      Male
+                    </option>
+
+                    <option value="Female">
+                      Female
+                    </option>
+
+                    <option value="Other">
+                      Other
+                    </option>
+                  </select>
+                </div>
+
+
+                <FormField
+                  label="Specialization"
+                  value={specialization}
+                  onChange={setSpecialization}
+                  placeholder="e.g. Mediation, Leadership"
+                />
+
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Years of Experience
+                  </label>
+
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={yearsOfExperience}
+                    onChange={(event) =>
+                      setYearsOfExperience(
+                        event.target.value
+                      )
+                    }
+                    placeholder="0"
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+
+
+                <div className="sm:col-span-2">
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Address
+                  </label>
+
+                  <textarea
+                    value={address}
+                    onChange={(event) =>
+                      setAddress(
+                        event.target.value
+                      )
+                    }
+                    rows={3}
+                    placeholder="Enter your address"
+                    className="w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+
+
+                <div className="sm:col-span-2">
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Bio
+                  </label>
+
+                  <textarea
+                    value={bio}
+                    onChange={(event) =>
+                      setBio(
+                        event.target.value
+                      )
+                    }
+                    rows={5}
+                    placeholder="Tell us about yourself and your professional experience."
+                    className="w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+
+              </div>
+            </div>
+
+
+            {/* FOOTER */}
+
+            <div className="flex flex-col-reverse gap-3 border-t border-gray-200 bg-gray-50 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
+
+              <button
+                type="button"
+                onClick={closeEditProfile}
+                disabled={isUpdating}
+                className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleUpdateProfile}
+                disabled={
+                  isUpdating ||
+                  !specialization.trim()
+                }
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isUpdating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" />
+                    Save Changes
+                  </>
+                )}
+              </button>
+
+            </div>
+
+          </div>
+        </ModalOverlay>
+      )}
+
+
+      {/* ========================================================
+          PASSWORD MODAL
+      ========================================================= */}
+
+      {isPasswordModalOpen && (
+        <ModalOverlay
+          onClose={closePasswordModal}
+        >
+          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+
+            {/* HEADER */}
+
+            <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
+
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 text-purple-600">
+                  <KeyRound className="h-5 w-5" />
+                </div>
+
+                <div>
+                  <h2 className="font-bold text-gray-900">
+                    Change Password
+                  </h2>
+
+                  <p className="text-xs text-gray-500">
+                    Securely update your password.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={closePasswordModal}
+                disabled={isPasswordLoading}
+                className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+
+            </div>
+
+
+            {/* PROGRESS */}
+
+            {passwordStep !== "success" && (
+              <div className="border-b border-gray-100 px-5 py-4">
+
+                <div className="flex items-center">
+
+                  <PasswordStepIndicator
+                    number="1"
+                    label="Email"
+                    active={
+                      passwordStep === "email"
+                    }
+                    completed={
+                      passwordStep !== "email"
+                    }
+                  />
+
+                  <div className="h-px flex-1 bg-gray-200" />
+
+                  <PasswordStepIndicator
+                    number="2"
+                    label="OTP"
+                    active={
+                      passwordStep === "otp"
+                    }
+                    completed={
+                      passwordStep === "password"
+                    }
+                  />
+
+                  <div className="h-px flex-1 bg-gray-200" />
+
+                  <PasswordStepIndicator
+                    number="3"
+                    label="Password"
+                    active={
+                      passwordStep === "password"
+                    }
+                    completed={false}
+                  />
+
+                </div>
+              </div>
+            )}
+
+
+            {/* BODY */}
+
+            <div className="p-5">
+
+              {passwordError && (
+                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  {passwordError}
+                </div>
+              )}
+
+
+              {/* EMAIL */}
+
+              {passwordStep === "email" && (
+                <div>
+
+                  <div className="mb-5">
+                    <h3 className="font-semibold text-gray-900">
+                      Verify your email
+                    </h3>
+
+                    <p className="mt-1 text-sm leading-5 text-gray-500">
+                      Enter your account email and we'll send you a verification code.
+                    </p>
+                  </div>
+
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Email Address
+                  </label>
+
+                  <div className="relative">
+                    <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(event) =>
+                        setEmail(
+                          event.target.value
+                        )
+                      }
+                      placeholder="you@example.com"
+                      className="w-full rounded-lg border border-gray-300 py-2.5 pl-10 pr-3 text-sm outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSendOtp}
+                    disabled={
+                      isPasswordLoading ||
+                      !email.trim()
+                    }
+                    className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-purple-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isPasswordLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      "Send Verification Code"
+                    )}
+                  </button>
+
+                </div>
+              )}
+
+
+              {/* OTP */}
+
+              {passwordStep === "otp" && (
+                <div>
+
+                  <div className="mb-5">
+                    <h3 className="font-semibold text-gray-900">
+                      Enter verification code
+                    </h3>
+
+                    <p className="mt-1 text-sm leading-5 text-gray-500">
+                      We sent a verification code to{" "}
+                      <span className="font-medium text-gray-700">
+                        {email}
+                      </span>
+                    </p>
+                  </div>
+
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Verification Code
+                  </label>
+
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={10}
+                    value={otpCode}
+                    onChange={(event) =>
+                      setOtpCode(
+                        event.target.value
+                      )
+                    }
+                    placeholder="Enter OTP"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-3 text-center text-lg font-semibold tracking-[0.35em] outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={handleVerifyOtp}
+                    disabled={
+                      isPasswordLoading ||
+                      !otpCode.trim()
+                    }
+                    className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-purple-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isPasswordLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Verifying...
+                      </>
+                    ) : (
+                      "Verify Code"
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPasswordStep("email")
+                    }
+                    disabled={isPasswordLoading}
+                    className="mt-3 w-full text-sm font-medium text-gray-500 hover:text-gray-700"
+                  >
+                    Use a different email
+                  </button>
+
+                </div>
+              )}
+
+
+              {/* NEW PASSWORD */}
+
+              {passwordStep === "password" && (
+                <div>
+
+                  <div className="mb-5">
+                    <h3 className="font-semibold text-gray-900">
+                      Create a new password
+                    </h3>
+
+                    <p className="mt-1 text-sm leading-5 text-gray-500">
+                      Choose a strong password for your account.
+                    </p>
+                  </div>
+
+
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    New Password
+                  </label>
+
+                  <div className="relative">
+                    <input
+                      type={
+                        showNewPassword
+                          ? "text"
+                          : "password"
+                      }
+                      value={newPassword}
+                      onChange={(event) =>
+                        setNewPassword(
+                          event.target.value
+                        )
+                      }
+                      placeholder="Enter new password"
+                      className="w-full rounded-lg border border-gray-300 py-2.5 pl-3 pr-11 text-sm outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowNewPassword(
+                          (current) =>
+                            !current
+                        )
+                      }
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-gray-400 hover:text-gray-600"
+                    >
+                      {showNewPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+
+
+                  <label className="mb-2 mt-4 block text-sm font-medium text-gray-700">
+                    Confirm Password
+                  </label>
+
+                  <div className="relative">
+                    <input
+                      type={
+                        showConfirmPassword
+                          ? "text"
+                          : "password"
+                      }
+                      value={confirmPassword}
+                      onChange={(event) =>
+                        setConfirmPassword(
+                          event.target.value
+                        )
+                      }
+                      placeholder="Confirm new password"
+                      className="w-full rounded-lg border border-gray-300 py-2.5 pl-3 pr-11 text-sm outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowConfirmPassword(
+                          (current) =>
+                            !current
+                        )
+                      }
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-gray-400 hover:text-gray-600"
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+
+
+                  {confirmPassword &&
+                    newPassword !==
+                      confirmPassword && (
+                      <p className="mt-2 text-xs text-red-600">
+                        Passwords do not match.
+                      </p>
+                    )}
+
+
+                  <button
+                    type="button"
+                    onClick={
+                      handleResetPassword
+                    }
+                    disabled={
+                      isPasswordLoading ||
+                      !newPassword ||
+                      !confirmPassword ||
+                      newPassword !==
+                        confirmPassword
+                    }
+                    className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-purple-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isPasswordLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      "Update Password"
+                    )}
+                  </button>
+
+                </div>
+              )}
+
+
+              {/* SUCCESS */}
+
+              {passwordStep === "success" && (
+                <div className="py-5 text-center">
+
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-green-600">
+                    <CheckCircle2 className="h-7 w-7" />
+                  </div>
+
+                  <h3 className="mt-4 text-lg font-bold text-gray-900">
+                    Password Updated
+                  </h3>
+
+                  <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-gray-500">
+                    Your password has been updated successfully.
+                    You can now use your new password the next time you sign in.
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={closePasswordModal}
+                    className="mt-6 w-full rounded-lg bg-purple-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-purple-700"
+                  >
+                    Done
+                  </button>
+
+                </div>
+              )}
+
+            </div>
+
+          </div>
+        </ModalOverlay>
+      )}
+
     </div>
   );
 }
 
-/* =========================================================
-   MODAL ACTIONS
-========================================================= */
 
-function ModalActions({
-  onCancel,
-  onSubmit,
-  submitText,
-  danger = false,
-}: {
-  onCancel: () => void;
-  onSubmit?: () => void;
-  submitText: string;
-  danger?: boolean;
-}) {
-  return (
-    <div className="flex flex-col-reverse gap-2 border-t border-gray-100 pt-5 sm:flex-row sm:justify-end">
+// ============================================================
+// INFO ITEM
+// ============================================================
 
-      <button
-        type="button"
-        onClick={onCancel}
-        className="rounded-xl border border-gray-200 px-4 py-2.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-50"
-      >
-        Cancel
-      </button>
-
-      <button
-        type={
-          onSubmit
-            ? "button"
-            : "submit"
-        }
-        onClick={onSubmit}
-        className={[
-          "rounded-xl px-4 py-2.5 text-xs font-bold text-white transition",
-          danger
-            ? "bg-red-600 hover:bg-red-700"
-            : "bg-gray-900 hover:bg-gray-800",
-        ].join(" ")}
-      >
-        {submitText}
-      </button>
-
-    </div>
-  );
-}
-
-/* =========================================================
-   FORM INPUT
-========================================================= */
-
-function FormInput({
+function InfoItem({
   label,
   value,
-  onChange,
-  type = "text",
 }: {
   label: string;
   value: string;
-  onChange: (
-    value: string,
-  ) => void;
-  type?: string;
 }) {
   return (
     <div>
+      <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+        {label}
+      </p>
 
-      <label className="text-xs font-bold text-gray-900">
+      <p className="mt-1 break-words text-sm font-medium text-gray-800">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+
+// ============================================================
+// FORM FIELD
+// ============================================================
+
+function FormField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-medium text-gray-700">
         {label}
       </label>
 
       <input
-        type={type}
+        type="text"
         value={value}
         onChange={(event) =>
           onChange(
-            event.target.value,
+            event.target.value
           )
         }
-        className="mt-2 h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-xs font-medium text-gray-800 outline-none transition placeholder:text-gray-400 focus:border-gray-400 focus:bg-white"
+        placeholder={placeholder}
+        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
       />
+    </div>
+  );
+}
 
+
+// ============================================================
+// TOGGLE ROW
+// ============================================================
+
+function ToggleRow({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <div>
+        <p className="text-sm font-medium text-gray-800">
+          {label}
+        </p>
+
+        <p className="mt-0.5 text-xs leading-5 text-gray-500">
+          {description}
+        </p>
+      </div>
+
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() =>
+          onChange(!checked)
+        }
+        className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition ${
+          checked
+            ? "bg-blue-600"
+            : "bg-gray-300"
+        }`}
+      >
+        <span
+          className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition ${
+            checked
+              ? "left-6"
+              : "left-1"
+          }`}
+        />
+      </button>
+    </div>
+  );
+}
+
+
+// ============================================================
+// PASSWORD STEP INDICATOR
+// ============================================================
+
+function PasswordStepIndicator({
+  number,
+  label,
+  active,
+  completed,
+}: {
+  number: string;
+  label: string;
+  active: boolean;
+  completed: boolean;
+}) {
+  return (
+    <div className="flex shrink-0 flex-col items-center gap-1.5">
+
+      <div
+        className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+          completed
+            ? "bg-green-600 text-white"
+            : active
+              ? "bg-purple-600 text-white"
+              : "bg-gray-100 text-gray-400"
+        }`}
+      >
+        {completed ? (
+          <CheckCircle2 className="h-4 w-4" />
+        ) : (
+          number
+        )}
+      </div>
+
+      <span
+        className={`text-[10px] font-medium ${
+          active
+            ? "text-purple-600"
+            : "text-gray-400"
+        }`}
+      >
+        {label}
+      </span>
+
+    </div>
+  );
+}
+
+
+// ============================================================
+// MODAL OVERLAY
+// ============================================================
+
+function ModalOverlay({
+  children,
+  onClose,
+}: {
+  children: React.ReactNode;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+      onMouseDown={(event) => {
+        if (
+          event.target ===
+          event.currentTarget
+        ) {
+          onClose();
+        }
+      }}
+    >
+      {children}
     </div>
   );
 }

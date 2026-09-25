@@ -37,40 +37,73 @@ public class TrainerProfileService
             .Select(
                 x =>
                     new TrainerProfileDto(
+                        // Profile
                         x.Id,
-
                         x.UserId,
 
+                        // User
                         x.User.UserCode,
-
                         x.User.FullName,
-
                         x.User.Email,
 
-                        x.User.MobileNumber,
-
+                        // Personal
                         x.FirstName,
-
                         x.MiddleName,
-
                         x.LastName,
-
+                        x.Suffix,
                         x.BirthDate,
-
+                        x.Gender,
+                        x.User.MobileNumber,
                         x.Address,
 
-                        x.Gender,
-
-                        x.IsActive,
-
+                        // Professional
                         x.Specialization,
-
+                        x.ProfessionalTitle,
+                        x.CurrentOrganization,
                         x.Bio,
-
                         x.YearsOfExperience,
 
+                        // License
+                        x.ProfessionalLicenseNumber,
+                        x.ProfessionalLicenseType,
+                        x.ProfessionalLicenseExpirationDate,
+
+                        // Education
+                        x.Educations
+                            .Select(
+                                education =>
+                                    new TrainerEducationDto(
+                                        education.Id,
+                                        education.TrainerProfileId,
+                                        education.Degree,
+                                        education.FieldOfStudy,
+                                        education.Institution,
+                                        education.YearGraduated
+                                    )
+                            )
+                            .ToList(),
+
+                        // Certifications
+                        x.Certifications
+                            .Select(
+                                certification =>
+                                    new TrainerCertificationDto(
+                                        certification.Id,
+                                        certification.TrainerProfileId,
+                                        certification.Name,
+                                        certification.IssuingOrganization,
+                                        certification.IssuedDate,
+                                        certification.ExpirationDate,
+                                        certification.CertificateUrl
+                                    )
+                            )
+                            .ToList(),
+
+                        // Profile
                         x.ProfileImageUrl,
 
+                        // Status
+                        x.IsActive,
                         x.ActivatedAt
                     )
             )
@@ -150,6 +183,21 @@ public class TrainerProfileService
 
 
         // =====================================================
+        // SUFFIX
+        // =====================================================
+
+        if (
+            request.Suffix is not null
+        )
+        {
+            profile.Suffix =
+                CleanString(
+                    request.Suffix
+                );
+        }
+
+
+        // =====================================================
         // BIRTH DATE
         // =====================================================
 
@@ -159,21 +207,6 @@ public class TrainerProfileService
         {
             profile.BirthDate =
                 request.BirthDate;
-        }
-
-
-        // =====================================================
-        // ADDRESS
-        // =====================================================
-
-        if (
-            request.Address is not null
-        )
-        {
-            profile.Address =
-                CleanString(
-                    request.Address
-                );
         }
 
 
@@ -188,6 +221,21 @@ public class TrainerProfileService
             profile.Gender =
                 CleanString(
                     request.Gender
+                );
+        }
+
+
+        // =====================================================
+        // ADDRESS
+        // =====================================================
+
+        if (
+            request.Address is not null
+        )
+        {
+            profile.Address =
+                CleanString(
+                    request.Address
                 );
         }
 
@@ -237,6 +285,36 @@ public class TrainerProfileService
 
 
         // =====================================================
+        // PROFESSIONAL TITLE
+        // =====================================================
+
+        if (
+            request.ProfessionalTitle is not null
+        )
+        {
+            profile.ProfessionalTitle =
+                CleanString(
+                    request.ProfessionalTitle
+                );
+        }
+
+
+        // =====================================================
+        // CURRENT ORGANIZATION
+        // =====================================================
+
+        if (
+            request.CurrentOrganization is not null
+        )
+        {
+            profile.CurrentOrganization =
+                CleanString(
+                    request.CurrentOrganization
+                );
+        }
+
+
+        // =====================================================
         // BIO
         // =====================================================
 
@@ -277,6 +355,50 @@ public class TrainerProfileService
 
 
         // =====================================================
+        // PROFESSIONAL LICENSE NUMBER
+        // =====================================================
+
+        if (
+            request.ProfessionalLicenseNumber is not null
+        )
+        {
+            profile.ProfessionalLicenseNumber =
+                CleanString(
+                    request.ProfessionalLicenseNumber
+                );
+        }
+
+
+        // =====================================================
+        // PROFESSIONAL LICENSE TYPE
+        // =====================================================
+
+        if (
+            request.ProfessionalLicenseType is not null
+        )
+        {
+            profile.ProfessionalLicenseType =
+                CleanString(
+                    request.ProfessionalLicenseType
+                );
+        }
+
+
+        // =====================================================
+        // LICENSE EXPIRATION DATE
+        // =====================================================
+
+        if (
+            request.ProfessionalLicenseExpirationDate
+                .HasValue
+        )
+        {
+            profile.ProfessionalLicenseExpirationDate =
+                request.ProfessionalLicenseExpirationDate;
+        }
+
+
+        // =====================================================
         // REBUILD FULL NAME
         // =====================================================
 
@@ -285,7 +407,8 @@ public class TrainerProfileService
             {
                 profile.FirstName,
                 profile.MiddleName,
-                profile.LastName
+                profile.LastName,
+                profile.Suffix
             }
             .Where(
                 x =>
@@ -349,40 +472,73 @@ public class TrainerProfileService
             .Select(
                 x =>
                     new TrainerProfileDto(
+                        // Profile
                         x.Id,
-
                         x.UserId,
 
+                        // User
                         x.User.UserCode,
-
                         x.User.FullName,
-
                         x.User.Email,
 
-                        x.User.MobileNumber,
-
+                        // Personal
                         x.FirstName,
-
                         x.MiddleName,
-
                         x.LastName,
-
+                        x.Suffix,
                         x.BirthDate,
-
+                        x.Gender,
+                        x.User.MobileNumber,
                         x.Address,
 
-                        x.Gender,
-
-                        x.IsActive,
-
+                        // Professional
                         x.Specialization,
-
+                        x.ProfessionalTitle,
+                        x.CurrentOrganization,
                         x.Bio,
-
                         x.YearsOfExperience,
 
+                        // License
+                        x.ProfessionalLicenseNumber,
+                        x.ProfessionalLicenseType,
+                        x.ProfessionalLicenseExpirationDate,
+
+                        // Education
+                        x.Educations
+                            .Select(
+                                education =>
+                                    new TrainerEducationDto(
+                                        education.Id,
+                                        education.TrainerProfileId,
+                                        education.Degree,
+                                        education.FieldOfStudy,
+                                        education.Institution,
+                                        education.YearGraduated
+                                    )
+                            )
+                            .ToList(),
+
+                        // Certifications
+                        x.Certifications
+                            .Select(
+                                certification =>
+                                    new TrainerCertificationDto(
+                                        certification.Id,
+                                        certification.TrainerProfileId,
+                                        certification.Name,
+                                        certification.IssuingOrganization,
+                                        certification.IssuedDate,
+                                        certification.ExpirationDate,
+                                        certification.CertificateUrl
+                                    )
+                            )
+                            .ToList(),
+
+                        // Profile
                         x.ProfileImageUrl,
 
+                        // Status
+                        x.IsActive,
                         x.ActivatedAt
                     )
             )
@@ -414,40 +570,73 @@ public class TrainerProfileService
             .Select(
                 x =>
                     new TrainerProfileDto(
+                        // Profile
                         x.Id,
-
                         x.UserId,
 
+                        // User
                         x.User.UserCode,
-
                         x.User.FullName,
-
                         x.User.Email,
 
-                        x.User.MobileNumber,
-
+                        // Personal
                         x.FirstName,
-
                         x.MiddleName,
-
                         x.LastName,
-
+                        x.Suffix,
                         x.BirthDate,
-
+                        x.Gender,
+                        x.User.MobileNumber,
                         x.Address,
 
-                        x.Gender,
-
-                        x.IsActive,
-
+                        // Professional
                         x.Specialization,
-
+                        x.ProfessionalTitle,
+                        x.CurrentOrganization,
                         x.Bio,
-
                         x.YearsOfExperience,
 
+                        // License
+                        x.ProfessionalLicenseNumber,
+                        x.ProfessionalLicenseType,
+                        x.ProfessionalLicenseExpirationDate,
+
+                        // Education
+                        x.Educations
+                            .Select(
+                                education =>
+                                    new TrainerEducationDto(
+                                        education.Id,
+                                        education.TrainerProfileId,
+                                        education.Degree,
+                                        education.FieldOfStudy,
+                                        education.Institution,
+                                        education.YearGraduated
+                                    )
+                            )
+                            .ToList(),
+
+                        // Certifications
+                        x.Certifications
+                            .Select(
+                                certification =>
+                                    new TrainerCertificationDto(
+                                        certification.Id,
+                                        certification.TrainerProfileId,
+                                        certification.Name,
+                                        certification.IssuingOrganization,
+                                        certification.IssuedDate,
+                                        certification.ExpirationDate,
+                                        certification.CertificateUrl
+                                    )
+                            )
+                            .ToList(),
+
+                        // Profile
                         x.ProfileImageUrl,
 
+                        // Status
+                        x.IsActive,
                         x.ActivatedAt
                     )
             )

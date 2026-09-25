@@ -11,7 +11,8 @@ import {
   ServiceApi,
   AuthAPIs,
   PracticalAssessmentApi,
-  ParticipantApi
+  ParticipantApi,
+  LearningMaterialApi
 } from "@repo/api";
 import { auth } from "./auth";
 
@@ -26,6 +27,8 @@ export const apiClient = new ApiClient({
 
 export const trainerApi =
   new TrainerApi(apiClient);
+  export const learningMaterialApi =
+  new LearningMaterialApi(apiClient);
 export const practicalAssessmentApi =
   new PracticalAssessmentApi(apiClient);
   export const authApi =

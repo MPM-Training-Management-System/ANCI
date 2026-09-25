@@ -287,459 +287,496 @@ public class AuthService : IAuthService
     }
 
 
+   public async Task<UserRegistrationResponse>
+    RegisterTrainerAsync(
+        RegisterTrainerRequest request)
+{
     // =========================================================
-    // TRAINER REGISTRATION
-    // POST /api/auth/register/trainer
-    // multipart/form-data
+    // NORMALIZE EMAIL
     // =========================================================
 
-    public async Task<UserRegistrationResponse>
-        RegisterTrainerAsync(
-            RegisterTrainerRequest request)
+    var email =
+        request.Email
+            .Trim()
+            .ToLowerInvariant();
+
+
+    // =========================================================
+    // VALIDATE EMAIL
+    // =========================================================
+
+    if (string.IsNullOrWhiteSpace(email))
     {
-        // -----------------------------------------------------
-        // NORMALIZE EMAIL
-        // -----------------------------------------------------
-
-        var email =
-            request.Email
-                .Trim()
-                .ToLowerInvariant();
+        throw new InvalidOperationException(
+            "Email is required."
+        );
+    }
 
 
-        // -----------------------------------------------------
-        // VALIDATE EMAIL
-        // -----------------------------------------------------
+    // =========================================================
+    // CHECK EXISTING EMAIL
+    // =========================================================
 
-        if (
-            string.IsNullOrWhiteSpace(email)
-        )
-        {
-            throw new InvalidOperationException(
-                "Email is required."
+    var existingUser =
+        await _db.Users
+            .FirstOrDefaultAsync(
+                x => x.Email == email
             );
-        }
+
+    if (existingUser is not null)
+    {
+        throw new InvalidOperationException(
+            "An account with this email already exists."
+        );
+    }
 
 
-        // -----------------------------------------------------
-        // CHECK EXISTING EMAIL
-        // -----------------------------------------------------
+    // =========================================================
+    // VALIDATE FIRST NAME
+    // =========================================================
 
-        var existingUser =
-            await _db.Users
-                .FirstOrDefaultAsync(
-                    x =>
-                        x.Email == email
+    if (
+        string.IsNullOrWhiteSpace(
+            request.FirstName
+        )
+    )
+    {
+        throw new InvalidOperationException(
+            "First name is required."
+        );
+    }
+
+
+    // =========================================================
+    // VALIDATE LAST NAME
+    // =========================================================
+
+    if (
+        string.IsNullOrWhiteSpace(
+            request.LastName
+        )
+    )
+    {
+        throw new InvalidOperationException(
+            "Last name is required."
+        );
+    }
+
+
+    // =========================================================
+    // VALIDATE PASSWORD
+    // =========================================================
+
+    if (
+        string.IsNullOrWhiteSpace(
+            request.Password
+        )
+    )
+    {
+        throw new InvalidOperationException(
+            "Password is required."
+        );
+    }
+
+
+    // =========================================================
+    // VALIDATE SPECIALIZATION
+    // =========================================================
+
+    if (
+        string.IsNullOrWhiteSpace(
+            request.Specialization
+        )
+    )
+    {
+        throw new InvalidOperationException(
+            "Specialization is required."
+        );
+    }
+
+
+    // =========================================================
+    // VALIDATE ADDRESS
+    // =========================================================
+
+    if (
+        string.IsNullOrWhiteSpace(
+            request.Address
+        )
+    )
+    {
+        throw new InvalidOperationException(
+            "Address is required."
+        );
+    }
+
+
+    // =========================================================
+    // VALIDATE GENDER
+    // =========================================================
+
+    if (
+        string.IsNullOrWhiteSpace(
+            request.Gender
+        )
+    )
+    {
+        throw new InvalidOperationException(
+            "Gender is required."
+        );
+    }
+
+
+    // =========================================================
+    // VALIDATE YEARS OF EXPERIENCE
+    // =========================================================
+
+    if (
+        request.YearsOfExperience.HasValue
+        &&
+        (
+            request.YearsOfExperience.Value < 0
+            ||
+            request.YearsOfExperience.Value > 100
+        )
+    )
+    {
+        throw new InvalidOperationException(
+            "Years of experience must be between 0 and 100."
+        );
+    }
+
+
+    // =========================================================
+    // PROFILE IMAGE
+    // =========================================================
+
+    string? profileImageUrl = null;
+
+    if (request.ProfileImage is not null)
+    {
+        ValidateProfileImage(
+            request.ProfileImage
+        );
+
+        await using var stream =
+            request.ProfileImage.OpenReadStream();
+
+        profileImageUrl =
+            await _cloudinaryService
+                .UploadImageAsync(
+                    stream,
+                    request.ProfileImage.FileName,
+                    "ace-nextgen/trainers"
                 );
+    }
 
 
-        if (existingUser is not null)
-        {
-            throw new InvalidOperationException(
-                "An account with this email already exists."
-            );
-        }
+    // =========================================================
+    // GENERATE TRAINER USER CODE
+    // =========================================================
 
+    var userCode =
+        await GenerateTrainerUserCodeAsync();
 
-        // -----------------------------------------------------
-        // VALIDATE FIRST NAME
-        // -----------------------------------------------------
 
-        if (
-            string.IsNullOrWhiteSpace(
-                request.FirstName
-            )
-        )
-        {
-            throw new InvalidOperationException(
-                "First name is required."
-            );
-        }
+    // =========================================================
+    // BUILD FULL NAME
+    // =========================================================
 
-
-        // -----------------------------------------------------
-        // VALIDATE LAST NAME
-        // -----------------------------------------------------
-
-        if (
-            string.IsNullOrWhiteSpace(
-                request.LastName
-            )
-        )
-        {
-            throw new InvalidOperationException(
-                "Last name is required."
-            );
-        }
-
-
-        // -----------------------------------------------------
-        // VALIDATE PASSWORD
-        // -----------------------------------------------------
-
-        if (
-            string.IsNullOrWhiteSpace(
-                request.Password
-            )
-        )
-        {
-            throw new InvalidOperationException(
-                "Password is required."
-            );
-        }
-
-
-        // -----------------------------------------------------
-        // VALIDATE SPECIALIZATION
-        // -----------------------------------------------------
-
-        if (
-            string.IsNullOrWhiteSpace(
-                request.Specialization
-            )
-        )
-        {
-            throw new InvalidOperationException(
-                "Specialization is required."
-            );
-        }
-
-
-        // -----------------------------------------------------
-        // VALIDATE ADDRESS
-        // -----------------------------------------------------
-
-        if (
-            string.IsNullOrWhiteSpace(
-                request.Address
-            )
-        )
-        {
-            throw new InvalidOperationException(
-                "Address is required."
-            );
-        }
-
-
-        // -----------------------------------------------------
-        // VALIDATE GENDER
-        // -----------------------------------------------------
-
-        if (
-            string.IsNullOrWhiteSpace(
-                request.Gender
-            )
-        )
-        {
-            throw new InvalidOperationException(
-                "Gender is required."
-            );
-        }
-
-
-        // -----------------------------------------------------
-        // VALIDATE YEARS OF EXPERIENCE
-        // -----------------------------------------------------
-
-        if (
-            request.YearsOfExperience.HasValue
-            &&
-            (
-                request.YearsOfExperience.Value < 0
-                ||
-                request.YearsOfExperience.Value > 100
-            )
-        )
-        {
-            throw new InvalidOperationException(
-                "Years of experience must be between 0 and 100."
-            );
-        }
-
-
-        // -----------------------------------------------------
-        // PROFILE IMAGE
-        // -----------------------------------------------------
-
-        string? profileImageUrl = null;
-
-
-        if (
-            request.ProfileImage is not null
-        )
-        {
-            ValidateProfileImage(
-                request.ProfileImage
-            );
-
-
-            await using var stream =
-                request.ProfileImage
-                    .OpenReadStream();
-
-
-            profileImageUrl =
-                await _cloudinaryService
-                    .UploadImageAsync(
-                        stream,
-                        request.ProfileImage.FileName,
-                        "ace-nextgen/trainers"
-                    );
-        }
-
-
-        // -----------------------------------------------------
-        // GENERATE TRAINER USER CODE
-        // -----------------------------------------------------
-
-        var userCode =
-            await GenerateTrainerUserCodeAsync();
-
-
-        // -----------------------------------------------------
-        // BUILD FULL NAME
-        // -----------------------------------------------------
-
-        var fullName =
-            BuildFullName(
-                request.FirstName,
-                request.MiddleName,
-                request.LastName
-            );
-
-
-        // -----------------------------------------------------
-        // CREATE USER
-        // -----------------------------------------------------
-
-        var user =
-            new User
-            {
-                Id =
-                    Guid.NewGuid(),
-
-                UserCode =
-                    userCode,
-
-                FullName =
-                    fullName,
-
-                Email =
-                    email,
-
-                MobileNumber =
-                    CleanString(
-                        request.MobileNumber
-                    ),
-
-                PasswordHash =
-                    _passwordService
-                        .HashPassword(
-                            request.Password
-                        ),
-
-                Role =
-                    UserRole.Trainer,
-
-                Status =
-                    UserStatus.Pending,
-
-                IsEmailVerified =
-                    false,
-
-                CreatedAt =
-                    DateTime.UtcNow,
-
-                UpdatedAt =
-                    DateTime.UtcNow
-            };
-
-
-        // -----------------------------------------------------
-        // CREATE TRAINER APPLICATION
-        // -----------------------------------------------------
-
-        var trainerApplication =
-            new TrainerApplication
-            {
-                Id =
-                    Guid.NewGuid(),
-
-                UserId =
-                    user.Id,
-
-                Status =
-                    TrainerApplicationStatus.Pending,
-
-                Specialization =
-                    request.Specialization.Trim(),
-
-                YearsOfExperience =
-                    request.YearsOfExperience,
-
-                CertificationName =
-                    CleanString(
-                        request.CertificationName
-                    ),
-
-                CertificationNumber =
-                    CleanString(
-                        request.CertificationNumber
-                    ),
-
-                ProfileImageUrl =
-                    profileImageUrl,
-
-                AdminRemarks =
-                    null,
-
-                ReviewedByUserId =
-                    null,
-
-                ReviewedAt =
-                    null,
-
-                CreatedAt =
-                    DateTime.UtcNow,
-
-                SubmittedAt =
-                    DateTime.UtcNow,
-
-                User =
-                    user
-            };
-
-
-        // -----------------------------------------------------
-        // CREATE TRAINER PROFILE
-        // -----------------------------------------------------
-
-        var trainerProfile =
-            new TrainerProfile
-            {
-                Id =
-                    Guid.NewGuid(),
-
-                UserId =
-                    user.Id,
-
-                FirstName =
-                    request.FirstName.Trim(),
-
-                MiddleName =
-                    CleanString(
-                        request.MiddleName
-                    ),
-
-                LastName =
-                    request.LastName.Trim(),
-
-                BirthDate =
-                    request.BirthDate,
-
-                Address =
-                    CleanString(
-                        request.Address
-                    ),
-
-                Gender =
-                    CleanString(
-                        request.Gender
-                    ),
-
-                IsActive =
-                    false,
-
-                Specialization =
-                    request.Specialization.Trim(),
-
-                Bio =
-                    CleanString(
-                        request.Bio
-                    ),
-
-                YearsOfExperience =
-                    request.YearsOfExperience,
-
-                ProfileImageUrl =
-                    profileImageUrl,
-
-                ActivatedAt =
-                    null,
-
-                User =
-                    user
-            };
-
-
-        // -----------------------------------------------------
-        // ADD USER
-        // -----------------------------------------------------
-
-        _db.Users.Add(
-            user
+    var fullName =
+        BuildFullName(
+            request.FirstName,
+            request.MiddleName,
+            request.LastName
         );
 
 
-        // -----------------------------------------------------
-        // ADD TRAINER APPLICATION
-        // -----------------------------------------------------
+    // =========================================================
+    // CREATE USER
+    // =========================================================
 
-        _db.TrainerApplications.Add(
-            trainerApplication
-        );
-
-
-        // -----------------------------------------------------
-        // ADD TRAINER PROFILE
-        // -----------------------------------------------------
-
-        _db.TrainerProfiles.Add(
-            trainerProfile
-        );
-
-
-        // -----------------------------------------------------
-        // SAVE DATABASE
-        // -----------------------------------------------------
-
-        await _db.SaveChangesAsync();
-
-
-        // -----------------------------------------------------
-        // RETURN RESPONSE
-        // -----------------------------------------------------
-
-        return new UserRegistrationResponse
+    var user =
+        new User
         {
             Id =
-                user.Id,
+                Guid.NewGuid(),
 
             UserCode =
-                user.UserCode,
+                userCode,
 
             FullName =
-                user.FullName,
+                fullName,
 
             Email =
-                user.Email,
+                email,
+
+            MobileNumber =
+                CleanString(
+                    request.MobileNumber
+                ),
+
+            PasswordHash =
+                _passwordService
+                    .HashPassword(
+                        request.Password
+                    ),
 
             Role =
-                user.Role.ToString(),
+                UserRole.Trainer,
 
             Status =
-                user.Status.ToString(),
+                UserStatus.Pending,
 
-            Message =
-                "Trainer registration submitted successfully. Please verify your email using the OTP.",
+            IsEmailVerified =
+                false,
 
-            TrainerApplicationId =
-                trainerApplication.Id,
+            CreatedAt =
+                DateTime.UtcNow,
+
+            UpdatedAt =
+                DateTime.UtcNow
+        };
+
+
+    // =========================================================
+    // CREATE TRAINER APPLICATION
+    // =========================================================
+
+    var trainerApplication =
+        new TrainerApplication
+        {
+            Id =
+                Guid.NewGuid(),
+
+            UserId =
+                user.Id,
+
+            Status =
+                TrainerApplicationStatus.Pending,
+
+            FirstName =
+                request.FirstName.Trim(),
+
+            MiddleName =
+                CleanString(
+                    request.MiddleName
+                ),
+
+            LastName =
+                request.LastName.Trim(),
+
+            Suffix =
+                CleanString(
+                    request.Suffix
+                ),
+
+            BirthDate =
+                request.BirthDate,
+
+            Gender =
+                CleanString(
+                    request.Gender
+                ),
+
+            Address =
+                CleanString(
+                    request.Address
+                ),
+
+            Specialization =
+                request.Specialization.Trim(),
+
+            ProfessionalTitle =
+                CleanString(
+                    request.ProfessionalTitle
+                ),
+
+            CurrentOrganization =
+                CleanString(
+                    request.CurrentOrganization
+                ),
+
+            Bio =
+                CleanString(
+                    request.Bio
+                ),
+
+            YearsOfExperience =
+                request.YearsOfExperience,
+
+            ProfessionalLicenseNumber =
+                CleanString(
+                    request.ProfessionalLicenseNumber
+                ),
+
+            ProfessionalLicenseType =
+                CleanString(
+                    request.ProfessionalLicenseType
+                ),
+
+            ProfessionalLicenseExpirationDate =
+                request.ProfessionalLicenseExpirationDate,
 
             ProfileImageUrl =
-                profileImageUrl
+                profileImageUrl,
+
+            AdminRemarks =
+                null,
+
+            ReviewedByUserId =
+                null,
+
+            ReviewedAt =
+                null,
+
+            CreatedAt =
+                DateTime.UtcNow,
+
+            SubmittedAt =
+                DateTime.UtcNow,
+
+            User =
+                user
         };
+
+
+    // =========================================================
+    // CREATE EDUCATION RECORDS
+    // =========================================================
+
+    if (request.Educations is not null)
+    {
+        foreach (var education in request.Educations)
+        {
+            trainerApplication.Educations.Add(
+                new TrainerApplicationEducation
+                {
+                    Id =
+                        Guid.NewGuid(),
+
+                    TrainerApplicationId =
+                        trainerApplication.Id,
+
+                    Degree =
+                        education.Degree.Trim(),
+
+                    FieldOfStudy =
+                        CleanString(
+                            education.FieldOfStudy
+                        ),
+
+                    Institution =
+                        education.Institution.Trim(),
+
+                    YearGraduated =
+                        education.YearGraduated
+                }
+            );
+        }
     }
+
+
+    // =========================================================
+    // CREATE CERTIFICATION RECORDS
+    // =========================================================
+
+    if (request.Certifications is not null)
+    {
+        foreach (var certification in request.Certifications)
+        {
+            trainerApplication.Certifications.Add(
+                new TrainerApplicationCertification
+                {
+                    Id =
+                        Guid.NewGuid(),
+
+                    TrainerApplicationId =
+                        trainerApplication.Id,
+
+                    Name =
+                        certification.Name.Trim(),
+
+                    IssuingOrganization =
+                        CleanString(
+                            certification.IssuingOrganization
+                        ),
+
+                    IssuedDate =
+                        certification.IssuedDate,
+
+                    ExpirationDate =
+                        certification.ExpirationDate,
+
+                    CertificateUrl =
+                        CleanString(
+                            certification.CertificateUrl
+                        )
+                }
+            );
+        }
+    }
+
+
+    // =========================================================
+    // ADD USER
+    // =========================================================
+
+    _db.Users.Add(
+        user
+    );
+
+
+    // =========================================================
+    // ADD TRAINER APPLICATION
+    // =========================================================
+
+    _db.TrainerApplications.Add(
+        trainerApplication
+    );
+
+
+    // =========================================================
+    // SAVE DATABASE
+    // =========================================================
+
+    await _db.SaveChangesAsync();
+
+
+    // =========================================================
+    // RETURN RESPONSE
+    // =========================================================
+
+    return new UserRegistrationResponse
+    {
+        Id =
+            user.Id,
+
+        UserCode =
+            user.UserCode,
+
+        FullName =
+            user.FullName,
+
+        Email =
+            user.Email,
+
+        Role =
+            user.Role.ToString(),
+
+        Status =
+            user.Status.ToString(),
+
+        Message =
+            "Trainer registration submitted successfully. Please verify your email using the OTP.",
+
+        TrainerApplicationId =
+            trainerApplication.Id,
+
+        ProfileImageUrl =
+            profileImageUrl
+    };
+}
 
 
     // =========================================================

@@ -295,7 +295,6 @@ export interface LearningMaterial {
 // ==========================================
 
 export interface CreateLearningMaterialRequest {
-  trainingBatchId: string;
 
   title: string;
 
@@ -303,7 +302,6 @@ export interface CreateLearningMaterialRequest {
 
   materialType: string;
 }
-
 // ==========================================
 // UPDATE LEARNING MATERIAL
 // ==========================================

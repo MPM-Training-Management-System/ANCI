@@ -1,58 +1,49 @@
+"use client";
+
 import type { ColumnDef } from "@tanstack/react-table";
+import type { AttendanceRecordDto } from "@repo/types";
 
-import type {
-  AttendanceRecordDto,
-  Enrollment,
-} from "@repo/types";
+type AttendanceTableRecord = AttendanceRecordDto & {
+  profileImageUrl?: string | null;
+};
 
-export interface AttendanceTableMeta {
-  sessionStatus: string;
-
-  getRecord: (
-    enrollmentId: string,
-  ) => AttendanceRecordDto | null;
-
-  onView: (
-    enrollment: Enrollment,
-  ) => void;
-}
-
-export const columns: ColumnDef<Enrollment>[] = [
+export const columns: ColumnDef<AttendanceTableRecord>[] = [
+  // =========================================================
+  // PARTICIPANT
+  // =========================================================
   {
     id: "participant",
-
+    accessorKey: "participantName",
     header: "Participant",
-
     cell: ({ row }) => {
-      const enrollment =
-        row.original;
+      const record = row.original;
 
-      const participant =
-        enrollment.participant;
-console.log("Participant:", participant);
       return (
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 overflow-hidden items-center justify-center rounded-xl bg-[#191c1e] text-[10px] font-bold text-white">
-  {participant.profileImageUrl ? (
-    <img
-      src={participant.profileImageUrl}
-      alt={participant.fullName}
-      className="h-full w-full object-cover"
-    />
-  ) : (
-    getInitials(participant.fullName)
-  )}
-</div>
+          {/* PROFILE */}
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#191c1e] text-[10px] font-bold text-white">
+            {record.profileImageUrl ? (
+              <img
+                src={record.profileImageUrl}
+                alt={record.participantName}
+                className="h-full w-full object-cover"
+                onError={(event) => {
+                  event.currentTarget.style.display = "none";
+                }}
+              />
+            ) : (
+              getInitials(record.participantName)
+            )}
+          </div>
 
-
-
-          <div>
-            <p className="text-xs font-semibold">
-              {participant.fullName}
+          {/* NAME */}
+          <div className="min-w-0">
+            <p className="truncate text-xs font-semibold text-gray-900">
+              {record.participantName}
             </p>
 
             <p className="mt-1 font-mono text-[10px] text-gray-400">
-              {participant.userCode}
+              {record.id.slice(0, 8)}
             </p>
           </div>
         </div>
@@ -60,162 +51,156 @@ console.log("Participant:", participant);
     },
   },
 
+  // =========================================================
+  // STATUS
+  // =========================================================
   {
     id: "status",
-
+    accessorKey: "status",
     header: "Status",
+    cell: ({ row }) => {
+      const status = row.original.status || "Unknown";
 
-    cell: ({ row, table }) => {
-      const enrollment =
-        row.original;
+      const normalized = status
+        .toLowerCase()
+        .replace(/[\s_-]/g, "");
 
-      const meta =
-        table.options.meta as
-          | AttendanceTableMeta
-          | undefined;
+      let statusClass =
+        "border-gray-200 bg-gray-50 text-gray-600";
 
-      if (!meta) {
-        return null;
+      if (normalized === "present") {
+        statusClass =
+          "border-emerald-200 bg-emerald-50 text-emerald-700";
       }
 
-      const record =
-        meta.getRecord(
-          enrollment.id,
-        );
+      if (normalized === "late") {
+        statusClass =
+          "border-amber-200 bg-amber-50 text-amber-700";
+      }
+
+      if (normalized === "absent") {
+        statusClass =
+          "border-red-200 bg-red-50 text-red-700";
+      }
+
+      if (normalized === "timeinonly") {
+        statusClass =
+          "border-blue-200 bg-blue-50 text-blue-700";
+      }
+
+      if (normalized === "timeoutonly") {
+        statusClass =
+          "border-purple-200 bg-purple-50 text-purple-700";
+      }
 
       return (
-        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[9px] font-bold text-emerald-700">
-          {record?.status ?? "No Record"}
+        <span
+          className={[
+            "inline-flex rounded-full border",
+            "px-2.5 py-1.5",
+            "text-[9px] font-bold",
+            statusClass,
+          ].join(" ")}
+        >
+          {status}
         </span>
       );
     },
   },
 
+  // =========================================================
+  // TIME IN
+  // =========================================================
   {
     id: "timeIn",
-
+    accessorKey: "timeIn",
     header: "Time In",
-
-    cell: ({ row, table }) => {
-      const enrollment =
-        row.original;
-
-      const meta =
-        table.options.meta as
-          | AttendanceTableMeta
-          | undefined;
-
-      if (!meta) {
-        return null;
-      }
-
-      const record =
-        meta.getRecord(
-          enrollment.id,
-        );
-
-      return (
-        <span className="inline-flex h-9 min-w-[88px] items-center rounded-lg border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-[10px] font-semibold text-gray-600">
-          {record?.timeIn ?? "—"}
-        </span>
-      );
+    cell: ({ row }) => {
+      return <TimeValue value={row.original.timeIn} />;
     },
   },
 
+  // =========================================================
+  // TIME OUT
+  // =========================================================
   {
     id: "timeOut",
-
+    accessorKey: "timeOut",
     header: "Time Out",
-
-    cell: ({ row, table }) => {
-      const enrollment =
-        row.original;
-
-      const meta =
-        table.options.meta as
-          | AttendanceTableMeta
-          | undefined;
-
-      if (!meta) {
-        return null;
-      }
-
-      const record =
-        meta.getRecord(
-          enrollment.id,
-        );
-
-      return (
-        <span className="inline-flex h-9 min-w-[88px] items-center rounded-lg border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-[10px] font-semibold text-gray-600">
-          {record?.timeOut ?? "—"}
-        </span>
-      );
+    cell: ({ row }) => {
+      return <TimeValue value={row.original.timeOut} />;
     },
   },
 
+  // =========================================================
+  // METHOD
+  // =========================================================
   {
     id: "method",
-
+    accessorKey: "method",
     header: "Method",
-
-    cell: ({ row, table }) => {
-      const enrollment =
-        row.original;
-
-      const meta =
-        table.options.meta as
-          | AttendanceTableMeta
-          | undefined;
-
-      if (!meta) {
-        return null;
-      }
-
-      const record =
-        meta.getRecord(
-          enrollment.id,
-        );
+    cell: ({ row }) => {
+      const method = row.original.method || "Unknown";
 
       return (
-        <span className="text-[10px] text-gray-400">
-          {record?.method ?? "—"}
+        <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-[9px] font-bold text-gray-600">
+          {method}
         </span>
-      );
-    },
-  },
-
-  {
-    id: "action",
-
-    header: "Action",
-
-    cell: ({ row, table }) => {
-      const enrollment =
-        row.original;
-
-      const meta =
-        table.options.meta as
-          | AttendanceTableMeta
-          | undefined;
-
-      return (
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={() =>
-              meta?.onView(
-                enrollment,
-              )
-            }
-            className="rounded-lg border border-[#e7e9ec] px-3 py-2 text-[10px] font-semibold text-gray-600 hover:bg-gray-50"
-          >
-            View
-          </button>
-        </div>
       );
     },
   },
 ];
+
+// =============================================================
+// TIME VALUE
+// =============================================================
+
+function TimeValue({
+  value,
+}: {
+  value: string | null;
+}) {
+  if (!value) {
+    return (
+      <span className="text-xs text-gray-300">
+        —
+      </span>
+    );
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return (
+      <span className="text-xs text-gray-500">
+        {value}
+      </span>
+    );
+  }
+
+  return (
+    <div>
+      <p className="text-xs font-semibold text-gray-700">
+        {date.toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+        })}
+      </p>
+
+      <p className="mt-0.5 text-[9px] text-gray-400">
+        {date.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })}
+      </p>
+    </div>
+  );
+}
+
+// =============================================================
+// INITIALS
+// =============================================================
 
 function getInitials(
   name: string,
@@ -223,11 +208,11 @@ function getInitials(
   return name
     .trim()
     .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
     .map(
       (part) =>
-        part.charAt(0),
+        part.charAt(0).toUpperCase(),
     )
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+    .join("");
 }

@@ -1,38 +1,23 @@
 namespace server.DTOs.Trainer;
 
-public class UpdateTrainerProfileRequest
-{
-    // =========================================================
-    // PERSONAL INFORMATION
-    // =========================================================
+public record UpdateTrainerProfileRequest(
+    string? FirstName,
+    string? MiddleName,
+    string? LastName,
+    string? Suffix,
 
-    public string? FirstName { get; set; }
+    DateOnly? BirthDate,
+    string? Gender,
+    string? MobileNumber,
+    string? Address,
 
-    public string? MiddleName { get; set; }
+    string? Specialization,
+    string? ProfessionalTitle,
+    string? CurrentOrganization,
+    string? Bio,
+    int? YearsOfExperience,
 
-    public string? LastName { get; set; }
-
-    public DateOnly? BirthDate { get; set; }
-
-    public string? Address { get; set; }
-
-    public string? Gender { get; set; }
-
-
-    // =========================================================
-    // CONTACT
-    // =========================================================
-
-    public string? MobileNumber { get; set; }
-
-
-    // =========================================================
-    // TRAINER INFORMATION
-    // =========================================================
-
-    public string? Specialization { get; set; }
-
-    public string? Bio { get; set; }
-
-    public int? YearsOfExperience { get; set; }
-}
+    string? ProfessionalLicenseNumber,
+    string? ProfessionalLicenseType,
+    DateOnly? ProfessionalLicenseExpirationDate
+);

@@ -20,6 +20,7 @@ using server.Services.Service;
 using System.Text.Json.Serialization;
 using server.Services.Email;
 using QuestPDF.Infrastructure;
+using server.Services.Dashboard;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(options =>
@@ -58,6 +59,8 @@ builder.Services.AddScoped<IParticipationService, ParticipationService>();
 builder.Services.AddScoped<
     IDocumentTextExtractionService,
     DocumentTextExtractionService>();
+
+    builder.Services.AddScoped<IAdminDashboardService, AdminDashboardService>();
 
 builder.Services.AddScoped<
     ITrainingScheduleService,

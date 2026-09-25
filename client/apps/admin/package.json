@@ -13,12 +13,12 @@
   "dependencies": {
     "@hookform/resolvers": "^5.7.1",
     "@repo/api": "workspace:*",
-     "@repo/utils": "workspace:*",
     "@repo/hooks": "workspace:*",
     "@repo/tailwind-config": "workspace:*",
     "@repo/token": "workspace:*",
     "@repo/types": "workspace:*",
     "@repo/ui": "workspace:*",
+    "@repo/utils": "workspace:*",
     "@tanstack/react-table": "^8.21.3",
     "clsx": "^2.1.1",
     "embla-carousel-autoplay": "^8.6.0",
@@ -28,6 +28,7 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-hook-form": "^7.84.0",
+    "recharts": "^3.10.1",
     "tailwind-merge": "^3.6.0",
     "zod": "^4.4.3"
   },

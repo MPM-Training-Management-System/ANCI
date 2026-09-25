@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using server.Models.Assessment;
 using server.Models.Attendance;
 using server.Models.Auth;
-using server.Models.Canva;
 using server.Models.Learning;
 using server.Models.Otp;
 using server.Models.Participant;
@@ -60,14 +59,30 @@ public DbSet<LearningSection> LearningSections
     public DbSet<ParticipantProfile> ParticipantProfiles
         => Set<ParticipantProfile>();
 
-    public DbSet<TrainerApplication> TrainerApplications
-        => Set<TrainerApplication>();
+   // ==========================================
+// TRAINER
+// ==========================================
 
-    public DbSet<TrainerApplicationDocument> TrainerApplicationDocuments
-        => Set<TrainerApplicationDocument>();
+public DbSet<TrainerApplication> TrainerApplications
+    => Set<TrainerApplication>();
 
-    public DbSet<TrainerProfile> TrainerProfiles
-        => Set<TrainerProfile>();
+public DbSet<TrainerApplicationDocument> TrainerApplicationDocuments
+    => Set<TrainerApplicationDocument>();
+
+public DbSet<TrainerApplicationEducation> TrainerApplicationEducations
+    => Set<TrainerApplicationEducation>();
+
+public DbSet<TrainerApplicationCertification> TrainerApplicationCertifications
+    => Set<TrainerApplicationCertification>();
+
+public DbSet<TrainerProfile> TrainerProfiles
+    => Set<TrainerProfile>();
+
+public DbSet<TrainerEducation> TrainerEducations
+    => Set<TrainerEducation>();
+
+public DbSet<TrainerCertification> TrainerCertifications
+    => Set<TrainerCertification>();
 
     
 
@@ -137,7 +152,6 @@ public DbSet<ParticipationRecord>
 
     public DbSet<Certificate> Certificates => Set<Certificate>();
 
-    public DbSet<CanvaConnection> CanvaConnections => Set<CanvaConnection>();
     
     // ==========================================
     // Model Configuration
@@ -208,33 +222,7 @@ public DbSet<ParticipationRecord>
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        modelBuilder.Entity<CanvaConnection>(entity =>
-{
-    entity.ToTable("CanvaConnections");
-
-    entity.HasKey(x => x.Id);
-
-    entity.Property(x => x.AccessToken)
-    .IsRequired()
-    .HasColumnType("text");
-
-entity.Property(x => x.RefreshToken)
-    .IsRequired()
-    .HasColumnType("text");
-
-    entity.Property(x => x.Scope)
-        .HasMaxLength(1000);
-
-    entity.Property(x => x.ExpiresAt)
-        .IsRequired();
-
-    entity.Property(x => x.CreatedAt)
-        .IsRequired();
-
-    entity.Property(x => x.UpdatedAt)
-        .IsRequired();
-});
-
+       
         modelBuilder.Entity<Certificate>(entity =>
 {
     entity.ToTable("Certificates");
@@ -258,8 +246,7 @@ entity.Property(x => x.RefreshToken)
     entity.Property(x => x.PdfUrl)
         .HasMaxLength(500);
 
-    entity.Property(x => x.CanvaDesignId)
-        .HasMaxLength(100);
+   
 
     entity.Property(x => x.IsRevoked)
         .IsRequired();
@@ -559,88 +546,383 @@ modelBuilder.Entity<PracticalAssessmentCriterionScore>(entity =>
 
         entity.HasIndex(x => x.TrainingProgramId);
     }
-);
-        // ==========================================
-        // TRAINER APPLICATION
-        // ==========================================
+);// ==========================================
+// TRAINER APPLICATION
+// ==========================================
 
-        modelBuilder.Entity<TrainerApplication>(entity =>
-        {
-            entity.HasKey(x => x.Id);
+modelBuilder.Entity<TrainerApplication>(entity =>
+{
+    entity.ToTable("TrainerApplications");
 
-            entity.HasIndex(x => x.UserId)
-                .IsUnique();
+    entity.HasKey(x => x.Id);
 
-            entity.Property(x => x.Status)
-                .HasConversion<string>()
-                .IsRequired();
+    // One application per user
+    entity.HasIndex(x => x.UserId)
+        .IsUnique();
 
-            entity.Property(x => x.Specialization)
-                .IsRequired()
-                .HasMaxLength(150);
+    // ==========================================
+    // PERSONAL INFORMATION
+    // ==========================================
 
-            entity.Property(x => x.CertificationName)
-                .HasMaxLength(150);
+    entity.Property(x => x.FirstName)
+        .HasMaxLength(100);
 
-            entity.Property(x => x.CertificationNumber)
-                .HasMaxLength(150);
+    entity.Property(x => x.MiddleName)
+        .HasMaxLength(100);
 
-            entity.Property(x => x.AdminRemarks)
-                .HasMaxLength(1000);
+    entity.Property(x => x.LastName)
+        .HasMaxLength(100);
 
-            entity.HasOne(x => x.User)
-                .WithOne(x => x.TrainerApplication)
-                .HasForeignKey<TrainerApplication>(
-                    x => x.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+    entity.Property(x => x.Suffix)
+        .HasMaxLength(30);
 
-            entity.HasMany(x => x.Documents)
-                .WithOne(x => x.TrainerApplication)
-                .HasForeignKey(x => x.TrainerApplicationId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
+    entity.Property(x => x.Gender)
+        .HasMaxLength(50);
 
+    entity.Property(x => x.Address)
+        .HasMaxLength(500);
 
-        // ==========================================
-        // TRAINER PROFILE
-        // ==========================================
+    // ==========================================
+    // PROFESSIONAL INFORMATION
+    // ==========================================
 
-        modelBuilder.Entity<TrainerProfile>(entity =>
-        {
-            entity.HasKey(x => x.Id);
+    entity.Property(x => x.Specialization)
+        .IsRequired()
+        .HasMaxLength(150);
 
-            entity.HasIndex(x => x.UserId)
-                .IsUnique();
+    entity.Property(x => x.ProfessionalTitle)
+        .HasMaxLength(150);
 
-            entity.Property(x => x.Specialization)
-                .IsRequired()
-                .HasMaxLength(150);
+    entity.Property(x => x.CurrentOrganization)
+        .HasMaxLength(200);
 
-            entity.Property(x => x.Bio)
-                .HasMaxLength(1000);
+    entity.Property(x => x.Bio)
+        .HasMaxLength(2000);
 
-            entity.Property(x => x.ProfileImageUrl)
-                .HasMaxLength(1000);
+    entity.Property(x => x.YearsOfExperience)
+        .IsRequired(false);
 
-            entity.Property(x => x.IsActive)
-                .IsRequired();
+    // ==========================================
+    // PROFESSIONAL LICENSE
+    // ==========================================
 
-            entity.Property(x => x.ActivatedAt)
-                .IsRequired(false);
+    entity.Property(x => x.ProfessionalLicenseNumber)
+        .HasMaxLength(150);
 
-            entity.HasOne(x => x.User)
-                .WithOne(x => x.TrainerProfile)
-                .HasForeignKey<TrainerProfile>(
-                    x => x.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+    entity.Property(x => x.ProfessionalLicenseType)
+        .HasMaxLength(150);
 
-            // TrainerProfile 1 : many TrainerAssignment
+    entity.Property(x => x.ProfessionalLicenseExpirationDate)
+        .IsRequired(false);
 
-            entity.HasMany(x => x.Assignments)
-                .WithOne(x => x.TrainerProfile)
-                .HasForeignKey(x => x.TrainerProfileId)
-                .OnDelete(DeleteBehavior.Restrict);
-        });
+    // ==========================================
+    // PROFILE IMAGE
+    // ==========================================
+
+    entity.Property(x => x.ProfileImageUrl)
+        .HasMaxLength(1000);
+
+    // ==========================================
+    // STATUS
+    // ==========================================
+
+    entity.Property(x => x.Status)
+        .HasConversion<string>()
+        .IsRequired();
+
+    entity.Property(x => x.AdminRemarks)
+        .HasMaxLength(1000);
+
+    // ==========================================
+    // USER RELATIONSHIP
+    // ==========================================
+
+    entity.HasOne(x => x.User)
+        .WithOne(x => x.TrainerApplication)
+        .HasForeignKey<TrainerApplication>(
+            x => x.UserId)
+        .OnDelete(DeleteBehavior.Cascade);
+
+    // ==========================================
+    // DOCUMENTS
+    // ==========================================
+
+    entity.HasMany(x => x.Documents)
+        .WithOne(x => x.TrainerApplication)
+        .HasForeignKey(x => x.TrainerApplicationId)
+        .OnDelete(DeleteBehavior.Cascade);
+
+    // ==========================================
+    // EDUCATION
+    // ==========================================
+
+    entity.HasMany(x => x.Educations)
+        .WithOne(x => x.TrainerApplication)
+        .HasForeignKey(x => x.TrainerApplicationId)
+        .OnDelete(DeleteBehavior.Cascade);
+
+    // ==========================================
+    // CERTIFICATIONS
+    // ==========================================
+
+    entity.HasMany(x => x.Certifications)
+        .WithOne(x => x.TrainerApplication)
+        .HasForeignKey(x => x.TrainerApplicationId)
+        .OnDelete(DeleteBehavior.Cascade);
+});
+// ==========================================
+// TRAINER APPLICATION EDUCATION
+// ==========================================
+
+modelBuilder.Entity<TrainerApplicationEducation>(entity =>
+{
+    entity.ToTable("TrainerApplicationEducations");
+
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.Degree)
+        .IsRequired()
+        .HasMaxLength(200);
+
+    entity.Property(x => x.FieldOfStudy)
+        .HasMaxLength(200);
+
+    entity.Property(x => x.Institution)
+        .IsRequired()
+        .HasMaxLength(255);
+
+    entity.Property(x => x.YearGraduated)
+        .IsRequired(false);
+
+    entity.HasIndex(x => x.TrainerApplicationId);
+
+    entity.HasOne(x => x.TrainerApplication)
+        .WithMany(x => x.Educations)
+        .HasForeignKey(x => x.TrainerApplicationId)
+        .OnDelete(DeleteBehavior.Cascade);
+});
+
+// ==========================================
+// TRAINER APPLICATION CERTIFICATION
+// ==========================================
+
+modelBuilder.Entity<TrainerApplicationCertification>(entity =>
+{
+    entity.ToTable("TrainerApplicationCertifications");
+
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.Name)
+        .IsRequired()
+        .HasMaxLength(200);
+
+    entity.Property(x => x.IssuingOrganization)
+        .HasMaxLength(255);
+
+    entity.Property(x => x.IssuedDate)
+        .IsRequired(false);
+
+    entity.Property(x => x.ExpirationDate)
+        .IsRequired(false);
+
+    entity.Property(x => x.CertificateUrl)
+        .HasMaxLength(1000);
+
+    entity.HasIndex(x => x.TrainerApplicationId);
+
+    entity.HasOne(x => x.TrainerApplication)
+        .WithMany(x => x.Certifications)
+        .HasForeignKey(x => x.TrainerApplicationId)
+        .OnDelete(DeleteBehavior.Cascade);
+});
+       // ==========================================
+// TRAINER PROFILE
+// ==========================================
+
+modelBuilder.Entity<TrainerProfile>(entity =>
+{
+    entity.ToTable("TrainerProfiles");
+
+    entity.HasKey(x => x.Id);
+
+    entity.HasIndex(x => x.UserId)
+        .IsUnique();
+
+    // ==========================================
+    // PERSONAL INFORMATION
+    // ==========================================
+
+    entity.Property(x => x.FirstName)
+        .HasMaxLength(100);
+
+    entity.Property(x => x.MiddleName)
+        .HasMaxLength(100);
+
+    entity.Property(x => x.LastName)
+        .HasMaxLength(100);
+
+    entity.Property(x => x.Suffix)
+        .HasMaxLength(30);
+
+    entity.Property(x => x.Gender)
+        .HasMaxLength(50);
+
+    entity.Property(x => x.Address)
+        .HasMaxLength(500);
+
+    // ==========================================
+    // PROFESSIONAL INFORMATION
+    // ==========================================
+
+    entity.Property(x => x.Specialization)
+        .IsRequired()
+        .HasMaxLength(150);
+
+    entity.Property(x => x.ProfessionalTitle)
+        .HasMaxLength(150);
+
+    entity.Property(x => x.CurrentOrganization)
+        .HasMaxLength(200);
+
+    entity.Property(x => x.Bio)
+        .HasMaxLength(2000);
+
+    entity.Property(x => x.YearsOfExperience)
+        .IsRequired(false);
+
+    // ==========================================
+    // PROFESSIONAL LICENSE
+    // ==========================================
+
+    entity.Property(x => x.ProfessionalLicenseNumber)
+        .HasMaxLength(150);
+
+    entity.Property(x => x.ProfessionalLicenseType)
+        .HasMaxLength(150);
+
+    entity.Property(x => x.ProfessionalLicenseExpirationDate)
+        .IsRequired(false);
+
+    // ==========================================
+    // PROFILE IMAGE
+    // ==========================================
+
+    entity.Property(x => x.ProfileImageUrl)
+        .HasMaxLength(1000);
+
+    // ==========================================
+    // STATUS
+    // ==========================================
+
+    entity.Property(x => x.IsActive)
+        .IsRequired();
+
+    entity.Property(x => x.ActivatedAt)
+        .IsRequired(false);
+
+    // ==========================================
+    // USER
+    // ==========================================
+
+    entity.HasOne(x => x.User)
+        .WithOne(x => x.TrainerProfile)
+        .HasForeignKey<TrainerProfile>(
+            x => x.UserId)
+        .OnDelete(DeleteBehavior.Cascade);
+
+    // ==========================================
+    // ASSIGNMENTS
+    // ==========================================
+
+    entity.HasMany(x => x.Assignments)
+        .WithOne(x => x.TrainerProfile)
+        .HasForeignKey(x => x.TrainerProfileId)
+        .OnDelete(DeleteBehavior.Restrict);
+
+    // ==========================================
+    // EDUCATION
+    // ==========================================
+
+    entity.HasMany(x => x.Educations)
+        .WithOne(x => x.TrainerProfile)
+        .HasForeignKey(x => x.TrainerProfileId)
+        .OnDelete(DeleteBehavior.Cascade);
+
+    // ==========================================
+    // CERTIFICATIONS
+    // ==========================================
+
+    entity.HasMany(x => x.Certifications)
+        .WithOne(x => x.TrainerProfile)
+        .HasForeignKey(x => x.TrainerProfileId)
+        .OnDelete(DeleteBehavior.Cascade);
+});
+
+// ==========================================
+// TRAINER CERTIFICATION
+// ==========================================
+
+modelBuilder.Entity<TrainerCertification>(entity =>
+{
+    entity.ToTable("TrainerCertifications");
+
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.Name)
+        .IsRequired()
+        .HasMaxLength(200);
+
+    entity.Property(x => x.IssuingOrganization)
+        .HasMaxLength(255);
+
+    entity.Property(x => x.IssuedDate)
+        .IsRequired(false);
+
+    entity.Property(x => x.ExpirationDate)
+        .IsRequired(false);
+
+    entity.Property(x => x.CertificateUrl)
+        .HasMaxLength(1000);
+
+    entity.HasIndex(x => x.TrainerProfileId);
+
+    entity.HasOne(x => x.TrainerProfile)
+        .WithMany(x => x.Certifications)
+        .HasForeignKey(x => x.TrainerProfileId)
+        .OnDelete(DeleteBehavior.Cascade);
+});
+
+// ==========================================
+// TRAINER EDUCATION
+// ==========================================
+
+modelBuilder.Entity<TrainerEducation>(entity =>
+{
+    entity.ToTable("TrainerEducations");
+
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.Degree)
+        .IsRequired()
+        .HasMaxLength(200);
+
+    entity.Property(x => x.FieldOfStudy)
+        .HasMaxLength(200);
+
+    entity.Property(x => x.Institution)
+        .IsRequired()
+        .HasMaxLength(255);
+
+    entity.Property(x => x.YearGraduated)
+        .IsRequired(false);
+
+    entity.HasIndex(x => x.TrainerProfileId);
+
+    entity.HasOne(x => x.TrainerProfile)
+        .WithMany(x => x.Educations)
+        .HasForeignKey(x => x.TrainerProfileId)
+        .OnDelete(DeleteBehavior.Cascade);
+});
 
 
         // ==========================================

@@ -1,12 +1,12 @@
-namespace server.Enums;
+    namespace server.Enums;
 
-public enum ServiceRequestStatus
-{
-    Pending,
-    Approved,
-    Rejected,
-    Scheduled,
-    InProgress,
-    Completed,
-    Cancelled
-}
+    public enum ServiceRequestStatus
+    {
+        Pending,
+        Approved,
+        Rejected,
+        Scheduled,
+        InProgress,
+        Completed,
+        Cancelled
+    }

@@ -19,6 +19,8 @@ import {
 
 import {
   DataTable,
+  PageSection,
+  PageSkeleton,
   StatCard,
   StatGrid,
 } from "@repo/ui/index";
@@ -163,27 +165,25 @@ export default function TrainerApplicationsPage() {
     },
   ).length;
 
+  if (isLoading && applications.length === 0) {
+  return (
+    <PageSkeleton
+      statCards={10}
+      showHeader
+      showTable
+      tableRows={8}
+      tableColumns={7}
+    />
+  );
+}
+
   return (
     <div className="min-h-full  lg:p-2">
-      <div className="mx-auto max-w-7xl space-y-6">
-        {/* HEADER */}
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-              <ShieldCheck className="h-4 w-4" />
-              Trainer Management
-            </div>
-
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-              Trainer Applications
-            </h1>
-
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              Review trainer applications, verify submitted information, and manage application status.
-            </p>
-          </div>
-
-          <button
+      <PageSection
+      title=" Trainer Applications"
+      description=" Review trainer applications, verify submitted information, and manage application status."
+      actions={
+         <button
             type="button"
             onClick={loadApplications}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 active:scale-[0.98]"
@@ -191,6 +191,15 @@ export default function TrainerApplicationsPage() {
             <RotateCcw className="h-4 w-4" />
             Refresh
           </button>
+      }
+      >
+
+      </PageSection>
+      <div className="mx-auto max-w-7xl space-y-6">
+        {/* HEADER */}
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+  
+         
         </div>
 
         {/* REUSABLE STAT CARDS */}

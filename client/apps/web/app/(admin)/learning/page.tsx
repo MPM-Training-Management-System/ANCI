@@ -1,2062 +1,2232 @@
 "use client";
 
 import {
+  useCallback,
+  useEffect,
   useMemo,
   useState,
+  type FormEvent,
 } from "react";
 
+import type {
+  CreateLearningMaterialRequest,
+  CreateLearningModuleRequest,
+  LearningMaterial,
+  LearningModule,
+  LearningSection,
+  TrainingBatch,
+  TrainerAssignment,
+} from "@repo/types";
+
 import {
+  BookOpen,
+  ChevronRight,
+  FileText,
+  Layers3,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Upload,
+  X,
+} from "lucide-react";
+
+import {
+  Badge,
+  Button,
   DataTable,
   PageSection,
-  StatCard,
-  StatGrid,
 } from "@repo/ui/index";
 
 import {
-  columns,
-  type LearningMaterialsTableMeta,
-} from "./columns";
-
-import type {
-  LearningMaterial,
-  MaterialType,
-  MaterialStatus,
-  TrainingOption,
-} from "./types";
-
-/* =========================================================
-   TRAINING OPTIONS
-========================================================= */
-
-const trainingOptions: TrainingOption[] = [
-  {
-    name:
-      "Computer Systems Servicing NC II",
-    code: "CSS-NCII",
-  },
-
-  {
-    name:
-      "Web Development Fundamentals",
-    code: "WEB-DEV",
-  },
-
-  {
-    name:
-      "Electrical Installation and Maintenance NC II",
-    code: "EIM-NCII",
-  },
-];
-
-/* =========================================================
-   MATERIAL TYPES
-========================================================= */
-
-const materialTypes: MaterialType[] = [
-  "Module",
-  "Presentation",
-  "Video",
-  "Document",
-  "Link",
-];
-
-/* =========================================================
-   MOCK MATERIALS
-========================================================= */
-
-const initialMaterials: LearningMaterial[] = [
-  {
-    id: "MAT-001",
-
-    title:
-      "Basic Computer Hardware",
-
-    description:
-      "Introduction to computer hardware components and their functions.",
-
-    type: "Module",
-
-    status: "Published",
-
-    training:
-      "Computer Systems Servicing NC II",
-
-    trainingCode: "CSS-NCII",
-
-    fileName:
-      "basic-computer-hardware.pdf",
-
-    fileSize: "4.2 MB",
-
-    uploadedAt:
-      "August 10, 2026",
-
-    updatedAt:
-      "August 12, 2026",
-  },
-
-  {
-    id: "MAT-002",
-
-    title:
-      "Computer Networking Fundamentals",
-
-    description:
-      "Fundamental networking concepts, devices, protocols, and topologies.",
-
-    type: "Presentation",
-
-    status: "Published",
-
-    training:
-      "Computer Systems Servicing NC II",
-
-    trainingCode: "CSS-NCII",
-
-    fileName:
-      "networking-fundamentals.pptx",
-
-    fileSize: "7.8 MB",
-
-    uploadedAt:
-      "August 9, 2026",
-
-    updatedAt:
-      "August 11, 2026",
-  },
-
-  {
-    id: "MAT-003",
-
-    title:
-      "Installing Operating Systems",
-
-    description:
-      "Step-by-step guide for preparing and installing operating systems.",
-
-    type: "Module",
-
-    status: "Published",
-
-    training:
-      "Computer Systems Servicing NC II",
-
-    trainingCode: "CSS-NCII",
-
-    fileName:
-      "installing-operating-systems.pdf",
-
-    fileSize: "5.1 MB",
-
-    uploadedAt:
-      "August 8, 2026",
-
-    updatedAt:
-      "August 8, 2026",
-  },
-
-  {
-    id: "MAT-004",
-
-    title:
-      "Introduction to PC Assembly",
-
-    description:
-      "Video demonstration of proper PC component installation and assembly.",
-
-    type: "Video",
-
-    status: "Published",
-
-    training:
-      "Computer Systems Servicing NC II",
-
-    trainingCode: "CSS-NCII",
-
-    fileName:
-      "pc-assembly.mp4",
-
-    fileSize: "48.5 MB",
-
-    uploadedAt:
-      "August 6, 2026",
-
-    updatedAt:
-      "August 7, 2026",
-  },
-
-  {
-    id: "MAT-005",
-
-    title:
-      "LAN Cable Crimping Guide",
-
-    description:
-      "Practical guide for creating and testing Ethernet cables.",
-
-    type: "Document",
-
-    status: "Draft",
-
-    training:
-      "Computer Systems Servicing NC II",
-
-    trainingCode: "CSS-NCII",
-
-    fileName:
-      "lan-cable-crimping.docx",
-
-    fileSize: "2.1 MB",
-
-    uploadedAt:
-      "August 5, 2026",
-
-    updatedAt:
-      "August 5, 2026",
-  },
-
-  {
-    id: "MAT-006",
-
-    title:
-      "Network Troubleshooting Reference",
-
-    description:
-      "Quick reference for common network connectivity problems.",
-
-    type: "Document",
-
-    status: "Published",
-
-    training:
-      "Computer Systems Servicing NC II",
-
-    trainingCode: "CSS-NCII",
-
-    fileName:
-      "network-troubleshooting.pdf",
-
-    fileSize: "3.4 MB",
-
-    uploadedAt:
-      "August 3, 2026",
-
-    updatedAt:
-      "August 4, 2026",
-  },
-
-  {
-    id: "MAT-007",
-
-    title:
-      "Safety Procedures in Computer Servicing",
-
-    description:
-      "Safety guidelines that trainees must observe during laboratory activities.",
-
-    type: "Module",
-
-    status: "Published",
-
-    training:
-      "Computer Systems Servicing NC II",
-
-    trainingCode: "CSS-NCII",
-
-    fileName:
-      "safety-procedures.pdf",
-
-    fileSize: "2.8 MB",
-
-    uploadedAt:
-      "August 1, 2026",
-
-    updatedAt:
-      "August 2, 2026",
-  },
-
-  {
-    id: "MAT-008",
-
-    title:
-      "HTML and CSS Fundamentals",
-
-    description:
-      "Introduction to HTML structure and CSS styling.",
-
-    type: "Module",
-
-    status: "Published",
-
-    training:
-      "Web Development Fundamentals",
-
-    trainingCode: "WEB-DEV",
-
-    fileName:
-      "html-css-fundamentals.pdf",
-
-    fileSize: "6.2 MB",
-
-    uploadedAt:
-      "August 9, 2026",
-
-    updatedAt:
-      "August 10, 2026",
-  },
-
-  {
-    id: "MAT-009",
-
-    title:
-      "JavaScript Basics",
-
-    description:
-      "Introduction to JavaScript syntax, variables, functions, and events.",
-
-    type: "Presentation",
-
-    status: "Draft",
-
-    training:
-      "Web Development Fundamentals",
-
-    trainingCode: "WEB-DEV",
-
-    fileName:
-      "javascript-basics.pptx",
-
-    fileSize: "8.4 MB",
-
-    uploadedAt:
-      "August 7, 2026",
-
-    updatedAt:
-      "August 7, 2026",
-  },
-
-  {
-    id: "MAT-010",
-
-    title:
-      "Electrical Safety",
-
-    description:
-      "Basic electrical safety procedures and workplace practices.",
-
-    type: "Module",
-
-    status: "Published",
-
-    training:
-      "Electrical Installation and Maintenance NC II",
-
-    trainingCode: "EIM-NCII",
-
-    fileName:
-      "electrical-safety.pdf",
-
-    fileSize: "3.8 MB",
-
-    uploadedAt:
-      "August 5, 2026",
-
-    updatedAt:
-      "August 6, 2026",
-  },
-];
-
-/* =========================================================
-   EMPTY FORM
-========================================================= */
-
-const emptyForm = {
-  title: "",
-
-  description: "",
-
-  type:
-    "Module" as MaterialType,
-
-  status:
-    "Draft" as MaterialStatus,
-
-  fileName: "",
-
-  fileSize: "",
-
-  url: "",
-};
-
-/* =========================================================
-   PAGE
-========================================================= */
+  learningMaterialApi,
+  trainerAssignmentApi,
+  trainingBatchApi,
+} from "@/lib/api";
+
+import { useLearningMaterials } from "@repo/hooks";
+import { useTrainerAssignments } from "@repo/hooks";
+import { columns } from "./columns";
+
+
+// ============================================================
+// TYPES
+// ============================================================
+
+type MaterialType =
+  | "PDF"
+  | "Presentation"
+  | "Document"
+  | "Video"
+  | "Activity"
+  | "Other";
+
+
+// ============================================================
+// PAGE
+// ============================================================
 
 export default function TrainerLearningMaterialsPage() {
-  /* =======================================================
-     STATE
-  ======================================================= */
+  // ==========================================================
+  // TRAINER ASSIGNMENTS
+  // ==========================================================
 
-  const [
-    selectedTraining,
-    setSelectedTraining,
-  ] = useState(
-    "Computer Systems Servicing NC II",
+  const {
+    myAssignments,
+    isLoadingMyAssignments,
+    loadMyAssignments,
+    error: assignmentError,
+  } = useTrainerAssignments(
+    trainerAssignmentApi,
+    {
+      loadAll: false,
+    },
   );
 
-  const [
-    search,
-    setSearch,
-  ] = useState("");
+
+  // ==========================================================
+  // TRAINING BATCHES
+  // ==========================================================
 
   const [
-    typeFilter,
-    setTypeFilter,
-  ] = useState<
-    "All" | MaterialType
-  >("All");
+    allBatches,
+    setAllBatches,
+  ] = useState<TrainingBatch[]>([]);
 
   const [
-    statusFilter,
-    setStatusFilter,
-  ] = useState<
-    "All" | MaterialStatus
-  >("All");
-
-  const [
-    materials,
-    setMaterials,
-  ] = useState<
-    LearningMaterial[]
-  >(initialMaterials);
-
-  const [
-    showAddModal,
-    setShowAddModal,
+    isLoadingBatches,
+    setIsLoadingBatches,
   ] = useState(false);
 
   const [
-    showViewModal,
-    setShowViewModal,
-  ] = useState(false);
+    batchError,
+    setBatchError,
+  ] = useState<string | null>(null);
+
+
+  // ==========================================================
+  // LEARNING MATERIALS
+  // ==========================================================
+
+  const {
+    learningMaterials,
+    modules,
+    sections,
+
+    isLoading,
+    isSaving,
+    isUploading,
+    isGenerating,
+
+    error: learningMaterialError,
+
+    loadLearningMaterials,
+    loadLearningMaterial,
+
+    createLearningMaterial,
+
+    publishLearningMaterial,
+    deleteLearningMaterial,
+
+    uploadLearningMaterial,
+
+    generateLearningModules,
+    loadModules,
+
+    createLearningModule,
+
+    loadSections,
+  } = useLearningMaterials(
+    learningMaterialApi,
+  );
+
+
+  // ==========================================================
+  // LOCAL MATERIAL STATE
+  // ==========================================================
 
   const [
-    showDeleteModal,
-    setShowDeleteModal,
-  ] = useState(false);
+    allMaterials,
+    setAllMaterials,
+  ] = useState<LearningMaterial[]>([]);
 
   const [
     selectedMaterial,
     setSelectedMaterial,
-  ] =
-    useState<LearningMaterial | null>(
-      null,
-    );
+  ] = useState<LearningMaterial | null>(
+    null,
+  );
+
+
+  // ==========================================================
+  // UI STATE
+  // ==========================================================
 
   const [
-    editingMaterial,
-    setEditingMaterial,
-  ] =
-    useState<LearningMaterial | null>(
-      null,
-    );
+    showCreateMaterial,
+    setShowCreateMaterial,
+  ] = useState(false);
 
   const [
-    form,
-    setForm,
-  ] = useState(emptyForm);
+    showCreateModule,
+    setShowCreateModule,
+  ] = useState(false);
 
-  /* =======================================================
-     FILTERED MATERIALS
-  ======================================================= */
+  const [
+    showMaterialDetails,
+    setShowMaterialDetails,
+  ] = useState(false);
 
-  const filteredMaterials =
-    useMemo(() => {
-      const query =
-        search
-          .toLowerCase()
-          .trim();
+  const [
+    selectedModule,
+    setSelectedModule,
+  ] = useState<LearningModule | null>(
+    null,
+  );
 
-      return materials
-        .filter(
-          (material) =>
-            material.training ===
-            selectedTraining,
-        )
+  const [
+    showDeleteConfirm,
+    setShowDeleteConfirm,
+  ] = useState(false);
 
-        .filter((material) => {
-          if (
-            typeFilter ===
-            "All"
-          ) {
-            return true;
-          }
+  const [
+    materialToDelete,
+    setMaterialToDelete,
+  ] = useState<LearningMaterial | null>(
+    null,
+  );
 
-          return (
-            material.type ===
-            typeFilter
-          );
-        })
+  const [
+    actionError,
+    setActionError,
+  ] = useState<string | null>(null);
 
-        .filter((material) => {
-          if (
-            statusFilter ===
-            "All"
-          ) {
-            return true;
-          }
 
-          return (
-            material.status ===
-            statusFilter
-          );
-        })
+  // ==========================================================
+  // CREATE MATERIAL FORM
+  // ==========================================================
 
-        .filter((material) => {
-          if (!query) {
-            return true;
-          }
+  const [
+    materialForm,
+    setMaterialForm,
+  ] = useState({
+    trainingBatchId: "",
+    title: "",
+    description: "",
+    materialType: "PDF" as MaterialType,
+    file: null as File | null,
+  });
 
-          return (
-            material.title
-              .toLowerCase()
-              .includes(query) ||
-            material.description
-              .toLowerCase()
-              .includes(query) ||
-            material.fileName
-              .toLowerCase()
-              .includes(query)
-          );
-        })
 
-        .sort((a, b) =>
-          a.title.localeCompare(
-            b.title,
-            undefined,
-            {
-              sensitivity:
-                "base",
-            },
-          ),
+  // ==========================================================
+  // CREATE MODULE FORM
+  // ==========================================================
+
+  const [
+    moduleForm,
+    setModuleForm,
+  ] = useState({
+    title: "",
+    description: "",
+  });
+
+
+  // ==========================================================
+  // LOAD ALL BATCHES
+  // ==========================================================
+
+  const loadBatches = useCallback(
+    async () => {
+      try {
+        setIsLoadingBatches(true);
+        setBatchError(null);
+
+        const result =
+          await trainingBatchApi.getAll();
+
+        setAllBatches(
+          Array.isArray(result)
+            ? result
+            : [],
         );
-    }, [
-      materials,
-      selectedTraining,
-      search,
-      typeFilter,
-      statusFilter,
-    ]);
+      } catch (error) {
+        console.error(
+          "LOAD TRAINING BATCHES ERROR:",
+          error,
+        );
 
-  /* =======================================================
-     TRAINING MATERIALS
-  ======================================================= */
+        setBatchError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load training batches.",
+        );
 
-  const trainingMaterials =
-    materials.filter(
-      (material) =>
-        material.training ===
-        selectedTraining,
+        setAllBatches([]);
+      } finally {
+        setIsLoadingBatches(false);
+      }
+    },
+    [],
+  );
+
+
+  // ==========================================================
+  // INITIAL LOAD
+  // ==========================================================
+
+  useEffect(() => {
+    loadMyAssignments();
+    loadBatches();
+  }, [
+    loadMyAssignments,
+    loadBatches,
+  ]);
+
+
+  // ==========================================================
+  // ONLY BATCHES ASSIGNED TO CURRENT TRAINER
+  // ==========================================================
+
+  const assignedBatchIds = useMemo(
+    () =>
+      new Set(
+        myAssignments
+          .filter(
+            assignment =>
+              assignment.isActive,
+          )
+          .map(
+            assignment =>
+              assignment.trainingBatchId,
+          ),
+      ),
+    [myAssignments],
+  );
+
+
+  const assignedBatches =
+    useMemo(
+      () =>
+        allBatches.filter(
+          batch =>
+            assignedBatchIds.has(
+              batch.id,
+            ),
+        ),
+      [
+        allBatches,
+        assignedBatchIds,
+      ],
     );
 
-  /* =======================================================
-     STATS
-  ======================================================= */
 
-  const totalMaterials =
-    trainingMaterials.length;
+  // ==========================================================
+  // ASSIGNMENT MAP
+  // ==========================================================
+
+  const assignmentMap =
+    useMemo(() => {
+      const map =
+        new Map<
+          string,
+          TrainerAssignment
+        >();
+
+      myAssignments.forEach(
+        assignment => {
+          if (
+            assignment.isActive
+          ) {
+            map.set(
+              assignment.trainingBatchId,
+              assignment,
+            );
+          }
+        },
+      );
+
+      return map;
+    }, [myAssignments]);
+
+
+  // ==========================================================
+  // LOAD MATERIALS ONLY FROM ASSIGNED BATCHES
+  // ==========================================================
+
+  const loadAssignedMaterials =
+    useCallback(
+      async () => {
+        if (
+          assignedBatches.length === 0
+        ) {
+          setAllMaterials([]);
+          return;
+        }
+
+        try {
+          const results =
+            await Promise.all(
+              assignedBatches.map(
+                async batch => {
+                  try {
+                    return await loadLearningMaterials(
+                      batch.id,
+                    );
+                  } catch (error) {
+                    console.error(
+                      `LOAD MATERIALS FOR BATCH ${batch.id} ERROR:`,
+                      error,
+                    );
+
+                    return [];
+                  }
+                },
+              ),
+            );
+
+          const merged =
+            results.flat();
+
+          const unique =
+            Array.from(
+              new Map(
+                merged.map(
+                  material => [
+                    material.id,
+                    material,
+                  ],
+                ),
+              ).values(),
+            );
+
+          setAllMaterials(unique);
+        } catch (error) {
+          console.error(
+            "LOAD ASSIGNED MATERIALS ERROR:",
+            error,
+          );
+
+          setAllMaterials([]);
+        }
+      },
+      [
+        assignedBatches,
+        loadLearningMaterials,
+      ],
+    );
+
+
+  useEffect(() => {
+    if (
+      !isLoadingMyAssignments &&
+      !isLoadingBatches
+    ) {
+      loadAssignedMaterials();
+    }
+  }, [
+    isLoadingMyAssignments,
+    isLoadingBatches,
+    loadAssignedMaterials,
+  ]);
+
+
+  // ==========================================================
+  // BATCH MAP
+  // ==========================================================
+
+  const batchMap =
+    useMemo(
+      () =>
+        new Map(
+          assignedBatches.map(
+            batch => [
+              batch.id,
+              batch,
+            ],
+          ),
+        ),
+      [assignedBatches],
+    );
+
+
+  // ==========================================================
+  // SAFETY FILTER
+  // ==========================================================
+  //
+  // Even if something accidentally gets returned by the API,
+  // only show materials belonging to assigned batches.
+  //
+
+  const trainerMaterials =
+    useMemo(
+      () =>
+        allMaterials.filter(
+          material =>
+            assignedBatchIds.has(
+              material.trainingBatchId,
+            ),
+        ),
+      [
+        allMaterials,
+        assignedBatchIds,
+      ],
+    );
+
+
+  // ==========================================================
+  // STATS
+  // ==========================================================
 
   const publishedCount =
-    trainingMaterials.filter(
-      (material) =>
-        material.status ===
-        "Published",
+    trainerMaterials.filter(
+      material =>
+        material.isPublished,
     ).length;
 
   const draftCount =
-    trainingMaterials.filter(
-      (material) =>
-        material.status ===
-        "Draft",
+    trainerMaterials.filter(
+      material =>
+        !material.isPublished,
     ).length;
 
-  const moduleCount =
-    trainingMaterials.filter(
-      (material) =>
-        material.type ===
-        "Module",
-    ).length;
 
-  /* =======================================================
-     ADD
-  ======================================================= */
+  // ==========================================================
+  // OPEN MATERIAL
+  // ==========================================================
 
-  function openAddModal() {
-    setEditingMaterial(null);
+  const handleView =
+    useCallback(
+      async (
+        material: LearningMaterial,
+      ) => {
+        // ----------------------------------------------------
+        // SECURITY / UI GUARD
+        // ----------------------------------------------------
 
-    setForm(emptyForm);
+        if (
+          !assignedBatchIds.has(
+            material.trainingBatchId,
+          )
+        ) {
+          setActionError(
+            "You can only manage learning materials for training batches assigned to you.",
+          );
 
-    setShowAddModal(true);
-  }
+          return;
+        }
 
-  /* =======================================================
-     EDIT
-  ======================================================= */
+        try {
+          setActionError(null);
 
-  function openEditModal(
-    material: LearningMaterial,
-  ) {
-    setEditingMaterial(
-      material,
+          const loaded =
+            await loadLearningMaterial(
+              material.id,
+            );
+
+          setSelectedMaterial(
+            loaded,
+          );
+
+          setShowMaterialDetails(
+            true,
+          );
+
+          await loadModules(
+            material.id,
+          );
+        } catch (error) {
+          setActionError(
+            error instanceof Error
+              ? error.message
+              : "Unable to open learning material.",
+          );
+        }
+      },
+      [
+        assignedBatchIds,
+        loadLearningMaterial,
+        loadModules,
+      ],
     );
 
-    setForm({
-      title:
-        material.title,
 
-      description:
-        material.description,
+  // ==========================================================
+  // PUBLISH
+  // ==========================================================
 
-      type:
-        material.type,
+  const handlePublish =
+    useCallback(
+      async (
+        material: LearningMaterial,
+      ) => {
+        if (
+          !assignedBatchIds.has(
+            material.trainingBatchId,
+          )
+        ) {
+          setActionError(
+            "You are not assigned to this training batch.",
+          );
 
-      status:
-        material.status,
+          return;
+        }
 
-      fileName:
-        material.fileName,
+        try {
+          setActionError(null);
 
-      fileSize:
-        material.fileSize,
+          const updated =
+            await publishLearningMaterial(
+              material.id,
+            );
 
-      url:
-        material.url ?? "",
-    });
+          setAllMaterials(
+            current =>
+              current.map(
+                item =>
+                  item.id === updated.id
+                    ? updated
+                    : item,
+              ),
+          );
 
-    setShowAddModal(true);
-  }
-
-  /* =======================================================
-     VIEW
-  ======================================================= */
-
-  function openViewModal(
-    material: LearningMaterial,
-  ) {
-    setSelectedMaterial(
-      material,
+          if (
+            selectedMaterial?.id ===
+            updated.id
+          ) {
+            setSelectedMaterial(
+              updated,
+            );
+          }
+        } catch (error) {
+          setActionError(
+            error instanceof Error
+              ? error.message
+              : "Unable to publish learning material.",
+          );
+        }
+      },
+      [
+        assignedBatchIds,
+        publishLearningMaterial,
+        selectedMaterial?.id,
+      ],
     );
 
-    setShowViewModal(true);
-  }
 
-  /* =======================================================
-     DELETE
-  ======================================================= */
+  // ==========================================================
+  // DELETE
+  // ==========================================================
 
-  function openDeleteModal(
-    material: LearningMaterial,
-  ) {
-    setSelectedMaterial(
-      material,
+  const handleDelete =
+    useCallback(
+      (material: LearningMaterial) => {
+        if (
+          !assignedBatchIds.has(
+            material.trainingBatchId,
+          )
+        ) {
+          setActionError(
+            "You are not assigned to this training batch.",
+          );
+
+          return;
+        }
+
+        setMaterialToDelete(
+          material,
+        );
+
+        setShowDeleteConfirm(
+          true,
+        );
+      },
+      [assignedBatchIds],
     );
 
-    setShowDeleteModal(true);
-  }
 
-  /* =======================================================
-     SAVE
-  ======================================================= */
+  const confirmDelete =
+    useCallback(
+      async () => {
+        if (
+          !materialToDelete
+        ) {
+          return;
+        }
 
-  function saveMaterial() {
-    if (!form.title.trim()) {
-      alert(
-        "Please enter a material title.",
-      );
+        if (
+          !assignedBatchIds.has(
+            materialToDelete.trainingBatchId,
+          )
+        ) {
+          setActionError(
+            "You are not assigned to this training batch.",
+          );
 
-      return;
-    }
+          setShowDeleteConfirm(
+            false,
+          );
 
-    /*
-    |--------------------------------------------------------------------------
-    | EDIT
-    |--------------------------------------------------------------------------
-    */
+          return;
+        }
 
-    if (editingMaterial) {
-      setMaterials(
-        (current) =>
-          current.map(
-            (material) =>
-              material.id ===
-              editingMaterial.id
-                ? {
-                    ...material,
+        try {
+          setActionError(null);
 
-                    title:
-                      form.title.trim(),
+          await deleteLearningMaterial(
+            materialToDelete.id,
+          );
 
-                    description:
-                      form.description.trim(),
+          setAllMaterials(
+            current =>
+              current.filter(
+                material =>
+                  material.id !==
+                  materialToDelete.id,
+              ),
+          );
 
-                    type:
-                      form.type,
+          if (
+            selectedMaterial?.id ===
+            materialToDelete.id
+          ) {
+            setSelectedMaterial(
+              null,
+            );
 
-                    status:
-                      form.status,
+            setShowMaterialDetails(
+              false,
+            );
+          }
 
-                    fileName:
-                      form.fileName.trim() ||
-                      "No file attached",
+          setMaterialToDelete(
+            null,
+          );
 
-                    fileSize:
-                      form.fileSize.trim() ||
-                      "—",
-
-                    url:
-                      form.url.trim() ||
-                      undefined,
-
-                    updatedAt:
-                      getTodayDate(),
-                  }
-                : material,
-          ),
-      );
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | ADD
-    |--------------------------------------------------------------------------
-    */
-
-    else {
-      const newMaterial: LearningMaterial =
-        {
-          id: `MAT-${String(
-            materials.length +
-              1,
-          ).padStart(3, "0")}`,
-
-          title:
-            form.title.trim(),
-
-          description:
-            form.description.trim(),
-
-          type:
-            form.type,
-
-          status:
-            form.status,
-
-          training:
-            selectedTraining,
-
-          trainingCode:
-            getTrainingCode(
-              selectedTraining,
-            ),
-
-          fileName:
-            form.fileName.trim() ||
-            "No file attached",
-
-          fileSize:
-            form.fileSize.trim() ||
-            "—",
-
-          uploadedAt:
-            getTodayDate(),
-
-          updatedAt:
-            getTodayDate(),
-
-          url:
-            form.url.trim() ||
-            undefined,
-        };
-
-      setMaterials(
-        (current) => [
-          newMaterial,
-          ...current,
-        ],
-      );
-    }
-
-    setShowAddModal(false);
-
-    setEditingMaterial(null);
-
-    setForm(emptyForm);
-  }
-
-  /* =======================================================
-     DELETE
-  ======================================================= */
-
-  function deleteMaterial() {
-    if (!selectedMaterial) {
-      return;
-    }
-
-    setMaterials(
-      (current) =>
-        current.filter(
-          (material) =>
-            material.id !==
-            selectedMaterial.id,
-        ),
+          setShowDeleteConfirm(
+            false,
+          );
+        } catch (error) {
+          setActionError(
+            error instanceof Error
+              ? error.message
+              : "Unable to delete learning material.",
+          );
+        }
+      },
+      [
+        materialToDelete,
+        assignedBatchIds,
+        deleteLearningMaterial,
+        selectedMaterial?.id,
+      ],
     );
 
-    setSelectedMaterial(
-      null,
-    );
 
-    setShowDeleteModal(
-      false,
-    );
-  }
+  // ==========================================================
+  // CREATE MATERIAL
+  // ==========================================================
 
-  /* =======================================================
-     PUBLISH / UNPUBLISH
-  ======================================================= */
+  const handleCreateMaterial =
+    async (
+      event: FormEvent<HTMLFormElement>,
+    ) => {
+      event.preventDefault();
 
-  function togglePublish(
-    material: LearningMaterial,
-  ) {
-    setMaterials(
-      (current) =>
-        current.map(
-          (item) =>
-            item.id ===
-            material.id
-              ? {
-                  ...item,
+      setActionError(null);
 
-                  status:
-                    item.status ===
-                    "Published"
-                      ? "Draft"
-                      : "Published",
+      // ------------------------------------------------------
+      // REQUIRED VALIDATION
+      // ------------------------------------------------------
 
-                  updatedAt:
-                    getTodayDate(),
-                }
-              : item,
-        ),
-    );
-  }
+      if (
+        !materialForm.trainingBatchId
+      ) {
+        setActionError(
+          "Please select a training batch.",
+        );
 
-  /* =======================================================
-     RESET FILTERS
-  ======================================================= */
+        return;
+      }
 
-  function resetFilters() {
-    setSearch("");
+      // ------------------------------------------------------
+      // IMPORTANT:
+      // NEVER trust the selected batch from the UI.
+      // Make sure it exists in trainer assignments.
+      // ------------------------------------------------------
 
-    setTypeFilter("All");
+      if (
+        !assignedBatchIds.has(
+          materialForm.trainingBatchId,
+        )
+      ) {
+        setActionError(
+          "You can only create learning materials for training batches assigned to you.",
+        );
 
-    setStatusFilter(
-      "All",
-    );
-  }
+        return;
+      }
 
-  /* =======================================================
-     TABLE META
-  ======================================================= */
+      if (
+        !materialForm.title.trim()
+      ) {
+        setActionError(
+          "Learning material title is required.",
+        );
 
-  const tableMeta: LearningMaterialsTableMeta =
-    {
-      onView:
-        openViewModal,
+        return;
+      }
 
-      onEdit:
-        openEditModal,
+      try {
+        // ----------------------------------------------------
+        // CREATE MATERIAL
+        // ----------------------------------------------------
 
-      onTogglePublish:
-        togglePublish,
+        const request =
+          {
+            trainingBatchId:
+              materialForm.trainingBatchId,
 
-      onDelete:
-        openDeleteModal,
+            title:
+              materialForm.title.trim(),
+
+            description:
+              materialForm.description.trim(),
+
+            materialType:
+              materialForm.materialType,
+          } as CreateLearningMaterialRequest;
+
+        const created =
+          await createLearningMaterial(
+            request,
+          );
+
+        // ----------------------------------------------------
+        // UPLOAD FILE AFTER CREATE
+        // ----------------------------------------------------
+
+        let finalMaterial =
+          created;
+
+        if (
+          materialForm.file
+        ) {
+          finalMaterial =
+            await uploadLearningMaterial(
+              created.id,
+              materialForm.file,
+            );
+        }
+
+        // ----------------------------------------------------
+        // UPDATE LOCAL LIST
+        // ----------------------------------------------------
+
+        setAllMaterials(
+          current => {
+            const exists =
+              current.some(
+                material =>
+                  material.id ===
+                  finalMaterial.id,
+              );
+
+            if (exists) {
+              return current.map(
+                material =>
+                  material.id ===
+                  finalMaterial.id
+                    ? finalMaterial
+                    : material,
+              );
+            }
+
+            return [
+              ...current,
+              finalMaterial,
+            ];
+          },
+        );
+
+        // ----------------------------------------------------
+        // RESET
+        // ----------------------------------------------------
+
+        setMaterialForm({
+          trainingBatchId:
+            assignedBatches[0]?.id ??
+            "",
+          title: "",
+          description: "",
+          materialType: "PDF",
+          file: null,
+        });
+
+        setShowCreateMaterial(
+          false,
+        );
+
+        // ----------------------------------------------------
+        // OPEN CREATED MATERIAL
+        // ----------------------------------------------------
+
+        await handleView(
+          finalMaterial,
+        );
+      } catch (error) {
+        setActionError(
+          error instanceof Error
+            ? error.message
+            : "Unable to create learning material.",
+        );
+      }
     };
 
-  /* =======================================================
-     RENDER
-  ======================================================= */
+
+  // ==========================================================
+  // CREATE MODULE
+  // ==========================================================
+
+  const handleCreateModule =
+    async (
+      event: FormEvent<HTMLFormElement>,
+    ) => {
+      event.preventDefault();
+
+      if (
+        !selectedMaterial
+      ) {
+        return;
+      }
+
+      if (
+        !assignedBatchIds.has(
+          selectedMaterial.trainingBatchId,
+        )
+      ) {
+        setActionError(
+          "You can only create modules for materials belonging to your assigned training batches.",
+        );
+
+        return;
+      }
+
+      if (
+        !moduleForm.title.trim()
+      ) {
+        setActionError(
+          "Module title is required.",
+        );
+
+        return;
+      }
+
+      try {
+        setActionError(null);
+
+        const nextModuleNumber =
+          modules.length === 0
+            ? 1
+            : Math.max(
+                ...modules.map(
+                  module =>
+                    Number(
+                      module.moduleNumber,
+                    ) || 0,
+                ),
+              ) + 1;
+
+        const request =
+          {
+            learningMaterialId:
+              selectedMaterial.id,
+
+            title:
+              moduleForm.title.trim(),
+
+            description:
+              moduleForm.description.trim(),
+
+            moduleNumber:
+              nextModuleNumber,
+          } as CreateLearningModuleRequest;
+
+        await createLearningModule(
+          request,
+        );
+
+        setModuleForm({
+          title: "",
+          description: "",
+        });
+
+        setShowCreateModule(
+          false,
+        );
+      } catch (error) {
+        setActionError(
+          error instanceof Error
+            ? error.message
+            : "Unable to create learning module.",
+        );
+      }
+    };
+
+
+  // ==========================================================
+  // OPEN CREATE MATERIAL
+  // ==========================================================
+
+  const openCreateMaterial =
+    () => {
+      setActionError(null);
+
+      setMaterialForm(
+        current => ({
+          ...current,
+
+          trainingBatchId:
+            current.trainingBatchId &&
+            assignedBatchIds.has(
+              current.trainingBatchId,
+            )
+              ? current.trainingBatchId
+              : assignedBatches[0]
+                  ?.id ?? "",
+        }),
+      );
+
+      setShowCreateMaterial(
+        true,
+      );
+    };
+
+
+  // ==========================================================
+  // OPEN CREATE MODULE
+  // ==========================================================
+
+  const openCreateModule =
+    () => {
+      setActionError(null);
+
+      setModuleForm({
+        title: "",
+        description: "",
+      });
+
+      setShowCreateModule(
+        true,
+      );
+    };
+
+
+  // ==========================================================
+  // REFRESH
+  // ==========================================================
+
+  const refresh =
+    async () => {
+      await loadMyAssignments();
+      await loadBatches();
+    };
+
+
+  // ==========================================================
+  // LOADING
+  // ==========================================================
+
+  const pageLoading =
+    isLoadingMyAssignments ||
+    isLoadingBatches;
+
+
+  // ==========================================================
+  // ERROR
+  // ==========================================================
+
+  const pageError =
+    actionError ??
+    assignmentError ??
+    batchError ??
+    learningMaterialError?.message ??
+    null;
+
+
+  // ==========================================================
+  // RENDER
+  // ==========================================================
 
   return (
     <div className="space-y-6">
 
-     <PageSection
-     title=" Learning Materials"
-     description="Upload and organize learning materials for your assigned training programs."
-     actions>
-      
-     </PageSection>
+      {/* ====================================================
+          HEADER
+      ==================================================== */}
 
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
 
-      
-        <button
-          type="button"
-          onClick={
-            openAddModal
-          }
-          className="inline-flex h-11 items-center justify-center rounded-xl bg-[#191c1e] px-5 text-xs font-semibold text-white transition hover:opacity-90"
-        >
-          <span className="mr-2 text-base">
-            +
-          </span>
+        <PageSection
+          title="Learning Materials"
+          description="Create and manage learning materials for your assigned training batches."
+        />
 
-          Add Material
-        </button>
+        <div className="flex items-center gap-2">
 
-      </div>
-
-    
-
-
-      <section className="rounded-2xl border border-[#e7e9ec] bg-white p-5">
-
-        <div className="max-w-xl">
-
-          <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-            Training Program
-          </label>
-
-          <select
-            value={
-              selectedTraining
-            }
-            onChange={(
-              event,
-            ) => {
-              setSelectedTraining(
-                event.target
-                  .value,
-              );
-
-              resetFilters();
-            }}
-            className="h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none transition focus:border-gray-300 focus:bg-white"
+          <Button
+            type="button"
+            variant="outline"
+            onClick={refresh}
+            disabled={pageLoading}
           >
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${
+                pageLoading
+                  ? "animate-spin"
+                  : ""
+              }`}
+            />
 
-            {trainingOptions.map(
-              (training) => (
-                <option
-                  key={
-                    training.code
-                  }
-                  value={
-                    training.name
-                  }
-                >
-                  {training.name}
-                </option>
-              ),
-            )}
+            Refresh
+          </Button>
 
-          </select>
+          <Button
+            type="button"
+            onClick={
+              openCreateMaterial
+            }
+            disabled={
+              pageLoading ||
+              assignedBatches.length ===
+                0
+            }
+          >
+            <Plus className="mr-2 h-4 w-4" />
+
+            Create Material
+          </Button>
 
         </div>
 
-      </section>
+      </div>
 
-      {/* =================================================
-          STAT GRID
-      ================================================= */}
 
-      <StatGrid>
+      {/* ====================================================
+          ERROR
+      ==================================================== */}
+
+      {pageError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {pageError}
+        </div>
+      )}
+
+
+      {/* ====================================================
+          ASSIGNED BATCHES
+      ==================================================== */}
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+
+        <div className="mb-4 flex items-center justify-between">
+
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">
+              My Assigned Training Batches
+            </h2>
+
+            <p className="mt-1 text-xs text-slate-500">
+              You can only create learning materials
+              for these batches.
+            </p>
+          </div>
+
+          <Badge variant="success">
+            {assignedBatches.length} assigned
+          </Badge>
+
+        </div>
+
+
+        {pageLoading ? (
+          <div className="flex items-center justify-center py-8 text-sm text-slate-500">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Loading your assignments...
+          </div>
+        ) : assignedBatches.length ===
+          0 ? (
+          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-center">
+
+            <Layers3 className="mx-auto h-8 w-8 text-slate-300" />
+
+            <p className="mt-3 text-sm font-semibold text-slate-700">
+              No training batches assigned
+            </p>
+
+            <p className="mt-1 text-xs text-slate-500">
+              You currently do not have an active
+              training batch assignment.
+            </p>
+
+          </div>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+
+            {assignedBatches.map(
+              batch => {
+                const assignment =
+                  assignmentMap.get(
+                    batch.id,
+                  );
+
+                return (
+                  <div
+                    key={batch.id}
+                    className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                  >
+
+                    <div className="flex items-start justify-between gap-3">
+
+                      <div className="min-w-0">
+
+                        <p className="truncate text-sm font-semibold text-slate-900">
+                          {batch.programName ??
+                            "Training Program"}
+                        </p>
+
+                        <p className="mt-1 font-mono text-xs text-slate-500">
+                          {batch.batchCode ??
+                            "No batch code"}
+                        </p>
+
+                      </div>
+
+                      <Badge variant="success">
+                        Assigned
+                      </Badge>
+
+                    </div>
+
+                    {assignment && (
+                      <p className="mt-3 text-[11px] text-slate-400">
+                        Assignment ID:{" "}
+                        {assignment.id}
+                      </p>
+                    )}
+
+                  </div>
+                );
+              },
+            )}
+
+          </div>
+        )}
+
+      </div>
+
+
+      {/* ====================================================
+          STATS
+      ==================================================== */}
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 
         <StatCard
-          title="Total Materials"
-          value={
-            totalMaterials
+          icon={
+            <FileText className="h-5 w-5" />
           }
-          description="Learning materials for this training"
+          label="My Materials"
+          value={
+            trainerMaterials.length
+          }
         />
 
         <StatCard
-          title="Published"
+          icon={
+            <BookOpen className="h-5 w-5" />
+          }
+          label="Published"
           value={
             publishedCount
           }
-          description="Materials available to participants"
-          variant="success"
         />
 
         <StatCard
-          title="Draft"
+          icon={
+            <FileText className="h-5 w-5" />
+          }
+          label="Drafts"
           value={
             draftCount
           }
-          description="Materials still being prepared"
-          variant="warning"
         />
 
         <StatCard
-          title="Modules"
-          value={
-            moduleCount
+          icon={
+            <Layers3 className="h-5 w-5" />
           }
-          description="Module-based learning materials"
+          label="Assigned Batches"
+          value={
+            assignedBatches.length
+          }
         />
 
-      </StatGrid>
+      </div>
 
-      {/* =================================================
-          MATERIAL TABLE
-      ================================================= */}
 
-      <section className="overflow-hidden rounded-2xl border border-[#e7e9ec] bg-white">
+      {/* ====================================================
+          TABLE
+      ==================================================== */}
 
-        {/* TOOLBAR */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
 
-        <div className="border-b border-[#eef0f2] p-5">
+        <DataTable
+          columns={columns}
+          data={trainerMaterials}
+          meta={{
+            batchMap,
+            onView: handleView,
+            onPublish: handlePublish,
+            onDelete: handleDelete,
+          }}
+        />
 
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+      </div>
+
+
+      {/* ====================================================
+          CREATE MATERIAL MODAL
+      ==================================================== */}
+
+      {showCreateMaterial && (
+        <Modal
+          title="Create Learning Material"
+          onClose={() =>
+            setShowCreateMaterial(
+              false,
+            )
+          }
+        >
+
+          <form
+            onSubmit={
+              handleCreateMaterial
+            }
+            className="space-y-5"
+          >
+
+            {/* BATCH */}
 
             <div>
-
-              <h2 className="text-sm font-bold">
-                Materials
-              </h2>
-
-              <p className="mt-1 text-xs text-gray-500">
-                {
-                  selectedTraining
-                }
-              </p>
-
-            </div>
-
-            <div className="flex w-full flex-col gap-2 md:flex-row xl:w-auto">
-
-              {/* SEARCH */}
-
-              <div className="relative w-full md:w-64">
-
-                <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-gray-400">
-                  ⌕
-                </span>
-
-                <input
-                  value={
-                    search
-                  }
-                  onChange={(
-                    event,
-                  ) =>
-                    setSearch(
-                      event.target
-                        .value,
-                    )
-                  }
-                  placeholder="Search material..."
-                  className="h-10 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] pl-9 pr-9 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
-                />
-
-                {search && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setSearch(
-                        "",
-                      )
-                    }
-                    className="absolute right-2.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-xs text-gray-400 hover:bg-gray-200"
-                  >
-                    ×
-                  </button>
-                )}
-
-              </div>
-
-              {/* TYPE */}
+              <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                Training Batch
+              </label>
 
               <select
                 value={
-                  typeFilter
+                  materialForm.trainingBatchId
                 }
-                onChange={(
-                  event,
-                ) =>
-                  setTypeFilter(
-                    event.target
-                      .value as
-                      | "All"
-                      | MaterialType,
+                onChange={event =>
+                  setMaterialForm(
+                    current => ({
+                      ...current,
+                      trainingBatchId:
+                        event.target.value,
+                    }),
                   )
                 }
-                className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none focus:bg-white"
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
               >
 
-                <option value="All">
-                  All Types
+                <option value="">
+                  Select assigned training batch
                 </option>
 
-                {materialTypes.map(
-                  (type) => (
+                {assignedBatches.map(
+                  batch => (
                     <option
-                      key={type}
-                      value={type}
+                      key={batch.id}
+                      value={batch.id}
                     >
-                      {type}
+                      {batch.programName} —{" "}
+                      {batch.batchCode}
                     </option>
                   ),
                 )}
 
               </select>
 
-              {/* STATUS */}
-
-              <select
-                value={
-                  statusFilter
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setStatusFilter(
-                    event.target
-                      .value as
-                      | "All"
-                      | MaterialStatus,
-                  )
-                }
-                className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none focus:bg-white"
-              >
-
-                <option value="All">
-                  All Status
-                </option>
-
-                <option value="Published">
-                  Published
-                </option>
-
-                <option value="Draft">
-                  Draft
-                </option>
-
-              </select>
-
+              <p className="mt-1.5 text-[11px] text-slate-400">
+                Only training batches assigned to
+                you are available.
+              </p>
             </div>
 
-          </div>
-
-          {(search ||
-            typeFilter !==
-              "All" ||
-            statusFilter !==
-              "All") && (
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-
-              <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[9px] font-semibold text-gray-500">
-                {
-                  filteredMaterials.length
-                }{" "}
-                result
-                {filteredMaterials.length !==
-                1
-                  ? "s"
-                  : ""}
-              </span>
-
-              <button
-                type="button"
-                onClick={
-                  resetFilters
-                }
-                className="text-[10px] font-semibold text-gray-500 underline underline-offset-2 hover:text-gray-800"
-              >
-                Clear filters
-              </button>
-
-            </div>
-          )}
-
-        </div>
-
-        {/* DATATABLE */}
-
-        <div className="overflow-x-auto">
-
-          <DataTable
-            columns={
-              columns
-            }
-            data={
-              filteredMaterials
-            }
-            
-              meta={tableMeta}
-            
-          />
-
-        </div>
-
-        {/* EMPTY */}
-
-        {filteredMaterials.length ===
-          0 && (
-          <div className="px-6 py-16 text-center">
-
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-lg text-gray-400">
-              ▣
-            </div>
-
-            <h3 className="mt-4 text-sm font-bold">
-              No learning materials found
-            </h3>
-
-            <p className="mt-1 text-xs text-gray-500">
-              Try changing your
-              filters or add a
-              new material.
-            </p>
-
-          </div>
-        )}
-
-        {/* FOOTER */}
-
-        <div className="flex flex-col gap-2 border-t border-[#eef0f2] bg-[#fafbfc] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-
-          <p className="text-[10px] text-gray-400">
-            Materials are automatically
-            sorted alphabetically by title.
-          </p>
-
-          <p className="text-[10px] font-medium text-gray-500">
-            {
-              filteredMaterials.length
-            }{" "}
-            displayed
-          </p>
-
-        </div>
-
-      </section>
-
-      {/* =================================================
-          ADD / EDIT MODAL
-      ================================================= */}
-
-      {showAddModal && (
-        <MaterialFormModal
-          editing={
-            editingMaterial
-          }
-          form={form}
-          setForm={
-            setForm
-          }
-          onClose={() => {
-            setShowAddModal(
-              false,
-            );
-
-            setEditingMaterial(
-              null,
-            );
-          }}
-          onSave={
-            saveMaterial
-          }
-        />
-      )}
-
-      {/* =================================================
-          VIEW MODAL
-      ================================================= */}
-
-      {showViewModal &&
-        selectedMaterial && (
-          <ViewMaterialModal
-            material={
-              selectedMaterial
-            }
-            onClose={() => {
-              setShowViewModal(
-                false,
-              );
-
-              setSelectedMaterial(
-                null,
-              );
-            }}
-            onEdit={() => {
-              setShowViewModal(
-                false,
-              );
-
-              openEditModal(
-                selectedMaterial,
-              );
-            }}
-          />
-        )}
-
-      {/* =================================================
-          DELETE MODAL
-      ================================================= */}
-
-      {showDeleteModal &&
-        selectedMaterial && (
-          <DeleteMaterialModal
-            material={
-              selectedMaterial
-            }
-            onClose={() => {
-              setShowDeleteModal(
-                false,
-              );
-
-              setSelectedMaterial(
-                null,
-              );
-            }}
-            onConfirm={
-              deleteMaterial
-            }
-          />
-        )}
-
-    </div>
-  );
-}
-
-/* ==========================================================
-   MATERIAL FORM MODAL
-========================================================== */
-
-function MaterialFormModal({
-  editing,
-  form,
-  setForm,
-  onClose,
-  onSave,
-}: {
-  editing:
-    | LearningMaterial
-    | null;
-
-  form: typeof emptyForm;
-
-  setForm: React.Dispatch<
-    React.SetStateAction<
-      typeof emptyForm
-    >
-  >;
-
-  onClose: () => void;
-
-  onSave: () => void;
-}) {
-  return (
-    <div
-      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/45 p-3 backdrop-blur-sm sm:p-5"
-      onMouseDown={(
-        event,
-      ) => {
-        if (
-          event.target ===
-          event.currentTarget
-        ) {
-          onClose();
-        }
-      }}
-    >
-      <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-
-        {/* HEADER */}
-
-        <div className="flex shrink-0 items-start justify-between border-b border-[#eef0f2] px-6 py-5">
-
-          <div>
-
-            <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-              Learning Materials
-            </p>
-
-            <h2 className="mt-1 text-lg font-bold">
-              {editing
-                ? "Edit Material"
-                : "Add Material"}
-            </h2>
-
-            <p className="mt-1 text-xs text-gray-500">
-              {editing
-                ? "Update the learning material details."
-                : "Add a new learning material for this training."}
-            </p>
-
-          </div>
-
-          <button
-            type="button"
-            onClick={
-              onClose
-            }
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-lg text-gray-500 hover:bg-gray-200"
-          >
-            ×
-          </button>
-
-        </div>
-
-        {/* BODY */}
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-
-          <div className="space-y-5">
 
             {/* TITLE */}
 
             <div>
-
-              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                Material Title
+              <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                Title
               </label>
 
               <input
+                type="text"
                 value={
-                  form.title
+                  materialForm.title
                 }
-                onChange={(
-                  event,
-                ) =>
-                  setForm(
-                    (
-                      current,
-                    ) => ({
+                onChange={event =>
+                  setMaterialForm(
+                    current => ({
                       ...current,
-
                       title:
-                        event
-                          .target
-                          .value,
+                        event.target.value,
                     }),
                   )
                 }
-                placeholder="e.g. Basic Computer Hardware"
-                className="h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
+                placeholder="e.g. Introduction to Anatomy"
+                className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-slate-400"
               />
-
             </div>
+
+
+            {/* TYPE */}
+
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                Material Type
+              </label>
+
+              <select
+                value={
+                  materialForm.materialType
+                }
+                onChange={event =>
+                  setMaterialForm(
+                    current => ({
+                      ...current,
+                      materialType:
+                        event.target
+                          .value as MaterialType,
+                    }),
+                  )
+                }
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
+              >
+
+                <option value="PDF">
+                  PDF
+                </option>
+
+                <option value="Presentation">
+                  Presentation
+                </option>
+
+                <option value="Document">
+                  Document
+                </option>
+
+                <option value="Video">
+                  Video
+                </option>
+
+                <option value="Activity">
+                  Activity
+                </option>
+
+                <option value="Other">
+                  Other
+                </option>
+
+              </select>
+            </div>
+
 
             {/* DESCRIPTION */}
 
             <div>
-
-              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
+              <label className="mb-1.5 block text-xs font-semibold text-slate-700">
                 Description
               </label>
 
               <textarea
                 value={
-                  form.description
+                  materialForm.description
                 }
-                onChange={(
-                  event,
-                ) =>
-                  setForm(
-                    (
-                      current,
-                    ) => ({
+                onChange={event =>
+                  setMaterialForm(
+                    current => ({
                       ...current,
-
                       description:
-                        event
-                          .target
-                          .value,
+                        event.target.value,
                     }),
                   )
                 }
-                placeholder="Describe what this material contains..."
-                rows={
-                  4
-                }
-                className="w-full resize-none rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 py-3 text-xs outline-none transition focus:border-gray-300 focus:bg-white"
+                rows={4}
+                placeholder="Describe this learning material..."
+                className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
               />
-
             </div>
 
-            {/* TYPE / STATUS */}
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-
-              <div>
-
-                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Material Type
-                </label>
-
-                <select
-                  value={
-                    form.type
-                  }
-                  onChange={(
-                    event,
-                  ) =>
-                    setForm(
-                      (
-                        current,
-                      ) => ({
-                        ...current,
-
-                        type:
-                          event
-                            .target
-                            .value as MaterialType,
-                      }),
-                    )
-                  }
-                  className="h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none focus:bg-white"
-                >
-
-                  {materialTypes.map(
-                    (
-                      type,
-                    ) => (
-                      <option
-                        key={
-                          type
-                        }
-                        value={
-                          type
-                        }
-                      >
-                        {
-                          type
-                        }
-                      </option>
-                    ),
-                  )}
-
-                </select>
-
-              </div>
-
-              <div>
-
-                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Status
-                </label>
-
-                <select
-                  value={
-                    form.status
-                  }
-                  onChange={(
-                    event,
-                  ) =>
-                    setForm(
-                      (
-                        current,
-                      ) => ({
-                        ...current,
-
-                        status:
-                          event
-                            .target
-                            .value as MaterialStatus,
-                      }),
-                    )
-                  }
-                  className="h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none focus:bg-white"
-                >
-
-                  <option value="Draft">
-                    Draft
-                  </option>
-
-                  <option value="Published">
-                    Published
-                  </option>
-
-                </select>
-
-              </div>
-
-            </div>
 
             {/* FILE */}
 
             <div>
-
-              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
+              <label className="mb-1.5 block text-xs font-semibold text-slate-700">
                 File
+                <span className="ml-1 font-normal text-slate-400">
+                  (optional)
+                </span>
               </label>
 
-              <div className="flex flex-col gap-2 sm:flex-row">
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 transition hover:border-slate-400 hover:bg-slate-100">
+
+                <Upload className="h-5 w-5 text-slate-400" />
+
+                <div className="min-w-0">
+
+                  <p className="truncate text-sm font-medium text-slate-700">
+                    {materialForm.file
+                      ? materialForm.file.name
+                      : "Choose a file"}
+                  </p>
+
+                  <p className="text-[11px] text-slate-400">
+                    File will be uploaded after
+                    the material is created.
+                  </p>
+
+                </div>
 
                 <input
-                  value={
-                    form.fileName
-                  }
-                  onChange={(
-                    event,
-                  ) =>
-                    setForm(
-                      (
-                        current,
-                      ) => ({
+                  type="file"
+                  className="hidden"
+                  onChange={event =>
+                    setMaterialForm(
+                      current => ({
                         ...current,
-
-                        fileName:
-                          event
-                            .target
-                            .value,
+                        file:
+                          event.target
+                            .files?.[0] ??
+                          null,
                       }),
                     )
                   }
-                  placeholder="File name, e.g. module-1.pdf"
-                  className="h-11 flex-1 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none focus:bg-white"
                 />
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    setForm(
-                      (
-                        current,
-                      ) => ({
-                        ...current,
+              </label>
+            </div>
 
-                        fileName:
-                          "uploaded-material.pdf",
 
-                        fileSize:
-                          "3.5 MB",
-                      }),
-                    )
+            {/* ACTIONS */}
+
+            <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  setShowCreateMaterial(
+                    false,
+                  )
+                }
+              >
+                Cancel
+              </Button>
+
+              <Button
+                type="submit"
+                disabled={
+                  isSaving ||
+                  isUploading ||
+                  assignedBatches.length ===
+                    0
+                }
+              >
+
+                {isSaving ||
+                isUploading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Material
+                  </>
+                )}
+
+              </Button>
+
+            </div>
+
+          </form>
+
+        </Modal>
+      )}
+
+
+      {/* ====================================================
+          MATERIAL DETAILS
+      ==================================================== */}
+
+      {showMaterialDetails &&
+        selectedMaterial && (
+          <Modal
+            title={
+              selectedMaterial.title
+            }
+            onClose={() => {
+              setShowMaterialDetails(
+                false,
+              );
+
+              setSelectedModule(
+                null,
+              );
+            }}
+            wide
+          >
+
+            <div className="space-y-6">
+
+              {/* MATERIAL INFO */}
+
+              <div className="grid gap-4 md:grid-cols-2">
+
+                <Info
+                  label="Training Program"
+                  value={
+                    batchMap.get(
+                      selectedMaterial.trainingBatchId,
+                    )?.programName ??
+                    "Unknown"
                   }
-                  className="h-11 rounded-xl border border-[#e7e9ec] bg-white px-4 text-xs font-semibold text-gray-600 hover:bg-gray-50"
-                >
-                  Choose File
-                </button>
+                />
+
+                <Info
+                  label="Batch"
+                  value={
+                    selectedMaterial.batchCode ??
+                    batchMap.get(
+                      selectedMaterial.trainingBatchId,
+                    )?.batchCode ??
+                    "—"
+                  }
+                />
+
+                <Info
+                  label="Type"
+                  value={
+                    selectedMaterial.materialType
+                  }
+                />
+
+                <Info
+                  label="Status"
+                  value={
+                    selectedMaterial.isPublished
+                      ? "Published"
+                      : "Draft"
+                  }
+                />
 
               </div>
 
-              <p className="mt-1.5 text-[10px] text-gray-400">
-                Mock upload for now.
-              </p>
 
-            </div>
+              {/* FILE */}
 
-            {/* FILE SIZE */}
+              <div className="rounded-xl border border-slate-200 p-4">
 
-            <div>
+                <div className="flex items-center justify-between gap-4">
 
-              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                File Size
-              </label>
+                  <div className="flex min-w-0 items-center gap-3">
 
-              <input
-                value={
-                  form.fileSize
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setForm(
-                    (
-                      current,
-                    ) => ({
-                      ...current,
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100">
+                      <FileText className="h-5 w-5 text-slate-500" />
+                    </div>
 
-                      fileSize:
-                        event
-                          .target
-                          .value,
-                    }),
-                  )
-                }
-                placeholder="e.g. 4.5 MB"
-                className="h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none focus:bg-white"
-              />
+                    <div className="min-w-0">
 
-            </div>
+                      <p className="truncate text-sm font-semibold text-slate-800">
+                        {selectedMaterial.fileName ??
+                          "No file uploaded"}
+                      </p>
 
-            {/* LINK */}
+                      <p className="text-xs text-slate-400">
+                        {formatFileSize(
+                          selectedMaterial.fileSize,
+                        )}
+                      </p>
 
-            {form.type ===
-              "Link" && (
+                    </div>
+
+                  </div>
+
+                  <label className="cursor-pointer">
+
+                    <span className="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                      <Upload className="mr-2 h-3.5 w-3.5" />
+                      Replace
+                    </span>
+
+                    <input
+                      type="file"
+                      className="hidden"
+                      disabled={
+                        isUploading
+                      }
+                      onChange={async event => {
+                        const file =
+                          event.target
+                            .files?.[0];
+
+                        if (!file) {
+                          return;
+                        }
+
+                        try {
+                          const updated =
+                            await uploadLearningMaterial(
+                              selectedMaterial.id,
+                              file,
+                            );
+
+                          setSelectedMaterial(
+                            updated,
+                          );
+
+                          setAllMaterials(
+                            current =>
+                              current.map(
+                                material =>
+                                  material.id ===
+                                  updated.id
+                                    ? updated
+                                    : material,
+                              ),
+                          );
+                        } catch (error) {
+                          setActionError(
+                            error instanceof Error
+                              ? error.message
+                              : "Unable to upload file.",
+                          );
+                        }
+                      }}
+                    />
+
+                  </label>
+
+                </div>
+
+              </div>
+
+
+              {/* MODULES */}
+
               <div>
 
-                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Resource Link
+                <div className="mb-3 flex items-center justify-between">
+
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-900">
+                      Learning Modules
+                    </h3>
+
+                    <p className="text-xs text-slate-400">
+                      Modules belonging to this
+                      learning material.
+                    </p>
+                  </div>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={
+                      openCreateModule
+                    }
+                  >
+                    <Plus className="mr-1.5 h-3.5 w-3.5" />
+                    Add Module
+                  </Button>
+
+                </div>
+
+
+                {modules.length ===
+                0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-center">
+
+                    <Layers3 className="mx-auto h-8 w-8 text-slate-300" />
+
+                    <p className="mt-2 text-sm font-semibold text-slate-700">
+                      No modules yet
+                    </p>
+
+                    <p className="mt-1 text-xs text-slate-400">
+                      Create a module or generate
+                      modules from the material.
+                    </p>
+
+                    <div className="mt-4 flex justify-center gap-2">
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={
+                          isGenerating
+                        }
+                        onClick={async () => {
+                          try {
+                            await generateLearningModules(
+                              selectedMaterial.id,
+                            );
+                          } catch (error) {
+                            setActionError(
+                              error instanceof Error
+                                ? error.message
+                                : "Unable to generate modules.",
+                            );
+                          }
+                        }}
+                      >
+                        {isGenerating ? (
+                          <>
+                            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                            Generating...
+                          </>
+                        ) : (
+                          "Generate Modules"
+                        )}
+                      </Button>
+
+                    </div>
+
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+
+                    {modules.map(
+                      (module, index) => (
+                        <button
+                          key={
+                            module.id
+                          }
+                          type="button"
+                          onClick={async () => {
+                            setSelectedModule(
+                              module,
+                            );
+
+                            try {
+                              await loadSections(
+                                module.id,
+                              );
+                            } catch (error) {
+                              setActionError(
+                                error instanceof Error
+                                  ? error.message
+                                  : "Unable to load sections.",
+                              );
+                            }
+                          }}
+                          className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-slate-300 hover:bg-slate-50"
+                        >
+
+                          <div className="flex min-w-0 items-center gap-3">
+
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-600">
+                              {module.moduleNumber ??
+                                index + 1}
+                            </div>
+
+                            <div className="min-w-0">
+
+                              <p className="truncate text-sm font-semibold text-slate-800">
+                                {module.title}
+                              </p>
+
+                              {module.description && (
+                                <p className="mt-0.5 truncate text-xs text-slate-400">
+                                  {
+                                    module.description
+                                  }
+                                </p>
+                              )}
+
+                            </div>
+
+                          </div>
+
+                          <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+
+                        </button>
+                      ),
+                    )}
+
+                  </div>
+                )}
+
+              </div>
+
+
+              {/* SELECTED MODULE SECTIONS */}
+
+              {selectedModule && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+
+                  <div className="mb-3">
+
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      Module
+                    </p>
+
+                    <h4 className="mt-1 text-sm font-semibold text-slate-900">
+                      {selectedModule.title}
+                    </h4>
+
+                  </div>
+
+
+                  {sections.length ===
+                  0 ? (
+                    <p className="text-xs text-slate-400">
+                      No sections found for this
+                      module.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+
+                      {sections.map(
+                        (
+                          section,
+                          index,
+                        ) => (
+                          <div
+                            key={
+                              section.id
+                            }
+                            className="rounded-lg border border-slate-200 bg-white px-3 py-3"
+                          >
+
+                            <div className="flex items-start gap-3">
+
+                              <span className="text-xs font-bold text-slate-400">
+                                {index +
+                                  1}
+                              </span>
+
+                              <div>
+
+                                <p className="text-sm font-medium text-slate-800">
+                                  {section.title}
+                                </p>
+
+                                {section.content && (
+                                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                                    {
+                                      section.content
+                                    }
+                                  </p>
+                                )}
+
+                              </div>
+
+                            </div>
+
+                          </div>
+                        ),
+                      )}
+
+                    </div>
+                  )}
+
+                </div>
+              )}
+
+
+              {/* FOOTER */}
+
+              <div className="flex justify-end border-t border-slate-100 pt-4">
+
+                {!selectedMaterial.isPublished && (
+                  <Button
+                    type="button"
+                    onClick={() =>
+                      handlePublish(
+                        selectedMaterial,
+                      )
+                    }
+                    disabled={
+                      isSaving
+                    }
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Publishing...
+                      </>
+                    ) : (
+                      "Publish Material"
+                    )}
+                  </Button>
+                )}
+
+              </div>
+
+            </div>
+
+          </Modal>
+        )}
+
+
+      {/* ====================================================
+          CREATE MODULE
+      ==================================================== */}
+
+      {showCreateModule &&
+        selectedMaterial && (
+          <Modal
+            title="Create Learning Module"
+            onClose={() =>
+              setShowCreateModule(
+                false,
+              )
+            }
+            above
+          >
+
+            <form
+              onSubmit={
+                handleCreateModule
+              }
+              className="space-y-5"
+            >
+
+              <div className="rounded-xl bg-slate-50 p-3">
+
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                  Learning Material
+                </p>
+
+                <p className="mt-1 text-sm font-semibold text-slate-800">
+                  {
+                    selectedMaterial.title
+                  }
+                </p>
+
+              </div>
+
+
+              {/* MODULE NUMBER */}
+
+              <div>
+
+                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                  Module Number
                 </label>
 
                 <input
+                  type="text"
+                  readOnly
                   value={
-                    form.url
+                    modules.length ===
+                    0
+                      ? 1
+                      : Math.max(
+                          ...modules.map(
+                            module =>
+                              Number(
+                                module.moduleNumber,
+                              ) || 0,
+                          ),
+                        ) + 1
                   }
-                  onChange={(
-                    event,
-                  ) =>
-                    setForm(
-                      (
-                        current,
-                      ) => ({
-                        ...current,
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500"
+                />
 
-                        url:
-                          event
-                            .target
+              </div>
+
+
+              {/* TITLE */}
+
+              <div>
+
+                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                  Module Title
+                </label>
+
+                <input
+                  type="text"
+                  value={
+                    moduleForm.title
+                  }
+                  onChange={event =>
+                    setModuleForm(
+                      current => ({
+                        ...current,
+                        title:
+                          event.target
                             .value,
                       }),
                     )
                   }
-                  placeholder="https://example.com/resource"
-                  className="h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none focus:bg-white"
+                  placeholder="e.g. Skeletal System"
+                  className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-slate-400"
                 />
 
               </div>
-            )}
 
-          </div>
 
-        </div>
-
-        {/* FOOTER */}
-
-        <div className="flex shrink-0 justify-end gap-3 border-t border-[#eef0f2] px-6 py-4">
-
-          <button
-            type="button"
-            onClick={
-              onClose
-            }
-            className="rounded-xl border border-[#e7e9ec] px-5 py-2.5 text-[11px] font-semibold text-gray-600 hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-
-          <button
-            type="button"
-            onClick={
-              onSave
-            }
-            className="rounded-xl bg-[#191c1e] px-5 py-2.5 text-[11px] font-semibold text-white hover:opacity-90"
-          >
-            {editing
-              ? "Save Changes"
-              : "Add Material"}
-          </button>
-
-        </div>
-
-      </div>
-    </div>
-  );
-}
-
-/* ==========================================================
-   VIEW MODAL
-========================================================== */
-
-function ViewMaterialModal({
-  material,
-  onClose,
-  onEdit,
-}: {
-  material: LearningMaterial;
-
-  onClose: () => void;
-
-  onEdit: () => void;
-}) {
-  return (
-    <div
-      className="fixed inset-0 z-[110] flex items-center justify-center bg-black/45 p-3 backdrop-blur-sm sm:p-5"
-      onMouseDown={(
-        event,
-      ) => {
-        if (
-          event.target ===
-          event.currentTarget
-        ) {
-          onClose();
-        }
-      }}
-    >
-
-      <div className="flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-
-        <div className="flex shrink-0 items-start justify-between border-b border-[#eef0f2] px-6 py-5">
-
-          <div className="flex items-center gap-3">
-
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gray-100 text-sm font-bold">
-              {material.type
-                .charAt(0)}
-            </div>
-
-            <div>
-
-              <p className="text-[10px] text-gray-400">
-                {
-                  material.type
-                }
-              </p>
-
-              <h2 className="mt-1 text-lg font-bold">
-                {
-                  material.title
-                }
-              </h2>
-
-            </div>
-
-          </div>
-
-          <button
-            type="button"
-            onClick={
-              onClose
-            }
-            className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 text-lg text-gray-500 hover:bg-gray-200"
-          >
-            ×
-          </button>
-
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-
-          <div className="space-y-4">
-
-            <div className="flex items-center justify-between rounded-2xl bg-[#f8f9fa] p-5">
+              {/* DESCRIPTION */}
 
               <div>
 
-                <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Status
-                </p>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                  Description
+                </label>
 
-                <span
-                  className={`mt-2 inline-flex rounded-full border px-3 py-1.5 text-[10px] font-bold ${
-                    material.status ===
-                    "Published"
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                      : "border-amber-200 bg-amber-50 text-amber-700"
-                  }`}
+                <textarea
+                  value={
+                    moduleForm.description
+                  }
+                  onChange={event =>
+                    setModuleForm(
+                      current => ({
+                        ...current,
+                        description:
+                          event.target
+                            .value,
+                      }),
+                    )
+                  }
+                  rows={4}
+                  placeholder="Describe what this module covers..."
+                  className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
+                />
+
+              </div>
+
+
+              {/* ACTIONS */}
+
+              <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    setShowCreateModule(
+                      false,
+                    )
+                  }
                 >
-                  {
-                    material.status
+                  Cancel
+                </Button>
+
+                <Button
+                  type="submit"
+                  disabled={
+                    isSaving
                   }
-                </span>
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create Module
+                    </>
+                  )}
+                </Button>
 
               </div>
 
-              <div className="text-right">
+            </form>
 
-                <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Material ID
-                </p>
+          </Modal>
+        )}
 
-                <p className="mt-2 font-mono text-xs font-semibold">
-                  {
-                    material.id
-                  }
-                </p>
 
-              </div>
+      {/* ====================================================
+          DELETE CONFIRM
+      ==================================================== */}
 
-            </div>
+      {showDeleteConfirm &&
+        materialToDelete && (
+          <ConfirmDelete
+            title="Delete Learning Material?"
+            description={`"${materialToDelete.title}" will be permanently deleted.`}
+            onCancel={() => {
+              setShowDeleteConfirm(
+                false,
+              );
 
-            <div className="rounded-2xl border border-[#e7e9ec] p-5">
-
-              <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                Description
-              </p>
-
-              <p className="mt-2 text-sm leading-6 text-gray-600">
-                {
-                  material.description ||
-                  "No description provided."
-                }
-              </p>
-
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-
-              <Detail
-                label="Training"
-                value={
-                  material.training
-                }
-              />
-
-              <Detail
-                label="Type"
-                value={
-                  material.type
-                }
-              />
-
-              <Detail
-                label="File"
-                value={
-                  material.fileName
-                }
-              />
-
-              <Detail
-                label="File Size"
-                value={
-                  material.fileSize
-                }
-              />
-
-              <Detail
-                label="Uploaded"
-                value={
-                  material.uploadedAt
-                }
-              />
-
-              <Detail
-                label="Last Updated"
-                value={
-                  material.updatedAt
-                }
-              />
-
-            </div>
-
-            {material.url && (
-              <div className="rounded-2xl border border-blue-100 bg-blue-50 p-5">
-
-                <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-blue-500">
-                  Resource Link
-                </p>
-
-                <p className="mt-2 break-all text-xs font-medium text-blue-700">
-                  {
-                    material.url
-                  }
-                </p>
-
-              </div>
-            )}
-
-          </div>
-
-        </div>
-
-        <div className="flex shrink-0 justify-end gap-3 border-t border-[#eef0f2] px-6 py-4">
-
-          <button
-            type="button"
-            onClick={
-              onClose
+              setMaterialToDelete(
+                null,
+              );
+            }}
+            onConfirm={
+              confirmDelete
             }
-            className="rounded-xl border border-[#e7e9ec] px-5 py-2.5 text-[11px] font-semibold text-gray-600 hover:bg-gray-50"
-          >
-            Close
-          </button>
-
-          <button
-            type="button"
-            onClick={
-              onEdit
+            loading={
+              isSaving
             }
-            className="rounded-xl bg-[#191c1e] px-5 py-2.5 text-[11px] font-semibold text-white hover:opacity-90"
-          >
-            Edit Material
-          </button>
-
-        </div>
-
-      </div>
+          />
+        )}
 
     </div>
   );
 }
 
-/* ==========================================================
-   DELETE MODAL
-========================================================== */
 
-function DeleteMaterialModal({
-  material,
-  onClose,
-  onConfirm,
+// ============================================================
+// STAT CARD
+// ============================================================
+
+function StatCard({
+  icon,
+  label,
+  value,
 }: {
-  material: LearningMaterial;
-
-  onClose: () => void;
-
-  onConfirm: () => void;
+  icon: React.ReactNode;
+  label: string;
+  value: number;
 }) {
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
 
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+      <div className="flex items-center justify-between">
 
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-50 text-lg font-bold text-red-600">
-          !
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+          {icon}
         </div>
 
-        <h2 className="mt-5 text-xl font-bold">
-          Delete Material?
-        </h2>
-
-        <p className="mt-2 text-sm leading-6 text-gray-500">
-          Are you sure you want to
-          delete{" "}
-          <span className="font-semibold text-gray-700">
-            {
-              material.title
-            }
-          </span>
-          ? This action cannot be
-          undone.
-        </p>
-
-        <div className="mt-6 flex gap-3">
-
-          <button
-            type="button"
-            onClick={
-              onClose
-            }
-            className="flex-1 rounded-xl border border-[#e7e9ec] py-3 text-xs font-semibold text-gray-600 hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-
-          <button
-            type="button"
-            onClick={
-              onConfirm
-            }
-            className="flex-1 rounded-xl bg-red-600 py-3 text-xs font-semibold text-white hover:bg-red-700"
-          >
-            Delete
-          </button>
-
-        </div>
+        <span className="text-2xl font-bold text-slate-900">
+          {value}
+        </span>
 
       </div>
+
+      <p className="mt-3 text-xs font-medium text-slate-500">
+        {label}
+      </p>
 
     </div>
   );
 }
 
-/* ==========================================================
-   DETAIL
-========================================================== */
 
-function Detail({
+// ============================================================
+// INFO
+// ============================================================
+
+function Info({
   label,
   value,
 }: {
@@ -2064,13 +2234,13 @@ function Detail({
   value: string;
 }) {
   return (
-    <div className="rounded-xl bg-[#f8f9fa] p-4">
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
 
-      <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
         {label}
       </p>
 
-      <p className="mt-1.5 break-words text-xs font-semibold leading-5 text-gray-700">
+      <p className="mt-1 text-sm font-semibold text-slate-800">
         {value}
       </p>
 
@@ -2078,29 +2248,173 @@ function Detail({
   );
 }
 
-/* ==========================================================
-   HELPERS
-========================================================== */
 
-function getTrainingCode(
-  trainingName: string,
-) {
+// ============================================================
+// MODAL
+// ============================================================
+
+function Modal({
+  title,
+  children,
+  onClose,
+  wide = false,
+  above = false,
+}: {
+  title: string;
+  children: React.ReactNode;
+  onClose: () => void;
+  wide?: boolean;
+  above?: boolean;
+}) {
   return (
-    trainingOptions.find(
-      (training) =>
-        training.name ===
-        trainingName,
-    )?.code ?? ""
+    <div
+      className={`fixed inset-0 ${
+        above
+          ? "z-[1100]"
+          : "z-[1000]"
+      } flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm`}
+      onMouseDown={event => {
+        if (
+          event.target ===
+          event.currentTarget
+        ) {
+          onClose();
+        }
+      }}
+    >
+
+      <div
+        className={`max-h-[90vh] w-full overflow-hidden rounded-2xl bg-white shadow-2xl ${
+          wide
+            ? "max-w-4xl"
+            : "max-w-xl"
+        }`}
+      >
+
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+
+          <h2 className="text-base font-semibold text-slate-900">
+            {title}
+          </h2>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+          >
+            <X className="h-4 w-4" />
+          </button>
+
+        </div>
+
+        <div className="max-h-[calc(90vh-65px)] overflow-y-auto p-5">
+          {children}
+        </div>
+
+      </div>
+
+    </div>
   );
 }
 
-function getTodayDate() {
-  return new Date().toLocaleDateString(
-    "en-US",
-    {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    },
+
+// ============================================================
+// DELETE CONFIRM
+// ============================================================
+
+function ConfirmDelete({
+  title,
+  description,
+  onCancel,
+  onConfirm,
+  loading,
+}: {
+  title: string;
+  description: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+  loading: boolean;
+}) {
+  return (
+    <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+
+      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+
+        <div className="mb-5">
+
+          <h2 className="text-base font-semibold text-slate-900">
+            {title}
+          </h2>
+
+          <p className="mt-1 text-sm text-slate-500">
+            {description}
+          </p>
+
+        </div>
+
+        <div className="flex justify-end gap-2">
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={loading}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            type="button"
+            variant="primary"
+            onClick={onConfirm}
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Deleting...
+              </>
+            ) : (
+              "Delete"
+            )}
+          </Button>
+
+        </div>
+
+      </div>
+
+    </div>
   );
+}
+
+
+// ============================================================
+// FILE SIZE
+// ============================================================
+
+function formatFileSize(
+  value: number | null | undefined,
+) {
+  if (
+    value === null ||
+    value === undefined ||
+    value <= 0
+  ) {
+    return "—";
+  }
+
+  if (value < 1024) {
+    return `${value} B`;
+  }
+
+  if (value < 1024 * 1024) {
+    return `${(
+      value / 1024
+    ).toFixed(1)} KB`;
+  }
+
+  return `${(
+    value /
+    (1024 * 1024)
+  ).toFixed(1)} MB`;
 }

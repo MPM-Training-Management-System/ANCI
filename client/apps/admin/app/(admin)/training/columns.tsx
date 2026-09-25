@@ -2,7 +2,21 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { Badge } from "@repo/ui/index";
+import {
+  Badge,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@repo/ui/index";
+
+import {
+  Eye,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 
 export type ProgramStatus =
   | "Active"
@@ -183,12 +197,6 @@ export const columns: ColumnDef<TrainingProgram>[] =
     },
 
     // =====================================================
-    // TRAINER
-    // =====================================================
-
-    
-
-    // =====================================================
     // STATUS
     // =====================================================
 
@@ -224,15 +232,14 @@ export const columns: ColumnDef<TrainingProgram>[] =
     {
       id: "actions",
 
-      header: "Actions",
+      header: "",
 
       enableSorting: false,
 
       enableGlobalFilter: false,
 
       cell: ({ row, table }) => {
-        const program =
-          row.original;
+        const program = row.original;
 
         const meta =
           table.options.meta as
@@ -240,42 +247,61 @@ export const columns: ColumnDef<TrainingProgram>[] =
             | undefined;
 
         return (
-          <div className="flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={() =>
-                meta?.onView?.(
-                  program,
-                )
-              }
-              className="rounded-lg border border-[#e7e9ec] px-3 py-2 text-[10px] font-semibold text-gray-600 transition hover:bg-gray-50"
-            >
-              View
-            </button>
+          <div className="flex justify-end">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#e7e9ec] bg-white text-gray-500 transition hover:bg-gray-50 hover:text-gray-700"
+                  aria-label={`Actions for ${program.title}`}
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
 
-            <button
-              type="button"
-              onClick={() =>
-                meta?.onManage?.(
-                  program,
-                )
-              }
-              className="rounded-lg bg-[#191c1e] px-3 py-2 text-[10px] font-semibold text-white transition hover:opacity-90"
-            >
-              Manage
-            </button>
+              <DropdownMenuContent
+                align="end"
+                className="w-44"
+              >
+                {/* VIEW */}
+                <DropdownMenuItem
+                  onClick={() =>
+                    meta?.onView?.(program)
+                  }
+                  className="cursor-pointer gap-2 text-xs"
+                >
+                  <Eye className="h-4 w-4 text-gray-500" />
 
-            <button
-              type="button"
-              onClick={() =>
-                meta?.onDelete?.(
-                  program,
-                )
-              }
-              className="rounded-lg bg-red-50 px-3 py-2 text-[10px] font-semibold text-red-600 transition hover:bg-red-100"
-            >
-              Delete
-            </button>
+                  <span>View</span>
+                </DropdownMenuItem>
+
+                {/* MANAGE */}
+                <DropdownMenuItem
+                  onClick={() =>
+                    meta?.onManage?.(program)
+                  }
+                  className="cursor-pointer gap-2 text-xs"
+                >
+                  <Pencil className="h-4 w-4 text-gray-500" />
+
+                  <span>Manage</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                {/* DELETE */}
+                <DropdownMenuItem
+                  onClick={() =>
+                    meta?.onDelete?.(program)
+                  }
+                  className="cursor-pointer gap-2 text-xs text-red-600 focus:bg-red-50 focus:text-red-700"
+                >
+                  <Trash2 className="h-4 w-4" />
+
+                  <span>Delete</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         );
       },

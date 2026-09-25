@@ -13,8 +13,9 @@ public interface ILearningMaterialService
             Guid id);
 
     Task<LearningMaterialDto>
-        CreateAsync(
-            CreateLearningMaterialRequest request);
+    CreateAsync(
+        Guid trainerUserId,
+        CreateLearningMaterialRequest request);
 
     Task<LearningMaterialDto>
         UpdateAsync(

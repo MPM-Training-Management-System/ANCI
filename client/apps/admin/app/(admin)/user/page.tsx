@@ -10,6 +10,7 @@ import {
 import {
   DataTable,
   PageSection,
+  PageSkeleton,
   StatCard,
   StatGrid,
 } from "@repo/ui/index";
@@ -430,6 +431,18 @@ export default function UserManagementPage() {
    * RENDER
    * ============================================================
    */
+
+    if (isLoading && users.length === 0) {
+  return (
+    <PageSkeleton
+      statCards={4} 
+      showHeader
+      showTable
+      tableRows={8}
+      tableColumns={7}
+    />
+  );
+}
 
   return (
     <div className="space-y-6">
@@ -1426,6 +1439,8 @@ function StatusModal({
       setStatus(user.status);
     }
   }, [user]);
+
+
 
   return (
     <ModalOverlay onClose={onClose}>

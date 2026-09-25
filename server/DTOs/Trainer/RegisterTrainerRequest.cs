@@ -16,12 +16,10 @@ public class RegisterTrainerRequest
     public string LastName { get; set; }
         = string.Empty;
 
+    public string? Suffix { get; set; }
+
     public DateOnly? BirthDate { get; set; }
 
-    // Complete address coming from frontend.
-    // Example:
-    // 123, Rizal Street, Sitio 2,
-    // Barangay San Jose, Rodriguez, Rizal
     public string Address { get; set; }
         = string.Empty;
 
@@ -43,19 +41,30 @@ public class RegisterTrainerRequest
 
 
     // =========================================================
-    // TRAINER INFORMATION
+    // TRAINER / PROFESSIONAL INFORMATION
     // =========================================================
 
     public string Specialization { get; set; }
         = string.Empty;
 
+    public string? ProfessionalTitle { get; set; }
+
+    public string? CurrentOrganization { get; set; }
+
     public string? Bio { get; set; }
 
     public int? YearsOfExperience { get; set; }
 
-    public string? CertificationName { get; set; }
 
-    public string? CertificationNumber { get; set; }
+    // =========================================================
+    // PROFESSIONAL LICENSE
+    // =========================================================
+
+    public string? ProfessionalLicenseNumber { get; set; }
+
+    public string? ProfessionalLicenseType { get; set; }
+
+    public DateOnly? ProfessionalLicenseExpirationDate { get; set; }
 
 
     // =========================================================
@@ -63,4 +72,20 @@ public class RegisterTrainerRequest
     // =========================================================
 
     public IFormFile? ProfileImage { get; set; }
+
+
+    // =========================================================
+    // EDUCATION
+    // =========================================================
+
+    public List<CreateTrainerEducationRequest> Educations { get; set; }
+        = [];
+
+
+    // =========================================================
+    // CERTIFICATIONS
+    // =========================================================
+
+    public List<CreateTrainerCertificationRequest> Certifications { get; set; }
+        = [];
 }

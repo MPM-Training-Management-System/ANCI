@@ -105,179 +105,266 @@ export class AuthApi {
     );
   }
 
+async registerTrainer(
+  request: RegisterTrainerRequest
+): Promise<RegisterResponse> {
+  const formData = new FormData();
 
   // =========================================================
-  // REGISTER TRAINER
-  // POST /api/auth/register/trainer
+  // PERSONAL INFORMATION
   // =========================================================
 
-  async registerTrainer(
-    request: RegisterTrainerRequest
-  ): Promise<RegisterResponse> {
+  if (request.FirstName) {
+    formData.append("FirstName", request.FirstName);
+  }
 
-    const formData =
-      new FormData();
+  if (request.MiddleName) {
+    formData.append("MiddleName", request.MiddleName);
+  }
 
+  if (request.LastName) {
+    formData.append("LastName", request.LastName);
+  }
 
-    // =======================================================
-    // PERSONAL INFORMATION
-    // =======================================================
+  if (request.Suffix) {
+    formData.append("Suffix", request.Suffix);
+  }
 
-    formData.append(
-      "FullName",
-      request.fullName ?? ""
-    );
+  if (request.BirthDate) {
+    formData.append("BirthDate", request.BirthDate);
+  }
 
-    formData.append(
-      "FirstName",
-      request.firstName
-    );
+  if (request.Address) {
+    formData.append("Address", request.Address);
+  }
 
-    formData.append(
-      "MiddleName",
-      request.middleName
-    );
+  if (request.Gender) {
+    formData.append("Gender", request.Gender);
+  }
 
-    formData.append(
-      "LastName",
-      request.lastName
-    );
+  // =========================================================
+  // ACCOUNT
+  // =========================================================
 
-    formData.append(
-      "BirthDate",
-      request.birthDate
-    );
+  if (request.Email) {
+    formData.append("Email", request.Email);
+  }
 
-    formData.append(
-      "Address",
-      request.address
-    );
-
-    formData.append(
-      "Gender",
-      request.gender
-    );
-
-
-    // =======================================================
-    // ACCOUNT
-    // =======================================================
-
-    formData.append(
-      "Email",
-      request.email
-    );
-
+  if (request.MobileNumber) {
     formData.append(
       "MobileNumber",
-      request.mobileNumber ?? ""
+      request.MobileNumber
     );
+  }
 
+  if (request.Password) {
     formData.append(
       "Password",
-      request.password
+      request.Password
     );
+  }
 
+  // =========================================================
+  // TRAINER INFORMATION
+  // =========================================================
 
-    // =======================================================
-    // TRAINER INFORMATION
-    // =======================================================
-
+  if (request.Specialization) {
     formData.append(
       "Specialization",
-      request.specialization
+      request.Specialization
     );
+  }
 
+  if (request.ProfessionalTitle) {
+    formData.append(
+      "ProfessionalTitle",
+      request.ProfessionalTitle
+    );
+  }
+
+  if (request.CurrentOrganization) {
+    formData.append(
+      "CurrentOrganization",
+      request.CurrentOrganization
+    );
+  }
+
+  if (request.Bio) {
+    formData.append(
+      "Bio",
+      request.Bio
+    );
+  }
+
+  if (
+    request.YearsOfExperience !== undefined &&
+    request.YearsOfExperience !== null
+  ) {
     formData.append(
       "YearsOfExperience",
-      String(
-        request.yearsOfExperience ?? 0
-      )
+      String(request.YearsOfExperience)
     );
+  }
 
+  // =========================================================
+  // PROFESSIONAL LICENSE
+  // =========================================================
+
+  if (request.ProfessionalLicenseNumber) {
     formData.append(
-      "CertificationName",
-      request.certificationName ?? ""
+      "ProfessionalLicenseNumber",
+      request.ProfessionalLicenseNumber
     );
+  }
 
+  if (request.ProfessionalLicenseType) {
     formData.append(
-      "CertificationNumber",
-      request.certificationNumber ?? ""
+      "ProfessionalLicenseType",
+      request.ProfessionalLicenseType
     );
+  }
 
-
-    // =======================================================
-    // PROFILE IMAGE
-    // =======================================================
-
-    if (
-      request.profileImage
-    ) {
-
-      formData.append(
-        "ProfileImage",
-        request.profileImage
-      );
-    }
-
-
-    // =======================================================
-    // DEBUG
-    // =======================================================
-
-    console.log(
-      "=============================="
+  if (request.ProfessionalLicenseExpirationDate) {
+    formData.append(
+      "ProfessionalLicenseExpirationDate",
+      request.ProfessionalLicenseExpirationDate
     );
+  }
 
-    console.log(
-      "REGISTER TRAINER"
+  // =========================================================
+  // PROFILE IMAGE
+  // =========================================================
+
+  if (request.ProfileImage) {
+    formData.append(
+      "ProfileImage",
+      request.ProfileImage
     );
+  }
 
-    for (
-      const [key, value]
-      of formData.entries()
-    ) {
+  // =========================================================
+  // EDUCATIONS
+  // =========================================================
 
-      if (
-        value instanceof File
-      ) {
-
-        console.log(
-          key,
-          {
-            name: value.name,
-            type: value.type,
-            size: value.size,
-          }
+  if (request.Educations?.length) {
+    request.Educations.forEach(
+      (education, index) => {
+        formData.append(
+          `Educations[${index}].Degree`,
+          education.degree
         );
 
-      } else {
+        if (education.fieldOfStudy) {
+          formData.append(
+            `Educations[${index}].FieldOfStudy`,
+            education.fieldOfStudy
+          );
+        }
 
-        console.log(
-          key,
-          value
+        formData.append(
+          `Educations[${index}].Institution`,
+          education.institution
         );
-      }
-    }
 
-    console.log(
-      "=============================="
-    );
-
-
-    // =======================================================
-    // API
-    // =======================================================
-
-    return this.api.request<RegisterResponse>(
-      "/api/auth/register/trainer",
-      {
-        method: "POST",
-        body: formData,
+        if (
+          education.yearGraduated !== undefined &&
+          education.yearGraduated !== null
+        ) {
+          formData.append(
+            `Educations[${index}].YearGraduated`,
+            String(education.yearGraduated)
+          );
+        }
       }
     );
   }
 
+  // =========================================================
+  // CERTIFICATIONS
+  // =========================================================
+
+  if (request.Certifications?.length) {
+    request.Certifications.forEach(
+      (certification, index) => {
+        formData.append(
+          `Certifications[${index}].Name`,
+          certification.name
+        );
+
+        if (certification.issuingOrganization) {
+          formData.append(
+            `Certifications[${index}].IssuingOrganization`,
+            certification.issuingOrganization
+          );
+        }
+
+        if (certification.issuedDate) {
+          formData.append(
+            `Certifications[${index}].IssuedDate`,
+            certification.issuedDate
+          );
+        }
+
+        if (certification.expirationDate) {
+          formData.append(
+            `Certifications[${index}].ExpirationDate`,
+            certification.expirationDate
+          );
+        }
+
+        if (certification.certificateUrl) {
+          formData.append(
+            `Certifications[${index}].CertificateUrl`,
+            certification.certificateUrl
+          );
+        }
+      }
+    );
+  }
+
+  // =========================================================
+  // DEBUG
+  // =========================================================
+
+  console.log(
+    "================================="
+  );
+
+  console.log(
+    "🔥 NEW REGISTER TRAINER REQUEST"
+  );
+
+  for (
+    const [key, value]
+    of formData.entries()
+  ) {
+    if (value instanceof File) {
+      console.log(key, {
+        name: value.name,
+        type: value.type,
+        size: value.size,
+      });
+    } else {
+      console.log(key, value);
+    }
+  }
+
+  console.log(
+    "================================="
+  );
+
+  // =========================================================
+  // API REQUEST
+  // =========================================================
+
+  return this.api.request<RegisterResponse>(
+    "/api/auth/register/trainer",
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+}
 
   // =========================================================
   // ME

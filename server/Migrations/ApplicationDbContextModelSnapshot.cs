@@ -604,38 +604,6 @@ namespace server.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("server.Models.Canva.CanvaConnection", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("AccessToken")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("RefreshToken")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Scope")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("CanvaConnections", (string)null);
-                });
-
             modelBuilder.Entity("server.Models.Learning.LearningMaterial", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1176,23 +1144,62 @@ namespace server.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Address")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<string>("AdminRemarks")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
-                    b.Property<string>("CertificationName")
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)");
+                    b.Property<string>("Bio")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
 
-                    b.Property<string>("CertificationNumber")
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)");
+                    b.Property<DateOnly?>("BirthDate")
+                        .HasColumnType("date");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("CurrentOrganization")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("FirstName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Gender")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("LastName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("MiddleName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateOnly?>("ProfessionalLicenseExpirationDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ProfessionalLicenseNumber")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<string>("ProfessionalLicenseType")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<string>("ProfessionalTitle")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
                     b.Property<string>("ProfileImageUrl")
-                        .HasColumnType("text");
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<DateTime?>("ReviewedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1212,6 +1219,10 @@ namespace server.Migrations
                     b.Property<DateTime?>("SubmittedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Suffix")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
@@ -1223,7 +1234,42 @@ namespace server.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("TrainerApplications");
+                    b.ToTable("TrainerApplications", (string)null);
+                });
+
+            modelBuilder.Entity("server.Models.Trainer.TrainerApplicationCertification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CertificateUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateOnly?>("ExpirationDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("IssuedDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("IssuingOrganization")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("TrainerApplicationId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TrainerApplicationId");
+
+                    b.ToTable("TrainerApplicationCertifications", (string)null);
                 });
 
             modelBuilder.Entity("server.Models.Trainer.TrainerApplicationDocument", b =>
@@ -1274,6 +1320,107 @@ namespace server.Migrations
                     b.ToTable("TrainerApplicationDocuments");
                 });
 
+            modelBuilder.Entity("server.Models.Trainer.TrainerApplicationEducation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Degree")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("FieldOfStudy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Institution")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<Guid>("TrainerApplicationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("YearGraduated")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TrainerApplicationId");
+
+                    b.ToTable("TrainerApplicationEducations", (string)null);
+                });
+
+            modelBuilder.Entity("server.Models.Trainer.TrainerCertification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CertificateUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateOnly?>("ExpirationDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("IssuedDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("IssuingOrganization")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("TrainerProfileId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TrainerProfileId");
+
+                    b.ToTable("TrainerCertifications", (string)null);
+                });
+
+            modelBuilder.Entity("server.Models.Trainer.TrainerEducation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Degree")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("FieldOfStudy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Institution")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<Guid>("TrainerProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("YearGraduated")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TrainerProfileId");
+
+                    b.ToTable("TrainerEducations", (string)null);
+                });
+
             modelBuilder.Entity("server.Models.Trainer.TrainerProfile", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1284,29 +1431,56 @@ namespace server.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Address")
-                        .HasColumnType("text");
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<string>("Bio")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
 
                     b.Property<DateOnly?>("BirthDate")
                         .HasColumnType("date");
 
+                    b.Property<string>("CurrentOrganization")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.Property<string>("FirstName")
-                        .HasColumnType("text");
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("Gender")
-                        .HasColumnType("text");
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
                     b.Property<string>("LastName")
-                        .HasColumnType("text");
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("MiddleName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("MobileNumber")
                         .HasColumnType("text");
+
+                    b.Property<DateOnly?>("ProfessionalLicenseExpirationDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ProfessionalLicenseNumber")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<string>("ProfessionalLicenseType")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<string>("ProfessionalTitle")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
 
                     b.Property<string>("ProfileImageUrl")
                         .HasMaxLength(1000)
@@ -1316,6 +1490,10 @@ namespace server.Migrations
                         .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
+
+                    b.Property<string>("Suffix")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
@@ -1328,7 +1506,7 @@ namespace server.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("TrainerProfiles");
+                    b.ToTable("TrainerProfiles", (string)null);
                 });
 
             modelBuilder.Entity("server.Models.Training.Certificate", b =>
@@ -2048,6 +2226,17 @@ namespace server.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("server.Models.Trainer.TrainerApplicationCertification", b =>
+                {
+                    b.HasOne("server.Models.Trainer.TrainerApplication", "TrainerApplication")
+                        .WithMany("Certifications")
+                        .HasForeignKey("TrainerApplicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TrainerApplication");
+                });
+
             modelBuilder.Entity("server.Models.Trainer.TrainerApplicationDocument", b =>
                 {
                     b.HasOne("server.Models.Trainer.TrainerApplication", "TrainerApplication")
@@ -2057,6 +2246,39 @@ namespace server.Migrations
                         .IsRequired();
 
                     b.Navigation("TrainerApplication");
+                });
+
+            modelBuilder.Entity("server.Models.Trainer.TrainerApplicationEducation", b =>
+                {
+                    b.HasOne("server.Models.Trainer.TrainerApplication", "TrainerApplication")
+                        .WithMany("Educations")
+                        .HasForeignKey("TrainerApplicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TrainerApplication");
+                });
+
+            modelBuilder.Entity("server.Models.Trainer.TrainerCertification", b =>
+                {
+                    b.HasOne("server.Models.Trainer.TrainerProfile", "TrainerProfile")
+                        .WithMany("Certifications")
+                        .HasForeignKey("TrainerProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TrainerProfile");
+                });
+
+            modelBuilder.Entity("server.Models.Trainer.TrainerEducation", b =>
+                {
+                    b.HasOne("server.Models.Trainer.TrainerProfile", "TrainerProfile")
+                        .WithMany("Educations")
+                        .HasForeignKey("TrainerProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TrainerProfile");
                 });
 
             modelBuilder.Entity("server.Models.Trainer.TrainerProfile", b =>
@@ -2250,12 +2472,20 @@ namespace server.Migrations
 
             modelBuilder.Entity("server.Models.Trainer.TrainerApplication", b =>
                 {
+                    b.Navigation("Certifications");
+
                     b.Navigation("Documents");
+
+                    b.Navigation("Educations");
                 });
 
             modelBuilder.Entity("server.Models.Trainer.TrainerProfile", b =>
                 {
                     b.Navigation("Assignments");
+
+                    b.Navigation("Certifications");
+
+                    b.Navigation("Educations");
                 });
 
             modelBuilder.Entity("server.Models.Training.TrainingBatch", b =>

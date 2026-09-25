@@ -94,18 +94,13 @@ public class LearningMaterialService
 
     public async Task<LearningMaterialDto>
         CreateAsync(
+            Guid trainerUserId,
             CreateLearningMaterialRequest request)
     {
-        var batch =
-            await _context.TrainingBatches
-                .FirstOrDefaultAsync(x =>
-                    x.Id ==
-                    request.TrainingBatchId);
-
-        if (batch == null)
+        if (request is null)
         {
-            throw new KeyNotFoundException(
-                "Training batch not found.");
+            throw new ArgumentNullException(
+                nameof(request));
         }
 
         if (string.IsNullOrWhiteSpace(
@@ -122,13 +117,51 @@ public class LearningMaterialService
                 "Material type is required.");
         }
 
+        // ---------------------------------------------------------
+        // FIND TRAINER PROFILE
+        // ---------------------------------------------------------
+
+        var trainerProfile =
+            await _context.TrainerProfiles
+                .FirstOrDefaultAsync(x =>
+                    x.UserId == trainerUserId &&
+                    x.IsActive);
+
+        if (trainerProfile == null)
+        {
+            throw new KeyNotFoundException(
+                "Trainer profile not found.");
+        }
+
+        // ---------------------------------------------------------
+        // FIND ACTIVE TRAINER ASSIGNMENT
+        // ---------------------------------------------------------
+
+        var assignment =
+            await _context.TrainerAssignments
+                .Include(x => x.TrainingBatch)
+                .FirstOrDefaultAsync(x =>
+                    x.TrainerProfileId ==
+                        trainerProfile.Id &&
+                    x.IsActive);
+
+        if (assignment == null)
+        {
+            throw new InvalidOperationException(
+                "You are not assigned to a training batch.");
+        }
+
+        // ---------------------------------------------------------
+        // CREATE LEARNING MATERIAL
+        // ---------------------------------------------------------
+
         var material =
             new LearningMaterial
             {
                 Id = Guid.NewGuid(),
 
                 TrainingBatchId =
-                    request.TrainingBatchId,
+                    assignment.TrainingBatchId,
 
                 Title =
                     request.Title.Trim(),
@@ -157,10 +190,10 @@ public class LearningMaterialService
 
         await _context.SaveChangesAsync();
 
-        await _context.Entry(material)
-            .Reference(x =>
-                x.TrainingBatch)
-            .LoadAsync();
+        // TrainingBatch is already loaded through
+        // the assignment.Include(...)
+        material.TrainingBatch =
+            assignment.TrainingBatch;
 
         return MapToDto(material);
     }
@@ -898,10 +931,6 @@ public class LearningMaterialService
                 "Learning material not found.");
         }
 
-        // ---------------------------------------------------------
-        // ALLOWED FILE TYPES
-        // ---------------------------------------------------------
-
         var allowedExtensions =
             new[]
             {
@@ -925,11 +954,6 @@ public class LearningMaterialService
                 "Allowed files are PDF, DOC, DOCX, PPT, and PPTX.");
         }
 
-        // ---------------------------------------------------------
-        // MAX FILE SIZE
-        // 50 MB
-        // ---------------------------------------------------------
-
         const long maxFileSize =
             50 * 1024 * 1024;
 
@@ -939,10 +963,6 @@ public class LearningMaterialService
                 "The uploaded file must not exceed 50 MB.");
         }
 
-        // ---------------------------------------------------------
-        // UPLOAD TO CLOUDINARY
-        // ---------------------------------------------------------
-
         await using var uploadStream =
             request.File.OpenReadStream();
 
@@ -951,10 +971,6 @@ public class LearningMaterialService
                 uploadStream,
                 request.File.FileName,
                 $"ace-nextgen/learning-materials/{material.Id}");
-
-        // ---------------------------------------------------------
-        // UPDATE DATABASE
-        // ---------------------------------------------------------
 
         material.FileUrl =
             uploadResult.Url;
@@ -1095,372 +1111,360 @@ public class LearningMaterialService
                 extraction.PageCount
         };
     }
-// =========================================================
-// GENERATE MODULES FROM DOCUMENT
-// =========================================================
-
-public async Task<IReadOnlyList<LearningModuleDto>>
-    GenerateModulesFromDocumentAsync(
-        Guid learningMaterialId)
-{
-    var material =
-        await _context.LearningMaterials
-            .Include(x => x.TrainingBatch)
-            .FirstOrDefaultAsync(
-                x => x.Id == learningMaterialId);
-
-    if (material == null)
-    {
-        throw new KeyNotFoundException(
-            "Learning material not found.");
-    }
-
-    if (string.IsNullOrWhiteSpace(
-            material.FileUrl))
-    {
-        throw new InvalidOperationException(
-            "No file has been uploaded for this learning material.");
-    }
-
-    if (string.IsNullOrWhiteSpace(
-            material.FileName))
-    {
-        throw new InvalidOperationException(
-            "Learning material file name is missing.");
-    }
-
-    var extension =
-        Path.GetExtension(
-            material.FileName)
-            .ToLowerInvariant();
-
-    if (extension != ".docx")
-    {
-        throw new ArgumentException(
-            "AI module generation currently supports DOCX files only.");
-    }
 
     // =========================================================
-    // DOWNLOAD DOCUMENT
+    // GENERATE MODULES FROM DOCUMENT
     // =========================================================
 
-    var httpClient =
-        _httpClientFactory.CreateClient();
-
-    using var response =
-        await httpClient.GetAsync(
-            material.FileUrl,
-            HttpCompletionOption.ResponseHeadersRead);
-
-    if (!response.IsSuccessStatusCode)
+    public async Task<IReadOnlyList<LearningModuleDto>>
+        GenerateModulesFromDocumentAsync(
+            Guid learningMaterialId)
     {
-        throw new InvalidOperationException(
-            "Unable to download the learning material file.");
-    }
+        var material =
+            await _context.LearningMaterials
+                .Include(x => x.TrainingBatch)
+                .FirstOrDefaultAsync(
+                    x => x.Id == learningMaterialId);
 
-    const long maxFileSize =
-        50 * 1024 * 1024;
+        if (material == null)
+        {
+            throw new KeyNotFoundException(
+                "Learning material not found.");
+        }
 
-    if (response.Content.Headers.ContentLength
-        is long contentLength &&
-        contentLength > maxFileSize)
-    {
-        throw new InvalidOperationException(
-            "The learning material file exceeds the 50 MB limit.");
-    }
+        if (string.IsNullOrWhiteSpace(
+                material.FileUrl))
+        {
+            throw new InvalidOperationException(
+                "No file has been uploaded for this learning material.");
+        }
 
-    await using var responseStream =
-        await response.Content.ReadAsStreamAsync();
+        if (string.IsNullOrWhiteSpace(
+                material.FileName))
+        {
+            throw new InvalidOperationException(
+                "Learning material file name is missing.");
+        }
 
-    await using var memoryStream =
-        new MemoryStream();
+        var extension =
+            Path.GetExtension(
+                material.FileName)
+                .ToLowerInvariant();
 
-    await responseStream.CopyToAsync(
-        memoryStream);
+        if (extension != ".docx")
+        {
+            throw new ArgumentException(
+                "AI module generation currently supports DOCX files only.");
+        }
 
-    if (memoryStream.Length > maxFileSize)
-    {
-        throw new InvalidOperationException(
-            "The learning material file exceeds the 50 MB limit.");
-    }
+        // =========================================================
+        // DOWNLOAD DOCUMENT
+        // =========================================================
 
-    memoryStream.Position = 0;
+        var httpClient =
+            _httpClientFactory.CreateClient();
 
-    // =========================================================
-    // EXTRACT DOCUMENT
-    // =========================================================
+        using var response =
+            await httpClient.GetAsync(
+                material.FileUrl,
+                HttpCompletionOption.ResponseHeadersRead);
 
-    var extraction =
-        await _documentExtractor.ExtractAsync(
-            memoryStream,
-            material.FileName,
-            material.ContentType);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(
+                "Unable to download the learning material file.");
+        }
 
-    if (string.IsNullOrWhiteSpace(
-            extraction.Text))
-    {
-        throw new InvalidOperationException(
-            "No readable text was found in the document.");
-    }
+        const long maxFileSize =
+            50 * 1024 * 1024;
 
-    // =========================================================
-    // GENERATE MODULES USING TEXT + IMAGES + VIDEO LINKS
-    // =========================================================
+        if (response.Content.Headers.ContentLength
+            is long contentLength &&
+            contentLength > maxFileSize)
+        {
+            throw new InvalidOperationException(
+                "The learning material file exceeds the 50 MB limit.");
+        }
 
-    var aiResult =
-        await _learningMaterialAiService
-            .StructureLearningMaterialAsync(
-                extraction.Text,
-                material.Title,
-                extraction.Images,
-                extraction.MediaLinks);
+        await using var responseStream =
+            await response.Content.ReadAsStreamAsync();
 
-    if (aiResult.Modules.Count == 0)
-    {
-        throw new InvalidOperationException(
-            "AI did not generate any learning modules.");
-    }
+        await using var memoryStream =
+            new MemoryStream();
 
-    // =========================================================
-    // DELETE EXISTING MODULES / SECTIONS
-    // =========================================================
+        await responseStream.CopyToAsync(
+            memoryStream);
 
-    var existingModules =
-        await _context.LearningModules
-            .Where(x =>
-                x.LearningMaterialId ==
-                learningMaterialId)
-            .ToListAsync();
+        if (memoryStream.Length > maxFileSize)
+        {
+            throw new InvalidOperationException(
+                "The learning material file exceeds the 50 MB limit.");
+        }
 
-    if (existingModules.Count > 0)
-    {
-        var existingModuleIds =
-            existingModules
-                .Select(x => x.Id)
-                .ToList();
+        memoryStream.Position = 0;
 
-        var existingSections =
-            await _context.LearningSections
+        // =========================================================
+        // EXTRACT DOCUMENT
+        // =========================================================
+
+        var extraction =
+            await _documentExtractor.ExtractAsync(
+                memoryStream,
+                material.FileName,
+                material.ContentType);
+
+        if (string.IsNullOrWhiteSpace(
+                extraction.Text))
+        {
+            throw new InvalidOperationException(
+                "No readable text was found in the document.");
+        }
+
+        // =========================================================
+        // GENERATE MODULES USING TEXT + IMAGES + VIDEO LINKS
+        // =========================================================
+
+        var aiResult =
+            await _learningMaterialAiService
+                .StructureLearningMaterialAsync(
+                    extraction.Text,
+                    material.Title,
+                    extraction.Images,
+                    extraction.MediaLinks);
+
+        if (aiResult.Modules.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "AI did not generate any learning modules.");
+        }
+
+        // =========================================================
+        // DELETE EXISTING MODULES / SECTIONS
+        // =========================================================
+
+        var existingModules =
+            await _context.LearningModules
                 .Where(x =>
-                    existingModuleIds.Contains(
-                        x.LearningModuleId))
+                    x.LearningMaterialId ==
+                    learningMaterialId)
                 .ToListAsync();
 
-        if (existingSections.Count > 0)
+        if (existingModules.Count > 0)
         {
-            _context.LearningSections
+            var existingModuleIds =
+                existingModules
+                    .Select(x => x.Id)
+                    .ToList();
+
+            var existingSections =
+                await _context.LearningSections
+                    .Where(x =>
+                        existingModuleIds.Contains(
+                            x.LearningModuleId))
+                    .ToListAsync();
+
+            if (existingSections.Count > 0)
+            {
+                _context.LearningSections
+                    .RemoveRange(
+                        existingSections);
+            }
+
+            _context.LearningModules
                 .RemoveRange(
-                    existingSections);
+                    existingModules);
+
+            await _context.SaveChangesAsync();
         }
 
-        _context.LearningModules
-            .RemoveRange(
-                existingModules);
+        // =========================================================
+        // CONVERT AI RESULT → DATABASE MODELS
+        // =========================================================
 
-        await _context.SaveChangesAsync();
-    }
+        var modules =
+            new List<LearningModule>();
 
-    // =========================================================
-    // CONVERT AI RESULT → DATABASE MODELS
-    // =========================================================
-
-    var modules =
-        new List<LearningModule>();
-
-    foreach (var aiModule in aiResult.Modules)
-    {
-        if (string.IsNullOrWhiteSpace(
-                aiModule.Title))
-        {
-            continue;
-        }
-
-        var module =
-            new LearningModule
-            {
-                Id = Guid.NewGuid(),
-
-                LearningMaterialId =
-                    material.Id,
-
-                ModuleNumber =
-                    aiModule.ModuleNumber > 0
-                        ? aiModule.ModuleNumber
-                        : modules.Count + 1,
-
-                Title =
-                    aiModule.Title.Trim(),
-
-                Description =
-                    string.IsNullOrWhiteSpace(
-                        aiModule.Description)
-                        ? null
-                        : aiModule.Description.Trim(),
-
-                DisplayOrder =
-                    modules.Count + 1,
-
-                CreatedAt =
-                    DateTime.UtcNow,
-
-                UpdatedAt = null,
-
-                Sections = []
-            };
-
-        foreach (var aiSection
-            in aiModule.Sections)
+        foreach (var aiModule in aiResult.Modules)
         {
             if (string.IsNullOrWhiteSpace(
-                    aiSection.Title))
+                    aiModule.Title))
             {
                 continue;
             }
 
-            if (string.IsNullOrWhiteSpace(
-                    aiSection.Content))
-            {
-                continue;
-            }
-
-            var contentType =
-                NormalizeContentType(
-                    aiSection.ContentType);
-
-            /*
-             * =====================================================
-             * MEDIA VALIDATION
-             * =====================================================
-             *
-             * Only media URLs extracted from the actual document
-             * are allowed.
-             */
-
-            var mediaUrl =
-                NormalizeMediaUrl(
-                    aiSection.MediaUrl,
-                    BuildMediaManifest(extraction));
-
-            /*
-             * If AI selected Image/Video but the media URL is not
-             * one of the actual extracted assets, safely fall back
-             * to Text.
-             */
-
-            if (contentType != "Text" &&
-                string.IsNullOrWhiteSpace(
-                    mediaUrl))
-            {
-                contentType = "Text";
-            }
-
-            if (contentType == "Text")
-            {
-                mediaUrl = null;
-            }
-
-            var section =
-                new LearningSection
+            var module =
+                new LearningModule
                 {
                     Id = Guid.NewGuid(),
 
-                    LearningModuleId =
-                        module.Id,
+                    LearningMaterialId =
+                        material.Id,
 
-                    SectionNumber =
-                        aiSection.SectionNumber > 0
-                            ? aiSection.SectionNumber
-                            : module.Sections.Count + 1,
+                    ModuleNumber =
+                        aiModule.ModuleNumber > 0
+                            ? aiModule.ModuleNumber
+                            : modules.Count + 1,
 
                     Title =
-                        aiSection.Title.Trim(),
+                        aiModule.Title.Trim(),
 
-                    ContentType =
-                        contentType,
-
-                    Content =
-                        aiSection.Content.Trim(),
-
-                    MediaUrl =
-                        mediaUrl,
+                    Description =
+                        string.IsNullOrWhiteSpace(
+                            aiModule.Description)
+                            ? null
+                            : aiModule.Description.Trim(),
 
                     DisplayOrder =
-                        module.Sections.Count + 1,
+                        modules.Count + 1,
 
                     CreatedAt =
                         DateTime.UtcNow,
 
-                    UpdatedAt = null
+                    UpdatedAt = null,
+
+                    Sections = []
                 };
 
-            module.Sections.Add(
-                section);
-        }
-
-        if (module.Sections.Count > 0)
-        {
-            modules.Add(module);
-        }
-    }
-
-    // =========================================================
-    // VALIDATE GENERATED MODULES
-    // =========================================================
-
-    if (modules.Count == 0)
-    {
-        throw new InvalidOperationException(
-            "AI generated modules, but no valid sections were produced.");
-    }
-
-    // =========================================================
-    // SAVE MODULES + SECTIONS
-    // =========================================================
-
-    _context.LearningModules
-        .AddRange(modules);
-
-    await _context.SaveChangesAsync();
-
-    // =========================================================
-    // RETURN DTOs
-    // =========================================================
-
-    return modules
-        .OrderBy(x => x.DisplayOrder)
-        .Select(
-            x =>
-                new LearningModuleDto
+            foreach (var aiSection
+                     in aiModule.Sections)
+            {
+                if (string.IsNullOrWhiteSpace(
+                        aiSection.Title))
                 {
-                    Id =
-                        x.Id,
+                    continue;
+                }
 
-                    LearningMaterialId =
-                        x.LearningMaterialId,
+                if (string.IsNullOrWhiteSpace(
+                        aiSection.Content))
+                {
+                    continue;
+                }
 
-                    ModuleNumber =
-                        x.ModuleNumber,
+                var contentType =
+                    NormalizeContentType(
+                        aiSection.ContentType);
 
-                    Title =
-                        x.Title,
+                var mediaUrl =
+                    NormalizeMediaUrl(
+                        aiSection.MediaUrl,
+                        BuildMediaManifest(
+                            extraction));
 
-                    Description =
-                        x.Description,
+                if (contentType != "Text" &&
+                    string.IsNullOrWhiteSpace(
+                        mediaUrl))
+                {
+                    contentType = "Text";
+                }
 
-                    DisplayOrder =
-                        x.DisplayOrder,
+                if (contentType == "Text")
+                {
+                    mediaUrl = null;
+                }
 
-                    CreatedAt =
-                        x.CreatedAt,
+                var section =
+                    new LearningSection
+                    {
+                        Id = Guid.NewGuid(),
 
-                    UpdatedAt =
-                        x.UpdatedAt,
+                        LearningModuleId =
+                            module.Id,
 
-                    SectionCount =
-                        x.Sections.Count
-                })
-        .ToList();
-}
+                        SectionNumber =
+                            aiSection.SectionNumber > 0
+                                ? aiSection.SectionNumber
+                                : module.Sections.Count + 1,
+
+                        Title =
+                            aiSection.Title.Trim(),
+
+                        ContentType =
+                            contentType,
+
+                        Content =
+                            aiSection.Content.Trim(),
+
+                        MediaUrl =
+                            mediaUrl,
+
+                        DisplayOrder =
+                            module.Sections.Count + 1,
+
+                        CreatedAt =
+                            DateTime.UtcNow,
+
+                        UpdatedAt = null
+                    };
+
+                module.Sections.Add(
+                    section);
+            }
+
+            if (module.Sections.Count > 0)
+            {
+                modules.Add(module);
+            }
+        }
+
+        // =========================================================
+        // VALIDATE GENERATED MODULES
+        // =========================================================
+
+        if (modules.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "AI generated modules, but no valid sections were produced.");
+        }
+
+        // =========================================================
+        // SAVE MODULES + SECTIONS
+        // =========================================================
+
+        _context.LearningModules
+            .AddRange(modules);
+
+        await _context.SaveChangesAsync();
+
+        // =========================================================
+        // RETURN DTOs
+        // =========================================================
+
+        return modules
+            .OrderBy(x => x.DisplayOrder)
+            .Select(
+                x =>
+                    new LearningModuleDto
+                    {
+                        Id =
+                            x.Id,
+
+                        LearningMaterialId =
+                            x.LearningMaterialId,
+
+                        ModuleNumber =
+                            x.ModuleNumber,
+
+                        Title =
+                            x.Title,
+
+                        Description =
+                            x.Description,
+
+                        DisplayOrder =
+                            x.DisplayOrder,
+
+                        CreatedAt =
+                            x.CreatedAt,
+
+                        UpdatedAt =
+                            x.UpdatedAt,
+
+                        SectionCount =
+                            x.Sections.Count
+                    })
+            .ToList();
+    }
+
     // =========================================================
     // MEDIA MANIFEST
     // =========================================================
@@ -1471,12 +1475,6 @@ public async Task<IReadOnlyList<LearningModuleDto>>
     {
         var manifest =
             new List<MediaManifestItem>();
-
-        /*
-         * ---------------------------------------------------------
-         * IMAGES
-         * ---------------------------------------------------------
-         */
 
         foreach (var image
                  in extraction.Images)
@@ -1496,12 +1494,6 @@ public async Task<IReadOnlyList<LearningModuleDto>>
                     Order = image.Order
                 });
         }
-
-        /*
-         * ---------------------------------------------------------
-         * VIDEOS
-         * ---------------------------------------------------------
-         */
 
         foreach (var media
                  in extraction.MediaLinks)
@@ -1532,8 +1524,9 @@ public async Task<IReadOnlyList<LearningModuleDto>>
         }
 
         return manifest
-            .GroupBy(x =>
-                $"{x.Type}|{x.Url}",
+            .GroupBy(
+                x =>
+                    $"{x.Type}|{x.Url}",
                 StringComparer.OrdinalIgnoreCase)
             .Select(x => x.First())
             .OrderBy(x => x.Order)
@@ -1642,10 +1635,6 @@ public async Task<IReadOnlyList<LearningModuleDto>>
                 if (string.IsNullOrWhiteSpace(
                         section.MediaUrl))
                 {
-                    /*
-                     * Don't allow a media type without
-                     * a valid media asset.
-                     */
                     section.ContentType = "Text";
                     section.MediaUrl = null;
 
@@ -1655,9 +1644,6 @@ public async Task<IReadOnlyList<LearningModuleDto>>
                 if (!allowedUrls.Contains(
                         section.MediaUrl.Trim()))
                 {
-                    /*
-                     * Prevent AI hallucinated URLs.
-                     */
                     section.ContentType = "Text";
                     section.MediaUrl = null;
 

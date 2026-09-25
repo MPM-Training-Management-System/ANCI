@@ -51,22 +51,321 @@ export class AuthAPIs {
       }
     );
   }
+// ==========================================
+// TRAINER REGISTRATION
+// ==========================================
 
-  // ==========================================
-  // TRAINER REGISTRATION
-  // ==========================================
+async registerTrainer(
+  request: RegisterTrainerRequest
+): Promise<RegisterResponse> {
+  const formData = new FormData();
 
-  async registerTrainer(
-    request: RegisterTrainerRequest
-  ): Promise<RegisterResponse> {
-    return this.api.request<RegisterResponse>(
-      AuthEndpoints.registerTrainer(),
-      {
-        method: "POST",
-        body: request,
+  // ========================================================
+  // PERSONAL INFORMATION
+  // ========================================================
+
+  if (request.FirstName) {
+    formData.append(
+      "FirstName",
+      request.FirstName
+    );
+  }
+
+  if (request.MiddleName) {
+    formData.append(
+      "MiddleName",
+      request.MiddleName
+    );
+  }
+
+  if (request.LastName) {
+    formData.append(
+      "LastName",
+      request.LastName
+    );
+  }
+
+  if (request.Suffix) {
+    formData.append(
+      "Suffix",
+      request.Suffix
+    );
+  }
+
+  if (request.BirthDate) {
+    formData.append(
+      "BirthDate",
+      request.BirthDate
+    );
+  }
+
+  if (request.Address) {
+    formData.append(
+      "Address",
+      request.Address
+    );
+  }
+
+  if (request.Gender) {
+    formData.append(
+      "Gender",
+      request.Gender
+    );
+  }
+
+  // ========================================================
+  // ACCOUNT INFORMATION
+  // ========================================================
+
+  if (request.Email) {
+    formData.append(
+      "Email",
+      request.Email
+    );
+  }
+
+  if (request.MobileNumber) {
+    formData.append(
+      "MobileNumber",
+      request.MobileNumber
+    );
+  }
+
+  if (request.Password) {
+    formData.append(
+      "Password",
+      request.Password
+    );
+  }
+
+  // ========================================================
+  // PROFESSIONAL INFORMATION
+  // ========================================================
+
+  if (request.Specialization) {
+    formData.append(
+      "Specialization",
+      request.Specialization
+    );
+  }
+
+  if (request.ProfessionalTitle) {
+    formData.append(
+      "ProfessionalTitle",
+      request.ProfessionalTitle
+    );
+  }
+
+  if (request.CurrentOrganization) {
+    formData.append(
+      "CurrentOrganization",
+      request.CurrentOrganization
+    );
+  }
+
+  if (request.Bio) {
+    formData.append(
+      "Bio",
+      request.Bio
+    );
+  }
+
+  if (
+    request.YearsOfExperience !==
+      undefined &&
+    request.YearsOfExperience !== null
+  ) {
+    formData.append(
+      "YearsOfExperience",
+      String(
+        request.YearsOfExperience
+      )
+    );
+  }
+
+  // ========================================================
+  // PROFESSIONAL LICENSE
+  // ========================================================
+
+  if (
+    request.ProfessionalLicenseNumber
+  ) {
+    formData.append(
+      "ProfessionalLicenseNumber",
+      request.ProfessionalLicenseNumber
+    );
+  }
+
+  if (
+    request.ProfessionalLicenseType
+  ) {
+    formData.append(
+      "ProfessionalLicenseType",
+      request.ProfessionalLicenseType
+    );
+  }
+
+  if (
+    request.ProfessionalLicenseExpirationDate
+  ) {
+    formData.append(
+      "ProfessionalLicenseExpirationDate",
+      request.ProfessionalLicenseExpirationDate
+    );
+  }
+
+  // ========================================================
+  // PROFILE IMAGE
+  // ========================================================
+
+  if (request.ProfileImage) {
+    formData.append(
+      "ProfileImage",
+      request.ProfileImage
+    );
+  }
+
+  // ========================================================
+  // EDUCATIONS
+  // ========================================================
+
+  if (request.Educations?.length) {
+    request.Educations.forEach(
+      (education, index) => {
+        formData.append(
+          `Educations[${index}].Degree`,
+          education.degree
+        );
+
+        if (
+          education.fieldOfStudy
+        ) {
+          formData.append(
+            `Educations[${index}].FieldOfStudy`,
+            education.fieldOfStudy
+          );
+        }
+
+        formData.append(
+          `Educations[${index}].Institution`,
+          education.institution
+        );
+
+        if (
+          education.yearGraduated !==
+            undefined &&
+          education.yearGraduated !== null
+        ) {
+          formData.append(
+            `Educations[${index}].YearGraduated`,
+            String(
+              education.yearGraduated
+            )
+          );
+        }
       }
     );
   }
+
+  // ========================================================
+  // CERTIFICATIONS
+  // ========================================================
+
+  if (
+    request.Certifications?.length
+  ) {
+    request.Certifications.forEach(
+      (certification, index) => {
+        formData.append(
+          `Certifications[${index}].Name`,
+          certification.name
+        );
+
+        if (
+          certification.issuingOrganization
+        ) {
+          formData.append(
+            `Certifications[${index}].IssuingOrganization`,
+            certification.issuingOrganization
+          );
+        }
+
+        if (
+          certification.issuedDate
+        ) {
+          formData.append(
+            `Certifications[${index}].IssuedDate`,
+            certification.issuedDate
+          );
+        }
+
+        if (
+          certification.expirationDate
+        ) {
+          formData.append(
+            `Certifications[${index}].ExpirationDate`,
+            certification.expirationDate
+          );
+        }
+
+        if (
+          certification.certificateUrl
+        ) {
+          formData.append(
+            `Certifications[${index}].CertificateUrl`,
+            certification.certificateUrl
+          );
+        }
+      }
+    );
+  }
+
+  // ========================================================
+  // DEBUG FORMDATA
+  // ========================================================
+
+  console.log(
+    "================================="
+  );
+
+  console.log(
+    "REGISTER TRAINER FORMDATA"
+  );
+
+  for (
+    const [key, value] of formData.entries()
+  ) {
+    if (value instanceof File) {
+      console.log(
+        key,
+        value.name,
+        value.type,
+        value.size
+      );
+    } else {
+      console.log(
+        key,
+        value
+      );
+    }
+  }
+
+  console.log(
+    "================================="
+  );
+
+  // ========================================================
+  // API REQUEST
+  // ========================================================
+
+  return this.api.request<RegisterResponse>(
+    AuthEndpoints.registerTrainer(),
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+}
 
   // ==========================================
   // EMAIL VERIFICATION

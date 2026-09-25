@@ -5,59 +5,77 @@ import { useState } from "react";
 import type {
   RegisterTrainerRequest,
   RegisterResponse,
+  CreateTrainerEducationRequest,
+  CreateTrainerCertificationRequest,
 } from "@repo/types";
 
-import type {
-  AuthApi,
-} from "@repo/api";
+import type { AuthApi } from "@repo/api";
 
 export interface RegisterTrainerFormValues {
-  fullName?: string;
+  // ==========================================================
+  // PERSONAL INFORMATION
+  // ==========================================================
 
   firstName: string;
-  middleName: string;
+  middleName?: string;
   lastName: string;
-
-  birthDate: string;
+  suffix?: string;
+  birthDate?: string;
   address: string;
   gender: string;
 
-  email: string;
-  mobileNumber: string;
+  // ==========================================================
+  // ACCOUNT INFORMATION
+  // ==========================================================
 
+  email: string;
+  mobileNumber?: string;
   password: string;
-  confirmPassword: string;
+  confirmPassword?: string;
+
+  // ==========================================================
+  // PROFESSIONAL INFORMATION
+  // ==========================================================
 
   specialization: string;
+  professionalTitle?: string;
+  currentOrganization?: string;
+  bio?: string;
+  yearsOfExperience?: number;
 
-  yearsOfExperience:
-    | number
-    | undefined;
+  // ==========================================================
+  // PROFESSIONAL LICENSE
+  // ==========================================================
 
-  certificationName: string;
+  professionalLicenseNumber?: string;
+  professionalLicenseType?: string;
+  professionalLicenseExpirationDate?: string;
 
-  certificationNumber: string;
+  // ==========================================================
+  // PROFILE
+  // ==========================================================
 
   profileImage?: File;
+
+  // ==========================================================
+  // EDUCATION
+  // ==========================================================
+
+  educations: CreateTrainerEducationRequest[];
+
+  // ==========================================================
+  // CERTIFICATIONS
+  // ==========================================================
+
+  certifications: CreateTrainerCertificationRequest[];
 }
 
-export function useRegisterTrainer(
-  authApi: AuthApi
-) {
-  const [
-    isLoading,
-    setIsLoading,
-  ] = useState(false);
+export function useRegisterTrainer(authApi: AuthApi) {
+  const [isLoading, setIsLoading] = useState(false);
 
-  const [
-    error,
-    setError,
-  ] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const [
-    success,
-    setSuccess,
-  ] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   // ==========================================================
   // REGISTER TRAINER
@@ -72,70 +90,177 @@ export function useRegisterTrainer(
       setSuccess(false);
 
       // ======================================================
-      // FULL NAME
+      // CLEAN VALUES
       // ======================================================
 
-      const fullName =
-        values.fullName?.trim() ||
-        [
-          values.firstName.trim(),
-          values.middleName.trim(),
-          values.lastName.trim(),
-        ]
-          .filter(Boolean)
-          .join(" ");
+      const firstName = values.firstName.trim();
+
+      const middleName =
+        values.middleName?.trim() || undefined;
+
+      const lastName = values.lastName.trim();
+
+      const suffix =
+        values.suffix?.trim() || undefined;
+
+      const email =
+        values.email.trim().toLowerCase();
+
+      const mobileNumber =
+        values.mobileNumber?.trim() || undefined;
+
+      const address =
+        values.address.trim();
+
+      const specialization =
+        values.specialization.trim();
+
+      const professionalTitle =
+        values.professionalTitle?.trim() || undefined;
+
+      const currentOrganization =
+        values.currentOrganization?.trim() || undefined;
+
+      const bio =
+        values.bio?.trim() || undefined;
+
+      const professionalLicenseNumber =
+        values.professionalLicenseNumber?.trim() ||
+        undefined;
+
+      const professionalLicenseType =
+        values.professionalLicenseType?.trim() ||
+        undefined;
+
+      // ======================================================
+      // EDUCATIONS
+      // ======================================================
+
+      const educations: CreateTrainerEducationRequest[] =
+        values.educations.map((education) => ({
+          degree: education.degree.trim(),
+
+          fieldOfStudy:
+            education.fieldOfStudy?.trim() || null,
+
+          institution:
+            education.institution.trim(),
+
+          yearGraduated:
+            education.yearGraduated ?? null,
+        }));
+
+      // ======================================================
+      // CERTIFICATIONS
+      // ======================================================
+
+      const certifications: CreateTrainerCertificationRequest[] =
+        values.certifications.map((certification) => ({
+          name: certification.name.trim(),
+
+          issuingOrganization:
+            certification.issuingOrganization?.trim() ||
+            null,
+
+          issuedDate:
+            certification.issuedDate || null,
+
+          expirationDate:
+            certification.expirationDate || null,
+
+          certificateUrl:
+            certification.certificateUrl?.trim() ||
+            null,
+        }));
 
       // ======================================================
       // REQUEST
       // ======================================================
 
-      const request:
-        RegisterTrainerRequest = {
-        firstName:
-          values.firstName.trim(),
+      const request: RegisterTrainerRequest = {
+        // ----------------------------------------------------
+        // PERSONAL
+        // ----------------------------------------------------
 
-        middleName:
-          values.middleName.trim(),
+        FirstName: firstName,
 
-        lastName:
-          values.lastName.trim(),
+        MiddleName: middleName ?? null,
 
-        birthDate:
-          values.birthDate,
+        LastName: lastName,
 
-        address:
-          values.address.trim(),
+        Suffix: suffix ?? null,
 
-        gender:
-          values.gender,
+        BirthDate:
+          values.birthDate || null,
 
-        fullName,
+        Address: address,
 
-        email:
-          values.email
-            .trim()
-            .toLowerCase(),
+        Gender: values.gender,
 
-        mobileNumber:
-          values.mobileNumber.trim(),
+        // ----------------------------------------------------
+        // ACCOUNT
+        // ----------------------------------------------------
 
-        password:
-          values.password,
+        Email: email,
 
-        specialization:
-          values.specialization.trim(),
+        MobileNumber:
+          mobileNumber ?? null,
 
-        yearsOfExperience:
-          values.yearsOfExperience,
+        Password: values.password,
 
-        certificationName:
-          values.certificationName.trim(),
+        // ----------------------------------------------------
+        // PROFESSIONAL
+        // ----------------------------------------------------
 
-        certificationNumber:
-          values.certificationNumber.trim(),
+        Specialization:
+          specialization,
 
-        profileImage:
-          values.profileImage,
+        ProfessionalTitle:
+          professionalTitle ?? null,
+
+        CurrentOrganization:
+          currentOrganization ?? null,
+
+        Bio:
+          bio ?? null,
+
+        YearsOfExperience:
+          values.yearsOfExperience ?? null,
+
+        // ----------------------------------------------------
+        // PROFESSIONAL LICENSE
+        // ----------------------------------------------------
+
+        ProfessionalLicenseNumber:
+          professionalLicenseNumber ?? null,
+
+        ProfessionalLicenseType:
+          professionalLicenseType ?? null,
+
+        ProfessionalLicenseExpirationDate:
+          values.professionalLicenseExpirationDate ||
+          null,
+
+        // ----------------------------------------------------
+        // PROFILE IMAGE
+        // ----------------------------------------------------
+
+        ProfileImage:
+          values.profileImage ?? null,
+
+        // ----------------------------------------------------
+        // EDUCATION
+        // ----------------------------------------------------
+
+        Educations:
+          educations,
+
+        // ----------------------------------------------------
+        // CERTIFICATIONS
+        // ----------------------------------------------------
+
+        Certifications:
+          certifications,
       };
 
       // ======================================================
@@ -150,9 +275,7 @@ export function useRegisterTrainer(
         "REGISTER TRAINER REQUEST:"
       );
 
-      console.log(
-        request
-      );
+      console.log(request);
 
       console.log(
         "================================="
@@ -163,9 +286,11 @@ export function useRegisterTrainer(
       // ======================================================
 
       const response =
-        await authApi.registerTrainer(
-          request
-        );
+        await authApi.registerTrainer(request);
+
+      // ======================================================
+      // RESPONSE DEBUG
+      // ======================================================
 
       console.log(
         "================================="
@@ -175,21 +300,14 @@ export function useRegisterTrainer(
         "REGISTER TRAINER RESPONSE:"
       );
 
-      console.log(
-        response
-      );
+      console.log(response);
 
       console.log(
         "================================="
       );
 
       // ======================================================
-      // IMPORTANT
-      //
-      // DO NOT check response.success here.
-      //
-      // The API request itself succeeded if we received
-      // a response.
+      // RESPONSE VALIDATION
       // ======================================================
 
       if (!response) {
@@ -200,12 +318,14 @@ export function useRegisterTrainer(
         return null;
       }
 
+      // ======================================================
+      // SUCCESS
+      // ======================================================
+
       setSuccess(true);
 
       return response;
-
     } catch (error) {
-
       console.error(
         "REGISTER TRAINER ERROR:",
         error
@@ -218,11 +338,8 @@ export function useRegisterTrainer(
       );
 
       return null;
-
     } finally {
-
       setIsLoading(false);
-
     }
   };
 
@@ -235,6 +352,10 @@ export function useRegisterTrainer(
     setError(null);
     setSuccess(false);
   };
+
+  // ==========================================================
+  // RETURN
+  // ==========================================================
 
   return {
     registerTrainer,

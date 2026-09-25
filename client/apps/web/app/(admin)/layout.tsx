@@ -96,7 +96,7 @@ export default function AdminLayout({
               className="
                 mt-20
                 flex-1
-
+                bg-slate-50
                 sm:mt-24
                 md:mt-25
               "

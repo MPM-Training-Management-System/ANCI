@@ -1,1301 +1,1435 @@
 "use client";
 
 import {
-  useRouter,
-} from "next/navigation";
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import type {
+  AdminDashboard,
+  RecentEnrollment,
+  UpcomingBatch,
+} from "@repo/types";
+
+import {
   Activity,
-  EnrollmentTrend,
-  QuickAction,
-  TrainingCapacity,
-  UpcomingTraining,
-} from "./type";
+  Award,
+  BarChart3,
+  BookOpen,
+  CalendarDays,
+  CheckCircle2,
+  ClipboardCheck,
+  Clock3,
+  FileCheck2,
+  GraduationCap,
+  Loader2,
+  RefreshCw,
+  ServerCog,
+  TrendingUp,
+  UserCheck,
+  UserRound,
+  Users,
+  UserCog,
+  XCircle,
+} from "lucide-react";
+
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+
+import { adminDashboardApi } from "@/lib/api";
+import { useAdminDashboard } from "@repo/hooks";
+import { PageSkeleton } from "@repo/ui/index";
 
 /* =========================================================
-   MOCK DATA
+   TYPES
 ========================================================= */
 
-const quickActions: QuickAction[] = [
-  {
-    id: "participants",
-    title: "Participants",
-    description:
-      "Manage registered participants",
-    href: "/participants",
-    icon: "participant",
-  },
+type IconType = React.ComponentType<{
+  className?: string;
+  size?: number;
+}>;
 
-  {
-    id: "training",
-    title: "Create Training",
-    description:
-      "Create a new training program",
-    href: "/training",
-    icon: "training",
-  },
+type StatCardProps = {
+  title: string;
+  value: string | number;
+  description?: string;
+  icon: IconType;
+  iconClassName?: string;
+  loading?: boolean;
+};
 
-  {
-    id: "enrollment",
-    title: "Review Enrollments",
-    description:
-      "Check pending applications",
-    href: "/enrollment",
-    icon: "enrollment",
-  },
+type SectionCardProps = {
+  title: string;
+  description?: string;
+  icon?: IconType;
+  children: React.ReactNode;
+  className?: string;
+  action?: React.ReactNode;
+};
 
-  {
-    id: "trainer",
-    title: "Assign Trainer",
-    description:
-      "Manage trainer assignments",
-    href: "/trainers",
-    icon: "trainer",
-  },
+type StatusBadgeProps = {
+  status: string;
+};
 
-  {
-    id: "attendance",
-    title: "Attendance",
-    description:
-      "Monitor training attendance",
-    href: "/attendance",
-    icon: "attendance",
-  },
+type MetricRowProps = {
+  label: string;
+  value: string | number;
+  icon?: IconType;
+  iconClassName?: string;
+};
 
-  {
-    id: "reports",
-    title: "Generate Report",
-    description:
-      "View system reports",
-    href: "/reports",
-    icon: "report",
-  },
-];
+/* =========================================================
+   HELPERS
+========================================================= */
 
-const upcomingTrainings: UpcomingTraining[] = [
-  {
-    id: "TR-001",
-    title:
-      "Computer Systems Servicing NC II",
-    batch: "CSS-NCII-2026-02",
-    trainer: "Maria Santos",
-    date: "Aug 20, 2026",
-    time: "8:00 AM – 4:00 PM",
-    location:
-      "Computer Laboratory 01",
-    enrolled: 24,
-    capacity: 30,
-  },
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("en-US").format(value);
+}
 
-  {
-    id: "TR-002",
-    title:
-      "Web Development Fundamentals",
-    batch: "WEB-DEV-2026-01",
-    trainer: "John Cruz",
-    date: "Aug 25, 2026",
-    time: "9:00 AM – 5:00 PM",
-    location:
-      "ICT Laboratory",
-    enrolled: 18,
-    capacity: 25,
-  },
+function formatDate(value: string) {
+  if (!value) return "—";
 
-  {
-    id: "TR-003",
-    title:
-      "Electrical Installation NC II",
-    batch: "EIM-NCII-2026-01",
-    trainer: "Robert Flores",
-    date: "Sep 01, 2026",
-    time: "8:00 AM – 4:00 PM",
-    location:
-      "Electrical Workshop",
-    enrolled: 20,
-    capacity: 25,
-  },
-];
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(value));
+}
 
-const enrollmentTrend: EnrollmentTrend[] = [
-  {
-    month: "Jan",
-    value: 86,
-  },
-  {
-    month: "Feb",
-    value: 104,
-  },
-  {
-    month: "Mar",
-    value: 118,
-  },
-  {
-    month: "Apr",
-    value: 132,
-  },
-  {
-    month: "May",
-    value: 145,
-  },
-  {
-    month: "Jun",
-    value: 158,
-  },
-  {
-    month: "Jul",
-    value: 176,
-  },
-  {
-    month: "Aug",
-    value: 194,
-  },
-];
+function formatDateTime(value: string) {
+  if (!value) return "—";
 
-const trainingCapacity: TrainingCapacity[] =
-  [
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function getInitials(name: string) {
+  if (!name) return "U";
+
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("");
+}
+
+function getStatusClass(status: string) {
+  const normalized = status.toLowerCase();
+
+  if (
+    normalized.includes("approved") ||
+    normalized.includes("completed") ||
+    normalized.includes("passed") ||
+    normalized.includes("active") ||
+    normalized.includes("present") ||
+    normalized.includes("resolved")
+  ) {
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  }
+
+  if (
+    normalized.includes("pending") ||
+    normalized.includes("ongoing") ||
+    normalized.includes("upcoming")
+  ) {
+    return "border-amber-200 bg-amber-50 text-amber-700";
+  }
+
+  if (
+    normalized.includes("rejected") ||
+    normalized.includes("failed") ||
+    normalized.includes("revoked") ||
+    normalized.includes("absent")
+  ) {
+    return "border-red-200 bg-red-50 text-red-700";
+  }
+
+  return "border-slate-200 bg-slate-50 text-slate-600";
+}
+
+/* =========================================================
+   REUSABLE UI
+========================================================= */
+
+function StatCard({
+  title,
+  value,
+  description,
+  icon: Icon,
+  iconClassName = "bg-slate-100 text-slate-700",
+  loading = false,
+}: StatCardProps) {
+  return (
+    <div className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-slate-500">
+            {title}
+          </p>
+
+          {loading ? (
+            <div className="mt-3 h-9 w-24 animate-pulse rounded-lg bg-slate-100" />
+          ) : (
+            <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+              {typeof value === "number"
+                ? formatNumber(value)
+                : value}
+            </p>
+          )}
+
+          {description && (
+            <p className="mt-2 text-xs text-slate-400">
+              {description}
+            </p>
+          )}
+        </div>
+
+        <div
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${iconClassName}`}
+        >
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SectionCard({
+  title,
+  description,
+  icon: Icon,
+  children,
+  className = "",
+  action,
+}: SectionCardProps) {
+  return (
+    <section
+      className={`rounded-2xl border border-slate-200 bg-white shadow-sm ${className}`}
+    >
+      <div className="flex items-center justify-between gap-4 border-b border-slate-100 px-5 py-4">
+        <div className="flex min-w-0 items-center gap-3">
+          {Icon && (
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+              <Icon className="h-4 w-4" />
+            </div>
+          )}
+
+          <div className="min-w-0">
+            <h2 className="truncate text-sm font-semibold text-slate-900">
+              {title}
+            </h2>
+
+            {description && (
+              <p className="mt-0.5 text-xs text-slate-400">
+                {description}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {action}
+      </div>
+
+      <div className="p-5">
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function MetricRow({
+  label,
+  value,
+  icon: Icon,
+  iconClassName = "bg-slate-100 text-slate-500",
+}: MetricRowProps) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-3">
+      <div className="flex min-w-0 items-center gap-3">
+        {Icon && (
+          <div
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${iconClassName}`}
+          >
+            <Icon className="h-4 w-4" />
+          </div>
+        )}
+
+        <span className="truncate text-sm text-slate-600">
+          {label}
+        </span>
+      </div>
+
+      <span className="shrink-0 text-sm font-semibold text-slate-900">
+        {typeof value === "number"
+          ? formatNumber(value)
+          : value}
+      </span>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: StatusBadgeProps) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium capitalize ${getStatusClass(
+        status,
+      )}`}
+    >
+      {status}
+    </span>
+  );
+}
+
+function EmptyState({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex min-h-[180px] flex-col items-center justify-center text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-400">
+        <Activity className="h-5 w-5" />
+      </div>
+
+      <p className="mt-3 text-sm font-medium text-slate-700">
+        {title}
+      </p>
+
+      <p className="mt-1 max-w-xs text-xs text-slate-400">
+        {description}
+      </p>
+    </div>
+  );
+}
+
+/* =========================================================
+   CHART TOOLTIP
+========================================================= */
+
+function ChartTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: Array<{
+    name?: string;
+    value?: number;
+  }>;
+  label?: string;
+}) {
+  if (!active || !payload?.length) {
+    return null;
+  }
+
+  return (
+    <div className="min-w-[160px] rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
+      <p className="mb-2 text-xs font-semibold text-slate-900">
+        {label}
+      </p>
+
+      <div className="space-y-1.5">
+        {payload.map((item, index) => (
+          <div
+            key={`${item.name}-${index}`}
+            className="flex items-center justify-between gap-5"
+          >
+            <span className="text-xs text-slate-500">
+              {item.name}
+            </span>
+
+            <span className="text-xs font-semibold text-slate-900">
+              {formatNumber(Number(item.value ?? 0))}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   LINE CHART
+========================================================= */
+
+function EnrollmentLineGraph({
+  dashboard,
+}: {
+  dashboard: AdminDashboard;
+}) {
+  const data = dashboard.monthlyActivity ?? [];
+
+  return (
+    <SectionCard
+      title="Training Activity"
+      description="Monthly enrollments and completed trainings"
+      icon={TrendingUp}
+      className="h-full"
+    >
+      {data.length === 0 ? (
+        <EmptyState
+          title="No activity data"
+          description="Monthly training activity will appear here once data is available."
+        />
+      ) : (
+        <div className="h-[330px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={data}
+              margin={{
+                top: 10,
+                right: 10,
+                left: -20,
+                bottom: 0,
+              }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="#e2e8f0"
+                vertical={false}
+              />
+
+              <XAxis
+                dataKey="month"
+                axisLine={false}
+                tickLine={false}
+                tick={{
+                  fill: "#94a3b8",
+                  fontSize: 11,
+                }}
+              />
+
+              <YAxis
+                allowDecimals={false}
+                axisLine={false}
+                tickLine={false}
+                tick={{
+                  fill: "#94a3b8",
+                  fontSize: 11,
+                }}
+              />
+
+              <Tooltip
+                cursor={{
+                  stroke: "#cbd5e1",
+                  strokeDasharray: "4 4",
+                }}
+                content={<ChartTooltip />}
+              />
+
+              <Legend
+                verticalAlign="top"
+                align="right"
+                height={35}
+                iconType="circle"
+                wrapperStyle={{
+                  fontSize: "11px",
+                  color: "#64748b",
+                }}
+              />
+
+              <Line
+                type="monotone"
+                dataKey="enrollments"
+                name="Enrollments"
+                stroke="#0f172a"
+                strokeWidth={2.5}
+                dot={{
+                  r: 3,
+                  fill: "#0f172a",
+                  strokeWidth: 0,
+                }}
+                activeDot={{
+                  r: 5,
+                }}
+              />
+
+              <Line
+                type="monotone"
+                dataKey="completedTrainings"
+                name="Completed Trainings"
+                stroke="#94a3b8"
+                strokeWidth={2.5}
+                dot={{
+                  r: 3,
+                  fill: "#94a3b8",
+                  strokeWidth: 0,
+                }}
+                activeDot={{
+                  r: 5,
+                }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </SectionCard>
+  );
+}
+
+/* =========================================================
+   BAR CHART
+========================================================= */
+
+function TrainingBarGraph({
+  dashboard,
+}: {
+  dashboard: AdminDashboard;
+}) {
+  const data = useMemo(
+    () => [
+      {
+        name: "Programs",
+        value: dashboard.training.totalTrainingPrograms,
+      },
+      {
+        name: "Batches",
+        value: dashboard.training.totalBatches,
+      },
+      {
+        name: "Ongoing",
+        value: dashboard.training.ongoingBatches,
+      },
+      {
+        name: "Completed",
+        value: dashboard.training.completedBatches,
+      },
+    ],
+    [dashboard],
+  );
+
+  return (
+    <SectionCard
+      title="Training Overview"
+      description="Current training program and batch counts"
+      icon={BarChart3}
+      className="h-full"
+    >
+      <div className="h-[330px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={data}
+            margin={{
+              top: 15,
+              right: 10,
+              left: -20,
+              bottom: 0,
+            }}
+            barCategoryGap="25%"
+          >
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="#e2e8f0"
+              vertical={false}
+            />
+
+            <XAxis
+              dataKey="name"
+              axisLine={false}
+              tickLine={false}
+              tick={{
+                fill: "#94a3b8",
+                fontSize: 11,
+              }}
+            />
+
+            <YAxis
+              allowDecimals={false}
+              axisLine={false}
+              tickLine={false}
+              tick={{
+                fill: "#94a3b8",
+                fontSize: 11,
+              }}
+            />
+
+            <Tooltip
+              cursor={{
+                fill: "#f8fafc",
+              }}
+              content={<ChartTooltip />}
+            />
+
+            <Bar
+              dataKey="value"
+              name="Count"
+              radius={[6, 6, 0, 0]}
+              maxBarSize={42}
+            >
+              {data.map((_, index) => (
+                <Cell
+                  key={`training-bar-${index}`}
+                  fill={
+                    [
+                      "#0f172a",
+                      "#475569",
+                      "#64748b",
+                      "#94a3b8",
+                    ][index]
+                  }
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </SectionCard>
+  );
+}
+
+/* =========================================================
+   ENROLLMENT STATUS
+========================================================= */
+
+function EnrollmentStatusCard({
+  dashboard,
+}: {
+  dashboard: AdminDashboard;
+}) {
+  const data = [
     {
-      name: "CSS NC II",
-      enrolled: 24,
-      capacity: 30,
+      name: "Pending",
+      value: dashboard.enrollments.pendingEnrollments,
     },
-
     {
-      name: "Web Development",
-      enrolled: 18,
-      capacity: 25,
+      name: "Approved",
+      value: dashboard.enrollments.approvedEnrollments,
     },
-
     {
-      name: "EIM NC II",
-      enrolled: 20,
-      capacity: 25,
+      name: "Completed",
+      value: dashboard.enrollments.completedEnrollments,
     },
-
     {
-      name: "Computer Programming",
-      enrolled: 22,
-      capacity: 30,
+      name: "Rejected",
+      value: dashboard.enrollments.rejectedEnrollments,
     },
   ];
 
-const activities: Activity[] = [
-  {
-    id: "ACT-001",
-    title:
-      "New enrollment request",
-    description:
-      "Juan Dela Cruz submitted an enrollment request.",
-    time: "10 min ago",
-    type: "enrollment",
-  },
+  const total = data.reduce(
+    (sum, item) => sum + item.value,
+    0,
+  );
 
-  {
-    id: "ACT-002",
-    title:
-      "Training batch created",
-    description:
-      "CSS-NCII-2026-02 was created.",
-    time: "42 min ago",
-    type: "training",
-  },
+  const colors = [
+    "#f59e0b",
+    "#10b981",
+    "#64748b",
+    "#ef4444",
+  ];
 
-  {
-    id: "ACT-003",
-    title:
-      "Attendance submitted",
-    description:
-      "Maria Santos submitted today's attendance.",
-    time: "1 hr ago",
-    type: "attendance",
-  },
+  return (
+    <SectionCard
+      title="Enrollment Status"
+      description="Current enrollment distribution"
+      icon={ClipboardCheck}
+    >
+      {total === 0 ? (
+        <EmptyState
+          title="No enrollments"
+          description="Enrollment statistics will appear here once participants enroll."
+        />
+      ) : (
+        <div className="grid gap-5 md:grid-cols-[180px_1fr] md:items-center">
+          <div className="relative mx-auto h-[180px] w-[180px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={data}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={55}
+                  outerRadius={78}
+                  paddingAngle={3}
+                  strokeWidth={0}
+                >
+                  {data.map((_, index) => (
+                    <Cell
+                      key={`enrollment-${index}`}
+                      fill={colors[index]}
+                    />
+                  ))}
+                </Pie>
 
-  {
-    id: "ACT-004",
-    title:
-      "Assessment completed",
-    description:
-      "Web Development assessment results were recorded.",
-    time: "2 hrs ago",
-    type: "assessment",
-  },
-];
+                <Tooltip
+                  content={<ChartTooltip />}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-2xl font-bold text-slate-900">
+                {formatNumber(total)}
+              </span>
+
+              <span className="text-[10px] text-slate-400">
+                Total
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            {data.map((item, index) => (
+              <div
+                key={item.name}
+                className="flex items-center justify-between rounded-lg px-2 py-2.5 transition hover:bg-slate-50"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{
+                      backgroundColor: colors[index],
+                    }}
+                  />
+
+                  <span className="text-sm text-slate-600">
+                    {item.name}
+                  </span>
+                </div>
+
+                <span className="text-sm font-semibold text-slate-900">
+                  {formatNumber(item.value)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </SectionCard>
+  );
+}
+
+/* =========================================================
+   RECENT ENROLLMENTS
+========================================================= */
+
+function RecentEnrollmentsCard({
+  enrollments,
+}: {
+  enrollments: RecentEnrollment[];
+}) {
+  return (
+    <SectionCard
+      title="Recent Enrollments"
+      description="Latest participant enrollment activity"
+      icon={Users}
+    >
+      {enrollments.length === 0 ? (
+        <EmptyState
+          title="No recent enrollments"
+          description="New enrollment activity will appear here."
+        />
+      ) : (
+        <div className="space-y-1">
+          {enrollments.slice(0, 6).map((enrollment) => (
+            <div
+              key={enrollment.enrollmentId}
+              className="flex items-center gap-3 rounded-xl px-2 py-3 transition hover:bg-slate-50"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
+                {getInitials(enrollment.participantName)}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-slate-800">
+                  {enrollment.participantName}
+                </p>
+
+                <p className="mt-0.5 truncate text-xs text-slate-400">
+                  {enrollment.batchCode}
+                  {" • "}
+                  {formatDateTime(enrollment.enrolledAt)}
+                </p>
+              </div>
+
+              <StatusBadge status={enrollment.status} />
+            </div>
+          ))}
+        </div>
+      )}
+    </SectionCard>
+  );
+}
+
+/* =========================================================
+   UPCOMING BATCHES
+========================================================= */
+
+function UpcomingBatchesCard({
+  batches,
+}: {
+  batches: UpcomingBatch[];
+}) {
+  return (
+    <SectionCard
+      title="Upcoming Batches"
+      description="Scheduled training batches"
+      icon={CalendarDays}
+    >
+      {batches.length === 0 ? (
+        <EmptyState
+          title="No upcoming batches"
+          description="Scheduled training batches will appear here."
+        />
+      ) : (
+        <div className="space-y-3">
+          {batches.slice(0, 5).map((batch) => {
+            const percentage =
+              batch.capacity > 0
+                ? Math.min(
+                    (batch.enrolledCount / batch.capacity) * 100,
+                    100,
+                  )
+                : 0;
+
+            return (
+              <div
+                key={batch.trainingBatchId}
+                className="rounded-xl border border-slate-100 bg-slate-50/70 p-3.5"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-slate-500">
+                      {batch.batchCode}
+                    </p>
+
+                    <p className="mt-1 truncate text-sm font-semibold text-slate-800">
+                      {batch.programName}
+                    </p>
+                  </div>
+
+                  <span className="shrink-0 text-xs font-medium text-slate-500">
+                    {formatDate(batch.startDate)}
+                  </span>
+                </div>
+
+                <div className="mt-3">
+                  <div className="mb-1.5 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400">
+                      Enrollment
+                    </span>
+
+                    <span className="font-medium text-slate-600">
+                      {batch.enrolledCount} / {batch.capacity}
+                    </span>
+                  </div>
+
+                  <div className="h-1.5 overflow-hidden rounded-full bg-slate-200">
+                    <div
+                      className="h-full rounded-full bg-slate-700 transition-all"
+                      style={{
+                        width: `${percentage}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </SectionCard>
+  );
+}
+
+/* =========================================================
+   SERVICE REQUESTS
+========================================================= */
+
+function ServiceRequestsCard({
+  dashboard,
+}: {
+  dashboard: AdminDashboard;
+}) {
+  return (
+    <SectionCard
+      title="Service Requests"
+      description="Current service request activity"
+      icon={ServerCog}
+    >
+      <div className="divide-y divide-slate-100">
+        <MetricRow
+          label="Total Requests"
+          value={dashboard.serviceRequests.totalRequests}
+          icon={ServerCog}
+        />
+
+        <MetricRow
+          label="Pending"
+          value={dashboard.serviceRequests.pendingRequests}
+          icon={Clock3}
+          iconClassName="bg-amber-50 text-amber-600"
+        />
+
+        <MetricRow
+          label="Resolved"
+          value={dashboard.serviceRequests.resolvedRequests}
+          icon={CheckCircle2}
+          iconClassName="bg-emerald-50 text-emerald-600"
+        />
+      </div>
+    </SectionCard>
+  );
+}
+
+/* =========================================================
+   TRAINER APPLICATIONS
+========================================================= */
+
+function TrainerApplicationsCard({
+  dashboard,
+}: {
+  dashboard: AdminDashboard;
+}) {
+  return (
+    <SectionCard
+      title="Trainer Applications"
+      description="Application review summary"
+      icon={UserCog}
+    >
+      <div className="divide-y divide-slate-100">
+        <MetricRow
+          label="Total Applications"
+          value={
+            dashboard.trainerApplications.totalApplications
+          }
+          icon={UserRound}
+        />
+
+        <MetricRow
+          label="Pending"
+          value={
+            dashboard.trainerApplications.pendingApplications
+          }
+          icon={Clock3}
+          iconClassName="bg-amber-50 text-amber-600"
+        />
+
+        <MetricRow
+          label="Approved"
+          value={
+            dashboard.trainerApplications.approvedApplications
+          }
+          icon={CheckCircle2}
+          iconClassName="bg-emerald-50 text-emerald-600"
+        />
+
+        <MetricRow
+          label="Rejected"
+          value={
+            dashboard.trainerApplications.rejectedApplications
+          }
+          icon={XCircle}
+          iconClassName="bg-red-50 text-red-600"
+        />
+      </div>
+    </SectionCard>
+  );
+}
+
+/* =========================================================
+   CERTIFICATES
+========================================================= */
+
+function CertificatesCard({
+  dashboard,
+}: {
+  dashboard: AdminDashboard;
+}) {
+  return (
+    <SectionCard
+      title="Certificates"
+      description="Certificate issuance summary"
+      icon={Award}
+    >
+      <div className="divide-y divide-slate-100">
+        <MetricRow
+          label="Total Issued"
+          value={dashboard.certificates.totalIssued}
+          icon={Award}
+        />
+
+        <MetricRow
+          label="Issued This Month"
+          value={dashboard.certificates.issuedThisMonth}
+          icon={TrendingUp}
+          iconClassName="bg-emerald-50 text-emerald-600"
+        />
+
+        <MetricRow
+          label="Revoked"
+          value={dashboard.certificates.revokedCount}
+          icon={XCircle}
+          iconClassName="bg-red-50 text-red-600"
+        />
+      </div>
+    </SectionCard>
+  );
+}
+
+/* =========================================================
+   ATTENDANCE
+========================================================= */
+
+function AttendanceCard({
+  dashboard,
+}: {
+  dashboard: AdminDashboard;
+}) {
+  return (
+    <SectionCard
+      title="Today's Attendance"
+      description="Attendance records for today"
+      icon={UserCheck}
+    >
+      <div className="divide-y divide-slate-100">
+        <MetricRow
+          label="Total Records"
+          value={dashboard.attendance.totalRecordsToday}
+          icon={ClipboardCheck}
+        />
+
+        <MetricRow
+          label="Present"
+          value={dashboard.attendance.presentToday}
+          icon={CheckCircle2}
+          iconClassName="bg-emerald-50 text-emerald-600"
+        />
+
+        <MetricRow
+          label="Absent"
+          value={dashboard.attendance.absentToday}
+          icon={XCircle}
+          iconClassName="bg-red-50 text-red-600"
+        />
+      </div>
+    </SectionCard>
+  );
+}
+
+/* =========================================================
+   ASSESSMENT PERFORMANCE
+========================================================= */
+
+function AssessmentPerformanceCard({
+  dashboard,
+}: {
+  dashboard: AdminDashboard;
+}) {
+  const passRate = Math.max(
+    0,
+    Math.min(
+      dashboard.assessments.passRatePercentage,
+      100,
+    ),
+  );
+
+  return (
+    <SectionCard
+      title="Assessment Performance"
+      description="Overall evaluated assessment results"
+      icon={FileCheck2}
+    >
+      <div className="grid gap-5 md:grid-cols-[1fr_180px] md:items-center">
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-sm text-slate-500">
+              Pass Rate
+            </span>
+
+            <span className="text-lg font-bold text-slate-900">
+              {passRate.toFixed(1)}%
+            </span>
+          </div>
+
+          <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+            <div
+              className="h-full rounded-full bg-slate-800 transition-all"
+              style={{
+                width: `${passRate}%`,
+              }}
+            />
+          </div>
+
+          <div className="mt-4 grid grid-cols-3 divide-x divide-slate-100 rounded-xl border border-slate-100">
+            <div className="px-3 py-3 text-center">
+              <p className="text-lg font-bold text-slate-900">
+                {formatNumber(
+                  dashboard.assessments
+                    .totalAttemptsEvaluated,
+                )}
+              </p>
+
+              <p className="mt-0.5 text-[10px] text-slate-400">
+                Evaluated
+              </p>
+            </div>
+
+            <div className="px-3 py-3 text-center">
+              <p className="text-lg font-bold text-emerald-600">
+                {formatNumber(
+                  dashboard.assessments.passedCount,
+                )}
+              </p>
+
+              <p className="mt-0.5 text-[10px] text-slate-400">
+                Passed
+              </p>
+            </div>
+
+            <div className="px-3 py-3 text-center">
+              <p className="text-lg font-bold text-red-600">
+                {formatNumber(
+                  dashboard.assessments.failedCount,
+                )}
+              </p>
+
+              <p className="mt-0.5 text-[10px] text-slate-400">
+                Failed
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mx-auto flex h-36 w-36 items-center justify-center rounded-full border-[10px] border-slate-100">
+          <div className="text-center">
+            <p className="text-2xl font-bold text-slate-900">
+              {passRate.toFixed(0)}%
+            </p>
+
+            <p className="text-[10px] text-slate-400">
+              Pass Rate
+            </p>
+          </div>
+        </div>
+      </div>
+    </SectionCard>
+  );
+}
 
 /* =========================================================
    PAGE
 ========================================================= */
 
 export default function AdminDashboardPage() {
-  const router = useRouter();
+  const {
+    dashboard,
+    isLoading,
+    error,
+    getDashboard,
+  } = useAdminDashboard(adminDashboardApi);
 
+  const [isRefreshing, setIsRefreshing] =
+    useState(false);
+
+useEffect(() => {
+  getDashboard();
+}, [getDashboard]);
+  const handleRefresh = async () => {
+    try {
+      setIsRefreshing(true);
+      await getDashboard();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+if (isLoading && !dashboard) {
   return (
-    <main className="space-y-6 pb-10">
+    <PageSkeleton
+      statCards={4}
+      showHeader
+      showCharts
+      chartCount={2}
+    />
+  );
+}
 
-      {/* =================================================
-          HERO
-      ================================================= */}
 
-      <section className="relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
 
-        {/* decorative background */}
+  /* =======================================================
+     ERROR
+  ======================================================= */
 
-        <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-gray-100 blur-3xl" />
-
-        <div className="pointer-events-none absolute -bottom-24 right-40 h-48 w-48 rounded-full bg-gray-50 blur-3xl" />
-
-        <div className="relative">
-
-          <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
-
-            <div>
-
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5">
-
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-
-                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
-                  System Operational
-                </span>
-
-              </div>
-
-              <h1 className="text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl">
-                Good morning, Admin.
-              </h1>
-
-              <p className="mt-3 max-w-xl text-sm leading-6 text-gray-500">
-                Here's what's happening across
-                your training operations today.
-                Review pending actions, monitor
-                active programs, and keep your
-                training center moving.
-              </p>
-
+  if (error && !dashboard) {
+    return (
+      <div className="min-h-full bg-slate-50 p-6">
+        <div className="mx-auto flex min-h-[500px] max-w-[1600px] items-center justify-center">
+          <div className="w-full max-w-md rounded-2xl border border-red-200 bg-white p-8 text-center shadow-sm">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-red-50 text-red-600">
+              <XCircle className="h-6 w-6" />
             </div>
 
-            <div className="shrink-0">
-
-              <div className="rounded-2xl border border-gray-200 bg-gray-50 px-5 py-4">
-
-                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
-                  Today
-                </p>
-
-                <p className="mt-1 text-lg font-bold text-gray-900">
-                  August 19, 2026
-                </p>
-
-                <p className="mt-1 text-xs text-gray-500">
-                  Wednesday
-                </p>
-
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </section>
-
-      {/* =================================================
-          QUICK ACTIONS
-      ================================================= */}
-
-      <section>
-
-        <div className="mb-4 flex items-end justify-between">
-
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
-              Shortcuts
-            </p>
-
-            <h2 className="mt-1 text-lg font-bold text-gray-900">
-              Quick Actions
+            <h2 className="mt-4 text-lg font-semibold text-slate-900">
+              Unable to load dashboard
             </h2>
 
-            <p className="mt-1 text-xs text-gray-500">
-              Jump directly to the tasks you use
-              most.
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              {error}
             </p>
-          </div>
-
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-
-          {quickActions.map(
-            (action) => (
-              <button
-                key={action.id}
-                type="button"
-                onClick={() =>
-                  router.push(
-                    action.href,
-                  )
-                }
-                className="group flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md"
-              >
-
-                <ActionIcon
-                  type={action.icon}
-                />
-
-                <div className="min-w-0 flex-1">
-
-                  <p className="text-sm font-bold text-gray-900">
-                    {action.title}
-                  </p>
-
-                  <p className="mt-1 text-xs text-gray-500">
-                    {action.description}
-                  </p>
-
-                </div>
-
-                <span className="text-gray-300 transition group-hover:translate-x-1 group-hover:text-gray-600">
-                  →
-                </span>
-
-              </button>
-            ),
-          )}
-
-        </div>
-
-      </section>
-
-      {/* =================================================
-          ATTENTION CENTER
-      ================================================= */}
-
-      <section className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
-
-        {/* pending action */}
-
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-
-          <div className="flex items-start justify-between">
-
-            <div>
-
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
-                Needs Attention
-              </p>
-
-              <h2 className="mt-1 text-lg font-bold text-gray-900">
-                24 items need review
-              </h2>
-
-            </div>
 
             <button
               type="button"
-              onClick={() =>
-                router.push(
-                  "/enrollment",
-                )
-              }
-              className="text-xs font-semibold text-gray-600 hover:text-gray-950"
+              onClick={handleRefresh}
+              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
             >
-              View all →
+              <RefreshCw className="h-4 w-4" />
+              Try Again
             </button>
-
           </div>
-
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
-
-            <AttentionCard
-              title="Enrollments"
-              value="12"
-              description="Pending approval"
-              onClick={() =>
-                router.push(
-                  "/enrollment",
-                )
-              }
-            />
-
-            <AttentionCard
-              title="Trainer Assignment"
-              value="5"
-              description="Need assignment"
-              onClick={() =>
-                router.push(
-                  "/trainers",
-                )
-              }
-            />
-
-            <AttentionCard
-              title="Attendance"
-              value="7"
-              description="Missing today"
-              onClick={() =>
-                router.push(
-                  "/attendance",
-                )
-              }
-            />
-
-          </div>
-
         </div>
+      </div>
+    );
+  }
 
-        {/* completion */}
+  if (!dashboard) {
+    return null;
+  }
 
-        <div className="rounded-2xl border border-gray-200 bg-gray-950 p-5 text-white shadow-sm">
+  /* =======================================================
+     MAIN DASHBOARD
+  ======================================================= */
 
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
-            Training Performance
-          </p>
+  return (
+    <main className="min-h-full bg-slate-50 p-4 sm:p-6">
+      <div className="mx-auto max-w-[1600px]">
+        {/* =================================================
+            HEADER
+        ================================================= */}
 
-          <div className="mt-5 flex items-end justify-between">
-
-            <div>
-
-              <p className="text-4xl font-bold tracking-tight">
-                82%
-              </p>
-
-              <p className="mt-1 text-xs text-gray-400">
-                Overall completion rate
-              </p>
-
-            </div>
-
-            <span className="rounded-full bg-white/10 px-3 py-1 text-[10px] font-bold text-emerald-400">
-              +6.4%
-            </span>
-
-          </div>
-
-          <div className="mt-6 h-2 overflow-hidden rounded-full bg-white/10">
-
-            <div
-              className="h-full rounded-full bg-white"
-              style={{
-                width: "82%",
-              }}
-            />
-
-          </div>
-
-          <div className="mt-3 flex justify-between text-[10px] text-gray-500">
-
-            <span>
-              Current
-            </span>
-
-            <span>
-              Target 90%
-            </span>
-
-          </div>
-
-        </div>
-
-      </section>
-
-      {/* =================================================
-          ANALYTICS
-      ================================================= */}
-
-      <section className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
-
-        {/* ENROLLMENT GRAPH */}
-
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-
-          <div className="flex items-start justify-between">
-
-            <div>
-
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
-                Enrollment Analytics
-              </p>
-
-              <h2 className="mt-1 text-lg font-bold text-gray-900">
-                Enrollment Trend
-              </h2>
-
-              <p className="mt-1 text-xs text-gray-500">
-                Participant applications over the
-                last eight months.
-              </p>
-
-            </div>
-
-            <div className="rounded-xl bg-gray-50 px-3 py-2">
-
-              <p className="text-[10px] text-gray-400">
-                August
-              </p>
-
-              <p className="text-sm font-bold text-gray-900">
-                194
-              </p>
-
-            </div>
-
-          </div>
-
-          <div className="mt-5">
-
-            <EnrollmentChart
-              data={
-                enrollmentTrend
-              }
-            />
-
-          </div>
-
-        </div>
-
-        {/* CAPACITY */}
-
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
+            <div className="flex items-center gap-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white">
+                <Activity className="h-4 w-4" />
+              </div>
 
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
-              Capacity
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+                Admin Dashboard
+              </h1>
+            </div>
+
+            <p className="mt-2 text-sm text-slate-500">
+              Overview of users, training, services, assessments,
+              and system activity.
             </p>
-
-            <h2 className="mt-1 text-lg font-bold text-gray-900">
-              Training Utilization
-            </h2>
-
-            <p className="mt-1 text-xs text-gray-500">
-              Current enrollment versus available
-              slots.
-            </p>
-
-          </div>
-
-          <div className="mt-6 space-y-5">
-
-            {trainingCapacity.map(
-              (item) => (
-                <CapacityItem
-                  key={item.name}
-                  {...item}
-                />
-              ),
-            )}
-
-          </div>
-
-        </div>
-
-      </section>
-
-      {/* =================================================
-          UPCOMING TRAININGS
-      ================================================= */}
-
-      <section>
-
-        <div className="mb-4 flex items-end justify-between">
-
-          <div>
-
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
-              Schedule
-            </p>
-
-            <h2 className="mt-1 text-lg font-bold text-gray-900">
-              Upcoming Trainings
-            </h2>
-
-            <p className="mt-1 text-xs text-gray-500">
-              What's coming up next.
-            </p>
-
           </div>
 
           <button
             type="button"
-            onClick={() =>
-              router.push(
-                "/training",
-              )
-            }
-            className="text-xs font-semibold text-gray-600 hover:text-gray-950"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Manage trainings →
-          </button>
-
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-3">
-
-          {upcomingTrainings.map(
-            (training) => (
-              <UpcomingTrainingCard
-                key={training.id}
-                training={training}
-                onClick={() =>
-                  router.push(
-                    `/training/${training.id}`,
-                  )
-                }
-              />
-            ),
-          )}
-
-        </div>
-
-      </section>
-
-      {/* =================================================
-          BOTTOM AREA
-      ================================================= */}
-
-      <section className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-
-        {/* RECENT ACTIVITY */}
-
-        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
-
-          <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
-
-            <div>
-
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
-                Timeline
-              </p>
-
-              <h2 className="mt-1 text-base font-bold text-gray-900">
-                Recent Activity
-              </h2>
-
-            </div>
-
-            <button
-              type="button"
-              className="text-xs font-semibold text-gray-500 hover:text-gray-900"
-            >
-              View activity
-            </button>
-
-          </div>
-
-          <div className="divide-y divide-gray-100">
-
-            {activities.map(
-              (activity) => (
-                <ActivityItem
-                  key={activity.id}
-                  activity={activity}
-                />
-              ),
+            {isRefreshing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
             )}
 
-          </div>
-
+            {isRefreshing ? "Refreshing..." : "Refresh"}
+          </button>
         </div>
 
-        {/* SYSTEM SNAPSHOT */}
+        {/* =================================================
+            TOP STATS
+        ================================================= */}
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            title="Total Users"
+            value={dashboard.users.totalUsers}
+            description={`${formatNumber(
+              dashboard.users.totalParticipants,
+            )} participants`}
+            icon={Users}
+            iconClassName="bg-slate-100 text-slate-700"
+          />
 
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
-            System Snapshot
-          </p>
+          <StatCard
+            title="Participants"
+            value={dashboard.users.totalParticipants}
+            description={`${formatNumber(
+              dashboard.users.unverifiedEmailCount,
+            )} unverified email`}
+            icon={GraduationCap}
+            iconClassName="bg-blue-50 text-blue-600"
+          />
 
-          <h2 className="mt-1 text-base font-bold text-gray-900">
-            ANCI Operations
-          </h2>
+          <StatCard
+            title="Trainers"
+            value={dashboard.users.totalTrainers}
+            description={`${formatNumber(
+              dashboard.trainerApplications.pendingApplications,
+            )} pending applications`}
+            icon={UserCheck}
+            iconClassName="bg-emerald-50 text-emerald-600"
+          />
 
-          <div className="mt-5 space-y-4">
-
-            <SystemStatus
-              title="Registration System"
-              status="Operational"
-            />
-
-            <SystemStatus
-              title="Training Management"
-              status="Operational"
-            />
-
-            <SystemStatus
-              title="Attendance System"
-              status="Operational"
-            />
-
-            <SystemStatus
-              title="Assessment Module"
-              status="Operational"
-            />
-
-            <SystemStatus
-              title="Report Generation"
-              status="Operational"
-            />
-
-          </div>
-
-          <div className="mt-5 border-t border-gray-100 pt-4">
-
-            <div className="flex justify-between text-xs">
-
-              <span className="text-gray-500">
-                Last system sync
-              </span>
-
-              <span className="font-semibold text-gray-900">
-                2 minutes ago
-              </span>
-
-            </div>
-
-          </div>
-
+          <StatCard
+            title="Training Programs"
+            value={dashboard.training.totalTrainingPrograms}
+            description={`${formatNumber(
+              dashboard.training.activeTrainingPrograms,
+            )} active programs`}
+            icon={BookOpen}
+            iconClassName="bg-violet-50 text-violet-600"
+          />
         </div>
 
-      </section>
+        {/* =================================================
+            CHARTS
+        ================================================= */}
 
-    </main>
-  );
-}
+        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+          <EnrollmentLineGraph dashboard={dashboard} />
 
-/* =========================================================
-   QUICK ACTION ICON
-========================================================= */
+          <TrainingBarGraph dashboard={dashboard} />
+        </div>
 
-function ActionIcon({
-  type,
-}: {
-  type: QuickAction["icon"];
-}) {
-  const symbols = {
-    participant: "P",
-    training: "T",
-    enrollment: "E",
-    trainer: "TR",
-    attendance: "A",
-    report: "R",
-  };
+        {/* =================================================
+            ENROLLMENT + TRAINING
+        ================================================= */}
 
-  return (
-    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-xs font-black text-gray-700 transition group-hover:bg-gray-900 group-hover:text-white">
-      {symbols[type]}
-    </div>
-  );
-}
+        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+          <EnrollmentStatusCard dashboard={dashboard} />
 
-/* =========================================================
-   ATTENTION CARD
-========================================================= */
-
-function AttentionCard({
-  title,
-  value,
-  description,
-  onClick,
-}: {
-  title: string;
-  value: string;
-  description: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-left transition hover:border-gray-300 hover:bg-white"
-    >
-
-      <p className="text-xs font-semibold text-gray-500">
-        {title}
-      </p>
-
-      <p className="mt-2 text-2xl font-bold text-gray-900">
-        {value}
-      </p>
-
-      <p className="mt-1 text-[10px] text-gray-400">
-        {description}
-      </p>
-
-    </button>
-  );
-}
-
-/* =========================================================
-   ENROLLMENT CHART
-========================================================= */
-
-function EnrollmentChart({
-  data,
-}: {
-  data: EnrollmentTrend[];
-}) {
-  const width = 800;
-  const height = 280;
-
-  const left = 45;
-  const right = 20;
-  const top = 20;
-  const bottom = 40;
-
-  const chartWidth =
-    width - left - right;
-
-  const chartHeight =
-    height - top - bottom;
-
-  const max = Math.max(
-    ...data.map(
-      (item) => item.value,
-    ),
-  );
-
-  const min = Math.min(
-    ...data.map(
-      (item) => item.value,
-    ),
-  );
-
-  const range = max - min || 1;
-
-  const points = data.map(
-    (item, index) => {
-      const x =
-        left +
-        (index /
-          Math.max(
-            data.length - 1,
-            1,
-          )) *
-          chartWidth;
-
-      const y =
-        top +
-        (1 -
-          (item.value - min) /
-            range) *
-          chartHeight;
-
-      return {
-        ...item,
-        x,
-        y,
-      };
-    },
-  );
-
-  const line = points
-    .map(
-      (point, index) =>
-        `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`,
-    )
-    .join(" ");
-
-  const area = `${line} L ${
-    points[points.length - 1]
-      .x
-  } ${height - bottom} L ${
-    points[0].x
-  } ${height - bottom} Z`;
-
-  return (
-    <div className="overflow-x-auto">
-
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        className="h-[280px] min-w-[650px] w-full"
-      >
-
-        {/* GRID */}
-
-        {[0, 1, 2, 3, 4].map(
-          (index) => {
-            const y =
-              top +
-              (chartHeight /
-                4) *
-                index;
-
-            const value = Math.round(
-              max -
-                (range / 4) *
-                  index,
-            );
-
-            return (
-              <g key={index}>
-
-                <line
-                  x1={left}
-                  x2={
-                    width -
-                    right
-                  }
-                  y1={y}
-                  y2={y}
-                  stroke="currentColor"
-                  className="text-gray-100"
-                />
-
-                <text
-                  x={left - 8}
-                  y={y + 4}
-                  textAnchor="end"
-                  className="fill-gray-400 text-[10px]"
-                >
-                  {value}
-                </text>
-
-              </g>
-            );
-          },
-        )}
-
-        {/* AREA */}
-
-        <path
-          d={area}
-          fill="currentColor"
-          className="text-gray-100"
-        />
-
-        {/* LINE */}
-
-        <path
-          d={line}
-          fill="none"
-          stroke="currentColor"
-          className="text-gray-900"
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-
-        {/* POINTS */}
-
-        {points.map(
-          (point) => (
-            <g
-              key={point.month}
-            >
-
-              <circle
-                cx={point.x}
-                cy={point.y}
-                r="5"
-                fill="white"
-                stroke="currentColor"
-                className="text-gray-900"
-                strokeWidth="3"
+          <SectionCard
+            title="Training Statistics"
+            description="Current training and batch status"
+            icon={BookOpen}
+          >
+            <div className="divide-y divide-slate-100">
+              <MetricRow
+                label="Active Programs"
+                value={
+                  dashboard.training.activeTrainingPrograms
+                }
+                icon={BookOpen}
+                iconClassName="bg-violet-50 text-violet-600"
               />
 
-              <text
-                x={point.x}
-                y={
-                  height - 14
+              <MetricRow
+                label="Total Programs"
+                value={
+                  dashboard.training.totalTrainingPrograms
                 }
-                textAnchor="middle"
-                className="fill-gray-400 text-[10px]"
-              >
-                {point.month}
-              </text>
+                icon={BookOpen}
+              />
 
-            </g>
-          ),
-        )}
+              <MetricRow
+                label="Total Batches"
+                value={dashboard.training.totalBatches}
+                icon={CalendarDays}
+              />
 
-      </svg>
+              <MetricRow
+                label="Ongoing Batches"
+                value={dashboard.training.ongoingBatches}
+                icon={Activity}
+                iconClassName="bg-amber-50 text-amber-600"
+              />
 
-    </div>
-  );
-}
+              <MetricRow
+                label="Upcoming Batches"
+                value={
+                  dashboard.training.upcomingBatchesCount
+                }
+                icon={Clock3}
+                iconClassName="bg-blue-50 text-blue-600"
+              />
 
-/* =========================================================
-   CAPACITY ITEM
-========================================================= */
-
-function CapacityItem({
-  name,
-  enrolled,
-  capacity,
-}: TrainingCapacity) {
-  const percentage = Math.round(
-    (enrolled / capacity) *
-      100,
-  );
-
-  return (
-    <div>
-
-      <div className="mb-2 flex items-center justify-between gap-3">
-
-        <span className="truncate text-xs font-semibold text-gray-700">
-          {name}
-        </span>
-
-        <span className="shrink-0 text-xs font-bold text-gray-900">
-          {enrolled}/{capacity}
-        </span>
-
-      </div>
-
-      <div className="h-2 overflow-hidden rounded-full bg-gray-100">
-
-        <div
-          className="h-full rounded-full bg-gray-900 transition-all"
-          style={{
-            width: `${percentage}%`,
-          }}
-        />
-
-      </div>
-
-      <p className="mt-1 text-right text-[9px] text-gray-400">
-        {percentage}% capacity
-      </p>
-
-    </div>
-  );
-}
-
-/* =========================================================
-   UPCOMING TRAINING CARD
-========================================================= */
-
-function UpcomingTrainingCard({
-  training,
-  onClick,
-}: {
-  training: UpcomingTraining;
-  onClick: () => void;
-}) {
-  const percentage = Math.round(
-    (training.enrolled /
-      training.capacity) *
-      100,
-  );
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="group overflow-hidden rounded-2xl border border-gray-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md"
-    >
-
-      {/* DATE STRIP */}
-
-      <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-4 py-3">
-
-        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
-          Upcoming
-        </span>
-
-        <span className="text-[10px] font-semibold text-gray-400">
-          {training.id}
-        </span>
-
-      </div>
-
-      <div className="p-5">
-
-        <h3 className="line-clamp-2 text-sm font-bold leading-5 text-gray-900">
-          {training.title}
-        </h3>
-
-        <p className="mt-1 font-mono text-[9px] text-gray-400">
-          {training.batch}
-        </p>
-
-        <div className="mt-5 space-y-2.5">
-
-          <DetailRow
-            label="Date"
-            value={training.date}
-          />
-
-          <DetailRow
-            label="Time"
-            value={training.time}
-          />
-
-          <DetailRow
-            label="Trainer"
-            value={training.trainer}
-          />
-
-          <DetailRow
-            label="Location"
-            value={training.location}
-          />
-
+              <MetricRow
+                label="Completed Batches"
+                value={
+                  dashboard.training.completedBatches
+                }
+                icon={CheckCircle2}
+                iconClassName="bg-emerald-50 text-emerald-600"
+              />
+            </div>
+          </SectionCard>
         </div>
 
-        <div className="mt-5 border-t border-gray-100 pt-4">
+        {/* =================================================
+            RECENT + UPCOMING
+        ================================================= */}
 
-          <div className="flex items-center justify-between">
+        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+          <RecentEnrollmentsCard
+            enrollments={dashboard.recentEnrollments}
+          />
 
-            <span className="text-[10px] font-semibold text-gray-500">
-              Enrollment
+          <UpcomingBatchesCard
+            batches={dashboard.upcomingBatches}
+          />
+        </div>
+
+        {/* =================================================
+            SYSTEM METRICS
+        ================================================= */}
+
+        <div className="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          <ServiceRequestsCard dashboard={dashboard} />
+
+          <TrainerApplicationsCard dashboard={dashboard} />
+
+          <CertificatesCard dashboard={dashboard} />
+
+          <AttendanceCard dashboard={dashboard} />
+        </div>
+
+        {/* =================================================
+            ASSESSMENT
+        ================================================= */}
+
+        <div className="mt-5">
+          <AssessmentPerformanceCard dashboard={dashboard} />
+        </div>
+
+        {/* =================================================
+            FOOTER INFO
+        ================================================= */}
+
+        <div className="mt-5 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 text-xs text-slate-400">
+            <Activity className="h-3.5 w-3.5" />
+            <span>
+              Dashboard data is loaded from the admin dashboard
+              API.
             </span>
-
-            <span className="text-[10px] font-bold text-gray-900">
-              {training.enrolled}/
-              {training.capacity}
-            </span>
-
           </div>
 
-          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100">
-
-            <div
-              className="h-full rounded-full bg-gray-900"
-              style={{
-                width: `${percentage}%`,
-              }}
-            />
-
+          <div className="flex items-center gap-2 text-xs text-slate-400">
+            <CalendarDays className="h-3.5 w-3.5" />
+            <span>
+              Updated automatically when refreshed.
+            </span>
           </div>
-
         </div>
-
-        <div className="mt-4 text-right text-xs font-bold text-gray-400 transition group-hover:text-gray-900">
-          Open training →
-        </div>
-
       </div>
-
-    </button>
-  );
-}
-
-/* =========================================================
-   DETAIL ROW
-========================================================= */
-
-function DetailRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="flex gap-3">
-
-      <span className="w-14 shrink-0 text-[9px] font-bold uppercase tracking-wide text-gray-400">
-        {label}
-      </span>
-
-      <span className="text-[10px] font-medium text-gray-700">
-        {value}
-      </span>
-
-    </div>
-  );
-}
-
-/* =========================================================
-   ACTIVITY ITEM
-========================================================= */
-
-function ActivityItem({
-  activity,
-}: {
-  activity: Activity;
-}) {
-  return (
-    <div className="flex gap-4 px-5 py-4">
-
-      <div className="relative flex shrink-0 flex-col items-center">
-
-        <ActivityIcon
-          type={activity.type}
-        />
-
-        <span className="absolute top-10 h-full w-px bg-gray-100" />
-
-      </div>
-
-      <div className="min-w-0 flex-1">
-
-        <div className="flex flex-col justify-between gap-1 sm:flex-row">
-
-          <p className="text-sm font-semibold text-gray-900">
-            {activity.title}
-          </p>
-
-          <span className="text-[10px] text-gray-400">
-            {activity.time}
-          </span>
-
-        </div>
-
-        <p className="mt-1 text-xs leading-5 text-gray-500">
-          {activity.description}
-        </p>
-
-      </div>
-
-    </div>
-  );
-}
-
-/* =========================================================
-   ACTIVITY ICON
-========================================================= */
-
-function ActivityIcon({
-  type,
-}: {
-  type: Activity["type"];
-}) {
-  const labels = {
-    enrollment: "E",
-    training: "T",
-    attendance: "A",
-    assessment: "AS",
-    system: "S",
-  };
-
-  return (
-    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-[9px] font-black text-gray-600">
-      {labels[type]}
-    </div>
-  );
-}
-
-/* =========================================================
-   SYSTEM STATUS
-========================================================= */
-
-function SystemStatus({
-  title,
-  status,
-}: {
-  title: string;
-  status: string;
-}) {
-  return (
-    <div className="flex items-center justify-between">
-
-      <div className="flex items-center gap-3">
-
-        <span className="h-2 w-2 rounded-full bg-emerald-500" />
-
-        <span className="text-xs font-medium text-gray-700">
-          {title}
-        </span>
-
-      </div>
-
-      <span className="text-[10px] font-semibold text-emerald-600">
-        {status}
-      </span>
-
-    </div>
+    </main>
   );
 }

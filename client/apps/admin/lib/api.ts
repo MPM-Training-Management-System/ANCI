@@ -15,7 +15,8 @@ import {
   ServiceApi,
   AdminUserApi,
   AuthAPIs,
-  PracticalAssessmentApi
+  PracticalAssessmentApi,
+  AdminDashboardApi
 } from "@repo/api";
 
 import {
@@ -79,6 +80,10 @@ export const authAPIs =
   
 export const adminUserApi =
   new AdminUserApi(api);
+
+  export const adminDashboardApi =
+  new AdminDashboardApi(api);
+
 
 
 
