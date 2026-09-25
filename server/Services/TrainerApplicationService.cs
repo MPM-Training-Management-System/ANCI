@@ -32,66 +32,68 @@ public class TrainerApplicationService
     // =========================================================
     // GET MY APPLICATION
     // =========================================================
+public async Task<TrainerApplicationDto?> 
+    GetMyApplicationAsync(
+        Guid userId)
+{
+    var application = await _db.TrainerApplications
+        .AsNoTracking()
+        .Include(x => x.User)
+        .Include(x => x.Educations)
+        .Include(x => x.Certifications)
+        .Include(x => x.Documents)
+        .FirstOrDefaultAsync(
+            x => x.UserId == userId
+        );
 
-    public async Task<TrainerApplicationDto?>
-        GetMyApplicationAsync(
-            Guid userId)
+    if (application is null)
     {
-        return await _db.TrainerApplications
-            .AsNoTracking()
-            .Where(
-                x =>
-                    x.UserId == userId
-            )
-            .Select(
-                x =>
-                    MapApplication(x)
-            )
-            .FirstOrDefaultAsync();
+        return null;
     }
 
+    return MapApplication(application);
+}
 
-    // =========================================================
-    // ADMIN - GET ALL APPLICATIONS
-    // =========================================================
+public async Task<List<TrainerApplicationDto>> 
+    GetAllAsync()
+{
+    var applications = await _db.TrainerApplications
+        .AsNoTracking()
+        .Include(x => x.User)
+        .Include(x => x.Educations)
+        .Include(x => x.Certifications)
+        .Include(x => x.Documents)
+        .OrderByDescending(
+            x => x.CreatedAt
+        )
+        .ToListAsync();
 
-    public async Task<List<TrainerApplicationDto>>
-        GetAllAsync()
+    return applications
+        .Select(MapApplication)
+        .ToList();
+}
+
+  public async Task<TrainerApplicationDto?> 
+    GetByIdAsync(
+        Guid id)
+{
+    var application = await _db.TrainerApplications
+        .AsNoTracking()
+        .Include(x => x.User)
+        .Include(x => x.Educations)
+        .Include(x => x.Certifications)
+        .Include(x => x.Documents)
+        .FirstOrDefaultAsync(
+            x => x.Id == id
+        );
+
+    if (application is null)
     {
-        return await _db.TrainerApplications
-            .AsNoTracking()
-            .OrderByDescending(
-                x =>
-                    x.CreatedAt
-            )
-            .Select(
-                x =>
-                    MapApplication(x)
-            )
-            .ToListAsync();
+        return null;
     }
 
-
-    // =========================================================
-    // GET APPLICATION BY ID
-    // =========================================================
-
-    public async Task<TrainerApplicationDto?>
-        GetByIdAsync(
-            Guid id)
-    {
-        return await _db.TrainerApplications
-            .AsNoTracking()
-            .Where(
-                x =>
-                    x.Id == id
-            )
-            .Select(
-                x =>
-                    MapApplication(x)
-            )
-            .FirstOrDefaultAsync();
-    }
+    return MapApplication(application);
+}
 
 
     // =========================================================
@@ -103,17 +105,17 @@ public class TrainerApplicationService
             Guid userId,
             UpdateTrainerApplicationRequest request)
     {
-        var application =
-            await _db.TrainerApplications
-                .FirstOrDefaultAsync(
-                    x =>
-                        x.UserId == userId
-                );
+       var application =
+    await _db.TrainerApplications
+        .Include(x => x.User)
+        .FirstOrDefaultAsync(
+            x => x.UserId == userId
+        );
 
-        if (application is null)
-        {
-            return null;
-        }
+if (application is null)
+{
+    return null;
+}
 
 
         // =====================================================
@@ -1351,133 +1353,131 @@ public class TrainerApplicationService
         await _db.SaveChangesAsync();
     }
 
+private static TrainerApplicationDto
+    MapApplication(
+        TrainerApplication x)
+{
+    return new TrainerApplicationDto(
 
-    // =========================================================
-    // MAP APPLICATION TO DTO
-    // =========================================================
+        // =================================================
+        // BASIC
+        // =================================================
 
-    private static TrainerApplicationDto
-        MapApplication(
-            TrainerApplication x)
-    {
-        return new TrainerApplicationDto(
-            // =================================================
-            // BASIC
-            // =================================================
+        x.Id,
+        x.UserId,
 
-            x.Id,
-            x.UserId,
+        // =================================================
+        // USER
+        // =================================================
 
-            // =================================================
-            // USER
-            // =================================================
+        x.User?.UserCode ?? string.Empty,
+        x.User?.FullName ?? string.Empty,
+        x.User?.Email ?? string.Empty,
+        x.User?.MobileNumber,
 
-            x.User.UserCode,
-            x.User.FullName,
-            x.User.Email,
-            x.User.MobileNumber,
+        // =================================================
+        // PERSONAL
+        // =================================================
 
-            // =================================================
-            // PERSONAL
-            // =================================================
+        x.FirstName,
+        x.MiddleName,
+        x.LastName,
+        x.Suffix,
+        x.BirthDate,
+        x.Gender,
+        x.Address,
 
-            x.FirstName,
-            x.MiddleName,
-            x.LastName,
-            x.Suffix,
-            x.BirthDate,
-            x.Gender,
-            x.Address,
+        // =================================================
+        // PROFESSIONAL
+        // =================================================
 
-            // =================================================
-            // PROFESSIONAL
-            // =================================================
+        x.Specialization,
+        x.ProfessionalTitle,
+        x.CurrentOrganization,
+        x.Bio,
+        x.YearsOfExperience,
 
-            x.Specialization,
-            x.ProfessionalTitle,
-            x.CurrentOrganization,
-            x.Bio,
-            x.YearsOfExperience,
+        // =================================================
+        // LICENSE
+        // =================================================
 
-            // =================================================
-            // LICENSE
-            // =================================================
+        x.ProfessionalLicenseNumber,
+        x.ProfessionalLicenseType,
+        x.ProfessionalLicenseExpirationDate,
 
-            x.ProfessionalLicenseNumber,
-            x.ProfessionalLicenseType,
-            x.ProfessionalLicenseExpirationDate,
+        // =================================================
+        // PROFILE
+        // =================================================
 
-            // =================================================
-            // PROFILE
-            // =================================================
+        x.ProfileImageUrl,
 
-            x.ProfileImageUrl,
+        // =================================================
+        // STATUS
+        // =================================================
 
-            // =================================================
-            // STATUS
-            // =================================================
+        x.Status.ToString(),
+        x.AdminRemarks,
 
-            x.Status.ToString(),
-            x.AdminRemarks,
+        x.CreatedAt,
+        x.SubmittedAt,
 
-            x.CreatedAt,
-            x.SubmittedAt,
+        // =================================================
+        // EDUCATION
+        // =================================================
 
-            // =================================================
-            // EDUCATION
-            // =================================================
+        x.Educations?
+            .Select(
+                education =>
+                    new TrainerApplicationEducationDto(
+                        education.Id,
+                        education.Degree,
+                        education.FieldOfStudy,
+                        education.Institution,
+                        education.YearGraduated
+                    )
+            )
+            .ToList()
+            ?? new List<TrainerApplicationEducationDto>(),
 
-            x.Educations
-                .Select(
-                    education =>
-                        new TrainerApplicationEducationDto(
-                            education.Id,
-                            education.Degree,
-                            education.FieldOfStudy,
-                            education.Institution,
-                            education.YearGraduated
-                        )
-                )
-                .ToList(),
+        // =================================================
+        // CERTIFICATIONS
+        // =================================================
 
-            // =================================================
-            // CERTIFICATIONS
-            // =================================================
+        x.Certifications?
+            .Select(
+                certification =>
+                    new TrainerApplicationCertificationDto(
+                        certification.Id,
+                        certification.Name,
+                        certification.IssuingOrganization,
+                        certification.IssuedDate,
+                        certification.ExpirationDate,
+                        certification.CertificateUrl
+                    )
+            )
+            .ToList()
+            ?? new List<TrainerApplicationCertificationDto>(),
 
-            x.Certifications
-                .Select(
-                    certification =>
-                        new TrainerApplicationCertificationDto(
-                            certification.Id,
-                            certification.Name,
-                            certification.IssuingOrganization,
-                            certification.IssuedDate,
-                            certification.ExpirationDate,
-                            certification.CertificateUrl
-                        )
-                )
-                .ToList(),
+        // =================================================
+        // DOCUMENTS
+        // =================================================
 
-            // =================================================
-            // DOCUMENTS
-            // =================================================
-
-            x.Documents
-                .Select(
-                    document =>
-                        new TrainerApplicationDocumentDto(
-                            document.Id,
-                            document.DocumentType,
-                            document.FileName,
-                            document.FileUrl,
-                            document.Status.ToString(),
-                            document.ReviewRemarks
-                        )
-                )
-                .ToList()
-        );
-    }
-
+        x.Documents?
+            .Select(
+                document =>
+                    new TrainerApplicationDocumentDto(
+                        document.Id,
+                        document.DocumentType,
+                        document.FileName,
+                        document.FileUrl,
+                        document.Status.ToString(),
+                        document.ReviewRemarks
+                    )
+            )
+            .ToList()
+            ?? new List<TrainerApplicationDocumentDto>()
+    );
+}
 
     // =========================================================
     // CLEAN STRING
