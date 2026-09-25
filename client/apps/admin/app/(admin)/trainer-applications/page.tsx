@@ -1160,19 +1160,12 @@ function EducationList({
     </div>
   );
 }
-
-// =============================================================
-// CERTIFICATION LIST
-// =============================================================
-
 function CertificationList({
   application,
 }: {
   application: TrainerApplication;
 }) {
-  const certifications = (
-    application.certifications ?? []
-  ) as unknown[];
+  const certifications = application.certifications ?? [];
 
   if (certifications.length === 0) {
     return (
@@ -1182,115 +1175,124 @@ function CertificationList({
 
   return (
     <div className="space-y-3">
-      {certifications.map((certification, index) => {
-        const item = asRecord(certification);
-
-        return (
-          <div
-            key={
-              String(
-                item.id ??
-                  item.Id ??
-                  `certification-${index}`,
-              )
-            }
-            className="
-              rounded-xl
-              border
-              border-slate-200
-              bg-white
-              p-4
-            "
-          >
-            <div className="mb-3 flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                <Award className="h-4 w-4" />
-              </div>
-
-              <div>
-                <p className="text-sm font-bold text-slate-800">
-                  {getRecordValue(
-                    item,
-                    "name",
-                    "Name",
-                    "certificationName",
-                    "CertificationName",
-                    "title",
-                    "Title",
-                  )}
-                </p>
-
-                <p className="text-xs text-slate-400">
-                  Certification #{index + 1}
-                </p>
-              </div>
+      {certifications.map((certification, index) => (
+        <div
+          key={
+            certification.id ??
+            `certification-${index}`
+          }
+          className="
+            rounded-xl
+            border
+            border-slate-200
+            bg-white
+            p-4
+          "
+        >
+          <div className="mb-3 flex items-center gap-3">
+            <div
+              className="
+                flex
+                h-9
+                w-9
+                items-center
+                justify-center
+                rounded-lg
+                bg-slate-100
+                text-slate-500
+              "
+            >
+              <Award className="h-4 w-4" />
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <Info
-                label="Certification Name"
-                value={getRecordValue(
-                  item,
-                  "name",
-                  "Name",
-                  "certificationName",
-                  "CertificationName",
-                  "title",
-                  "Title",
-                )}
-              />
+            <div>
+              <p className="text-sm font-bold text-slate-800">
+                {certification.name}
+              </p>
 
-              <Info
-                label="Certification Number"
-                value={getRecordValue(
-                  item,
-                  "number",
-                  "Number",
-                  "certificationNumber",
-                  "CertificationNumber",
-                )}
-              />
-
-              <Info
-                label="Issuing Organization"
-                value={getRecordValue(
-                  item,
-                  "issuingOrganization",
-                  "IssuingOrganization",
-                  "issuer",
-                  "Issuer",
-                )}
-              />
-
-              <Info
-                label="Issue Date"
-                value={formatOptionalDate(
-                  getRecordValue(
-                    item,
-                    "issueDate",
-                    "IssueDate",
-                  ),
-                )}
-              />
-
-              <Info
-                label="Expiration Date"
-                value={formatOptionalDate(
-                  getRecordValue(
-                    item,
-                    "expirationDate",
-                    "ExpirationDate",
-                  ),
-                )}
-              />
+              <p className="text-xs text-slate-400">
+                Certification #{index + 1}
+              </p>
             </div>
           </div>
-        );
-      })}
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <Info
+              label="Certification Name"
+              value={certification.name}
+            />
+
+            <Info
+              label="Issuing Organization"
+              value={
+                certification.issuingOrganization
+              }
+            />
+
+            <Info
+              label="Issue Date"
+              value={
+                certification.issuedDate
+                  ? formatDate(
+                      certification.issuedDate,
+                    )
+                  : "Not provided"
+              }
+            />
+
+            <Info
+              label="Expiration Date"
+              value={
+                certification.expirationDate
+                  ? formatDate(
+                      certification.expirationDate,
+                    )
+                  : "Not provided"
+              }
+            />
+
+            {certification.certificateUrl && (
+              <div
+                className="
+                  flex
+                  items-end
+                  rounded-xl
+                  border
+                  border-slate-100
+                  bg-slate-50/70
+                  p-4
+                "
+              >
+                <a
+                  href={certification.certificateUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="
+                    inline-flex
+                    items-center
+                    gap-2
+                    rounded-lg
+                    bg-slate-900
+                    px-3
+                    py-2
+                    text-xs
+                    font-bold
+                    text-white
+                    transition
+                    hover:bg-slate-800
+                  "
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  View Certificate
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
-
 // =============================================================
 // DOCUMENT LIST
 // =============================================================

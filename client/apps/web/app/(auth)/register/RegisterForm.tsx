@@ -23,20 +23,18 @@ export default function TrainerRegisterForm() {
     handleSubmit,
     formState: { errors },
   } = useForm<RegisterTrainerFormValues>({
-    defaultValues: {
-      firstName: "",
-      middleName: "",
-      lastName: "",
-      email: "",
-      mobileNumber: "",
-      password: "",
-      confirmPassword: "",
-      specialization: "",
-      yearsOfExperience: undefined,
-      certificationName: "",
-      certificationNumber: "",
-      profileImage: undefined,
-    },
+   defaultValues: {
+  firstName: "",
+  middleName: "",
+  lastName: "",
+  email: "",
+  mobileNumber: "",
+  password: "",
+  confirmPassword: "",
+  specialization: "",
+  yearsOfExperience: undefined,
+  profileImage: undefined,
+},
   });
 
   const [profileImage, setProfileImage] = useState<File | undefined>();
@@ -283,65 +281,43 @@ export default function TrainerRegisterForm() {
                 </div>
               </section>
 
-              <section>
-                <SectionTitle
-                  title="Professional Information"
-                  description="Your experience and qualifications."
-                />
+             <section>
+  <SectionTitle
+    title="Professional Information"
+    description="Your experience and qualifications."
+  />
 
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
-                  <Field
-                    label="Specialization"
-                    error={errors.specialization?.message}
-                  >
-                    <input
-                      {...register("specialization", {
-                        required: "Specialization is required.",
-                      })}
-                      placeholder="e.g. Leadership Training"
-                      className={inputClass}
-                    />
-                  </Field>
+  <div className="mt-4 grid gap-4 md:grid-cols-2">
+    <Field
+      label="Specialization"
+      error={errors.specialization?.message}
+    >
+      <input
+        {...register("specialization", {
+          required: "Specialization is required.",
+        })}
+        placeholder="e.g. Leadership Training"
+        className={inputClass}
+      />
+    </Field>
 
-                  <Field
-                    label="Years of Experience"
-                    error={errors.yearsOfExperience?.message}
-                  >
-                    <input
-                      type="number"
-                      min="0"
-                      {...register("yearsOfExperience", {
-                        setValueAs: (value) =>
-                          value === "" ? undefined : Number(value),
-                      })}
-                      placeholder="5"
-                      className={inputClass}
-                    />
-                  </Field>
-
-                  <Field
-                    label="Certification Name"
-                    error={errors.certificationName?.message}
-                  >
-                    <input
-                      {...register("certificationName")}
-                      placeholder="e.g. TESDA NC II"
-                      className={inputClass}
-                    />
-                  </Field>
-
-                  <Field
-                    label="Certification Number"
-                    error={errors.certificationNumber?.message}
-                  >
-                    <input
-                      {...register("certificationNumber")}
-                      placeholder="Certification number"
-                      className={inputClass}
-                    />
-                  </Field>
-                </div>
-              </section>
+    <Field
+      label="Years of Experience"
+      error={errors.yearsOfExperience?.message}
+    >
+      <input
+        type="number"
+        min="0"
+        {...register("yearsOfExperience", {
+          setValueAs: (value) =>
+            value === "" ? undefined : Number(value),
+        })}
+        placeholder="5"
+        className={inputClass}
+      />
+    </Field>
+  </div>
+</section>
 
               <section>
                 <SectionTitle
