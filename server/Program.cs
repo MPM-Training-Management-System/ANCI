@@ -29,7 +29,7 @@ builder.Services.AddCors(options =>
     {
         policy
             .WithOrigins(
-                "http://localhost:3000","http://localhost:3001", "http://192.168.1.16:3000","https://anci-tms.vercel.app"
+                "http://localhost:3000","http://localhost:3001", "http://192.168.1.16:3000","https://anci-tms.vercel.app", "http://acenextgen.com"
             )
             .AllowAnyHeader()
             .AllowAnyMethod();
@@ -55,6 +55,9 @@ builder.Services.AddScoped<
     IOpenCodeService,
     OpenCodeService
 >();
+builder.Services.AddScoped<
+    ILearningModuleChunkingService,
+    LearningModuleChunkingService>();
 builder.Services.AddScoped<IParticipationService, ParticipationService>();
 builder.Services.AddScoped<
     IDocumentTextExtractionService,
