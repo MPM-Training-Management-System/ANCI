@@ -403,50 +403,48 @@ public class LearningMaterialsController
     // UPLOAD MODULE FILE
     // POST /api/learning-materials/modules/{moduleId}/upload
     // =========================================================
-
-    [HttpPost(
-        "modules/{moduleId:guid}/upload")]
-    [Authorize(Roles = "Trainer")]
-    [Consumes("multipart/form-data")]
-    public async Task<
-        ActionResult<LearningModuleDto>>
-        UploadModuleFile(
-            Guid moduleId,
-            [FromForm]
-            IFormFile file)
+[HttpPost(
+    "modules/{moduleId:guid}/upload")]
+[Authorize(Roles = "Trainer")]
+[Consumes("multipart/form-data")]
+public async Task<
+    ActionResult<LearningModuleDto>>
+    UploadModuleFile(
+        Guid moduleId,
+        [FromForm]
+        UploadLearningModuleRequest request)
+{
+    try
     {
-        try
-        {
-            var result =
-                await _service.UploadModuleFileAsync(
-                    moduleId,
-                    file);
+        var result =
+            await _service.UploadModuleFileAsync(
+                moduleId,
+                request.File);
 
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new
-            {
-                message = ex.Message
-            });
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
-        }
+        return Ok(result);
     }
-
+    catch (KeyNotFoundException ex)
+    {
+        return NotFound(new
+        {
+            message = ex.Message
+        });
+    }
+    catch (ArgumentException ex)
+    {
+        return BadRequest(new
+        {
+            message = ex.Message
+        });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return BadRequest(new
+        {
+            message = ex.Message
+        });
+    }
+}
     // =========================================================
     // EXTRACT MODULE TEXT
     // POST /api/learning-materials/modules/{moduleId}/extract
