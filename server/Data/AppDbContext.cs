@@ -152,6 +152,9 @@ public DbSet<ParticipationRecord>
 
     public DbSet<Certificate> Certificates => Set<Certificate>();
 
+    public DbSet<LearningModuleChunk> LearningModuleChunks
+    => Set<LearningModuleChunk>();
+
     
     // ==========================================
     // Model Configuration
@@ -1117,6 +1120,8 @@ modelBuilder.Entity<LearningMaterial>(entity =>
         .IsRequired(false);
 
     entity.HasIndex(x => x.TrainingBatchId);
+    entity.Property(x => x.ExtractedText)
+    .HasColumnType("text");
 
     entity.HasIndex(x => new
     {
@@ -1129,17 +1134,9 @@ modelBuilder.Entity<LearningMaterial>(entity =>
     .HasForeignKey(x => x.TrainingBatchId)
     .OnDelete(DeleteBehavior.Cascade);
 });
-
-// ==========================================
-// LEARNING MODULE
-// ==========================================
-
 modelBuilder.Entity<LearningModule>(entity =>
 {
     entity.HasKey(x => x.Id);
-
-    entity.Property(x => x.ModuleNumber)
-        .IsRequired();
 
     entity.Property(x => x.Title)
         .IsRequired()
@@ -1148,31 +1145,70 @@ modelBuilder.Entity<LearningModule>(entity =>
     entity.Property(x => x.Description)
         .HasMaxLength(2000);
 
-    entity.Property(x => x.DisplayOrder)
+    entity.Property(x => x.FileUrl)
+        .HasMaxLength(1000);
+
+    entity.Property(x => x.PublicId)
+        .HasMaxLength(500);
+
+    entity.Property(x => x.FileName)
+        .HasMaxLength(255);
+
+    entity.Property(x => x.ContentType)
+        .HasMaxLength(150);
+
+    entity.Property(x => x.FileSize)
+        .IsRequired(false);
+
+    entity.Property(x => x.ExtractedText)
+        .HasColumnType("text");
+
+    entity.Property(x => x.WelcomeContent)
+        .HasColumnType("text");
+
+    entity.Property(x => x.LearningObjectives)
+        .HasColumnType("text");
+
+    entity.Property(x => x.Summary)
+        .HasColumnType("text");
+
+    entity.Property(x => x.KeyTakeaways)
+        .HasColumnType("text");
+
+    entity.HasIndex(x => x.LearningMaterialId);
+
+    entity.HasOne(x => x.LearningMaterial)
+        .WithMany(x => x.Modules)
+        .HasForeignKey(x => x.LearningMaterialId)
+        .OnDelete(DeleteBehavior.Cascade);
+});
+
+modelBuilder.Entity<LearningModuleChunk>(entity =>
+{
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.Content)
+        .IsRequired()
+        .HasColumnType("text");
+
+    entity.Property(x => x.ChunkNumber)
+        .IsRequired();
+
+    entity.Property(x => x.CharacterCount)
         .IsRequired();
 
     entity.Property(x => x.CreatedAt)
         .IsRequired();
 
-    entity.Property(x => x.UpdatedAt)
-        .IsRequired(false);
-
     entity.HasIndex(x => new
     {
-        x.LearningMaterialId,
-        x.ModuleNumber
-    })
-    .IsUnique();
-
-    entity.HasIndex(x => new
-    {
-        x.LearningMaterialId,
-        x.DisplayOrder
+        x.LearningModuleId,
+        x.ChunkNumber
     });
 
-    entity.HasOne(x => x.LearningMaterial)
-        .WithMany(x => x.Modules)
-        .HasForeignKey(x => x.LearningMaterialId)
+    entity.HasOne(x => x.LearningModule)
+        .WithMany(x => x.Chunks)
+        .HasForeignKey(x => x.LearningModuleId)
         .OnDelete(DeleteBehavior.Cascade);
 });
 // ==========================================

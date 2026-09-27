@@ -112,7 +112,6 @@ public class OpenCodeService : IOpenCodeService
 
             UseShellExecute = false,
 
-            RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
 
@@ -138,7 +137,10 @@ public class OpenCodeService : IOpenCodeService
 
         psi.ArgumentList.Add("run");
 
-        // Model
+        // ========================================================
+        // MODEL
+        // ========================================================
+
         psi.ArgumentList.Add("-m");
         psi.ArgumentList.Add(model);
 
@@ -152,6 +154,12 @@ public class OpenCodeService : IOpenCodeService
             psi.ArgumentList.Add(imagePath);
         }
 
+        // ========================================================
+        // PROMPT
+        // ========================================================
+
+        psi.ArgumentList.Add(prompt);
+
         using var process = new Process
         {
             StartInfo = psi
@@ -160,21 +168,6 @@ public class OpenCodeService : IOpenCodeService
         try
         {
             process.Start();
-
-            // ====================================================
-            // SEND PROMPT THROUGH STDIN
-            // ====================================================
-
-            await process.StandardInput.WriteAsync(
-                prompt.AsMemory(),
-                cancellationToken
-            );
-
-            await process.StandardInput.FlushAsync(
-                cancellationToken
-            );
-
-            process.StandardInput.Close();
 
             // ====================================================
             // READ OUTPUT

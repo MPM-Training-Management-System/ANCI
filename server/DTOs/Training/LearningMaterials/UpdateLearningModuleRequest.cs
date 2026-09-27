@@ -8,5 +8,14 @@ public class UpdateLearningModuleRequest
 
     public string? Description { get; set; }
 
+    // AI-generated content
+    public string? WelcomeContent { get; set; }
+
+    public List<string>? LearningObjectives { get; set; }
+
+    public string? Summary { get; set; }
+
+    public List<string>? KeyTakeaways { get; set; }
+
     public int DisplayOrder { get; set; }
 }

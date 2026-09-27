@@ -9,7 +9,6 @@ export type TrainingStatus =
   | "Completed"
   | "Cancelled";
 
-
 // ==========================================
 // TRAINING PROGRAM REQUIREMENT
 // ==========================================
@@ -22,7 +21,6 @@ export interface TrainingProgramRequirement {
   displayOrder: number;
 }
 
-
 // ==========================================
 // TRAINING PROGRAM REQUIREMENT REQUEST
 // ==========================================
@@ -33,7 +31,6 @@ export interface TrainingProgramRequirementRequest {
   isRequired: boolean;
   displayOrder: number;
 }
-
 
 // ==========================================
 // CREATE TRAINING PROGRAM
@@ -47,7 +44,6 @@ export interface CreateTrainingProgramRequest {
   requirements: TrainingProgramRequirementRequest[];
 }
 
-
 // ==========================================
 // UPDATE TRAINING PROGRAM
 // ==========================================
@@ -59,7 +55,6 @@ export interface UpdateTrainingProgramRequest {
   durationHours: number;
   requirements: TrainingProgramRequirementRequest[];
 }
-
 
 // ==========================================
 // TRAINING PROGRAM
@@ -76,7 +71,6 @@ export interface TrainingProgram {
   requirements: TrainingProgramRequirement[];
 }
 
-
 // ==========================================
 // TRAINING BATCH
 // ==========================================
@@ -92,7 +86,6 @@ export interface CreateTrainingBatchRequest {
   capacity: number;
 }
 
-
 export interface UpdateTrainingBatchRequest {
   trainingProgramId: string;
   batchCode: string;
@@ -103,6 +96,11 @@ export interface UpdateTrainingBatchRequest {
   endTime?: string | null;
   capacity: number;
 }
+
+// ==========================================
+// TRAINING BATCH TRAINER
+// ==========================================
+
 export interface TrainingBatchTrainer {
   trainerProfileId: string;
   userId: string;
@@ -111,6 +109,10 @@ export interface TrainingBatchTrainer {
   email: string;
   profileImageUrl: string | null;
 }
+
+// ==========================================
+// TRAINING BATCH
+// ==========================================
 
 export interface TrainingBatch {
   id: string;
@@ -125,14 +127,12 @@ export interface TrainingBatch {
   trainer: TrainingBatchTrainer | null;
 }
 
-
 // ==========================================
 // UPDATE BATCH STATUS
 // ==========================================
 
 export type UpdateTrainingBatchStatusRequest =
   TrainingStatus;
-
 
 // ==========================================
 // TRAINER ASSIGNMENT
@@ -143,7 +143,6 @@ export interface AssignTrainerRequest {
   trainingBatchId: string;
 }
 
-
 export interface TrainerAssignment {
   id: string;
   trainerProfileId: string;
@@ -153,7 +152,6 @@ export interface TrainerAssignment {
   assignedAt: string;
   isActive: boolean;
 }
-
 
 // ==========================================
 // TRAINING PROGRAM DOCUMENT
@@ -167,7 +165,6 @@ export interface TrainingProgramDocument {
   fileUrl: string;
   uploadedAt: string;
 }
-
 
 // ==========================================
 // UPLOAD TRAINING PROGRAM DOCUMENT
@@ -202,23 +199,14 @@ export type TrainingSessionStatus =
 
 export interface TrainingScheduleRecommendation {
   trainingBatchId: string;
-
   requiredHours: number;
-
   startDate: string;
-
   endDate: string;
-
   availableWeeks: number;
-
   recommendedSessionsPerWeek: number;
-
   recommendedHoursPerSession: number;
-
   estimatedWeeklyHours: number;
-
   estimatedSessionCount: number;
-
   includeWeekends: boolean;
 }
 
@@ -228,11 +216,8 @@ export interface TrainingScheduleRecommendation {
 
 export interface GenerateTrainingScheduleRequest {
   sessionsPerWeek: number;
-
   startTime: string;
-
   endTime: string;
-
   includeWeekends: boolean;
 }
 
@@ -242,51 +227,36 @@ export interface GenerateTrainingScheduleRequest {
 
 export interface TrainingSession {
   id: string;
-
   trainingBatchId: string;
-
   sessionNumber: number;
-
   sessionDate: string;
-
   startTime: string;
-
   endTime: string;
-
   durationHours: number;
-
   status: TrainingSessionStatus;
 }
 
 // ==========================================
-// LEARNING MATERIAL TYPE
+// LEARNING MATERIAL
 // ==========================================
 
 export interface LearningMaterial {
   id: string;
-
   trainingBatchId: string;
-
   batchCode: string;
-
   title: string;
-
   description: string | null;
-
   materialType: string;
-
   fileUrl: string;
-
   fileName: string | null;
-
   contentType: string | null;
-
   fileSize: number | null;
 
+  // Original extracted document content
+  extractedText: string | null;
+
   isPublished: boolean;
-
   createdAt: string;
-
   updatedAt: string | null;
 }
 
@@ -295,22 +265,19 @@ export interface LearningMaterial {
 // ==========================================
 
 export interface CreateLearningMaterialRequest {
-
+  trainingBatchId: string;
   title: string;
-
   description?: string | null;
-
   materialType: string;
 }
+
 // ==========================================
 // UPDATE LEARNING MATERIAL
 // ==========================================
 
 export interface UpdateLearningMaterialRequest {
   title: string;
-
   description?: string | null;
-
   materialType: string;
 }
 
@@ -328,18 +295,12 @@ export interface UploadLearningMaterialRequest {
 
 export interface LearningMaterialExtraction {
   learningMaterialId: string;
-
   fileName: string;
-
   contentType: string | null;
-
   text: string;
-
   characterCount: number;
-
   pageCount: number;
 }
-
 // ==========================================
 // LEARNING MODULE
 // ==========================================
@@ -354,6 +315,37 @@ export interface LearningModule {
   title: string;
 
   description: string | null;
+
+  // ==========================================
+  // MODULE-SPECIFIC FILE
+  // ==========================================
+
+  fileUrl: string | null;
+
+  fileName: string | null;
+
+  contentType: string | null;
+
+  fileSize: number | null;
+
+  // Extracted text from the module-specific file
+  extractedText: string | null;
+
+  // ==========================================
+  // AI-GENERATED SUPPORT CONTENT
+  // ==========================================
+
+  welcomeContent: string | null;
+
+  learningObjectives: string[];
+
+  summary: string | null;
+
+  keyTakeaways: string[];
+
+  // ==========================================
+  // META
+  // ==========================================
 
   displayOrder: number;
 
@@ -370,13 +362,9 @@ export interface LearningModule {
 
 export interface CreateLearningModuleRequest {
   learningMaterialId: string;
-
   moduleNumber: number;
-
   title: string;
-
   description?: string | null;
-
   displayOrder: number;
 }
 
@@ -386,12 +374,42 @@ export interface CreateLearningModuleRequest {
 
 export interface UpdateLearningModuleRequest {
   moduleNumber: number;
-
   title: string;
-
   description?: string | null;
 
+  // AI-generated support content
+  welcomeContent?: string | null;
+  learningObjectives?: string[];
+  summary?: string | null;
+  keyTakeaways?: string[];
+
   displayOrder: number;
+}
+
+// ==========================================
+// UPLOAD LEARNING MODULE FILE
+// ==========================================
+
+export interface UploadLearningModuleRequest {
+  file: File;
+}
+
+// ==========================================
+// LEARNING MODULE EXTRACTION
+// ==========================================
+
+export interface LearningModuleExtraction {
+  learningModuleId: string;
+
+  fileName: string | null;
+
+  contentType: string | null;
+
+  text: string;
+
+  characterCount: number;
+
+  pageCount: number;
 }
 
 // ==========================================
@@ -400,23 +418,14 @@ export interface UpdateLearningModuleRequest {
 
 export interface LearningSection {
   id: string;
-
   learningModuleId: string;
-
   sectionNumber: number;
-
   title: string;
-
   contentType: string;
-
   content: string | null;
-
   mediaUrl: string | null;
-
   displayOrder: number;
-
   createdAt: string;
-
   updatedAt: string | null;
 }
 
@@ -426,17 +435,11 @@ export interface LearningSection {
 
 export interface CreateLearningSectionRequest {
   learningModuleId: string;
-
   sectionNumber: number;
-
   title: string;
-
   contentType: string;
-
   content?: string | null;
-
   mediaUrl?: string | null;
-
   displayOrder: number;
 }
 
@@ -446,14 +449,9 @@ export interface CreateLearningSectionRequest {
 
 export interface UpdateLearningSectionRequest {
   sectionNumber: number;
-
   title: string;
-
   contentType: string;
-
   content?: string | null;
-
   mediaUrl?: string | null;
-
   displayOrder: number;
 }

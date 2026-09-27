@@ -1,71 +1,115 @@
 export const LearningMaterialEndpoints = {
+
   // ==========================================
   // LEARNING MATERIAL
   // ==========================================
 
-  listByBatch: (trainingBatchId: string) =>
+  listByBatch: (
+    trainingBatchId: string,
+  ) =>
     `/api/learning-materials/batch/${trainingBatchId}`,
 
-  byId: (id: string) =>
+  byId: (
+    id: string,
+  ) =>
     `/api/learning-materials/${id}`,
 
   create:
     "/api/learning-materials",
 
-  update: (id: string) =>
+  update: (
+    id: string,
+  ) =>
     `/api/learning-materials/${id}`,
 
-  delete: (id: string) =>
+  delete: (
+    id: string,
+  ) =>
     `/api/learning-materials/${id}`,
 
-  publish: (id: string) =>
+  publish: (
+    id: string,
+  ) =>
     `/api/learning-materials/${id}/publish`,
 
   // ==========================================
   // FILE
   // ==========================================
 
-  uploadFile: (id: string) =>
+  uploadFile: (
+    id: string,
+  ) =>
     `/api/learning-materials/${id}/upload`,
 
-  extractText: (id: string) =>
+  extractText: (
+    id: string,
+  ) =>
     `/api/learning-materials/${id}/extract`,
-
-  generateModules: (id: string) =>
-    `/api/learning-materials/${id}/generate-modules`,
 
   // ==========================================
   // MODULES
   // ==========================================
 
-  modules: (learningMaterialId: string) =>
+  modules: (
+    learningMaterialId: string,
+  ) =>
     `/api/learning-materials/${learningMaterialId}/modules`,
 
   createModule:
     "/api/learning-materials/modules",
 
-  updateModule: (moduleId: string) =>
+  updateModule: (
+    moduleId: string,
+  ) =>
     `/api/learning-materials/modules/${moduleId}`,
 
-  deleteModule: (moduleId: string) =>
+  deleteModule: (
+    moduleId: string,
+  ) =>
     `/api/learning-materials/modules/${moduleId}`,
+
+      // ==========================================
+  // MODULE FILE
+  // ==========================================
+
+  uploadModuleFile: (
+    moduleId: string,
+  ) =>
+    `/api/learning-materials/modules/${moduleId}/upload`,
+
+  extractModuleText: (
+    moduleId: string,
+  ) =>
+    `/api/learning-materials/modules/${moduleId}/extract`,
+
+  // ==========================================
+  // AI MODULE CONTENT
+  // ==========================================
+
+  generateModuleAiContent: (
+    moduleId: string,
+  ) =>
+    `/api/learning-materials/modules/${moduleId}/generate-ai`,
 
   // ==========================================
   // SECTIONS
   // ==========================================
 
-  sections: (moduleId: string) =>
+  sections: (
+    moduleId: string,
+  ) =>
     `/api/learning-materials/modules/${moduleId}/sections`,
 
   createSection:
     "/api/learning-materials/sections",
 
-  updateSection: (sectionId: string) =>
+  updateSection: (
+    sectionId: string,
+  ) =>
     `/api/learning-materials/sections/${sectionId}`,
 
-  deleteSection: (sectionId: string) =>
+  deleteSection: (
+    sectionId: string,
+  ) =>
     `/api/learning-materials/sections/${sectionId}`,
-
-  
-
 };

@@ -8,6 +8,8 @@ public class LearningMaterialDto
 
     public string BatchCode { get; set; } = default!;
 
+    public string? ExtractedText { get; set; }
+
     public string Title { get; set; } = default!;
 
     public string? Description { get; set; }

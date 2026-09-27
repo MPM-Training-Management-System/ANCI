@@ -5,6 +5,7 @@ import type {
   LearningMaterial,
   LearningMaterialExtraction,
   LearningModule,
+  LearningModuleExtraction,
   LearningSection,
   UpdateLearningMaterialRequest,
   UpdateLearningModuleRequest,
@@ -85,7 +86,6 @@ export class LearningMaterialApi {
           "Content-Type": "application/json",
         },
 
-        // ApiClient already stringifies the body.
         body: request,
       },
     );
@@ -111,7 +111,6 @@ export class LearningMaterialApi {
           "Content-Type": "application/json",
         },
 
-        // ApiClient already stringifies the body.
         body: request,
       },
     );
@@ -164,8 +163,7 @@ export class LearningMaterialApi {
     file: File,
   ): Promise<LearningMaterial> {
 
-    const formData =
-      new FormData();
+    const formData = new FormData();
 
     formData.append(
       "File",
@@ -176,7 +174,6 @@ export class LearningMaterialApi {
       LearningMaterialEndpoints.uploadFile(id),
       {
         method: "POST",
-
         body: formData,
       },
     );
@@ -194,24 +191,6 @@ export class LearningMaterialApi {
 
     return this.api.request<LearningMaterialExtraction>(
       LearningMaterialEndpoints.extractText(id),
-      {
-        method: "POST",
-      },
-    );
-  }
-
-
-  // =========================================================
-  // GENERATE MODULES
-  // POST /api/learning-materials/{id}/generate-modules
-  // =========================================================
-
-  async generateModules(
-    id: string,
-  ): Promise<LearningModule[]> {
-
-    return this.api.request<LearningModule[]>(
-      LearningMaterialEndpoints.generateModules(id),
       {
         method: "POST",
       },
@@ -305,6 +284,75 @@ export class LearningMaterialApi {
       ),
       {
         method: "DELETE",
+      },
+    );
+  }
+
+
+    // =========================================================
+  // UPLOAD MODULE FILE
+  // POST /api/learning-materials/modules/{moduleId}/upload
+  // =========================================================
+
+  async uploadModuleFile(
+    moduleId: string,
+    file: File,
+  ): Promise<LearningModule> {
+
+    const formData = new FormData();
+
+    formData.append(
+      "file",
+      file,
+    );
+
+    return this.api.request<LearningModule>(
+      LearningMaterialEndpoints.uploadModuleFile(
+        moduleId,
+      ),
+      {
+        method: "POST",
+        body: formData,
+      },
+    );
+  }
+
+
+  // =========================================================
+  // EXTRACT MODULE TEXT
+  // POST /api/learning-materials/modules/{moduleId}/extract
+  // =========================================================
+
+  async extractModuleText(
+    moduleId: string,
+  ): Promise<LearningModuleExtraction> {
+
+    return this.api.request<LearningModuleExtraction>(
+      LearningMaterialEndpoints.extractModuleText(
+        moduleId,
+      ),
+      {
+        method: "POST",
+      },
+    );
+  }
+
+
+  // =========================================================
+  // GENERATE AI MODULE CONTENT
+  // POST /api/learning-materials/modules/{moduleId}/generate-ai
+  // =========================================================
+
+  async generateModuleAiContent(
+    moduleId: string,
+  ): Promise<LearningModule> {
+
+    return this.api.request<LearningModule>(
+      LearningMaterialEndpoints.generateModuleAiContent(
+        moduleId,
+      ),
+      {
+        method: "POST",
       },
     );
   }

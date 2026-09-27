@@ -1,26 +1,18 @@
-using System.Text;
 using System.Text.RegularExpressions;
+
 using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Presentation;
 using DocumentFormat.OpenXml.Wordprocessing;
+
 using server.Services.Interfaces;
+
+using UglyToad.PdfPig;
 
 namespace server.Services.DocumentExtraction;
 
 public class DocumentTextExtractionService
-    : server.Services.Interfaces.IDocumentTextExtractionService
+    : IDocumentTextExtractionService
 {
-    private readonly ICloudinaryService _cloudinary;
-
-    public DocumentTextExtractionService(
-        ICloudinaryService cloudinary)
-    {
-        _cloudinary = cloudinary;
-    }
-
-    // ============================================================
-    // PUBLIC ENTRY
-    // ============================================================
-
     public async Task<DocumentTextExtractionResult> ExtractAsync(
         Stream stream,
         string fileName,
@@ -42,15 +34,228 @@ public class DocumentTextExtractionService
             Path.GetExtension(fileName)
                 .ToLowerInvariant();
 
-        if (extension != ".docx")
+        return extension switch
         {
-            throw new ArgumentException(
-                "Text extraction currently supports DOCX files only.");
+            ".pdf" => await ExtractPdfAsync(
+                stream,
+                fileName),
+
+            ".docx" => await ExtractDocxAsync(
+                stream,
+                fileName),
+
+            ".pptx" => await ExtractPptxAsync(
+                stream,
+                fileName),
+
+            _ => throw new ArgumentException(
+                "Unsupported file type. " +
+                "Allowed files are PDF, DOCX, and PPTX.")
+        };
+    }
+
+    // ============================================================
+    // PDF EXTRACTION
+    // ============================================================
+
+    private async Task<DocumentTextExtractionResult>
+        ExtractPdfAsync(
+            Stream stream,
+            string fileName)
+    {
+        if (stream.CanSeek)
+        {
+            stream.Position = 0;
         }
 
-        return await ExtractDocxAsync(
-            stream,
-            fileName);
+        using var memoryStream =
+            new MemoryStream();
+
+        await stream.CopyToAsync(memoryStream);
+
+        memoryStream.Position = 0;
+
+        using var document =
+            PdfDocument.Open(memoryStream);
+
+        var paragraphs =
+            new List<DocumentParagraph>();
+
+        var blocks =
+            new List<DocumentBlock>();
+
+        var textParts =
+            new List<string>();
+
+        var pageCount =
+            document.NumberOfPages;
+
+        foreach (var page in document.GetPages())
+        {
+            var pageText =
+                page.Text?.Trim();
+
+            if (string.IsNullOrWhiteSpace(pageText))
+            {
+                continue;
+            }
+
+            var paragraph =
+                new DocumentParagraph
+                {
+                    Text = pageText,
+                    Style = "PDF"
+                };
+
+            paragraphs.Add(paragraph);
+
+            blocks.Add(
+                new DocumentBlock
+                {
+                    Type = "Paragraph",
+                    Paragraph = paragraph
+                });
+
+            textParts.Add(pageText);
+        }
+
+        return new DocumentTextExtractionResult
+        {
+            Text = string.Join(
+                Environment.NewLine,
+                textParts),
+
+            PageCount = pageCount,
+
+            Paragraphs = paragraphs,
+
+            Tables = [],
+
+            Images = [],
+
+            MediaLinks = [],
+
+            Blocks = blocks
+        };
+    }
+
+    // ============================================================
+    // PPTX EXTRACTION
+    // ============================================================
+
+    private async Task<DocumentTextExtractionResult>
+        ExtractPptxAsync(
+            Stream stream,
+            string fileName)
+    {
+        if (stream.CanSeek)
+        {
+            stream.Position = 0;
+        }
+
+        using var memoryStream =
+            new MemoryStream();
+
+        await stream.CopyToAsync(memoryStream);
+
+        memoryStream.Position = 0;
+
+        using var presentation =
+            PresentationDocument.Open(
+                memoryStream,
+                false);
+
+        var presentationPart =
+            presentation.PresentationPart;
+
+        if (presentationPart is null)
+        {
+            return new DocumentTextExtractionResult
+            {
+                Text = string.Empty,
+                PageCount = 0,
+                Paragraphs = [],
+                Tables = [],
+                Images = [],
+                MediaLinks = [],
+                Blocks = []
+            };
+        }
+
+        var paragraphs =
+            new List<DocumentParagraph>();
+
+        var blocks =
+            new List<DocumentBlock>();
+
+        var textParts =
+            new List<string>();
+
+        var slideParts =
+            presentationPart
+                .SlideParts
+                .ToList();
+
+        foreach (var slidePart in slideParts)
+        {
+            var slideText =
+                slidePart
+                    .Slide
+                    .Descendants<
+                        DocumentFormat.OpenXml.Drawing.Text>()
+                    .Select(x => x.Text?.Trim())
+                    .Where(x =>
+                        !string.IsNullOrWhiteSpace(x))
+                    .ToList();
+
+            if (slideText.Count == 0)
+            {
+                continue;
+            }
+
+            var combinedSlideText =
+                string.Join(
+                    " ",
+                    slideText);
+
+            var paragraph =
+                new DocumentParagraph
+                {
+                    Text = combinedSlideText,
+                    Style = "PPTX"
+                };
+
+            paragraphs.Add(paragraph);
+
+            blocks.Add(
+                new DocumentBlock
+                {
+                    Type = "Paragraph",
+                    Paragraph = paragraph
+                });
+
+            textParts.Add(
+                combinedSlideText);
+        }
+
+        return new DocumentTextExtractionResult
+        {
+            Text = string.Join(
+                Environment.NewLine,
+                textParts),
+
+            PageCount = slideParts.Count,
+
+            Paragraphs = paragraphs,
+
+            Tables = [],
+
+            Images = [],
+
+            MediaLinks = [],
+
+            Blocks = blocks
+        };
     }
 
     // ============================================================
@@ -67,18 +272,37 @@ public class DocumentTextExtractionService
             stream.Position = 0;
         }
 
+        using var memoryStream =
+            new MemoryStream();
+
+        await stream.CopyToAsync(memoryStream);
+
+        memoryStream.Position = 0;
+
         using var document =
             WordprocessingDocument.Open(
-                stream,
+                memoryStream,
                 false);
 
         var mainPart =
             document.MainDocumentPart;
 
+        if (mainPart is null)
+        {
+            return new DocumentTextExtractionResult
+            {
+                Text = string.Empty,
+                PageCount = 0,
+                Paragraphs = [],
+                Tables = [],
+                Images = [],
+                MediaLinks = [],
+                Blocks = []
+            };
+        }
+
         var body =
-            mainPart?
-                .Document?
-                .Body;
+            mainPart.Document.Body;
 
         if (body is null)
         {
@@ -109,482 +333,291 @@ public class DocumentTextExtractionService
         var blocks =
             new List<DocumentBlock>();
 
-        /*
-         * =========================================================
-         * TEMPORARY DIRECTORY FOR OPENCODE IMAGE INPUT
-         * =========================================================
-         */
+        var textParts =
+            new List<string>();
 
-        var tempDirectory =
+        var imageOutputDirectory =
             Path.Combine(
                 Path.GetTempPath(),
-                "anc-nextgen",
-                "learning-materials",
-                Guid.NewGuid().ToString("N"));
+                "anci-learning-materials",
+                Guid.NewGuid().ToString());
 
         Directory.CreateDirectory(
-            tempDirectory);
+            imageOutputDirectory);
 
         try
         {
-            /*
-             * =====================================================
-             * READ DOCUMENT IN ORIGINAL ORDER
-             * =====================================================
-             */
+            // ----------------------------------------------------
+            // PARAGRAPHS
+            // ----------------------------------------------------
 
-            foreach (var element in body.Elements())
+            foreach (var paragraph
+                in body.Descendants<Paragraph>())
             {
-                /*
-                 * =================================================
-                 * PARAGRAPH
-                 * =================================================
-                 */
+                var text =
+                    paragraph.InnerText?.Trim();
 
-                if (element is Paragraph paragraph)
+                if (string.IsNullOrWhiteSpace(text))
                 {
-                    var paragraphText =
-                        paragraph.InnerText?.Trim()
-                        ?? string.Empty;
-
-                    var style =
-                        paragraph
-                            .ParagraphProperties?
-                            .ParagraphStyleId?
-                            .Val?
-                            .Value
-                        ?? string.Empty;
-
-                    /*
-                     * -------------------------------------------------
-                     * EXTRACT EMBEDDED IMAGES
-                     * -------------------------------------------------
-                     */
-
-                    if (mainPart is not null)
-                    {
-                        var drawingBlips =
-                            paragraph
-                                .Descendants<
-                                    DocumentFormat.OpenXml.Drawing.Blip>();
-
-                        foreach (var blip in drawingBlips)
-                        {
-                            var relationshipId =
-                                blip.Embed?.Value;
-
-                            if (string.IsNullOrWhiteSpace(
-                                    relationshipId))
-                            {
-                                continue;
-                            }
-
-                            var imagePart =
-                                mainPart.GetPartById(
-                                    relationshipId)
-                                as ImagePart;
-
-                            if (imagePart is null)
-                            {
-                                continue;
-                            }
-
-                            await using var imageStream =
-                                imagePart.GetStream();
-
-                            await using var imageMemoryStream =
-                                new MemoryStream();
-
-                            await imageStream.CopyToAsync(
-                                imageMemoryStream);
-
-                            if (imageMemoryStream.Length == 0)
-                            {
-                                continue;
-                            }
-
-                            imageMemoryStream.Position = 0;
-
-                            var imageExtension =
-                                GetImageExtension(
-                                    imagePart.ContentType);
-
-                            var imageNumber =
-                                images.Count + 1;
-
-                            var imageFileName =
-                                $"learning-material-image-{imageNumber}{imageExtension}";
-
-                            /*
-                             * =================================================
-                             * SAVE LOCAL COPY FOR OPENCODE
-                             * =================================================
-                             */
-
-                            var localImagePath =
-                                Path.Combine(
-                                    tempDirectory,
-                                    imageFileName);
-
-                            imageMemoryStream.Position = 0;
-
-                            await using (
-                                var localFileStream =
-                                    new FileStream(
-                                        localImagePath,
-                                        FileMode.Create,
-                                        FileAccess.Write,
-                                        FileShare.None,
-                                        81920,
-                                        useAsync: true))
-                            {
-                                await imageMemoryStream.CopyToAsync(
-                                    localFileStream);
-                            }
-
-                            /*
-                             * =================================================
-                             * UPLOAD SAME IMAGE TO CLOUDINARY
-                             * =================================================
-                             */
-
-                            imageMemoryStream.Position = 0;
-
-                            var imageUrl =
-                                await _cloudinary.UploadImageAsync(
-                                    imageMemoryStream,
-                                    imageFileName,
-                                    "ace-nextgen/learning-materials/images");
-
-                            var documentImage =
-                                new DocumentImage
-                                {
-                                    FileName =
-                                        imageFileName,
-
-                                    ContentType =
-                                        imagePart.ContentType,
-
-                                    Url =
-                                        imageUrl,
-
-                                    LocalPath =
-                                        localImagePath,
-
-                                    Order =
-                                        imageNumber
-                                };
-
-                            images.Add(
-                                documentImage);
-
-                            blocks.Add(
-                                new DocumentBlock
-                                {
-                                    Type = "Image",
-                                    Image = documentImage
-                                });
-                        }
-                    }
-
-                    /*
-                     * -------------------------------------------------
-                     * DETECT YOUTUBE / VIDEO URLS
-                     * -------------------------------------------------
-                     */
-
-                    var detectedMediaLinks =
-                        ExtractMediaLinks(
-                            paragraphText);
-
-                    foreach (var mediaLink in detectedMediaLinks)
-                    {
-                        mediaLinks.Add(
-                            mediaLink);
-
-                        blocks.Add(
-                            new DocumentBlock
-                            {
-                                Type = "Media",
-                                MediaLink = mediaLink
-                            });
-                    }
-
-                    /*
-                     * -------------------------------------------------
-                     * PARAGRAPH
-                     * -------------------------------------------------
-                     */
-
-                    if (!string.IsNullOrWhiteSpace(
-                            paragraphText))
-                    {
-                        var documentParagraph =
-                            new DocumentParagraph
-                            {
-                                Text =
-                                    paragraphText,
-
-                                Style =
-                                    style
-                            };
-
-                        paragraphs.Add(
-                            documentParagraph);
-
-                        blocks.Add(
-                            new DocumentBlock
-                            {
-                                Type = "Paragraph",
-                                Paragraph =
-                                    documentParagraph
-                            });
-                    }
-
                     continue;
                 }
 
-                /*
-                 * =================================================
-                 * TABLE
-                 * =================================================
-                 */
+                var style =
+                    paragraph
+                        .ParagraphProperties?
+                        .ParagraphStyleId?
+                        .Val?
+                        .Value
+                    ?? string.Empty;
 
-                if (element is Table table)
-                {
-                    var documentTable =
-                        new DocumentTable();
-
-                    foreach (
-                        var row in table.Elements<TableRow>())
+                var documentParagraph =
+                    new DocumentParagraph
                     {
-                        var documentRow =
-                            new DocumentTableRow();
+                        Text = text,
+                        Style = style
+                    };
 
-                        foreach (
-                            var cell in row.Elements<TableCell>())
-                        {
-                            var cellText =
-                                string.Join(
-                                    Environment.NewLine,
-                                    cell
-                                        .Descendants<Paragraph>()
-                                        .Select(p =>
-                                            p.InnerText?.Trim()
-                                            ?? string.Empty)
-                                        .Where(value =>
-                                            !string.IsNullOrWhiteSpace(
-                                                value)));
+                paragraphs.Add(
+                    documentParagraph);
 
-                            documentRow.Cells.Add(
-                                cellText);
-
-                            /*
-                             * Detect YouTube URLs inside table cells.
-                             */
-
-                            var detectedMediaLinks =
-                                ExtractMediaLinks(
-                                    cellText);
-
-                            foreach (var mediaLink
-                                in detectedMediaLinks)
-                            {
-                                mediaLinks.Add(
-                                    mediaLink);
-
-                                blocks.Add(
-                                    new DocumentBlock
-                                    {
-                                        Type = "Media",
-                                        MediaLink =
-                                            mediaLink
-                                    });
-                            }
-                        }
-
-                        if (documentRow.Cells.Count > 0)
-                        {
-                            documentTable.Rows.Add(
-                                documentRow);
-                        }
-                    }
-
-                    if (documentTable.Rows.Count > 0)
+                blocks.Add(
+                    new DocumentBlock
                     {
-                        tables.Add(
-                            documentTable);
+                        Type = "Paragraph",
+                        Paragraph = documentParagraph
+                    });
 
-                        blocks.Add(
-                            new DocumentBlock
-                            {
-                                Type = "Table",
-                                Table =
-                                    documentTable
-                            });
-                    }
-                }
+                textParts.Add(text);
+
+                ExtractMediaLinks(
+                    text,
+                    mediaLinks,
+                    blocks);
             }
 
-            /*
-             * =========================================================
-             * COMBINED TEXT
-             * =========================================================
-             */
+            // ----------------------------------------------------
+            // TABLES
+            // ----------------------------------------------------
 
-            var textParts =
-                new List<string>();
-
-            foreach (var block in blocks)
+            foreach (var table
+                in body.Descendants<Table>())
             {
-                if (block.Type == "Paragraph" &&
-                    block.Paragraph is not null)
-                {
-                    textParts.Add(
-                        block.Paragraph.Text);
-                }
+                var documentTable =
+                    new DocumentTable();
 
-                if (block.Type == "Table" &&
-                    block.Table is not null)
+                foreach (var row
+                    in table.Descendants<TableRow>())
                 {
-                    foreach (
-                        var row in block.Table.Rows)
+                    var documentRow =
+                        new DocumentTableRow();
+
+                    foreach (var cell
+                        in row.Descendants<TableCell>())
                     {
-                        textParts.Add(
-                            string.Join(
-                                " | ",
-                                row.Cells));
+                        var cellText =
+                            cell.InnerText?.Trim()
+                            ?? string.Empty;
+
+                        documentRow.Cells.Add(
+                            cellText);
                     }
+
+                    documentTable.Rows.Add(
+                        documentRow);
                 }
 
-                /*
-                 * Media URLs are included in extracted source
-                 * so the AI knows which video references exist.
-                 */
+                tables.Add(
+                    documentTable);
 
-                if (block.Type == "Media" &&
-                    block.MediaLink is not null)
-                {
-                    textParts.Add(
-                        $"[MEDIA_{block.MediaLink.Type.ToUpperInvariant()}] " +
-                        block.MediaLink.Url);
-                }
-
-                /*
-                 * Tell the AI that an actual image exists at this
-                 * position in the source.
-                 */
-
-                if (block.Type == "Image" &&
-                    block.Image is not null)
-                {
-                    textParts.Add(
-                        $"[SOURCE_IMAGE_{block.Image.Order}] " +
-                        $"FileName: {block.Image.FileName} " +
-                        $"CloudinaryUrl: {block.Image.Url}");
-                }
+                blocks.Add(
+                    new DocumentBlock
+                    {
+                        Type = "Table",
+                        Table = documentTable
+                    });
             }
 
-            var combinedText =
-                string.Join(
-                    Environment.NewLine,
-                    textParts);
+            // ----------------------------------------------------
+            // EMBEDDED IMAGES
+            // ----------------------------------------------------
 
-            /*
-             * =========================================================
-             * RETURN EXTRACTION
-             * =========================================================
-             */
+            var drawingElements =
+                body
+                    .Descendants<
+                        DocumentFormat.OpenXml.Drawing.Blip>()
+                    .ToList();
+
+            var imageOrder = 0;
+
+            foreach (var blip
+                in drawingElements)
+            {
+                var embedId =
+                    blip.Embed?.Value;
+
+                if (string.IsNullOrWhiteSpace(embedId))
+                {
+                    continue;
+                }
+
+                var imagePart =
+                    mainPart.GetPartById(
+                        embedId) as ImagePart;
+
+                if (imagePart is null)
+                {
+                    continue;
+                }
+
+                imageOrder++;
+
+                var extension =
+                    GetImageExtension(
+                        imagePart.ContentType);
+
+                var imageFileName =
+                    $"image-{imageOrder}{extension}";
+
+                var localPath =
+                    Path.Combine(
+                        imageOutputDirectory,
+                        imageFileName);
+
+                await using (var imageStream =
+                    imagePart.GetStream())
+                await using (var outputStream =
+                    File.Create(localPath))
+                {
+                    await imageStream.CopyToAsync(
+                        outputStream);
+                }
+
+                var documentImage =
+                    new DocumentImage
+                    {
+                        FileName =
+                            imageFileName,
+
+                        ContentType =
+                            imagePart.ContentType,
+
+                        Url = string.Empty,
+
+                        LocalPath =
+                            localPath,
+
+                        Order =
+                            imageOrder
+                    };
+
+                images.Add(
+                    documentImage);
+
+                blocks.Add(
+                    new DocumentBlock
+                    {
+                        Type = "Image",
+                        Image = documentImage
+                    });
+            }
+
+            // ----------------------------------------------------
+            // RESULT
+            // ----------------------------------------------------
 
             return new DocumentTextExtractionResult
             {
-                Text =
-                    combinedText,
+                Text = string.Join(
+                    Environment.NewLine,
+                    textParts),
 
-                PageCount =
-                    0,
+                PageCount = 0,
 
-                Paragraphs =
-                    paragraphs,
+                Paragraphs = paragraphs,
 
-                Tables =
-                    tables,
+                Tables = tables,
 
-                Images =
-                    images,
+                Images = images,
 
-                MediaLinks =
-                    mediaLinks
-                        .GroupBy(x => x.Url)
-                        .Select(x => x.First())
-                        .ToList(),
+                MediaLinks = mediaLinks,
 
-                Blocks =
-                    blocks
+                Blocks = blocks
             };
         }
-        catch
+        finally
         {
-            /*
-             * If extraction fails, remove temporary files.
-             */
-
             TryDeleteDirectory(
-                tempDirectory);
-
-            throw;
+                imageOutputDirectory);
         }
     }
 
     // ============================================================
-    // MEDIA URL DETECTION
+    // MEDIA LINK EXTRACTION
     // ============================================================
 
-    private static List<DocumentMediaLink>
-        ExtractMediaLinks(
-            string text)
+    private static void ExtractMediaLinks(
+        string text,
+        List<DocumentMediaLink> mediaLinks,
+        List<DocumentBlock> blocks)
     {
-        var results =
-            new List<DocumentMediaLink>();
-
         if (string.IsNullOrWhiteSpace(text))
         {
-            return results;
+            return;
         }
 
         var matches =
             Regex.Matches(
                 text,
-                @"https?://(?:www\.)?(?:youtube\.com/watch\?[^\s]+|youtu\.be/[^\s]+)",
+                @"https?://[^\s]+",
                 RegexOptions.IgnoreCase);
 
         foreach (Match match in matches)
         {
             var url =
-                match.Value
-                    .Trim()
-                    .TrimEnd(
-                        '.',
-                        ',',
-                        ';',
-                        ')',
-                        ']');
+                match.Value.TrimEnd(
+                    '.',
+                    ',',
+                    ';',
+                    ':',
+                    ')',
+                    ']',
+                    '}');
 
             if (string.IsNullOrWhiteSpace(url))
             {
                 continue;
             }
 
-            results.Add(
+            var type =
+                url.Contains(
+                    "youtube.com",
+                    StringComparison.OrdinalIgnoreCase)
+                ||
+                url.Contains(
+                    "youtu.be",
+                    StringComparison.OrdinalIgnoreCase)
+                    ? "YouTube"
+                    : "Link";
+
+            var mediaLink =
                 new DocumentMediaLink
                 {
                     Url = url,
-                    Type = "Video",
-                    Order = results.Count + 1
+                    Type = type,
+                    Order =
+                        mediaLinks.Count + 1
+                };
+
+            mediaLinks.Add(
+                mediaLink);
+
+            blocks.Add(
+                new DocumentBlock
+                {
+                    Type = "MediaLink",
+                    MediaLink = mediaLink
                 });
         }
-
-        return results;
     }
 
     // ============================================================
@@ -594,18 +627,17 @@ public class DocumentTextExtractionService
     private static string GetImageExtension(
         string contentType)
     {
-        return contentType
-            .ToLowerInvariant()
-            switch
+        return contentType.ToLowerInvariant() switch
         {
             "image/png" => ".png",
             "image/jpeg" => ".jpg",
             "image/jpg" => ".jpg",
-            "image/webp" => ".webp",
             "image/gif" => ".gif",
+            "image/webp" => ".webp",
             "image/bmp" => ".bmp",
             "image/tiff" => ".tiff",
-            _ => ".png"
+            "image/svg+xml" => ".svg",
+            _ => ".bin"
         };
     }
 
@@ -614,20 +646,21 @@ public class DocumentTextExtractionService
     // ============================================================
 
     private static void TryDeleteDirectory(
-        string directory)
+        string directoryPath)
     {
         try
         {
-            if (Directory.Exists(directory))
+            if (Directory.Exists(directoryPath))
             {
                 Directory.Delete(
-                    directory,
+                    directoryPath,
                     recursive: true);
             }
         }
         catch
         {
-            // Ignore cleanup errors.
+            // Cleanup failure should not
+            // break the extraction process.
         }
     }
 }
