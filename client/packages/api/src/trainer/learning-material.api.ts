@@ -5,7 +5,8 @@ import type {
   LearningMaterial,
   LearningMaterialExtraction,
   LearningModule,
-  LearningModuleExtraction,
+  LearningModuleFile,
+  LearningModuleFileExtraction,
   LearningSection,
   UpdateLearningMaterialRequest,
   UpdateLearningModuleRequest,
@@ -19,7 +20,6 @@ import {
 import {
   LearningMaterialEndpoints,
 } from "./LearningMaterialEndpoints";
-
 
 // ============================================================
 // LEARNING MATERIAL API
@@ -181,7 +181,7 @@ export class LearningMaterialApi {
 
 
   // =========================================================
-  // EXTRACT TEXT
+  // EXTRACT LEARNING MATERIAL TEXT
   // POST /api/learning-materials/{id}/extract
   // =========================================================
 
@@ -289,15 +289,15 @@ export class LearningMaterialApi {
   }
 
 
-    // =========================================================
+  // =========================================================
   // UPLOAD MODULE FILE
-  // POST /api/learning-materials/modules/{moduleId}/upload
+  // POST /api/learning-materials/modules/{moduleId}/files
   // =========================================================
 
   async uploadModuleFile(
     moduleId: string,
     file: File,
-  ): Promise<LearningModule> {
+  ): Promise<LearningModuleFile> {
 
     const formData = new FormData();
 
@@ -306,7 +306,7 @@ export class LearningMaterialApi {
       file,
     );
 
-    return this.api.request<LearningModule>(
+    return this.api.request<LearningModuleFile>(
       LearningMaterialEndpoints.uploadModuleFile(
         moduleId,
       ),
@@ -319,16 +319,41 @@ export class LearningMaterialApi {
 
 
   // =========================================================
-  // EXTRACT MODULE TEXT
+  // EXTRACT MODULE FILE TEXT
+  // POST /api/learning-materials/modules/{moduleId}/files/{fileId}/extract
+  // =========================================================
+
+  async extractModuleFileText(
+    moduleId: string,
+    fileId: string,
+  ): Promise<LearningModuleFileExtraction> {
+
+    return this.api.request<LearningModuleFileExtraction>(
+      LearningMaterialEndpoints.extractModuleFileText(
+        moduleId,
+        fileId,
+      ),
+      {
+        method: "POST",
+      },
+    );
+  }
+
+
+  // =========================================================
+  // EXTRACT ALL MODULE FILES
   // POST /api/learning-materials/modules/{moduleId}/extract
   // =========================================================
 
-  async extractModuleText(
+  async extractAllModuleFiles(
     moduleId: string,
-  ): Promise<LearningModuleExtraction> {
+  ): Promise<{ success: boolean; message: string }> {
 
-    return this.api.request<LearningModuleExtraction>(
-      LearningMaterialEndpoints.extractModuleText(
+    return this.api.request<{
+      success: boolean;
+      message: string;
+    }>(
+      LearningMaterialEndpoints.extractAllModuleFiles(
         moduleId,
       ),
       {

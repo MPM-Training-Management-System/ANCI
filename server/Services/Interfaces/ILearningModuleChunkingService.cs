@@ -1,9 +1,11 @@
+using server.Models.Learning;
+
 namespace server.Services.Interfaces;
 
 public interface ILearningModuleChunkingService
 {
-    List<string> SplitText(
-        string text,
-        int maxCharacters = 12000,
-        int overlapCharacters = 1000);
+    Task<List<LearningModuleChunk>> CreateChunksAsync(
+        Guid learningModuleId,
+        Guid learningModuleFileId,
+        string text);
 }

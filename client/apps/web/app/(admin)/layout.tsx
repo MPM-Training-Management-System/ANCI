@@ -5,6 +5,7 @@ import { useState } from "react";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
 import Sidebar from "@/components/admin/Sidebar";
 import Navbar from "@/components/admin/Navbar";
+import AuthGuard from "@/components/auth/AuthGuard";
 
 export default function AdminLayout({
   children,
@@ -101,7 +102,9 @@ export default function AdminLayout({
                 md:mt-25
               "
             >
+              <AuthGuard>
               {children}
+              </AuthGuard>
             </main>
           </div>
         </div>

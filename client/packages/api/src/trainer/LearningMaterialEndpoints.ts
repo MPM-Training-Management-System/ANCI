@@ -33,7 +33,7 @@ export const LearningMaterialEndpoints = {
     `/api/learning-materials/${id}/publish`,
 
   // ==========================================
-  // FILE
+  // LEARNING MATERIAL FILE
   // ==========================================
 
   uploadFile: (
@@ -68,16 +68,22 @@ export const LearningMaterialEndpoints = {
   ) =>
     `/api/learning-materials/modules/${moduleId}`,
 
-      // ==========================================
-  // MODULE FILE
+  // ==========================================
+  // MODULE FILES
   // ==========================================
 
   uploadModuleFile: (
     moduleId: string,
   ) =>
-    `/api/learning-materials/modules/${moduleId}/upload`,
+    `/api/learning-materials/modules/${moduleId}/files`,
 
-  extractModuleText: (
+  extractModuleFileText: (
+    moduleId: string,
+    fileId: string,
+  ) =>
+    `/api/learning-materials/modules/${moduleId}/files/${fileId}/extract`,
+
+  extractAllModuleFiles: (
     moduleId: string,
   ) =>
     `/api/learning-materials/modules/${moduleId}/extract`,

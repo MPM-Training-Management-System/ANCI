@@ -6,6 +6,8 @@ public class LearningModuleChunk
 
     public Guid LearningModuleId { get; set; }
 
+    public Guid LearningModuleFileId { get; set; }
+
     public int ChunkNumber { get; set; }
 
     public string Content { get; set; } = default!;
@@ -14,5 +16,8 @@ public class LearningModuleChunk
 
     public DateTime CreatedAt { get; set; }
 
+    // Relationships
     public LearningModule LearningModule { get; set; } = default!;
+
+    public LearningModuleFile LearningModuleFile { get; set; } = default!;
 }
