@@ -4,65 +4,51 @@
     "slug": "mobile1",
     "version": "1.0.0",
     "orientation": "portrait",
-
     "icon": "./assets/images/LOGO.png",
-
-    "scheme": "mobile1",
-
+    "scheme": "anci",
     "userInterfaceStyle": "automatic",
-
     "newArchEnabled": true,
-
     "ios": {
       "supportsTablet": true
     },
-
     "android": {
-  "adaptiveIcon": {
-    "foregroundImage": "./assets/images/LOGO.png",
-    "backgroundColor": "#FFFFFF"
-  },
-
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/LOGO.png",
+        "backgroundColor": "#FFFFFF"
+      },
       "edgeToEdgeEnabled": true,
-
       "predictiveBackGestureEnabled": false,
-
       "package": "com.anonymous.mobile1"
     },
-
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
-
-   "plugins": [
-  [
-    "expo-splash-screen",
-    {
-      "backgroundColor": "#FFFFFF",
-      "image": "./assets/images/ANCILOGO.png",
-      "imageWidth": 100,
-      "resizeMode": "contain"
-    }
-  ],
-
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#FFFFFF",
+          "image": "./assets/images/ANCILOGO.png",
+          "imageWidth": 100,
+          "resizeMode": "contain"
+        }
+      ],
       [
         "expo-local-authentication",
         {
           "faceIDPermission": "Allow ANCI to use Face ID to securely sign you in."
         }
-      ]
+      ],
+      "@react-native-google-signin/google-signin"
     ],
-
     "experiments": {
-  "typedRoutes": true,
-  "reactCompiler": true,
-  "autolinkingModuleResolution": true
-},
-
+      "typedRoutes": true,
+      "reactCompiler": true,
+      "autolinkingModuleResolution": true
+    },
     "extra": {
       "router": {},
-
       "eas": {
         "projectId": "2e9c4f81-11b9-4497-aef6-d8420fdb559f"
       }

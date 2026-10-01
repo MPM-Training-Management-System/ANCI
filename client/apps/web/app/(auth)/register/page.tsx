@@ -1,4 +1,5 @@
 /* TrainerRegisterPage.tsx */
+
 "use client";
 
 import {
@@ -8,7 +9,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { useRouter } from "next/navigation";
+
+import { useRouter, useSearchParams } from "next/navigation";
 
 import {
   useRegisterTrainer,
@@ -30,6 +32,8 @@ import type {
   CreateTrainerCertificationRequest,
   CreateTrainerEducationRequest,
 } from "@repo/types";
+
+import { notify } from "@repo/hooks";
 
 interface FormData {
   // Personal
@@ -123,72 +127,191 @@ const initialAddress: AddressData = {
   barangayName: "",
 };
 
-const emptyEducation = (): CreateTrainerEducationRequest => ({
-  degree: "",
-  fieldOfStudy: "",
-  institution: "",
-  yearGraduated: null,
-});
+const emptyEducation =
+  (): CreateTrainerEducationRequest => ({
+    degree: "",
+    fieldOfStudy: "",
+    institution: "",
+    yearGraduated: null,
+  });
 
-const emptyCertification = (): CreateTrainerCertificationRequest => ({
-  name: "",
-  issuingOrganization: "",
-  issuedDate: "",
-  expirationDate: "",
-  certificateUrl: "",
-});
+const emptyCertification =
+  (): CreateTrainerCertificationRequest => ({
+    name: "",
+    issuingOrganization: "",
+    issuedDate: "",
+    expirationDate: "",
+    certificateUrl: "",
+  });
 
 export default function TrainerRegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const { registerTrainer, isLoading, error } =
-    useRegisterTrainer(authApi);
+  const {
+    registerTrainer,
+    isLoading,
+    error,
+  } = useRegisterTrainer(authApi);
 
-  const [form, setForm] = useState<FormData>(initialForm);
-  const [address, setAddress] = useState<AddressData>(initialAddress);
+  const [form, setForm] =
+    useState<FormData>(initialForm);
 
-  const [educations, setEducations] = useState<
-    CreateTrainerEducationRequest[]
-  >([emptyEducation()]);
+  const [address, setAddress] =
+    useState<AddressData>(initialAddress);
 
-  const [certifications, setCertifications] = useState<
-    CreateTrainerCertificationRequest[]
-  >([emptyCertification()]);
+  const [educations, setEducations] =
+    useState<CreateTrainerEducationRequest[]>([
+      emptyEducation(),
+    ]);
 
-  const [provinces, setProvinces] = useState<PsgcItem[]>([]);
-  const [municipalities, setMunicipalities] = useState<
-    PsgcMunicipality[]
-  >([]);
-  const [barangays, setBarangays] = useState<PsgcBarangay[]>([]);
-  const [addressLoading, setAddressLoading] = useState(false);
+  const [certifications, setCertifications] =
+    useState<CreateTrainerCertificationRequest[]>([
+      emptyCertification(),
+    ]);
 
-  const [preview, setPreview] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [provinces, setProvinces] =
+    useState<PsgcItem[]>([]);
 
-  const [showPassword, setShowPassword] = useState(false);
+  const [municipalities, setMunicipalities] =
+    useState<PsgcMunicipality[]>([]);
+
+  const [barangays, setBarangays] =
+    useState<PsgcBarangay[]>([]);
+
+  const [addressLoading, setAddressLoading] =
+    useState(false);
+
+  const [preview, setPreview] =
+    useState<string | null>(null);
+
+  const fileInputRef =
+    useRef<HTMLInputElement | null>(null);
+
+  const [showPassword, setShowPassword] =
+    useState(false);
+
   const [showConfirmPassword, setShowConfirmPassword] =
     useState(false);
 
-  const [localError, setLocalError] = useState<string | null>(null);
+  const [localError, setLocalError] =
+    useState<string | null>(null);
 
-  const [showOtpModal, setShowOtpModal] = useState(false);
-  const [otp, setOtp] = useState("");
-  const [otpLoading, setOtpLoading] = useState(false);
-  const [otpError, setOtpError] = useState<string | null>(null);
-  const [otpSuccess, setOtpSuccess] = useState<string | null>(null);
-  const [registeredEmail, setRegisteredEmail] = useState("");
+  /* ------------------------------------------------------------------------ */
+  /* GOOGLE REGISTRATION                                                      */
+  /* ------------------------------------------------------------------------ */
+
+  const [isGoogleRegistration, setIsGoogleRegistration] =
+    useState(false);
+
+  const [googleIdToken, setGoogleIdToken] =
+    useState<string | null>(null);
+
+  const [googleProfileImageUrl, setGoogleProfileImageUrl] =
+    useState<string | null>(null);
+
+  /* ------------------------------------------------------------------------ */
+  /* OTP                                                                      */
+  /* ------------------------------------------------------------------------ */
+
+  const [showOtpModal, setShowOtpModal] =
+    useState(false);
+
+  const [otp, setOtp] =
+    useState("");
+
+  const [otpLoading, setOtpLoading] =
+    useState(false);
+
+  const [otpError, setOtpError] =
+    useState<string | null>(null);
+
+  const [otpSuccess, setOtpSuccess] =
+    useState<string | null>(null);
+
+  const [registeredEmail, setRegisteredEmail] =
+    useState("");
+
+  /* ------------------------------------------------------------------------ */
+  /* LOAD GOOGLE REGISTRATION DATA                                            */
+  /* ------------------------------------------------------------------------ */
+
+  useEffect(() => {
+    const googleMode =
+      searchParams.get("google") === "1";
+
+    if (!googleMode) {
+      return;
+    }
+
+    const token =
+      sessionStorage.getItem(
+        "google_registration_id_token"
+      );
+
+    if (!token) {
+      setLocalError(
+        "Google registration session expired. Please continue with Google again."
+      );
+
+      return;
+    }
+
+    const firstName =
+      searchParams.get("firstName") ?? "";
+
+    const lastName =
+      searchParams.get("lastName") ?? "";
+
+    const email =
+      searchParams.get("email") ?? "";
+
+    const profileImageUrl =
+      searchParams.get("profileImageUrl") ?? "";
+
+    setIsGoogleRegistration(true);
+    setGoogleIdToken(token);
+
+    setForm((current) => ({
+      ...current,
+      firstName,
+      lastName,
+      email,
+    }));
+
+    if (profileImageUrl) {
+      setGoogleProfileImageUrl(
+        profileImageUrl
+      );
+    }
+  }, [searchParams]);
+
+  /* ------------------------------------------------------------------------ */
+  /* LOAD PROVINCES                                                           */
+  /* ------------------------------------------------------------------------ */
 
   useEffect(() => {
     const loadProvinces = async () => {
       try {
         setAddressLoading(true);
 
-        const result = await getProvinces();
+        const result =
+          await getProvinces();
 
-        setProvinces(Array.isArray(result) ? result : []);
+        setProvinces(
+          Array.isArray(result)
+            ? result
+            : []
+        );
       } catch (err) {
-        console.error("Province loading error:", err);
-        setLocalError("Unable to load provinces.");
+        console.error(
+          "Province loading error:",
+          err
+        );
+
+        setLocalError(
+          "Unable to load provinces."
+        );
       } finally {
         setAddressLoading(false);
       }
@@ -197,6 +320,10 @@ export default function TrainerRegisterPage() {
     loadProvinces();
   }, []);
 
+  /* ------------------------------------------------------------------------ */
+  /* CLEANUP PREVIEW                                                          */
+  /* ------------------------------------------------------------------------ */
+
   useEffect(() => {
     return () => {
       if (preview) {
@@ -204,6 +331,10 @@ export default function TrainerRegisterPage() {
       }
     };
   }, [preview]);
+
+  /* ------------------------------------------------------------------------ */
+  /* FORM UPDATE                                                              */
+  /* ------------------------------------------------------------------------ */
 
   const updateField = (
     field: keyof FormData,
@@ -217,17 +348,24 @@ export default function TrainerRegisterPage() {
     setLocalError(null);
   };
 
+  /* ------------------------------------------------------------------------ */
+  /* ADDRESS                                                                  */
+  /* ------------------------------------------------------------------------ */
+
   const handleProvinceChange = async (
     provinceCode: string
   ) => {
-    const selected = provinces.find(
-      (item) => item.code === provinceCode
-    );
+    const selected =
+      provinces.find(
+        (item) =>
+          item.code === provinceCode
+      );
 
     setAddress((current) => ({
       ...current,
       provinceCode,
-      provinceName: selected?.name ?? "",
+      provinceName:
+        selected?.name ?? "",
 
       municipalityCode: "",
       municipalityName: "",
@@ -240,17 +378,22 @@ export default function TrainerRegisterPage() {
     setBarangays([]);
     setLocalError(null);
 
-    if (!provinceCode) return;
+    if (!provinceCode) {
+      return;
+    }
 
     try {
       setAddressLoading(true);
 
-      const result = await getMunicipalities(
-        provinceCode
-      );
+      const result =
+        await getMunicipalities(
+          provinceCode
+        );
 
       setMunicipalities(
-        Array.isArray(result) ? result : []
+        Array.isArray(result)
+          ? result
+          : []
       );
     } catch (err) {
       console.error(
@@ -269,14 +412,17 @@ export default function TrainerRegisterPage() {
   const handleMunicipalityChange = async (
     municipalityCode: string
   ) => {
-    const selected = municipalities.find(
-      (item) => item.code === municipalityCode
-    );
+    const selected =
+      municipalities.find(
+        (item) =>
+          item.code === municipalityCode
+      );
 
     setAddress((current) => ({
       ...current,
       municipalityCode,
-      municipalityName: selected?.name ?? "",
+      municipalityName:
+        selected?.name ?? "",
 
       barangayCode: "",
       barangayName: "",
@@ -285,17 +431,22 @@ export default function TrainerRegisterPage() {
     setBarangays([]);
     setLocalError(null);
 
-    if (!municipalityCode) return;
+    if (!municipalityCode) {
+      return;
+    }
 
     try {
       setAddressLoading(true);
 
-      const result = await getBarangays(
-        municipalityCode
-      );
+      const result =
+        await getBarangays(
+          municipalityCode
+        );
 
       setBarangays(
-        Array.isArray(result) ? result : []
+        Array.isArray(result)
+          ? result
+          : []
       );
     } catch (err) {
       console.error(
@@ -314,14 +465,17 @@ export default function TrainerRegisterPage() {
   const handleBarangayChange = (
     barangayCode: string
   ) => {
-    const selected = barangays.find(
-      (item) => item.code === barangayCode
-    );
+    const selected =
+      barangays.find(
+        (item) =>
+          item.code === barangayCode
+      );
 
     setAddress((current) => ({
       ...current,
       barangayCode,
-      barangayName: selected?.name ?? "",
+      barangayName:
+        selected?.name ?? "",
     }));
 
     setLocalError(null);
@@ -338,12 +492,19 @@ export default function TrainerRegisterPage() {
     .filter(Boolean)
     .join(", ");
 
+  /* ------------------------------------------------------------------------ */
+  /* PROFILE IMAGE                                                            */
+  /* ------------------------------------------------------------------------ */
+
   const handleProfileImage = (
     event: ChangeEvent<HTMLInputElement>
   ) => {
-    const file = event.target.files?.[0];
+    const file =
+      event.target.files?.[0];
 
-    if (!file) return;
+    if (!file) {
+      return;
+    }
 
     const allowedTypes = [
       "image/jpeg",
@@ -351,21 +512,30 @@ export default function TrainerRegisterPage() {
       "image/webp",
     ];
 
-    if (!allowedTypes.includes(file.type)) {
+    if (
+      !allowedTypes.includes(
+        file.type
+      )
+    ) {
       setLocalError(
         "Only JPG, PNG, and WEBP images are allowed."
       );
 
       event.target.value = "";
+
       return;
     }
 
-    if (file.size > 2 * 1024 * 1024) {
+    if (
+      file.size >
+      2 * 1024 * 1024
+    ) {
       setLocalError(
         "Profile image must be 2MB or smaller."
       );
 
       event.target.value = "";
+
       return;
     }
 
@@ -373,7 +543,8 @@ export default function TrainerRegisterPage() {
       URL.revokeObjectURL(preview);
     }
 
-    const nextPreview = URL.createObjectURL(file);
+    const nextPreview =
+      URL.createObjectURL(file);
 
     setForm((current) => ({
       ...current,
@@ -401,18 +572,23 @@ export default function TrainerRegisterPage() {
     }
   };
 
+  /* ------------------------------------------------------------------------ */
+  /* EDUCATION                                                                */
+  /* ------------------------------------------------------------------------ */
+
   const updateEducation = (
     index: number,
     updates: Partial<CreateTrainerEducationRequest>
   ) => {
     setEducations((current) =>
-      current.map((item, itemIndex) =>
-        itemIndex === index
-          ? {
-              ...item,
-              ...updates,
-            }
-          : item
+      current.map(
+        (item, itemIndex) =>
+          itemIndex === index
+            ? {
+                ...item,
+                ...updates,
+              }
+            : item
       )
     );
 
@@ -426,30 +602,40 @@ export default function TrainerRegisterPage() {
     ]);
   };
 
-  const removeEducation = (index: number) => {
+  const removeEducation = (
+    index: number
+  ) => {
     setEducations((current) => {
       if (current.length === 1) {
-        return [emptyEducation()];
+        return [
+          emptyEducation(),
+        ];
       }
 
       return current.filter(
-        (_, itemIndex) => itemIndex !== index
+        (_, itemIndex) =>
+          itemIndex !== index
       );
     });
   };
+
+  /* ------------------------------------------------------------------------ */
+  /* CERTIFICATION                                                            */
+  /* ------------------------------------------------------------------------ */
 
   const updateCertification = (
     index: number,
     updates: Partial<CreateTrainerCertificationRequest>
   ) => {
     setCertifications((current) =>
-      current.map((item, itemIndex) =>
-        itemIndex === index
-          ? {
-              ...item,
-              ...updates,
-            }
-          : item
+      current.map(
+        (item, itemIndex) =>
+          itemIndex === index
+            ? {
+                ...item,
+                ...updates,
+              }
+            : item
       )
     );
 
@@ -463,23 +649,35 @@ export default function TrainerRegisterPage() {
     ]);
   };
 
-  const removeCertification = (index: number) => {
+  const removeCertification = (
+    index: number
+  ) => {
     setCertifications((current) => {
       if (current.length === 1) {
-        return [emptyCertification()];
+        return [
+          emptyCertification(),
+        ];
       }
 
       return current.filter(
-        (_, itemIndex) => itemIndex !== index
+        (_, itemIndex) =>
+          itemIndex !== index
       );
     });
   };
 
-  const sendOtp = async (email: string) => {
+  /* ------------------------------------------------------------------------ */
+  /* OTP                                                                      */
+  /* ------------------------------------------------------------------------ */
+
+  const sendOtp = async (
+    email: string
+  ) => {
     try {
-      const response = await authApi.sendOtp({
-        email,
-      });
+      const response =
+        await authApi.sendOtp({
+          email,
+        });
 
       if (!response.success) {
         setOtpError(
@@ -496,7 +694,10 @@ export default function TrainerRegisterPage() {
 
       return true;
     } catch (err) {
-      console.error("SEND OTP ERROR:", err);
+      console.error(
+        "SEND OTP ERROR:",
+        err
+      );
 
       setOtpError(
         err instanceof Error
@@ -512,15 +713,26 @@ export default function TrainerRegisterPage() {
     setOtpError(null);
     setOtpSuccess(null);
 
-    const cleanOtp = otp.trim();
+    const cleanOtp =
+      otp.trim();
 
     if (!cleanOtp) {
-      setOtpError("Please enter the OTP.");
+      setOtpError(
+        "Please enter the OTP."
+      );
+
       return;
     }
 
-    if (!/^\d{6}$/.test(cleanOtp)) {
-      setOtpError("OTP must be 6 digits.");
+    if (
+      !/^\d{6}$/.test(
+        cleanOtp
+      )
+    ) {
+      setOtpError(
+        "OTP must be 6 digits."
+      );
+
       return;
     }
 
@@ -551,7 +763,9 @@ export default function TrainerRegisterPage() {
       setTimeout(() => {
         setShowOtpModal(false);
 
-        router.push("/login?verified=true");
+        router.push(
+          "/login?verified=true"
+        );
       }, 1000);
     } catch (err) {
       console.error(
@@ -574,8 +788,14 @@ export default function TrainerRegisterPage() {
     setOtpSuccess(null);
     setOtp("");
 
-    await sendOtp(registeredEmail);
+    await sendOtp(
+      registeredEmail
+    );
   };
+
+  /* ------------------------------------------------------------------------ */
+  /* SUBMIT                                                                   */
+  /* ------------------------------------------------------------------------ */
 
   const handleSubmit = async (
     event: FormEvent<HTMLFormElement>
@@ -584,7 +804,21 @@ export default function TrainerRegisterPage() {
 
     setLocalError(null);
 
-    const checks: [boolean, string][] = [
+    if (
+      isGoogleRegistration &&
+      !googleIdToken
+    ) {
+      setLocalError(
+        "Google registration session is missing. Please continue with Google again."
+      );
+
+      return;
+    }
+
+    const checks: [
+      boolean,
+      string
+    ][] = [
       [
         !!form.firstName.trim(),
         "First name is required.",
@@ -641,7 +875,8 @@ export default function TrainerRegisterPage() {
       ],
 
       [
-        form.password === form.confirmPassword,
+        form.password ===
+          form.confirmPassword,
         "Passwords do not match.",
       ],
 
@@ -651,16 +886,20 @@ export default function TrainerRegisterPage() {
       ],
     ];
 
-    for (const [valid, message] of checks) {
+    for (
+      const [valid, message] of checks
+    ) {
       if (!valid) {
         setLocalError(message);
+
         return;
       }
     }
 
-    const email = form.email
-      .trim()
-      .toLowerCase();
+    const email =
+      form.email
+        .trim()
+        .toLowerCase();
 
     const cleanedEducations =
       educations
@@ -670,7 +909,8 @@ export default function TrainerRegisterPage() {
             education.institution.trim()
         )
         .map((education) => ({
-          degree: education.degree.trim(),
+          degree:
+            education.degree.trim(),
 
           fieldOfStudy:
             education.fieldOfStudy?.trim() ||
@@ -680,7 +920,8 @@ export default function TrainerRegisterPage() {
             education.institution.trim(),
 
           yearGraduated:
-            education.yearGraduated ?? null,
+            education.yearGraduated ??
+            null,
         }));
 
     const cleanedCertifications =
@@ -690,24 +931,28 @@ export default function TrainerRegisterPage() {
             certification.name?.trim()
         )
         .map((certification) => ({
-          name: certification.name.trim(),
+          name:
+            certification.name.trim(),
 
           issuingOrganization:
             certification.issuingOrganization?.trim() ||
             null,
 
           issuedDate:
-            certification.issuedDate || null,
+            certification.issuedDate ||
+            null,
 
           expirationDate:
-            certification.expirationDate || null,
+            certification.expirationDate ||
+            null,
 
           certificateUrl:
             certification.certificateUrl?.trim() ||
             null,
         }));
 
-    const values: RegisterTrainerFormValues = {
+    const values:
+      RegisterTrainerFormValues = {
       firstName:
         form.firstName.trim(),
 
@@ -754,7 +999,9 @@ export default function TrainerRegisterPage() {
 
       yearsOfExperience:
         form.yearsOfExperience
-          ? Number(form.yearsOfExperience)
+          ? Number(
+              form.yearsOfExperience
+            )
           : undefined,
 
       professionalLicenseNumber:
@@ -768,25 +1015,63 @@ export default function TrainerRegisterPage() {
         undefined,
 
       profileImage:
-        form.profileImage ?? undefined,
+        form.profileImage ??
+        undefined,
 
       educations:
         cleanedEducations,
 
       certifications:
         cleanedCertifications,
+
+      googleIdToken:
+        isGoogleRegistration
+          ? googleIdToken ??
+            undefined
+          : undefined,
     };
 
     const response =
-      await registerTrainer(values);
+      await registerTrainer(
+        values
+      );
 
     if (!response) {
       return;
     }
 
+    /* ---------------------------------------------------------------------- */
+    /* GOOGLE REGISTRATION                                                     */
+    /* ---------------------------------------------------------------------- */
+
+    if (isGoogleRegistration) {
+      sessionStorage.removeItem(
+        "google_registration_id_token"
+      );
+
+      setGoogleIdToken(null);
+
+      notify.success(
+        "Google registration successful."
+      );
+
+      router.push(
+        "/login?registered=true"
+      );
+
+      return;
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* NORMAL REGISTRATION                                                     */
+    /* ---------------------------------------------------------------------- */
+
     setRegisteredEmail(email);
+
     setOtp("");
+
     setOtpError(null);
+
     setOtpSuccess(
       "Registration submitted. Sending verification code..."
     );
@@ -799,6 +1084,10 @@ export default function TrainerRegisterPage() {
   const displayError =
     localError || error;
 
+  /* ------------------------------------------------------------------------ */
+  /* RENDER                                                                   */
+  /* ------------------------------------------------------------------------ */
+
   return (
     <main className="min-h-screen bg-[#f5f7fa] text-[#172033]">
       {/* Background Grid */}
@@ -809,7 +1098,9 @@ export default function TrainerRegisterPage() {
         <div className="mx-auto flex h-[76px] max-w-[1240px] items-center justify-between px-5 sm:px-7 lg:px-8">
           <button
             type="button"
-            onClick={() => router.push("/")}
+            onClick={() =>
+              router.push("/")
+            }
             className="flex items-center gap-3 text-left"
           >
             <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#092653] text-white shadow-[0_5px_16px_rgba(9,38,83,0.16)]">
@@ -835,7 +1126,9 @@ export default function TrainerRegisterPage() {
             <button
               type="button"
               onClick={() =>
-                router.push("/login")
+                router.push(
+                  "/login"
+                )
               }
               className="font-semibold text-[#1769e0] hover:underline"
             >
@@ -850,7 +1143,9 @@ export default function TrainerRegisterPage() {
         <div className="mb-7 flex items-center justify-between gap-4">
           <button
             type="button"
-            onClick={() => router.back()}
+            onClick={() =>
+              router.back()
+            }
             className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#dfe4eb] bg-white text-[#596579] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#f8fafc]"
             aria-label="Go back"
           >
@@ -859,7 +1154,9 @@ export default function TrainerRegisterPage() {
 
           <div className="hidden items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-[#98a2b3] md:flex">
             <span className="h-1.5 w-1.5 rounded-full bg-[#C5A059]" />
-            Secure Trainer Application
+            {isGoogleRegistration
+              ? "Google Trainer Registration"
+              : "Secure Trainer Application"}
           </div>
         </div>
 
@@ -898,18 +1195,29 @@ export default function TrainerRegisterPage() {
                   </p>
 
                   <h2 className="text-[38px] font-semibold leading-[1.08] tracking-[-0.045em] text-white">
-                    Build Your
-                    <br />
-                    Trainer
-                    <br />
-                    Profile.
+                    {isGoogleRegistration ? (
+                      <>
+                        Complete Your
+                        <br />
+                        Trainer
+                        <br />
+                        Profile.
+                      </>
+                    ) : (
+                      <>
+                        Build Your
+                        <br />
+                        Trainer
+                        <br />
+                        Profile.
+                      </>
+                    )}
                   </h2>
 
                   <p className="mt-6 max-w-[245px] text-sm leading-7 text-white/60">
-                    Join the ACE NextGen training
-                    network and manage your
-                    professional training journey
-                    through one secure platform.
+                    {isGoogleRegistration
+                      ? "Your Google account information has been verified. Complete the remaining details to apply for the ACE NextGen Trainer Portal."
+                      : "Join the ACE NextGen training network and manage your professional training journey through one secure platform."}
                   </p>
                 </div>
               </div>
@@ -927,6 +1235,9 @@ export default function TrainerRegisterPage() {
                   <Step
                     number="02"
                     title="Verify your email"
+                    active={
+                      isGoogleRegistration
+                    }
                   />
 
                   <Step
@@ -947,9 +1258,9 @@ export default function TrainerRegisterPage() {
                       </p>
 
                       <p className="mt-1 text-xs leading-5 text-white/60">
-                        Your information is submitted
-                        for account creation and trainer
-                        application review.
+                        {isGoogleRegistration
+                          ? "Your Google identity has already been verified. Complete your trainer information to continue."
+                          : "Your information is submitted for account creation and trainer application review."}
                       </p>
                     </div>
                   </div>
@@ -964,19 +1275,42 @@ export default function TrainerRegisterPage() {
               <div className="mb-8">
                 <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#eef4ff] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#1769e0]">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#1769e0]" />
-                  Trainer Registration
+
+                  {isGoogleRegistration
+                    ? "Google Trainer Registration"
+                    : "Trainer Registration"}
                 </div>
 
                 <h1 className="text-2xl font-semibold tracking-[-0.04em] text-[#172033] sm:text-[30px]">
-                  Create your trainer account
+                  {isGoogleRegistration
+                    ? "Complete your trainer account"
+                    : "Create your trainer account"}
                 </h1>
 
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-[#697386]">
-                  Complete your profile and professional
-                  information to apply for access to the
-                  ACE NextGen Trainer Portal.
+                  {isGoogleRegistration
+                    ? "Your Google account information has been filled in automatically. Complete the remaining trainer information to continue."
+                    : "Complete your profile and professional information to apply for access to the ACE NextGen Trainer Portal."}
                 </p>
               </div>
+
+              {isGoogleRegistration && (
+                <div className="mb-6 flex items-start gap-3 rounded-2xl border border-[#dfe8f7] bg-[#f8fbff] px-4 py-3 text-sm leading-5 text-[#344054]">
+                  <div className="mt-0.5 text-[#1769e0]">
+                    <InfoIcon />
+                  </div>
+
+                  <div>
+                    <p className="font-semibold text-[#243047]">
+                      Google account connected
+                    </p>
+
+                    <p className="mt-0.5 text-xs text-[#697386]">
+                      Your name and email were provided by Google and have been filled in automatically.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {displayError && (
                 <div className="mb-6 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-5 text-red-700">
@@ -1006,7 +1340,12 @@ export default function TrainerRegisterPage() {
                         label="First Name"
                         required
                         placeholder="Enter first name"
-                        value={form.firstName}
+                        value={
+                          form.firstName
+                        }
+                        readOnly={
+                          isGoogleRegistration
+                        }
                         onChange={(value) =>
                           updateField(
                             "firstName",
@@ -1018,7 +1357,9 @@ export default function TrainerRegisterPage() {
                       <InputField
                         label="Middle Name"
                         placeholder="Enter middle name"
-                        value={form.middleName}
+                        value={
+                          form.middleName
+                        }
                         onChange={(value) =>
                           updateField(
                             "middleName",
@@ -1031,7 +1372,12 @@ export default function TrainerRegisterPage() {
                         label="Last Name"
                         required
                         placeholder="Enter last name"
-                        value={form.lastName}
+                        value={
+                          form.lastName
+                        }
+                        readOnly={
+                          isGoogleRegistration
+                        }
                         onChange={(value) =>
                           updateField(
                             "lastName",
@@ -1043,7 +1389,9 @@ export default function TrainerRegisterPage() {
                       <InputField
                         label="Suffix"
                         placeholder="e.g. Jr., III"
-                        value={form.suffix}
+                        value={
+                          form.suffix
+                        }
                         onChange={(value) =>
                           updateField(
                             "suffix",
@@ -1058,7 +1406,9 @@ export default function TrainerRegisterPage() {
                         label="Birth Date"
                         required
                         type="date"
-                        value={form.birthDate}
+                        value={
+                          form.birthDate
+                        }
                         onChange={(value) =>
                           updateField(
                             "birthDate",
@@ -1070,7 +1420,9 @@ export default function TrainerRegisterPage() {
                       <SelectField
                         label="Gender"
                         required
-                        value={form.gender}
+                        value={
+                          form.gender
+                        }
                         onChange={(value) =>
                           updateField(
                             "gender",
@@ -1079,19 +1431,25 @@ export default function TrainerRegisterPage() {
                         }
                         options={[
                           {
-                            label: "Select gender",
+                            label:
+                              "Select gender",
                             value: "",
                           },
                           {
-                            label: "Male",
-                            value: "Male",
+                            label:
+                              "Male",
+                            value:
+                              "Male",
                           },
                           {
-                            label: "Female",
-                            value: "Female",
+                            label:
+                              "Female",
+                            value:
+                              "Female",
                           },
                           {
-                            label: "Prefer not to say",
+                            label:
+                              "Prefer not to say",
                             value:
                               "Prefer not to say",
                           },
@@ -1106,14 +1464,20 @@ export default function TrainerRegisterPage() {
                   <SectionHeader
                     icon={<ImageIcon />}
                     title="Profile Photo"
-                    description="Optional profile photo."
+                    description={
+                      isGoogleRegistration
+                        ? "Your Google profile photo is shown automatically. You may replace it."
+                        : "Optional profile photo."
+                    }
                   />
 
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
-                    onChange={handleProfileImage}
+                    onChange={
+                      handleProfileImage
+                    }
                     className="hidden"
                   />
 
@@ -1125,9 +1489,19 @@ export default function TrainerRegisterPage() {
                           alt="Profile preview"
                           className="h-full w-full object-cover"
                         />
+                      ) : googleProfileImageUrl ? (
+                        <img
+                          src={
+                            googleProfileImageUrl
+                          }
+                          alt="Google profile"
+                          className="h-full w-full object-cover"
+                        />
                       ) : (
                         <div className="text-[#b0b8c5]">
-                          <UserIcon size={40} />
+                          <UserIcon
+                            size={40}
+                          />
                         </div>
                       )}
                     </div>
@@ -1144,7 +1518,9 @@ export default function TrainerRegisterPage() {
 
                         {preview
                           ? "Change Photo"
-                          : "Upload Photo"}
+                          : googleProfileImageUrl
+                            ? "Replace Photo"
+                            : "Upload Photo"}
                       </button>
 
                       <p className="mt-2 text-xs text-[#8a94a6]">
@@ -1197,7 +1573,9 @@ export default function TrainerRegisterPage() {
                       <InputField
                         label="Street"
                         placeholder="e.g. Rizal Street"
-                        value={address.street}
+                        value={
+                          address.street
+                        }
                         onChange={(value) =>
                           setAddress(
                             (current) => ({
@@ -1212,7 +1590,9 @@ export default function TrainerRegisterPage() {
                     <InputField
                       label="Sitio / Purok"
                       placeholder="Optional"
-                      value={address.sitio}
+                      value={
+                        address.sitio
+                      }
                       onChange={(value) =>
                         setAddress(
                           (current) => ({
@@ -1275,7 +1655,9 @@ export default function TrainerRegisterPage() {
                           },
 
                           ...municipalities.map(
-                            (municipality) => ({
+                            (
+                              municipality
+                            ) => ({
                               label:
                                 municipality.name,
                               value:
@@ -1406,7 +1788,9 @@ export default function TrainerRegisterPage() {
                       </label>
 
                       <textarea
-                        value={form.bio}
+                        value={
+                          form.bio
+                        }
                         onChange={(event) =>
                           updateField(
                             "bio",
@@ -1478,14 +1862,18 @@ export default function TrainerRegisterPage() {
                 <section className="rounded-2xl border border-[#e5e9ef] bg-white p-5 shadow-[0_5px_24px_rgba(20,35,60,0.035)] sm:p-6">
                   <div className="flex items-start justify-between gap-4">
                     <SectionHeader
-                      icon={<EducationIcon />}
+                      icon={
+                        <EducationIcon />
+                      }
                       title="Educational Background"
                       description="Add your educational qualifications."
                     />
 
                     <button
                       type="button"
-                      onClick={addEducation}
+                      onClick={
+                        addEducation
+                      }
                       className="shrink-0 rounded-xl border border-[#dfe4eb] bg-white px-3 py-2 text-xs font-semibold text-[#1769e0] transition hover:border-[#1769e0] hover:bg-[#f8fbff]"
                     >
                       + Add Education
@@ -1494,7 +1882,10 @@ export default function TrainerRegisterPage() {
 
                   <div className="mt-6 space-y-5">
                     {educations.map(
-                      (education, index) => (
+                      (
+                        education,
+                        index
+                      ) => (
                         <div
                           key={index}
                           className="rounded-2xl border border-[#e5e9ef] bg-[#f9fbfe] p-4"
@@ -1529,7 +1920,9 @@ export default function TrainerRegisterPage() {
                               value={
                                 education.degree
                               }
-                              onChange={(value) =>
+                              onChange={(
+                                value
+                              ) =>
                                 updateEducation(
                                   index,
                                   {
@@ -1547,7 +1940,9 @@ export default function TrainerRegisterPage() {
                                 education.fieldOfStudy ??
                                 ""
                               }
-                              onChange={(value) =>
+                              onChange={(
+                                value
+                              ) =>
                                 updateEducation(
                                   index,
                                   {
@@ -1565,7 +1960,9 @@ export default function TrainerRegisterPage() {
                               value={
                                 education.institution
                               }
-                              onChange={(value) =>
+                              onChange={(
+                                value
+                              ) =>
                                 updateEducation(
                                   index,
                                   {
@@ -1585,7 +1982,9 @@ export default function TrainerRegisterPage() {
                                 education.yearGraduated?.toString() ??
                                 ""
                               }
-                              onChange={(value) =>
+                              onChange={(
+                                value
+                              ) =>
                                 updateEducation(
                                   index,
                                   {
@@ -1610,7 +2009,9 @@ export default function TrainerRegisterPage() {
                 <section className="rounded-2xl border border-[#e5e9ef] bg-white p-5 shadow-[0_5px_24px_rgba(20,35,60,0.035)] sm:p-6">
                   <div className="flex items-start justify-between gap-4">
                     <SectionHeader
-                      icon={<CertificateIcon />}
+                      icon={
+                        <CertificateIcon />
+                      }
                       title="Certifications"
                       description="Add your professional certifications."
                     />
@@ -1639,7 +2040,8 @@ export default function TrainerRegisterPage() {
                           <div className="mb-4 flex items-center justify-between">
                             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#697386]">
                               Certification{" "}
-                              {index + 1}
+                              {index +
+                                1}
                             </p>
 
                             {certifications.length >
@@ -1666,7 +2068,9 @@ export default function TrainerRegisterPage() {
                               value={
                                 certification.name
                               }
-                              onChange={(value) =>
+                              onChange={(
+                                value
+                              ) =>
                                 updateCertification(
                                   index,
                                   {
@@ -1684,7 +2088,9 @@ export default function TrainerRegisterPage() {
                                 certification.issuingOrganization ??
                                 ""
                               }
-                              onChange={(value) =>
+                              onChange={(
+                                value
+                              ) =>
                                 updateCertification(
                                   index,
                                   {
@@ -1702,7 +2108,9 @@ export default function TrainerRegisterPage() {
                                 certification.issuedDate ??
                                 ""
                               }
-                              onChange={(value) =>
+                              onChange={(
+                                value
+                              ) =>
                                 updateCertification(
                                   index,
                                   {
@@ -1720,7 +2128,9 @@ export default function TrainerRegisterPage() {
                                 certification.expirationDate ??
                                 ""
                               }
-                              onChange={(value) =>
+                              onChange={(
+                                value
+                              ) =>
                                 updateCertification(
                                   index,
                                   {
@@ -1739,7 +2149,9 @@ export default function TrainerRegisterPage() {
                                   certification.certificateUrl ??
                                   ""
                                 }
-                                onChange={(value) =>
+                                onChange={(
+                                  value
+                                ) =>
                                   updateCertification(
                                     index,
                                     {
@@ -1766,19 +2178,45 @@ export default function TrainerRegisterPage() {
                   />
 
                   <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
-                    <InputField
-                      label="Email Address"
-                      required
-                      type="email"
-                      placeholder="Enter email address"
-                      value={form.email}
-                      onChange={(value) =>
-                        updateField(
-                          "email",
-                          value
-                        )
-                      }
-                    />
+                    <div>
+                      <label className="mb-2 block text-xs font-medium text-[#344054]">
+                        Email Address
+
+                        <span className="ml-1 text-red-500">
+                          *
+                        </span>
+                      </label>
+
+                      <input
+                        type="email"
+                        value={
+                          form.email
+                        }
+                        readOnly={
+                          isGoogleRegistration
+                        }
+                        onChange={(
+                          event
+                        ) =>
+                          updateField(
+                            "email",
+                            event.target.value
+                          )
+                        }
+                        placeholder="Enter email address"
+                        className={`w-full rounded-xl border px-4 py-3 text-sm text-[#172033] outline-none transition ${
+                          isGoogleRegistration
+                            ? "cursor-not-allowed border-[#dfe4eb] bg-[#f7f8fa] text-[#697386]"
+                            : "border-[#dfe4eb] bg-white placeholder:text-[#98a2b3] focus:border-[#1769e0] focus:ring-4 focus:ring-[#1769e0]/10"
+                        }`}
+                      />
+
+                      {isGoogleRegistration && (
+                        <p className="mt-2 text-xs text-[#8a94a6]">
+                          This email was verified through Google.
+                        </p>
+                      )}
+                    </div>
 
                     <InputField
                       label="Mobile Number"
@@ -1798,11 +2236,16 @@ export default function TrainerRegisterPage() {
                     <PasswordField
                       label="Password"
                       required
-                      value={form.password}
-                      visible={showPassword}
+                      value={
+                        form.password
+                      }
+                      visible={
+                        showPassword
+                      }
                       onToggle={() =>
                         setShowPassword(
-                          (value) => !value
+                          (value) =>
+                            !value
                         )
                       }
                       onChange={(value) =>
@@ -1824,7 +2267,8 @@ export default function TrainerRegisterPage() {
                       }
                       onToggle={() =>
                         setShowConfirmPassword(
-                          (value) => !value
+                          (value) =>
+                            !value
                         )
                       }
                       onChange={(value) =>
@@ -1854,10 +2298,9 @@ export default function TrainerRegisterPage() {
                     </h3>
 
                     <p className="mt-1 text-xs leading-5 text-[#697386]">
-                      Submit your registration,
-                      verify your email using the OTP,
-                      then wait for the administrator
-                      to review your trainer application.
+                      {isGoogleRegistration
+                        ? "Submit your registration and your Google email will remain verified. Your trainer application will then be reviewed by an administrator."
+                        : "Submit your registration, verify your email using the OTP, then wait for the administrator to review your trainer application."}
                     </p>
                   </div>
                 </section>
@@ -1870,7 +2313,9 @@ export default function TrainerRegisterPage() {
                     <button
                       type="button"
                       onClick={() =>
-                        router.push("/login")
+                        router.push(
+                          "/login"
+                        )
                       }
                       className="ml-1 font-semibold text-[#1769e0] hover:underline"
                     >
@@ -1891,12 +2336,16 @@ export default function TrainerRegisterPage() {
 
                     <button
                       type="submit"
-                      disabled={isLoading}
+                      disabled={
+                        isLoading
+                      }
                       className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#092653] px-7 py-3 text-sm font-semibold text-white shadow-[0_5px_16px_rgba(9,38,83,0.16)] transition hover:-translate-y-0.5 hover:bg-[#0c326b] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {isLoading
                         ? "Submitting..."
-                        : "Continue to Verification"}
+                        : isGoogleRegistration
+                          ? "Complete Registration"
+                          : "Continue to Verification"}
 
                       {!isLoading && (
                         <ArrowRightIcon />
@@ -1916,9 +2365,14 @@ export default function TrainerRegisterPage() {
           className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#101828]/55 px-5 backdrop-blur-sm"
           onClick={() => {
             if (!otpLoading) {
-              setShowOtpModal(false);
+              setShowOtpModal(
+                false
+              );
+
               setOtp("");
+
               setOtpError(null);
+
               setOtpSuccess(null);
             }
           }}
@@ -1931,11 +2385,18 @@ export default function TrainerRegisterPage() {
           >
             <button
               type="button"
-              disabled={otpLoading}
+              disabled={
+                otpLoading
+              }
               onClick={() => {
-                setShowOtpModal(false);
+                setShowOtpModal(
+                  false
+                );
+
                 setOtp("");
+
                 setOtpError(null);
+
                 setOtpSuccess(null);
               }}
               className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full text-[#98a2b3] transition hover:bg-[#f2f4f7] hover:text-[#344054] disabled:opacity-50"
@@ -1946,7 +2407,9 @@ export default function TrainerRegisterPage() {
 
             <div className="flex justify-center">
               <div className="flex h-[68px] w-[68px] items-center justify-center rounded-[20px] bg-[#092653] text-white shadow-[0_8px_20px_rgba(9,38,83,0.15)]">
-                <AceLogo size={32} />
+                <AceLogo
+                  size={32}
+                />
               </div>
             </div>
 
@@ -1966,7 +2429,9 @@ export default function TrainerRegisterPage() {
 
               <div className="mt-4 rounded-xl bg-[#f8fbff] px-4 py-3">
                 <p className="break-all text-sm font-semibold text-[#1769e0]">
-                  {registeredEmail}
+                  {
+                    registeredEmail
+                  }
                 </p>
               </div>
             </div>
@@ -1983,20 +2448,38 @@ export default function TrainerRegisterPage() {
                 autoComplete="one-time-code"
                 maxLength={6}
                 value={otp}
-                onChange={(event) => {
+                onChange={(
+                  event
+                ) => {
                   const value =
                     event.target.value
-                      .replace(/\D/g, "")
-                      .slice(0, 6);
+                      .replace(
+                        /\D/g,
+                        ""
+                      )
+                      .slice(
+                        0,
+                        6
+                      );
 
                   setOtp(value);
-                  setOtpError(null);
-                  setOtpSuccess(null);
+
+                  setOtpError(
+                    null
+                  );
+
+                  setOtpSuccess(
+                    null
+                  );
                 }}
-                onKeyDown={(event) => {
+                onKeyDown={(
+                  event
+                ) => {
                   if (
-                    event.key === "Enter" &&
-                    otp.length === 6 &&
+                    event.key ===
+                      "Enter" &&
+                    otp.length ===
+                      6 &&
                     !otpLoading
                   ) {
                     handleVerifyOtp();
@@ -2012,11 +2495,14 @@ export default function TrainerRegisterPage() {
                 </div>
               )}
 
-              {otpSuccess && !otpError && (
-                <div className="mt-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-xs leading-5 text-green-700">
-                  {otpSuccess}
-                </div>
-              )}
+              {otpSuccess &&
+                !otpError && (
+                  <div className="mt-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-xs leading-5 text-green-700">
+                    {
+                      otpSuccess
+                    }
+                  </div>
+                )}
             </div>
 
             <button
@@ -2025,7 +2511,9 @@ export default function TrainerRegisterPage() {
                 otpLoading ||
                 otp.length !== 6
               }
-              onClick={handleVerifyOtp}
+              onClick={
+                handleVerifyOtp
+              }
               className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#092653] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_5px_16px_rgba(9,38,83,0.16)] transition hover:bg-[#0c326b] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {otpLoading
@@ -2044,8 +2532,12 @@ export default function TrainerRegisterPage() {
 
               <button
                 type="button"
-                disabled={otpLoading}
-                onClick={handleResendOtp}
+                disabled={
+                  otpLoading
+                }
+                onClick={
+                  handleResendOtp
+                }
                 className="mt-1 text-xs font-semibold text-[#1769e0] hover:underline disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Resend verification code
@@ -2132,6 +2624,7 @@ function InputField({
   onChange,
   type = "text",
   min,
+  readOnly = false,
 }: {
   label: string;
   required?: boolean;
@@ -2140,6 +2633,7 @@ function InputField({
   onChange: (value: string) => void;
   type?: string;
   min?: string;
+  readOnly?: boolean;
 }) {
   return (
     <div>
@@ -2157,11 +2651,18 @@ function InputField({
         type={type}
         min={min}
         value={value}
+        readOnly={readOnly}
         placeholder={placeholder}
         onChange={(event) =>
-          onChange(event.target.value)
+          onChange(
+            event.target.value
+          )
         }
-        className="w-full rounded-xl border border-[#dfe4eb] bg-white px-4 py-3 text-sm text-[#172033] outline-none transition placeholder:text-[#98a2b3] focus:border-[#1769e0] focus:ring-4 focus:ring-[#1769e0]/10"
+        className={`w-full rounded-xl border px-4 py-3 text-sm text-[#172033] outline-none transition placeholder:text-[#98a2b3] ${
+          readOnly
+            ? "cursor-not-allowed border-[#dfe4eb] bg-[#f7f8fa]"
+            : "border-[#dfe4eb] bg-white focus:border-[#1769e0] focus:ring-4 focus:ring-[#1769e0]/10"
+        }`}
       />
     </div>
   );
@@ -2202,21 +2703,27 @@ function SelectField({
           value={value}
           disabled={disabled}
           onChange={(event) =>
-            onChange(event.target.value)
+            onChange(
+              event.target.value
+            )
           }
           className="w-full appearance-none rounded-xl border border-[#dfe4eb] bg-white px-4 py-3 pr-10 text-sm text-[#172033] outline-none transition focus:border-[#1769e0] focus:ring-4 focus:ring-[#1769e0]/10 disabled:cursor-not-allowed disabled:bg-[#f7f8fa] disabled:text-[#98a2b3]"
         >
-          {options.map((option) => (
-            <option
-              key={
-                option.value ||
-                option.label
-              }
-              value={option.value}
-            >
-              {option.label}
-            </option>
-          ))}
+          {options.map(
+            (option) => (
+              <option
+                key={
+                  option.value ||
+                  option.label
+                }
+                value={
+                  option.value
+                }
+              >
+                {option.label}
+              </option>
+            )
+          )}
         </select>
 
         <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[#8a94a6]">
@@ -2263,7 +2770,9 @@ function PasswordField({
           }
           value={value}
           onChange={(event) =>
-            onChange(event.target.value)
+            onChange(
+              event.target.value
+            )
           }
           placeholder={label}
           className="w-full rounded-xl border border-[#dfe4eb] bg-white px-4 py-3 pr-12 text-sm text-[#172033] outline-none transition placeholder:text-[#98a2b3] focus:border-[#1769e0] focus:ring-4 focus:ring-[#1769e0]/10"
@@ -2279,7 +2788,9 @@ function PasswordField({
               : "Show password"
           }
         >
-          <EyeIcon visible={visible} />
+          <EyeIcon
+            visible={visible}
+          />
         </button>
       </div>
     </div>
@@ -2287,7 +2798,7 @@ function PasswordField({
 }
 
 /* -------------------------------------------------------------------------- */
-/* SVG                                                                         */
+/* SVG                                                                        */
 /* -------------------------------------------------------------------------- */
 
 function Svg({
@@ -2306,7 +2817,9 @@ function Svg({
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth={strokeWidth}
+      strokeWidth={
+        strokeWidth
+      }
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"

@@ -1,4 +1,6 @@
-import React, {
+"use client";
+
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -18,33 +20,22 @@ import {
 
 import { router } from "expo-router";
 
-import type { ParticipantAssessment } from "@repo/types";
-
-import {
-  apiClient,
-  learningMaterialApi,
-  learningProgressApi,
-} from "@/api/api";
+import { learningMaterialApi, learningProgressApi } from "@/api/api";
 
 import {
   useLearningMaterials,
   useLearningProgress,
-  useWrittenAssessment,
 } from "@repo/hooks";
 
-type Props = {
+interface LearningMaterialModulesProps {
   materialId: string;
   completedModuleId?: string;
-};
+}
 
 export default function LearningMaterialModules({
   materialId,
   completedModuleId,
-}: Props) {
-  // ==========================================================
-  // LEARNING MATERIAL
-  // ==========================================================
-
+}: LearningMaterialModulesProps) {
   const {
     selectedMaterial,
     modules,
@@ -52,439 +43,232 @@ export default function LearningMaterialModules({
     error,
     loadLearningMaterial,
     loadModules,
-  } = useLearningMaterials(
-    learningMaterialApi,
-  );
-
-  // ==========================================================
-  // LEARNING PROGRESS
-  // ==========================================================
+  } = useLearningMaterials(learningMaterialApi);
 
   const {
     progress,
     isLoading: isProgressLoading,
     error: progressError,
     getMaterialProgress,
-  } = useLearningProgress(
-    learningProgressApi,
-  );
+  } = useLearningProgress(learningProgressApi);
 
-  // ==========================================================
-  // WRITTEN ASSESSMENT
-  // ==========================================================
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const {
-    isLoading: isAssessmentLoading,
-    error: assessmentError,
-    loadByBatchIdParticipantAssessment,
-  } = useWrittenAssessment(apiClient);
+  /**
+   * Used only for instant UI update after returning from
+   * the Module screen after completing a module.
+   *
+   * This does NOT trigger another GET request.
+   */
+  const [routeCompletedModuleId, setRouteCompletedModuleId] = useState<
+    string | undefined
+  >(completedModuleId);
 
-  const [
-    participantAssessments,
-    setParticipantAssessments,
-  ] = useState<ParticipantAssessment[]>([]);
-
-  // ==========================================================
-  // REFRESH
-  // ==========================================================
-
-  const [
-    isRefreshing,
-    setIsRefreshing,
-  ] = useState(false);
-
-  // ==========================================================
-  // COMPLETED MODULE FROM NAVIGATION
-  //
-  // This is ONLY for instant UI update after Finish Module.
-  //
-  // It does NOT trigger another GET.
-  // ==========================================================
-
-  const [
-    routeCompletedModuleId,
-    setRouteCompletedModuleId,
-  ] = useState<string | null>(null);
+  /**
+   * Prevent duplicate initial requests for the same material.
+   */
+  const loadedMaterialIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!completedModuleId) {
+    setRouteCompletedModuleId(completedModuleId);
+  }, [completedModuleId]);
+
+  const fetchData = useCallback(async () => {
+    if (!materialId) {
       return;
     }
 
-    setRouteCompletedModuleId(
-      completedModuleId,
-    );
+    try {
+      const material = await loadLearningMaterial(materialId);
+
+      if (!material) {
+        return;
+      }
+
+      await Promise.all([
+        loadModules(material.id),
+        getMaterialProgress(material.id),
+      ]);
+    } catch {
+      // Errors are already handled by the hooks.
+    }
   }, [
-    completedModuleId,
+    materialId,
+    loadLearningMaterial,
+    loadModules,
+    getMaterialProgress,
   ]);
 
-  // ==========================================================
-  // INITIAL LOAD GUARD
-  //
-  // Stores the material ID that has already been loaded.
-  //
-  // This is safer than a simple boolean because if the route
-  // changes to another material, the new material can still
-  // load once.
-  // ==========================================================
-
-  const loadedMaterialIdRef =
-    useRef<string | null>(null);
-
-  // ==========================================================
-  // FETCH DATA
-  //
-  // This is the ONLY function that performs GET requests.
-  //
-  // Material is loaded first.
-  // Modules + Progress are then loaded in parallel.
-  // ==========================================================
-
-  const fetchData =
-    useCallback(
-      async () => {
-        const material =
-          await loadLearningMaterial(
-            materialId,
-          );
-
-        const assessmentData =
-  await loadByBatchIdParticipantAssessment(
-    material.trainingBatchId,
-  );
-
-setParticipantAssessments(
-  assessmentData as unknown as ParticipantAssessment[],
-);
-
-        await Promise.all([
-          loadModules(
-            material.id,
-          ),
-          getMaterialProgress(
-            material.id,
-          ),
-        ]);
-      },
-      [
-        materialId,
-        loadLearningMaterial,
-        loadModules,
-        getMaterialProgress,
-        loadByBatchIdParticipantAssessment,
-      ],
-    );
-
-  // ==========================================================
-  // INITIAL LOAD
-  //
-  // IMPORTANT:
-  //
-  // We intentionally do NOT depend on fetchData here.
-  //
-  // Otherwise changing hook function references can cause
-  // another GET request.
-  //
-  // This effect only reacts to materialId.
-  // ==========================================================
-
+  /**
+   * Initial load.
+   *
+   * Only depends on materialId intentionally.
+   * This prevents unnecessary repeated API calls when
+   * hook function references change.
+   */
   useEffect(() => {
     if (!materialId) {
       return;
     }
 
-    if (
-      loadedMaterialIdRef.current ===
-      materialId
-    ) {
+    if (loadedMaterialIdRef.current === materialId) {
       return;
     }
 
-    loadedMaterialIdRef.current =
-      materialId;
+    loadedMaterialIdRef.current = materialId;
 
     void fetchData();
-
-    // Intentionally only run when materialId changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    materialId,
-  ]);
+  }, [materialId]);
 
-  // ==========================================================
-  // MANUAL REFRESH
-  //
-  // This is the ONLY way to fetch again while staying on
-  // the same material screen.
-  // ==========================================================
+  /**
+   * Pull-to-refresh.
+   */
+  const handleRefresh = useCallback(async () => {
+    try {
+      setIsRefreshing(true);
+      await fetchData();
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [fetchData]);
 
-  const handleRefresh =
-    useCallback(
-      async () => {
-        if (isRefreshing) {
-          return;
-        }
+  /**
+   * Combine backend progress with the module completed
+   * from the previous route.
+   */
+  const completedModuleIds = useMemo(() => {
+    const ids = new Set<string>();
 
-        try {
-          setIsRefreshing(true);
-
-          await fetchData();
-        } catch {
-          // Errors are handled by hooks.
-        } finally {
-          setIsRefreshing(false);
-        }
-      },
-      [
-        fetchData,
-        isRefreshing,
-      ],
-    );
-
-  // ==========================================================
-  // COMPLETED MODULE IDS
-  //
-  // Persistent completion:
-  //     backend progress
-  //
-  // Instant completion:
-  //     completedModuleId from route
-  // ==========================================================
-
-  const completedModuleIds =
-    useMemo(() => {
-      const ids = new Set<string>();
-
-      // --------------------------------------------------------
-      // BACKEND PROGRESS
-      // --------------------------------------------------------
-
-      if (progress) {
-        for (
-          const moduleProgress of progress.modules
-        ) {
-          if (
-            moduleProgress.totalSections > 0 &&
-            moduleProgress.completedSections >=
-              moduleProgress.totalSections
-          ) {
-            ids.add(
-              moduleProgress.moduleId,
-            );
-          }
-        }
-      }
-
-      // --------------------------------------------------------
-      // IMMEDIATE ROUTE COMPLETION
-      // --------------------------------------------------------
-
+    progress?.modules?.forEach((moduleProgress) => {
       if (
-        routeCompletedModuleId
+        moduleProgress.totalSections > 0 &&
+        moduleProgress.completedSections >=
+          moduleProgress.totalSections
       ) {
-        ids.add(
-          routeCompletedModuleId,
-        );
+        ids.add(moduleProgress.moduleId);
+      }
+    });
+
+    if (routeCompletedModuleId) {
+      ids.add(routeCompletedModuleId);
+    }
+
+    return ids;
+  }, [progress, routeCompletedModuleId]);
+
+  const isModuleCompleted = useCallback(
+    (moduleId: string) => {
+      return completedModuleIds.has(moduleId);
+    },
+    [completedModuleIds],
+  );
+
+  /**
+   * Module unlock rule:
+   *
+   * Module 1 = unlocked
+   * Module 2 = unlocked only if Module 1 is completed
+   * Module 3 = unlocked only if Module 2 is completed
+   * etc.
+   */
+  const isUnlocked = useCallback(
+    (index: number) => {
+      if (index === 0) {
+        return true;
       }
 
-      return ids;
-    }, [
-      progress,
-      routeCompletedModuleId,
-    ]);
+      const previousModule = modules[index - 1];
 
-  // ==========================================================
-  // MODULE COMPLETED?
-  // ==========================================================
+      if (!previousModule) {
+        return false;
+      }
 
-  const isModuleCompleted =
-    useCallback(
-      (moduleId: string) => {
-        return completedModuleIds.has(
-          moduleId,
-        );
-      },
-      [
-        completedModuleIds,
-      ],
-    );
+      return isModuleCompleted(previousModule.id);
+    },
+    [modules, isModuleCompleted],
+  );
 
-  // ==========================================================
-  // MODULE UNLOCK
-  //
-  // Module 1:
-  //     always unlocked
-  //
-  // Module 2:
-  //     requires Module 1 completed
-  //
-  // Module 3:
-  //     requires Module 2 completed
-  //
-  // etc.
-  // ==========================================================
+  const handleOpenModule = useCallback(
+    (index: number) => {
+      const module = modules[index];
 
-  const isUnlocked =
-    useCallback(
-      (index: number) => {
-        if (index === 0) {
-          return true;
-        }
+      if (!module) {
+        return;
+      }
 
-        const previousModule =
-          modules[index - 1];
-
-        if (!previousModule) {
-          return false;
-        }
-
-        return isModuleCompleted(
-          previousModule.id,
-        );
-      },
-      [
-        modules,
-        isModuleCompleted,
-      ],
-    );
-
-  // ==========================================================
-  // OPEN MODULE
-  // ==========================================================
-
-  const handleOpenModule =
-    useCallback(
-      (index: number) => {
-        const module =
-          modules[index];
-
-        if (!module) {
-          return;
-        }
-
-        if (!isUnlocked(index)) {
-          return;
-        }
-
-        router.push({
-          pathname:
-            "/learning/module",
-          params: {
-            materialId,
-            moduleId: module.id,
-            moduleIndex:
-              String(index),
-          },
-        });
-      },
-      [
-        modules,
-        isUnlocked,
-        materialId,
-      ],
-    );
-
-  // ==========================================================
-  // ALL MODULES COMPLETED
-  // ==========================================================
-
-  const allModulesCompleted =
-    modules.length > 0 &&
-    modules.every((module) =>
-      isModuleCompleted(module.id),
-    );
-
-  // ==========================================================
-  // OPEN WRITTEN ASSESSMENT
-  // ==========================================================
-const handleOpenAssessment =
-  useCallback(
-    (assessmentId: string) => {
-      if (!allModulesCompleted) {
+      if (!isUnlocked(index)) {
         return;
       }
 
       router.push({
-        pathname: "/assessment/[id]",
+        pathname: "/learning/module",
         params: {
-          id: assessmentId,
-          assessmentId,
+          materialId,
+          moduleId: module.id,
+          moduleIndex: String(index),
         },
       });
     },
-    [allModulesCompleted],
+    [modules, materialId, isUnlocked],
   );
-  // ==========================================================
-  // INITIAL LOADING
-  // ==========================================================
 
-  if (
-    isLoading &&
-    !selectedMaterial
-  ) {
+  const allModulesCompleted = useMemo(() => {
+    if (modules.length === 0) {
+      return false;
+    }
+
+    return modules.every((module) =>
+      isModuleCompleted(module.id),
+    );
+  }, [modules, isModuleCompleted]);
+
+  const completedCount = useMemo(() => {
+    return modules.filter((module) =>
+      isModuleCompleted(module.id),
+    ).length;
+  }, [modules, isModuleCompleted]);
+
+  const progressPercentage = useMemo(() => {
+    if (modules.length === 0) {
+      return 0;
+    }
+
+    return Math.round(
+      (completedCount / modules.length) * 100,
+    );
+  }, [completedCount, modules.length]);
+
+  if (isLoading && !selectedMaterial) {
     return (
-      <View
-        style={styles.center}
-      >
-        <ActivityIndicator
-          size="large"
-          color="#111827"
-        />
-
-        <Text
-          style={styles.loadingText}
-        >
-          Loading learning material...
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" />
+        <Text style={styles.loadingText}>
+          Loading course modules...
         </Text>
       </View>
     );
   }
 
-  // ==========================================================
-  // ERROR
-  // ==========================================================
-
-  if (
-    error &&
-    !selectedMaterial
-  ) {
+  if (error && !selectedMaterial) {
     return (
-      <View
-        style={styles.center}
-      >
-        <View
-          style={styles.errorIcon}
-        >
-          <Text
-            style={styles.errorIconText}
-          >
-            !
-          </Text>
-        </View>
-
-        <Text
-          style={styles.errorTitle}
-        >
-          Unable to Load Material
+      <View style={styles.centerContainer}>
+        <Text style={styles.errorTitle}>
+          Unable to load course
         </Text>
 
-        <Text
-          style={styles.errorText}
-        >
-          {error.message}
+        <Text style={styles.errorText}>
+          {error}
         </Text>
 
         <Pressable
-          onPress={() =>
-            void handleRefresh()
-          }
           style={styles.retryButton}
+          onPress={() => {
+            loadedMaterialIdRef.current = null;
+            void fetchData();
+          }}
         >
-          <Text
-            style={
-              styles.retryButtonText
-            }
-          >
+          <Text style={styles.retryButtonText}>
             Try Again
           </Text>
         </Pressable>
@@ -492,494 +276,384 @@ const handleOpenAssessment =
     );
   }
 
-  // ==========================================================
-  // MAIN
-  // ==========================================================
+  if (!selectedMaterial) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.emptyTitle}>
+          Course not found
+        </Text>
+
+        <Text style={styles.emptyText}>
+          This learning material is currently unavailable.
+        </Text>
+      </View>
+    );
+  }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={
-        styles.content
-      }
-      showsVerticalScrollIndicator={
-        false
-      }
-      refreshControl={
-        <RefreshControl
-          refreshing={
-            isRefreshing
-          }
-          onRefresh={
-            handleRefresh
-          }
-        />
-      }
-    >
-      {/* ====================================================
-          HEADER
-      ==================================================== */}
-
-      <View
-        style={styles.header}
+    <View style={styles.container}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+          />
+        }
+        contentContainerStyle={styles.content}
       >
-        <Pressable
-          onPress={() =>
-            router.back()
-          }
-          style={styles.backButton}
-        >
-          <Text
-            style={styles.backArrow}
+        {/* Header */}
+        <View style={styles.header}>
+          <Pressable
+            style={styles.backButton}
+            onPress={() => router.back()}
           >
-            ‹
-          </Text>
-        </Pressable>
+            <Text style={styles.backIcon}>‹</Text>
+          </Pressable>
 
-        <View
-          style={styles.headerText}
-        >
-          <Text
-            style={styles.eyebrow}
-          >
-            LEARNING
-          </Text>
+          <View style={styles.headerTextContainer}>
+            <Text
+              style={styles.headerTitle}
+              numberOfLines={2}
+            >
+              Course Modules
+            </Text>
 
-          <Text
-            style={styles.title}
-            numberOfLines={2}
-          >
-            {selectedMaterial?.title}
-          </Text>
-        </View>
-      </View>
-
-      {/* ====================================================
-          INTRO
-      ==================================================== */}
-
-      <View
-        style={styles.introCard}
-      >
-        <Text
-          style={styles.introLabel}
-        >
-          COURSE CONTENT
-        </Text>
-
-        <Text
-          style={styles.introTitle}
-        >
-          Continue your learning
-        </Text>
-
-        <Text
-          style={styles.introText}
-        >
-          Complete each module in order.
-          Finish a module to unlock the
-          next one.
-        </Text>
-      </View>
-
-      {/* ====================================================
-          MODULES
-      ==================================================== */}
-
-      <View
-        style={styles.sectionHeader}
-      >
-        <View>
-          <Text
-            style={styles.sectionTitle}
-          >
-            Course Modules
-          </Text>
-
-          <Text
-            style={styles.sectionSubtitle}
-          >
-            Learn step by step
-          </Text>
+            <Text
+              style={styles.headerSubtitle}
+              numberOfLines={2}
+            >
+              {selectedMaterial.title}
+            </Text>
+          </View>
         </View>
 
-        <View
-          style={styles.countBadge}
-        >
-          <Text
-            style={styles.countText}
-          >
-            {modules.length}
+        {/* Course Information */}
+        <View style={styles.courseCard}>
+          <View style={styles.courseBadge}>
+            <Text style={styles.courseBadgeText}>
+              TRAINING MATERIAL
+            </Text>
+          </View>
+
+          <Text style={styles.courseTitle}>
+            {selectedMaterial.title}
           </Text>
+
+          {selectedMaterial.description ? (
+            <Text style={styles.courseDescription}>
+              {selectedMaterial.description}
+            </Text>
+          ) : null}
         </View>
-      </View>
 
-      <View
-        style={styles.moduleList}
-      >
-        {modules.map(
-          (
-            module,
-            index,
-          ) => {
-            const unlocked =
-              isUnlocked(index);
+        {/* Overall Progress */}
+        <View style={styles.progressCard}>
+          <View style={styles.progressHeader}>
+            <View>
+              <Text style={styles.progressLabel}>
+                Course Progress
+              </Text>
 
-            const completed =
-              isModuleCompleted(
-                module.id,
-              );
+              <Text style={styles.progressCount}>
+                {completedCount} of {modules.length} modules
+                completed
+              </Text>
+            </View>
 
-            return (
-              <Pressable
-                key={module.id}
-                disabled={!unlocked}
-                onPress={() =>
-                  handleOpenModule(
-                    index,
-                  )
-                }
-                style={[
-                  styles.moduleCard,
-                  !unlocked &&
-                    styles.moduleCardLocked,
-                  completed &&
-                    styles.moduleCardCompleted,
-                ]}
-              >
-                {/* NUMBER */}
+            <Text style={styles.progressPercentage}>
+              {progressPercentage}%
+            </Text>
+          </View>
 
+          <View style={styles.progressTrack}>
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  width: `${progressPercentage}%`,
+                },
+              ]}
+            />
+          </View>
+
+          {isProgressLoading ? (
+            <View style={styles.progressLoading}>
+              <ActivityIndicator size="small" />
+              <Text style={styles.progressLoadingText}>
+                Syncing progress...
+              </Text>
+            </View>
+          ) : null}
+
+          {progressError ? (
+            <Text style={styles.progressError}>
+              {progressError}
+            </Text>
+          ) : null}
+        </View>
+
+        {/* Modules */}
+        <View style={styles.sectionHeader}>
+          <View>
+            <Text style={styles.sectionTitle}>
+              Learning Modules
+            </Text>
+
+            <Text style={styles.sectionSubtitle}>
+              Complete each module to unlock the next one.
+            </Text>
+          </View>
+        </View>
+
+        {modules.length === 0 ? (
+          <View style={styles.emptyModulesCard}>
+            <Text style={styles.emptyModulesTitle}>
+              No modules available
+            </Text>
+
+            <Text style={styles.emptyModulesText}>
+              Modules for this training material have not been
+              added yet.
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.modulesList}>
+            {modules.map((module, index) => {
+              const completed = isModuleCompleted(module.id);
+              const unlocked = isUnlocked(index);
+
+              return (
                 <View
+                  key={module.id}
                   style={[
-                    styles.moduleNumber,
-                    unlocked &&
-                      styles.moduleNumberUnlocked,
-                    completed &&
-                      styles.moduleNumberCompleted,
+                    styles.moduleCard,
+                    !unlocked &&
+                      styles.moduleCardLocked,
                   ]}
                 >
-                  <Text
-                    style={[
-                      styles.moduleNumberText,
-                      unlocked &&
-                        styles.moduleNumberTextUnlocked,
-                      completed &&
-                        styles.moduleNumberTextCompleted,
-                    ]}
-                  >
-                    {completed
-                      ? "✓"
-                      : !unlocked
-                        ? "🔒"
-                        : index + 1}
-                  </Text>
-                </View>
+                  <View style={styles.moduleTopRow}>
+                    {/* Module Number */}
+                    <View
+                      style={[
+                        styles.moduleNumber,
+                        completed &&
+                          styles.moduleNumberCompleted,
+                        !unlocked &&
+                          styles.moduleNumberLocked,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.moduleNumberText,
+                          completed &&
+                            styles.moduleNumberTextCompleted,
+                          !unlocked &&
+                            styles.moduleNumberTextLocked,
+                        ]}
+                      >
+                        {index + 1}
+                      </Text>
+                    </View>
 
-                {/* INFO */}
+                    {/* Module Info */}
+                    <View style={styles.moduleInfo}>
+                      <Text
+                        style={styles.moduleTitle}
+                        numberOfLines={3}
+                      >
+                        {module.title}
+                      </Text>
 
-                <View
-                  style={styles.moduleInfo}
-                >
-                  <Text
-                    style={styles.moduleLabel}
-                  >
-                    MODULE {index + 1}
-                  </Text>
+                      {module.description ? (
+                        <Text
+                          style={styles.moduleDescription}
+                          numberOfLines={3}
+                        >
+                          {module.description}
+                        </Text>
+                      ) : null}
+                    </View>
 
-                  <Text
-                    style={[
-                      styles.moduleTitle,
-                      !unlocked &&
-                        styles.lockedText,
-                    ]}
-                    numberOfLines={2}
-                  >
-                    {module.title}
-                  </Text>
+                    {/* Status */}
+                    <View style={styles.statusContainer}>
+                      {completed ? (
+                        <View
+                          style={styles.completedBadge}
+                        >
+                          <Text
+                            style={
+                              styles.completedBadgeText
+                            }
+                          >
+                            ✓
+                          </Text>
+                        </View>
+                      ) : !unlocked ? (
+                        <View
+                          style={styles.lockedBadge}
+                        >
+                          <Text
+                            style={
+                              styles.lockedBadgeText
+                            }
+                          >
+                            🔒
+                          </Text>
+                        </View>
+                      ) : (
+                        <View
+                          style={styles.availableBadge}
+                        >
+                          <Text
+                            style={
+                              styles.availableBadgeText
+                            }
+                          >
+                            →
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
 
-                  <Text
-                    style={
-                      styles.moduleDescription
+                  {/* Module Action */}
+                  <Pressable
+                    disabled={!unlocked}
+                    onPress={() =>
+                      handleOpenModule(index)
                     }
+                    style={[
+                      styles.moduleButton,
+                      completed &&
+                        styles.moduleButtonCompleted,
+                      !unlocked &&
+                        styles.moduleButtonLocked,
+                    ]}
                   >
-                    {completed
-                      ? "Module completed"
-                      : !unlocked
-                        ? "Complete previous module first"
-                        : `${module.sectionCount} ${
-                            module.sectionCount ===
-                            1
-                              ? "lesson"
-                              : "lessons"
-                          }`}
-                  </Text>
+                    <Text
+                      style={[
+                        styles.moduleButtonText,
+                        completed &&
+                          styles.moduleButtonTextCompleted,
+                        !unlocked &&
+                          styles.moduleButtonTextLocked,
+                      ]}
+                    >
+                      {completed
+                        ? "Review Module"
+                        : unlocked
+                          ? "Open Module"
+                          : "Complete Previous Module"}
+                    </Text>
+                  </Pressable>
                 </View>
-
-                {/* RIGHT STATUS */}
-
-                <View
-                  style={styles.statusArea}
-                >
-                  {completed ? (
-                    <Text
-                      style={
-                        styles.completedStatus
-                      }
-                    >
-                      DONE
-                    </Text>
-                  ) : unlocked ? (
-                    <Text
-                      style={
-                        styles.openArrow
-                      }
-                    >
-                      ›
-                    </Text>
-                  ) : (
-                    <Text
-                      style={
-                        styles.lockIcon
-                      }
-                    >
-                      🔒
-                    </Text>
-                  )}
-                </View>
-              </Pressable>
-            );
-          },
-        )}
-      </View>
-
-      {/* ====================================================
-          PROGRESS LOADING
-      ==================================================== */}
-
-      {isProgressLoading &&
-        !progress && (
-          <View
-            style={
-              styles.progressLoading
-            }
-          >
-            <ActivityIndicator
-              size="small"
-              color="#64748B"
-            />
-
-            <Text
-              style={
-                styles.progressLoadingText
-              }
-            >
-              Loading progress...
-            </Text>
+              );
+            })}
           </View>
         )}
 
-      {/* ====================================================
-          PROGRESS ERROR
-      ==================================================== */}
-
-      {progressError &&
-        !progress && (
-          <View
-            style={
-              styles.progressErrorCard
-            }
-          >
-            <Text
-              style={
-                styles.progressErrorText
-              }
-            >
-              Progress could not be loaded.
-              Pull down to refresh.
-            </Text>
-          </View>
-        )}
-
-      {/* ====================================================
-          WRITTEN ASSESSMENT
-      ==================================================== */}
-
-      {allModulesCompleted && (
-        <View style={styles.assessmentSection}>
-          <View style={styles.sectionHeader}>
-            <View>
-              <Text style={styles.sectionTitle}>
-                Written Assessment
-              </Text>
-              <Text style={styles.sectionSubtitle}>
-                Test what you learned
+        {/* Completion Notice */}
+        {allModulesCompleted ? (
+          <View style={styles.completionCard}>
+            <View style={styles.completionIcon}>
+              <Text style={styles.completionIconText}>
+                ✓
               </Text>
             </View>
 
-            <View style={styles.assessmentBadge}>
-              <Text style={styles.assessmentBadgeText}>
-                READY
+            <View style={styles.completionContent}>
+              <Text style={styles.completionTitle}>
+                All Modules Completed
+              </Text>
+
+              <Text style={styles.completionText}>
+                You have completed all learning modules.
+                Your Written Assessment will be available
+                from the Learning screen.
               </Text>
             </View>
           </View>
+        ) : null}
 
-          {isAssessmentLoading &&
-            participantAssessments.length === 0 && (
-              <View style={styles.assessmentLoading}>
-                <ActivityIndicator
-                  size="small"
-                  color="#64748B"
-                />
-                <Text style={styles.assessmentLoadingText}>
-                  Loading assessment...
-                </Text>
-              </View>
-            )}
-
-          {assessmentError &&
-            participantAssessments.length === 0 && (
-              <View style={styles.assessmentErrorCard}>
-                <Text style={styles.assessmentErrorText}>
-                  {assessmentError}
-                </Text>
-              </View>
-            )}
-
-          {!isAssessmentLoading &&
-            !assessmentError &&
-            participantAssessments.length === 0 && (
-              <View style={styles.assessmentEmptyCard}>
-                <Text style={styles.assessmentEmptyTitle}>
-                  No written assessment yet
-                </Text>
-                <Text style={styles.assessmentEmptyText}>
-                  Your written assessment will appear here once it is published.
-                </Text>
-              </View>
-            )}
-
-          <View style={styles.assessmentList}>
-            {participantAssessments.map((item) => (
-              <Pressable
-                key={item.id}
-                onPress={() =>
-                  handleOpenAssessment(item.id)
-                }
-                style={styles.assessmentCard}
-              >
-                <View style={styles.assessmentIcon}>
-                  <Text style={styles.assessmentIconText}>
-                    ?
-                  </Text>
-                </View>
-
-                <View style={styles.assessmentInfo}>
-                  <Text
-                    style={styles.assessmentTitle}
-                    numberOfLines={2}
-                  >
-                    {item.title}
-                  </Text>
-
-                  {!!item.description && (
-                    <Text
-                      style={styles.assessmentDescription}
-                      numberOfLines={2}
-                    >
-                      {item.description}
-                    </Text>
-                  )}
-
-                  <Text style={styles.assessmentMeta}>
-                    {item.questionCount} {item.questionCount === 1 ? "question" : "questions"}
-                    {"  •  "}
-                    Passing {item.passingPercentage}%
-                  </Text>
-
-                  {item.hasPassed ? (
-                    <Text style={styles.assessmentPassed}>
-                      PASSED {item.latestPercentage != null ? `• ${item.latestPercentage}%` : ""}
-                    </Text>
-                  ) : item.attemptCount > 0 ? (
-                    <Text style={styles.assessmentAttempted}>
-                      {item.attemptCount} {item.attemptCount === 1 ? "attempt" : "attempts"}
-                      {item.latestPercentage != null ? ` • Latest ${item.latestPercentage}%` : ""}
-                    </Text>
-                  ) : (
-                    <Text style={styles.assessmentAvailable}>
-                      Ready to take
-                    </Text>
-                  )}
-                </View>
-
-                <Text style={styles.assessmentArrow}>
-                  ›
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-      )}
-
-      {/* ====================================================
-          INFO
-      ==================================================== */}
-
-      <View
-        style={styles.infoCard}
-      >
-        <View
-          style={styles.infoIcon}
-        >
-          <Text
-            style={styles.infoIconText}
-          >
-            i
-          </Text>
-        </View>
-
-        <View
-          style={styles.infoContent}
-        >
-          <Text
-            style={styles.infoTitle}
-          >
-            Complete the lessons
-          </Text>
-
-          <Text
-            style={styles.infoText}
-          >
-            Open an unlocked module and
-            read each lesson page. Use Next
-            to continue until the module is
-            completed.
-          </Text>
-        </View>
-      </View>
-    </ScrollView>
+        {/* Bottom spacing */}
+        <View style={styles.bottomSpacing} />
+      </ScrollView>
+    </View>
   );
 }
-
-// ============================================================
-// STYLES
-// ============================================================
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#f8fafc",
   },
 
   content: {
-    paddingTop: 29,
-    paddingHorizontal: 18,
-    paddingBottom: 100,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
   },
 
-  // ==========================================================
-  // HEADER
-  // ==========================================================
+  centerContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    backgroundColor: "#f8fafc",
+  },
+
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "#64748b",
+  },
+
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#0f172a",
+    textAlign: "center",
+  },
+
+  errorText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: "#64748b",
+    textAlign: "center",
+    lineHeight: 21,
+  },
+
+  retryButton: {
+    marginTop: 20,
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: "#2563eb",
+  },
+
+  retryButtonText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#0f172a",
+    textAlign: "center",
+  },
+
+  emptyText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: "#64748b",
+    textAlign: "center",
+    lineHeight: 21,
+  },
+
+  /* Header */
 
   header: {
     flexDirection: "row",
@@ -988,515 +662,388 @@ const styles = StyleSheet.create({
   },
 
   backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+
+  backIcon: {
+    fontSize: 32,
+    lineHeight: 34,
+    color: "#0f172a",
+    marginTop: -2,
+  },
+
+  headerTextContainer: {
+    flex: 1,
+  },
+
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: "#0f172a",
+  },
+
+  headerSubtitle: {
+    marginTop: 3,
+    fontSize: 13,
+    color: "#64748b",
+  },
+
+  /* Course */
+
+  courseCard: {
+    padding: 20,
+    borderRadius: 20,
+    backgroundColor: "#2563eb",
+    marginBottom: 16,
+  },
+
+  courseBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: "#1d4ed8",
+    marginBottom: 12,
+  },
+
+  courseBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+    color: "#dbeafe",
+  },
+
+  courseTitle: {
+    fontSize: 22,
+    lineHeight: 29,
+    fontWeight: "800",
+    color: "#ffffff",
+  },
+
+  courseDescription: {
+    marginTop: 8,
+    fontSize: 14,
+    lineHeight: 21,
+    color: "#dbeafe",
+  },
+
+  /* Progress */
+
+  progressCard: {
+    padding: 18,
+    borderRadius: 18,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    marginBottom: 24,
+  },
+
+  progressHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  progressLabel: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#0f172a",
+  },
+
+  progressCount: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "#64748b",
+  },
+
+  progressPercentage: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#2563eb",
+  },
+
+  progressTrack: {
+    height: 9,
+    marginTop: 14,
+    borderRadius: 999,
+    backgroundColor: "#e2e8f0",
+    overflow: "hidden",
+  },
+
+  progressFill: {
+    height: "100%",
+    borderRadius: 999,
+    backgroundColor: "#2563eb",
+  },
+
+  progressLoading: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 12,
+  },
+
+  progressLoadingText: {
+    marginLeft: 8,
+    fontSize: 12,
+    color: "#64748b",
+  },
+
+  progressError: {
+    marginTop: 10,
+    fontSize: 12,
+    color: "#dc2626",
+  },
+
+  /* Section */
+
+  sectionHeader: {
+    marginBottom: 14,
+  },
+
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#0f172a",
+  },
+
+  sectionSubtitle: {
+    marginTop: 4,
+    fontSize: 13,
+    lineHeight: 19,
+    color: "#64748b",
+  },
+
+  /* Modules */
+
+  modulesList: {
+    gap: 14,
+  },
+
+  moduleCard: {
+    padding: 16,
+    borderRadius: 18,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+
+  moduleCardLocked: {
+    opacity: 0.7,
+  },
+
+  moduleTopRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+
+  moduleNumber: {
     width: 40,
     height: 40,
     borderRadius: 13,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-
-  backArrow: {
-    marginTop: -3,
-    fontSize: 28,
-    lineHeight: 30,
-    color: "#111827",
-  },
-
-  headerText: {
-    flex: 1,
-    marginLeft: 12,
-  },
-
-  eyebrow: {
-    fontSize: 8,
-    fontWeight: "900",
-    letterSpacing: 1,
-    color: "#64748B",
-  },
-
-  title: {
-    marginTop: 3,
-    fontSize: 18,
-    lineHeight: 24,
-    fontWeight: "800",
-    color: "#111827",
-  },
-
-  // ==========================================================
-  // INTRO
-  // ==========================================================
-
-  introCard: {
-    padding: 19,
-    borderRadius: 20,
-    backgroundColor: "#2563EB",
-    marginBottom: 25,
-  },
-
-  introLabel: {
-    fontSize: 8,
-    fontWeight: "900",
-    letterSpacing: 1,
-    color: "#FFFFFF",
-  },
-
-  introTitle: {
-    marginTop: 7,
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#FFFFFF",
-  },
-
-  introText: {
-    marginTop: 7,
-    fontSize: 11,
-    lineHeight: 17,
-    color: "#CBD5E1",
-  },
-
-  // ==========================================================
-  // SECTION HEADER
-  // ==========================================================
-
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 12,
-  },
-
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: "#111827",
-  },
-
-  sectionSubtitle: {
-    marginTop: 3,
-    fontSize: 10,
-    color: "#64748B",
-  },
-
-  countBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#E2E8F0",
-  },
-
-  countText: {
-    fontSize: 10,
-    fontWeight: "900",
-    color: "#475569",
-  },
-
-  // ==========================================================
-  // MODULE
-  // ==========================================================
-
-  moduleList: {
-    gap: 9,
-  },
-
-  moduleCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 14,
-    borderRadius: 17,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-
-  moduleCardLocked: {
-    backgroundColor: "#F1F5F9",
-    opacity: 0.65,
-  },
-
-  moduleCardCompleted: {
-    backgroundColor: "#F8FAFC",
-  },
-
-  moduleNumber: {
-    width: 43,
-    height: 43,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#eff6ff",
     marginRight: 12,
   },
 
-  moduleNumberUnlocked: {
-    backgroundColor: "#111827",
+  moduleNumberCompleted: {
+    backgroundColor: "#2563eb",
   },
 
-  moduleNumberCompleted: {
-    backgroundColor: "#ECFDF5",
+  moduleNumberLocked: {
+    backgroundColor: "#f1f5f9",
   },
 
   moduleNumberText: {
-    fontSize: 11,
-    fontWeight: "900",
-    color: "#94A3B8",
-  },
-
-  moduleNumberTextUnlocked: {
-    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#2563eb",
   },
 
   moduleNumberTextCompleted: {
-    color: "#059669",
+    color: "#ffffff",
+  },
+
+  moduleNumberTextLocked: {
+    color: "#94a3b8",
   },
 
   moduleInfo: {
     flex: 1,
-    minWidth: 0,
-  },
-
-  moduleLabel: {
-    fontSize: 7,
-    fontWeight: "900",
-    letterSpacing: 0.8,
-    color: "#94A3B8",
+    paddingRight: 8,
   },
 
   moduleTitle: {
-    marginTop: 3,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "800",
-    color: "#111827",
-  },
-
-  lockedText: {
-    color: "#64748B",
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: "700",
+    color: "#0f172a",
   },
 
   moduleDescription: {
-    marginTop: 4,
-    fontSize: 8,
-    color: "#94A3B8",
+    marginTop: 5,
+    fontSize: 12,
+    lineHeight: 18,
+    color: "#64748b",
   },
 
-  statusArea: {
-    marginLeft: 8,
-    alignItems: "center",
-    justifyContent: "center",
+  statusContainer: {
+    marginLeft: 4,
   },
 
-  openArrow: {
-    fontSize: 25,
-    color: "#94A3B8",
-  },
-
-  lockIcon: {
-    fontSize: 13,
-  },
-
-  completedStatus: {
-    fontSize: 7,
-    fontWeight: "900",
-    color: "#059669",
-  },
-
-  // ==========================================================
-  // PROGRESS
-  // ==========================================================
-
-  progressLoading: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 14,
-    gap: 7,
-  },
-
-  progressLoadingText: {
-    fontSize: 9,
-    color: "#64748B",
-  },
-
-  progressErrorCard: {
-    marginTop: 14,
-    padding: 11,
-    borderRadius: 13,
-    backgroundColor: "#FEF2F2",
-    borderWidth: 1,
-    borderColor: "#FECACA",
-  },
-
-  progressErrorText: {
-    fontSize: 9,
-    lineHeight: 14,
-    textAlign: "center",
-    color: "#B91C1C",
-  },
-
-  // ==========================================================
-  // WRITTEN ASSESSMENT
-  // ==========================================================
-
-  assessmentSection: {
-    marginTop: 24,
-  },
-
-  assessmentBadge: {
-    paddingHorizontal: 9,
-    paddingVertical: 6,
-    borderRadius: 9,
-    backgroundColor: "#DCFCE7",
-  },
-
-  assessmentBadgeText: {
-    fontSize: 7,
-    fontWeight: "900",
-    letterSpacing: 0.6,
-    color: "#15803D",
-  },
-
-  assessmentList: {
-    gap: 9,
-  },
-
-  assessmentCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 14,
-    borderRadius: 17,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#D1FAE5",
-  },
-
-  assessmentIcon: {
-    width: 43,
-    height: 43,
+  completedBadge: {
+    width: 28,
+    height: 28,
     borderRadius: 14,
+    backgroundColor: "#dcfce7",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#ECFDF5",
+  },
+
+  completedBadgeText: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#16a34a",
+  },
+
+  lockedBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#f1f5f9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  lockedBadgeText: {
+    fontSize: 12,
+  },
+
+  availableBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#eff6ff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  availableBadgeText: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#2563eb",
+  },
+
+  moduleButton: {
+    marginTop: 16,
+    minHeight: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#2563eb",
+  },
+
+  moduleButtonCompleted: {
+    backgroundColor: "#eff6ff",
+  },
+
+  moduleButtonLocked: {
+    backgroundColor: "#f1f5f9",
+  },
+
+  moduleButtonText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#ffffff",
+  },
+
+  moduleButtonTextCompleted: {
+    color: "#2563eb",
+  },
+
+  moduleButtonTextLocked: {
+    color: "#94a3b8",
+  },
+
+  /* Empty */
+
+  emptyModulesCard: {
+    padding: 24,
+    borderRadius: 18,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    alignItems: "center",
+  },
+
+  emptyModulesTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#0f172a",
+  },
+
+  emptyModulesText: {
+    marginTop: 6,
+    fontSize: 13,
+    lineHeight: 19,
+    color: "#64748b",
+    textAlign: "center",
+  },
+
+  /* Completion */
+
+  completionCard: {
+    flexDirection: "row",
+    marginTop: 18,
+    padding: 18,
+    borderRadius: 18,
+    backgroundColor: "#eff6ff",
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+  },
+
+  completionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#2563eb",
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 12,
   },
 
-  assessmentIconText: {
-    fontSize: 16,
-    fontWeight: "900",
-    color: "#059669",
+  completionIconText: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#ffffff",
   },
 
-  assessmentInfo: {
+  completionContent: {
     flex: 1,
-    minWidth: 0,
   },
 
-  assessmentTitle: {
-    fontSize: 13,
+  completionTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#1e3a8a",
+  },
+
+  completionText: {
+    marginTop: 5,
+    fontSize: 12,
     lineHeight: 18,
-    fontWeight: "800",
-    color: "#111827",
+    color: "#1e40af",
   },
 
-  assessmentDescription: {
-    marginTop: 3,
-    fontSize: 9,
-    lineHeight: 14,
-    color: "#64748B",
-  },
-
-  assessmentMeta: {
-    marginTop: 6,
-    fontSize: 8,
-    color: "#64748B",
-  },
-
-  assessmentPassed: {
-    marginTop: 5,
-    fontSize: 8,
-    fontWeight: "900",
-    color: "#059669",
-  },
-
-  assessmentAttempted: {
-    marginTop: 5,
-    fontSize: 8,
-    fontWeight: "700",
-    color: "#D97706",
-  },
-
-  assessmentAvailable: {
-    marginTop: 5,
-    fontSize: 8,
-    fontWeight: "800",
-    color: "#2563EB",
-  },
-
-  assessmentArrow: {
-    marginLeft: 8,
-    fontSize: 25,
-    color: "#94A3B8",
-  },
-
-  assessmentLoading: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 14,
-    gap: 7,
-  },
-
-  assessmentLoadingText: {
-    fontSize: 9,
-    color: "#64748B",
-  },
-
-  assessmentErrorCard: {
-    padding: 11,
-    borderRadius: 13,
-    backgroundColor: "#FEF2F2",
-    borderWidth: 1,
-    borderColor: "#FECACA",
-  },
-
-  assessmentErrorText: {
-    fontSize: 9,
-    lineHeight: 14,
-    textAlign: "center",
-    color: "#B91C1C",
-  },
-
-  assessmentEmptyCard: {
-    padding: 14,
-    borderRadius: 15,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-
-  assessmentEmptyTitle: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#111827",
-  },
-
-  assessmentEmptyText: {
-    marginTop: 4,
-    fontSize: 9,
-    lineHeight: 14,
-    color: "#64748B",
-  },
-
-  // ==========================================================
-  // INFO
-  // ==========================================================
-
-  infoCard: {
-    flexDirection: "row",
-    marginTop: 22,
-    padding: 14,
-    borderRadius: 17,
-    backgroundColor: "#EFF6FF",
-    borderWidth: 1,
-    borderColor: "#DBEAFE",
-  },
-
-  infoIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#DBEAFE",
-    marginRight: 10,
-  },
-
-  infoIconText: {
-    fontSize: 13,
-    fontWeight: "900",
-    color: "#2563EB",
-  },
-
-  infoContent: {
-    flex: 1,
-  },
-
-  infoTitle: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#1E3A8A",
-  },
-
-  infoText: {
-    marginTop: 3,
-    fontSize: 9,
-    lineHeight: 15,
-    color: "#3B82F6",
-  },
-
-  // ==========================================================
-  // CENTER
-  // ==========================================================
-
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 30,
-    backgroundColor: "#F8FAFC",
-  },
-
-  loadingText: {
-    marginTop: 12,
-    fontSize: 11,
-    color: "#64748B",
-  },
-
-  errorIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FEE2E2",
-  },
-
-  errorIconText: {
-    fontSize: 20,
-    fontWeight: "900",
-    color: "#DC2626",
-  },
-
-  errorTitle: {
-    marginTop: 13,
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#111827",
-  },
-
-  errorText: {
-    marginTop: 6,
-    fontSize: 10,
-    lineHeight: 16,
-    textAlign: "center",
-    color: "#64748B",
-  },
-
-  retryButton: {
-    marginTop: 18,
-    paddingHorizontal: 20,
-    paddingVertical: 11,
-    borderRadius: 12,
-    backgroundColor: "#111827",
-  },
-
-  retryButtonText: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: "#FFFFFF",
+  bottomSpacing: {
+    height: 20,
   },
 });

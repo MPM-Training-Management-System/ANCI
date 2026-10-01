@@ -44,6 +44,7 @@ builder.Services.AddScoped<
     ILearningMaterialService,
     LearningMaterialService
 >();
+builder.Services.AddScoped<IGoogleAuthService, GoogleAuthService>();
 builder.Services.AddScoped<
     ILearningMaterialAiService,
     LearningMaterialAiService

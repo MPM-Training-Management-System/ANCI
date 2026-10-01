@@ -24,7 +24,7 @@ export const onboardingData: OnboardingItem[] = [
     id: "3",
     title: "Let's Get Started",
     description:
-      "Create an account or sign in to continue your Roll Ball journey.",
+      "Create an account or sign in to continue your Training journey.",
     image: require("@/assets/images/ANCILOGO.png"),
   },
 ];

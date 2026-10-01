@@ -52,6 +52,13 @@ export class ApiClient {
     const isFormData =
       options.body instanceof FormData;
 
+    /*
+     * Do not manually set Content-Type
+     * when using FormData.
+     *
+     * The browser will automatically set:
+     * multipart/form-data; boundary=...
+     */
     if (!isFormData) {
       headers.set(
         "Content-Type",
@@ -75,8 +82,101 @@ export class ApiClient {
     ) {
       body = undefined;
     } else if (isFormData) {
-      body =
+      const formData =
         options.body as FormData;
+
+      console.log(
+        "================================"
+      );
+
+      console.log(
+        "FORMDATA DEBUG"
+      );
+
+      console.log(
+        "URL:",
+        url
+      );
+
+      console.log(
+        "METHOD:",
+        options.method ?? "GET"
+      );
+
+      console.log(
+        "HAS GoogleIdToken:",
+        formData.has(
+          "GoogleIdToken"
+        )
+      );
+
+      const googleIdToken =
+        formData.get(
+          "GoogleIdToken"
+        );
+
+      console.log(
+        "GoogleIdToken:",
+        typeof googleIdToken === "string"
+          ? `FOUND (${googleIdToken.length} chars)`
+          : "MISSING"
+      );
+
+      console.log(
+        "FORMDATA FIELDS:"
+      );
+
+      for (
+        const [key, value]
+        of formData.entries()
+      ) {
+        if (
+          key === "GoogleIdToken"
+        ) {
+          console.log(
+            `${key}:`,
+            typeof value === "string"
+              ? `FOUND (${value.length} chars)`
+              : "INVALID"
+          );
+
+          continue;
+        }
+
+        if (
+          typeof File !== "undefined" &&
+          value instanceof File
+        ) {
+          console.log(
+            `${key}: FILE`,
+            {
+              name: value.name,
+              type: value.type,
+              size: value.size,
+            }
+          );
+
+          continue;
+        }
+
+        console.log(
+          `${key}:`,
+          value
+        );
+      }
+
+      console.log(
+        "================================"
+      );
+
+      /*
+       * IMPORTANT:
+       *
+       * FormData must be passed directly.
+       * Do NOT JSON.stringify(FormData).
+       */
+
+      body = formData;
     } else {
       body = JSON.stringify(
         options.body
@@ -123,16 +223,11 @@ export class ApiClient {
        * ==========================================================
        * 401 UNAUTHORIZED
        * ==========================================================
-       *
-       * This is the important part.
-       *
-       * Whenever backend returns 401:
-       *
-       * 1. Tell frontend
-       * 2. Dispatch global auth event
-       * 3. Throw error
        */
-      if (response.status === 401) {
+
+      if (
+        response.status === 401
+      ) {
         console.error(
           "================================"
         );
@@ -150,16 +245,9 @@ export class ApiClient {
           "================================"
         );
 
-        /*
-         * Call configured callback.
-         */
-        this.options.onUnauthorized?.();
+        this.options
+          .onUnauthorized?.();
 
-        /*
-         * Global browser event.
-         *
-         * AuthGuard listens to this.
-         */
         if (
           typeof window !==
           "undefined"
@@ -181,6 +269,7 @@ export class ApiClient {
        * OTHER API ERRORS
        * ==========================================================
        */
+
       if (!response.ok) {
         let message =
           "Something went wrong.";
@@ -266,13 +355,17 @@ export class ApiClient {
                 error.message ||
                 error.title ||
                 error.error ||
-                JSON.stringify(error);
+                JSON.stringify(
+                  error
+                );
             } else {
               message =
                 error.message ??
                 error.title ??
                 error.error ??
-                JSON.stringify(error);
+                JSON.stringify(
+                  error
+                );
             }
           } catch {
             message = text;
@@ -289,6 +382,7 @@ export class ApiClient {
        * NO CONTENT
        * ==========================================================
        */
+
       if (
         response.status === 204 ||
         !text
@@ -301,6 +395,7 @@ export class ApiClient {
        * JSON
        * ==========================================================
        */
+
       try {
         return JSON.parse(
           text
@@ -309,6 +404,7 @@ export class ApiClient {
         /*
          * Plain text response
          */
+
         return text as T;
       }
     } catch (error) {

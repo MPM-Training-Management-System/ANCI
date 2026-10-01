@@ -1,3 +1,6 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Text.Json;
+
 using Microsoft.EntityFrameworkCore;
 
 using server.Data;
@@ -25,15 +28,20 @@ public class AuthService : IAuthService
 
     private readonly IOtpService _otpService;
 
+    private readonly IGoogleAuthService _googleAuthService;
 
     public AuthService(
         ApplicationDbContext db,
         PasswordService passwordService,
         JwtService jwtService,
         ICloudinaryService cloudinaryService,
-        IOtpService otpService)
+        IOtpService otpService,
+        IGoogleAuthService googleAuthService)
     {
         _db = db;
+
+        _googleAuthService =
+            googleAuthService;
 
         _passwordService =
             passwordService;
@@ -48,7 +56,6 @@ public class AuthService : IAuthService
             otpService;
     }
 
-
     // =========================================================
     // PARTICIPANT REGISTRATION
     // POST /api/auth/register
@@ -59,19 +66,51 @@ public class AuthService : IAuthService
         RegisterParticipantAsync(
             RegisterParticipantRequest request)
     {
-        // -----------------------------------------------------
+        GoogleLoginResponse? googleUser = null;
+
+        // =====================================================
+        // GOOGLE REGISTRATION
+        // =====================================================
+
+        if (!string.IsNullOrWhiteSpace(
+            request.GoogleIdToken))
+        {
+            googleUser =
+                await _googleAuthService
+                    .ValidateTokenAsync(
+                        request.GoogleIdToken
+                    );
+        }
+
+        // =====================================================
         // NORMALIZE EMAIL
-        // -----------------------------------------------------
+        // =====================================================
 
         var email =
             request.Email
                 .Trim()
                 .ToLowerInvariant();
 
+        // =====================================================
+        // GOOGLE EMAIL MUST MATCH
+        // =====================================================
 
-        // -----------------------------------------------------
+        if (googleUser is not null)
+        {
+            if (!string.Equals(
+                email,
+                googleUser.Email,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    "The registration email does not match the Google account."
+                );
+            }
+        }
+
+        // =====================================================
         // CHECK EXISTING EMAIL
-        // -----------------------------------------------------
+        // =====================================================
 
         var existingUser =
             await _db.Users
@@ -80,7 +119,6 @@ public class AuthService : IAuthService
                         x.Email == email
                 );
 
-
         if (existingUser is not null)
         {
             throw new InvalidOperationException(
@@ -88,26 +126,47 @@ public class AuthService : IAuthService
             );
         }
 
-
-        // -----------------------------------------------------
-        // VALIDATE PROFILE IMAGE
-        // -----------------------------------------------------
+        // =====================================================
+        // PROFILE IMAGE
+        // =====================================================
 
         string? profileImageUrl = null;
 
+        if (googleUser is not null)
+        {
+            profileImageUrl =
+                CleanString(
+                    googleUser.ProfileImageUrl
+                );
 
-        if (
-            request.ProfileImage is not null
-        )
+            // Fallback: extract picture directly
+            // from the already validated Google token.
+            if (string.IsNullOrWhiteSpace(
+                profileImageUrl))
+            {
+                profileImageUrl =
+                    ExtractGoogleProfileImage(
+                        request.GoogleIdToken
+                    );
+            }
+
+            Console.WriteLine(
+                $"GOOGLE PARTICIPANT PROFILE IMAGE: {profileImageUrl}"
+            );
+        }
+
+        // =====================================================
+        // LOCAL IMAGE OVERRIDES GOOGLE IMAGE
+        // =====================================================
+
+        if (request.ProfileImage is not null)
         {
             ValidateProfileImage(
                 request.ProfileImage
             );
 
-
             await using var stream =
                 request.ProfileImage.OpenReadStream();
-
 
             profileImageUrl =
                 await _cloudinaryService
@@ -116,20 +175,26 @@ public class AuthService : IAuthService
                         request.ProfileImage.FileName,
                         "ace-nextgen/participants"
                     );
+
+            Console.WriteLine(
+                $"CLOUDINARY PARTICIPANT PROFILE IMAGE: {profileImageUrl}"
+            );
         }
 
+        Console.WriteLine(
+            $"FINAL PARTICIPANT PROFILE IMAGE: {profileImageUrl}"
+        );
 
-        // -----------------------------------------------------
+        // =====================================================
         // GENERATE PARTICIPANT USER CODE
-        // -----------------------------------------------------
+        // =====================================================
 
         var userCode =
             await GenerateParticipantUserCodeAsync();
 
-
-        // -----------------------------------------------------
+        // =====================================================
         // CREATE FULL NAME
-        // -----------------------------------------------------
+        // =====================================================
 
         var fullName =
             BuildFullName(
@@ -138,10 +203,9 @@ public class AuthService : IAuthService
                 request.LastName
             );
 
-
-        // -----------------------------------------------------
+        // =====================================================
         // CREATE USER
-        // -----------------------------------------------------
+        // =====================================================
 
         var user =
             new User
@@ -176,7 +240,10 @@ public class AuthService : IAuthService
                     UserStatus.Pending,
 
                 IsEmailVerified =
-                    false,
+                    googleUser is not null,
+
+                GoogleSubjectId =
+                    googleUser?.GoogleSubjectId,
 
                 CreatedAt =
                     DateTime.UtcNow,
@@ -185,10 +252,9 @@ public class AuthService : IAuthService
                     DateTime.UtcNow
             };
 
-
-        // -----------------------------------------------------
+        // =====================================================
         // CREATE PARTICIPANT PROFILE
-        // -----------------------------------------------------
+        // =====================================================
 
         var participantProfile =
             new ParticipantProfile
@@ -230,10 +296,9 @@ public class AuthService : IAuthService
                     user
             };
 
-
-        // -----------------------------------------------------
-        // ADD TO DATABASE
-        // -----------------------------------------------------
+        // =====================================================
+        // ADD DATABASE RECORDS
+        // =====================================================
 
         _db.Users.Add(
             user
@@ -243,17 +308,15 @@ public class AuthService : IAuthService
             participantProfile
         );
 
-
-        // -----------------------------------------------------
+        // =====================================================
         // SAVE
-        // -----------------------------------------------------
+        // =====================================================
 
         await _db.SaveChangesAsync();
 
-
-        // -----------------------------------------------------
+        // =====================================================
         // RESPONSE
-        // -----------------------------------------------------
+        // =====================================================
 
         return new UserRegistrationResponse
         {
@@ -276,7 +339,9 @@ public class AuthService : IAuthService
                 user.Status.ToString(),
 
             Message =
-                "Participant registration successful. Please verify your email using the OTP.",
+                googleUser is not null
+                    ? "Participant registration successful."
+                    : "Participant registration successful. Please verify your email using the OTP.",
 
             TrainerApplicationId =
                 null,
@@ -286,498 +351,651 @@ public class AuthService : IAuthService
         };
     }
 
-
-   public async Task<UserRegistrationResponse>
-    RegisterTrainerAsync(
-        RegisterTrainerRequest request)
-{
     // =========================================================
-    // NORMALIZE EMAIL
+    // TRAINER REGISTRATION
+    // POST /api/auth/register/trainer
+    // multipart/form-data
     // =========================================================
 
-    var email =
-        request.Email
-            .Trim()
-            .ToLowerInvariant();
-
-
-    // =========================================================
-    // VALIDATE EMAIL
-    // =========================================================
-
-    if (string.IsNullOrWhiteSpace(email))
+    public async Task<UserRegistrationResponse>
+        RegisterTrainerAsync(
+            RegisterTrainerRequest request)
     {
-        throw new InvalidOperationException(
-            "Email is required."
+        GoogleLoginResponse? googleUser = null;
+
+        // =====================================================
+        // GOOGLE REGISTRATION
+        // =====================================================
+
+        Console.WriteLine(
+            "================================================="
         );
-    }
 
+        Console.WriteLine(
+            "🔥 TRAINER GOOGLE REGISTRATION"
+        );
 
-    // =========================================================
-    // CHECK EXISTING EMAIL
-    // =========================================================
+        Console.WriteLine(
+            $"GoogleIdToken received: {!string.IsNullOrWhiteSpace(request.GoogleIdToken)}"
+        );
 
-    var existingUser =
-        await _db.Users
-            .FirstOrDefaultAsync(
-                x => x.Email == email
+        Console.WriteLine(
+            $"GoogleIdToken length: {request.GoogleIdToken?.Length ?? 0}"
+        );
+
+        Console.WriteLine(
+            "================================================="
+        );
+
+        if (!string.IsNullOrWhiteSpace(
+            request.GoogleIdToken))
+        {
+            googleUser =
+                await _googleAuthService
+                    .ValidateTokenAsync(
+                        request.GoogleIdToken
+                    );
+
+            Console.WriteLine(
+                "================================================="
             );
 
-    if (existingUser is not null)
-    {
-        throw new InvalidOperationException(
-            "An account with this email already exists."
-        );
-    }
+            Console.WriteLine(
+                "🔥 GOOGLE TOKEN VALIDATED FOR TRAINER"
+            );
 
+            Console.WriteLine(
+                $"Google Subject: {googleUser?.GoogleSubjectId}"
+            );
 
-    // =========================================================
-    // VALIDATE FIRST NAME
-    // =========================================================
+            Console.WriteLine(
+                $"Google Email: {googleUser?.Email}"
+            );
 
-    if (
-        string.IsNullOrWhiteSpace(
-            request.FirstName
-        )
-    )
-    {
-        throw new InvalidOperationException(
-            "First name is required."
-        );
-    }
+            Console.WriteLine(
+                $"Google ProfileImageUrl: {googleUser?.ProfileImageUrl}"
+            );
 
+            Console.WriteLine(
+                "================================================="
+            );
+        }
 
-    // =========================================================
-    // VALIDATE LAST NAME
-    // =========================================================
+        // =====================================================
+        // NORMALIZE EMAIL
+        // =====================================================
 
-    if (
-        string.IsNullOrWhiteSpace(
-            request.LastName
-        )
-    )
-    {
-        throw new InvalidOperationException(
-            "Last name is required."
-        );
-    }
+        var email =
+            request.Email
+                .Trim()
+                .ToLowerInvariant();
 
+        // =====================================================
+        // GOOGLE EMAIL MUST MATCH REGISTRATION EMAIL
+        // =====================================================
 
-    // =========================================================
-    // VALIDATE PASSWORD
-    // =========================================================
-
-    if (
-        string.IsNullOrWhiteSpace(
-            request.Password
-        )
-    )
-    {
-        throw new InvalidOperationException(
-            "Password is required."
-        );
-    }
-
-
-    // =========================================================
-    // VALIDATE SPECIALIZATION
-    // =========================================================
-
-    if (
-        string.IsNullOrWhiteSpace(
-            request.Specialization
-        )
-    )
-    {
-        throw new InvalidOperationException(
-            "Specialization is required."
-        );
-    }
-
-
-    // =========================================================
-    // VALIDATE ADDRESS
-    // =========================================================
-
-    if (
-        string.IsNullOrWhiteSpace(
-            request.Address
-        )
-    )
-    {
-        throw new InvalidOperationException(
-            "Address is required."
-        );
-    }
-
-
-    // =========================================================
-    // VALIDATE GENDER
-    // =========================================================
-
-    if (
-        string.IsNullOrWhiteSpace(
-            request.Gender
-        )
-    )
-    {
-        throw new InvalidOperationException(
-            "Gender is required."
-        );
-    }
-
-
-    // =========================================================
-    // VALIDATE YEARS OF EXPERIENCE
-    // =========================================================
-
-    if (
-        request.YearsOfExperience.HasValue
-        &&
-        (
-            request.YearsOfExperience.Value < 0
-            ||
-            request.YearsOfExperience.Value > 100
-        )
-    )
-    {
-        throw new InvalidOperationException(
-            "Years of experience must be between 0 and 100."
-        );
-    }
-
-
-    // =========================================================
-    // PROFILE IMAGE
-    // =========================================================
-
-    string? profileImageUrl = null;
-
-    if (request.ProfileImage is not null)
-    {
-        ValidateProfileImage(
-            request.ProfileImage
-        );
-
-        await using var stream =
-            request.ProfileImage.OpenReadStream();
-
-        profileImageUrl =
-            await _cloudinaryService
-                .UploadImageAsync(
-                    stream,
-                    request.ProfileImage.FileName,
-                    "ace-nextgen/trainers"
-                );
-    }
-
-
-    // =========================================================
-    // GENERATE TRAINER USER CODE
-    // =========================================================
-
-    var userCode =
-        await GenerateTrainerUserCodeAsync();
-
-
-    // =========================================================
-    // BUILD FULL NAME
-    // =========================================================
-
-    var fullName =
-        BuildFullName(
-            request.FirstName,
-            request.MiddleName,
-            request.LastName
-        );
-
-
-    // =========================================================
-    // CREATE USER
-    // =========================================================
-
-    var user =
-        new User
+        if (googleUser is not null)
         {
-            Id =
-                Guid.NewGuid(),
-
-            UserCode =
-                userCode,
-
-            FullName =
-                fullName,
-
-            Email =
+            if (!string.Equals(
                 email,
+                googleUser.Email,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    "The registration email does not match the Google account."
+                );
+            }
+        }
 
-            MobileNumber =
+        // =====================================================
+        // VALIDATE EMAIL
+        // =====================================================
+
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            throw new InvalidOperationException(
+                "Email is required."
+            );
+        }
+
+        // =====================================================
+        // CHECK EXISTING EMAIL
+        // =====================================================
+
+        var existingUser =
+            await _db.Users
+                .FirstOrDefaultAsync(
+                    x =>
+                        x.Email == email
+                );
+
+        if (existingUser is not null)
+        {
+            throw new InvalidOperationException(
+                "An account with this email already exists."
+            );
+        }
+
+        // =====================================================
+        // VALIDATE FIRST NAME
+        // =====================================================
+
+        if (string.IsNullOrWhiteSpace(
+            request.FirstName))
+        {
+            throw new InvalidOperationException(
+                "First name is required."
+            );
+        }
+
+        // =====================================================
+        // VALIDATE LAST NAME
+        // =====================================================
+
+        if (string.IsNullOrWhiteSpace(
+            request.LastName))
+        {
+            throw new InvalidOperationException(
+                "Last name is required."
+            );
+        }
+
+        // =====================================================
+        // VALIDATE PASSWORD
+        // =====================================================
+
+        if (string.IsNullOrWhiteSpace(
+            request.Password))
+        {
+            throw new InvalidOperationException(
+                "Password is required."
+            );
+        }
+
+        // =====================================================
+        // VALIDATE SPECIALIZATION
+        // =====================================================
+
+        if (string.IsNullOrWhiteSpace(
+            request.Specialization))
+        {
+            throw new InvalidOperationException(
+                "Specialization is required."
+            );
+        }
+
+        // =====================================================
+        // VALIDATE ADDRESS
+        // =====================================================
+
+        if (string.IsNullOrWhiteSpace(
+            request.Address))
+        {
+            throw new InvalidOperationException(
+                "Address is required."
+            );
+        }
+
+        // =====================================================
+        // VALIDATE GENDER
+        // =====================================================
+
+        if (string.IsNullOrWhiteSpace(
+            request.Gender))
+        {
+            throw new InvalidOperationException(
+                "Gender is required."
+            );
+        }
+
+        // =====================================================
+        // VALIDATE YEARS OF EXPERIENCE
+        // =====================================================
+
+        if (
+            request.YearsOfExperience.HasValue
+            &&
+            (
+                request.YearsOfExperience.Value < 0
+                ||
+                request.YearsOfExperience.Value > 100
+            )
+        )
+        {
+            throw new InvalidOperationException(
+                "Years of experience must be between 0 and 100."
+            );
+        }
+
+        // =====================================================
+        // PROFILE IMAGE
+        // =====================================================
+
+        string? profileImageUrl = null;
+
+        // -----------------------------------------------------
+        // GOOGLE PROFILE IMAGE
+        // -----------------------------------------------------
+
+        if (googleUser is not null)
+        {
+            profileImageUrl =
                 CleanString(
-                    request.MobileNumber
-                ),
+                    googleUser.ProfileImageUrl
+                );
 
-            PasswordHash =
-                _passwordService
-                    .HashPassword(
-                        request.Password
+            Console.WriteLine(
+                $"GOOGLE IMAGE FROM RESPONSE: {profileImageUrl}"
+            );
+
+            // -------------------------------------------------
+            // FALLBACK:
+            // Read picture directly from validated ID token.
+            // -------------------------------------------------
+
+            if (string.IsNullOrWhiteSpace(
+                profileImageUrl))
+            {
+                profileImageUrl =
+                    ExtractGoogleProfileImage(
+                        request.GoogleIdToken
+                    );
+
+                Console.WriteLine(
+                    $"GOOGLE IMAGE FROM TOKEN: {profileImageUrl}"
+                );
+            }
+        }
+
+        // -----------------------------------------------------
+        // LOCAL IMAGE
+        // -----------------------------------------------------
+        // Local uploaded image has priority over Google image.
+        // -----------------------------------------------------
+
+        if (request.ProfileImage is not null)
+        {
+            ValidateProfileImage(
+                request.ProfileImage
+            );
+
+            await using var stream =
+                request.ProfileImage.OpenReadStream();
+
+            profileImageUrl =
+                await _cloudinaryService
+                    .UploadImageAsync(
+                        stream,
+                        request.ProfileImage.FileName,
+                        "ace-nextgen/trainers"
+                    );
+
+            Console.WriteLine(
+                $"CLOUDINARY TRAINER PROFILE IMAGE: {profileImageUrl}"
+            );
+        }
+
+        Console.WriteLine(
+            "================================================="
+        );
+
+        Console.WriteLine(
+            "TRAINER PROFILE IMAGE RESULT"
+        );
+
+        Console.WriteLine(
+            $"GOOGLE IMAGE: {googleUser?.ProfileImageUrl}"
+        );
+
+        Console.WriteLine(
+            $"FINAL IMAGE: {profileImageUrl}"
+        );
+
+        Console.WriteLine(
+            $"LOCAL IMAGE: {request.ProfileImage?.FileName ?? "NONE"}"
+        );
+
+        Console.WriteLine(
+            "================================================="
+        );
+
+        // =====================================================
+        // GENERATE TRAINER USER CODE
+        // =====================================================
+
+        var userCode =
+            await GenerateTrainerUserCodeAsync();
+
+        // =====================================================
+        // BUILD FULL NAME
+        // =====================================================
+
+        var fullName =
+            BuildFullName(
+                request.FirstName,
+                request.MiddleName,
+                request.LastName
+            );
+
+        // =====================================================
+        // CREATE USER
+        // =====================================================
+
+        var user =
+            new User
+            {
+                Id =
+                    Guid.NewGuid(),
+
+                UserCode =
+                    userCode,
+
+                FullName =
+                    fullName,
+
+                Email =
+                    email,
+
+                MobileNumber =
+                    CleanString(
+                        request.MobileNumber
                     ),
 
-            Role =
-                UserRole.Trainer,
+                PasswordHash =
+                    _passwordService
+                        .HashPassword(
+                            request.Password
+                        ),
 
-            Status =
-                UserStatus.Pending,
+                Role =
+                    UserRole.Trainer,
 
-            IsEmailVerified =
-                false,
+                Status =
+                    UserStatus.Pending,
 
-            CreatedAt =
-                DateTime.UtcNow,
+                IsEmailVerified =
+                    googleUser is not null,
 
-            UpdatedAt =
-                DateTime.UtcNow
-        };
+                GoogleSubjectId =
+                    googleUser?.GoogleSubjectId,
 
+                CreatedAt =
+                    DateTime.UtcNow,
 
-    // =========================================================
-    // CREATE TRAINER APPLICATION
-    // =========================================================
+                UpdatedAt =
+                    DateTime.UtcNow
+            };
 
-    var trainerApplication =
-        new TrainerApplication
+        // =====================================================
+        // CREATE TRAINER APPLICATION
+        // =====================================================
+
+        var trainerApplication =
+            new TrainerApplication
+            {
+                Id =
+                    Guid.NewGuid(),
+
+                UserId =
+                    user.Id,
+
+                Status =
+                    TrainerApplicationStatus.Pending,
+
+                FirstName =
+                    request.FirstName.Trim(),
+
+                MiddleName =
+                    CleanString(
+                        request.MiddleName
+                    ),
+
+                LastName =
+                    request.LastName.Trim(),
+
+                Suffix =
+                    CleanString(
+                        request.Suffix
+                    ),
+
+                BirthDate =
+                    request.BirthDate,
+
+                Gender =
+                    CleanString(
+                        request.Gender
+                    ),
+
+                Address =
+                    CleanString(
+                        request.Address
+                    ),
+
+                Specialization =
+                    request.Specialization.Trim(),
+
+                ProfessionalTitle =
+                    CleanString(
+                        request.ProfessionalTitle
+                    ),
+
+                CurrentOrganization =
+                    CleanString(
+                        request.CurrentOrganization
+                    ),
+
+                Bio =
+                    CleanString(
+                        request.Bio
+                    ),
+
+                YearsOfExperience =
+                    request.YearsOfExperience,
+
+                ProfessionalLicenseNumber =
+                    CleanString(
+                        request.ProfessionalLicenseNumber
+                    ),
+
+                ProfessionalLicenseType =
+                    CleanString(
+                        request.ProfessionalLicenseType
+                    ),
+
+                ProfessionalLicenseExpirationDate =
+                    request.ProfessionalLicenseExpirationDate,
+
+                // =================================================
+                // IMPORTANT
+                // =================================================
+
+                ProfileImageUrl =
+                    profileImageUrl,
+
+                AdminRemarks =
+                    null,
+
+                ReviewedByUserId =
+                    null,
+
+                ReviewedAt =
+                    null,
+
+                CreatedAt =
+                    DateTime.UtcNow,
+
+                SubmittedAt =
+                    DateTime.UtcNow,
+
+                User =
+                    user
+            };
+
+        // =====================================================
+        // DEBUG BEFORE DATABASE SAVE
+        // =====================================================
+
+        Console.WriteLine(
+            "================================================="
+        );
+
+        Console.WriteLine(
+            "🔥 TRAINER REGISTRATION DATABASE IMAGE"
+        );
+
+        Console.WriteLine(
+            $"Google Response Image: {googleUser?.ProfileImageUrl}"
+        );
+
+        Console.WriteLine(
+            $"Final Profile Image: {profileImageUrl}"
+        );
+
+        Console.WriteLine(
+            $"Application Profile Image: {trainerApplication.ProfileImageUrl}"
+        );
+
+        Console.WriteLine(
+            "================================================="
+        );
+
+        // =====================================================
+        // CREATE EDUCATION RECORDS
+        // =====================================================
+
+        if (request.Educations is not null)
+        {
+            foreach (
+                var education
+                in request.Educations)
+            {
+                trainerApplication.Educations.Add(
+                    new TrainerApplicationEducation
+                    {
+                        Id =
+                            Guid.NewGuid(),
+
+                        TrainerApplicationId =
+                            trainerApplication.Id,
+
+                        Degree =
+                            education.Degree.Trim(),
+
+                        FieldOfStudy =
+                            CleanString(
+                                education.FieldOfStudy
+                            ),
+
+                        Institution =
+                            education.Institution.Trim(),
+
+                        YearGraduated =
+                            education.YearGraduated
+                    }
+                );
+            }
+        }
+
+        // =====================================================
+        // CREATE CERTIFICATION RECORDS
+        // =====================================================
+
+        if (request.Certifications is not null)
+        {
+            foreach (
+                var certification
+                in request.Certifications)
+            {
+                trainerApplication.Certifications.Add(
+                    new TrainerApplicationCertification
+                    {
+                        Id =
+                            Guid.NewGuid(),
+
+                        TrainerApplicationId =
+                            trainerApplication.Id,
+
+                        Name =
+                            certification.Name.Trim(),
+
+                        IssuingOrganization =
+                            CleanString(
+                                certification.IssuingOrganization
+                            ),
+
+                        IssuedDate =
+                            certification.IssuedDate,
+
+                        ExpirationDate =
+                            certification.ExpirationDate,
+
+                        CertificateUrl =
+                            CleanString(
+                                certification.CertificateUrl
+                            )
+                    }
+                );
+            }
+        }
+
+        // =====================================================
+        // ADD USER
+        // =====================================================
+
+        _db.Users.Add(
+            user
+        );
+
+        // =====================================================
+        // ADD TRAINER APPLICATION
+        // =====================================================
+
+        _db.TrainerApplications.Add(
+            trainerApplication
+        );
+
+        // =====================================================
+        // SAVE DATABASE
+        // =====================================================
+
+        await _db.SaveChangesAsync();
+
+        // =====================================================
+        // RESPONSE
+        // =====================================================
+
+        return new UserRegistrationResponse
         {
             Id =
-                Guid.NewGuid(),
-
-            UserId =
                 user.Id,
 
+            UserCode =
+                user.UserCode,
+
+            FullName =
+                user.FullName,
+
+            Email =
+                user.Email,
+
+            Role =
+                user.Role.ToString(),
+
             Status =
-                TrainerApplicationStatus.Pending,
+                user.Status.ToString(),
 
-            FirstName =
-                request.FirstName.Trim(),
+            Message =
+                googleUser is not null
+                    ? "Trainer registration submitted successfully."
+                    : "Trainer registration submitted successfully. Please verify your email using the OTP.",
 
-            MiddleName =
-                CleanString(
-                    request.MiddleName
-                ),
-
-            LastName =
-                request.LastName.Trim(),
-
-            Suffix =
-                CleanString(
-                    request.Suffix
-                ),
-
-            BirthDate =
-                request.BirthDate,
-
-            Gender =
-                CleanString(
-                    request.Gender
-                ),
-
-            Address =
-                CleanString(
-                    request.Address
-                ),
-
-            Specialization =
-                request.Specialization.Trim(),
-
-            ProfessionalTitle =
-                CleanString(
-                    request.ProfessionalTitle
-                ),
-
-            CurrentOrganization =
-                CleanString(
-                    request.CurrentOrganization
-                ),
-
-            Bio =
-                CleanString(
-                    request.Bio
-                ),
-
-            YearsOfExperience =
-                request.YearsOfExperience,
-
-            ProfessionalLicenseNumber =
-                CleanString(
-                    request.ProfessionalLicenseNumber
-                ),
-
-            ProfessionalLicenseType =
-                CleanString(
-                    request.ProfessionalLicenseType
-                ),
-
-            ProfessionalLicenseExpirationDate =
-                request.ProfessionalLicenseExpirationDate,
+            TrainerApplicationId =
+                trainerApplication.Id,
 
             ProfileImageUrl =
-                profileImageUrl,
-
-            AdminRemarks =
-                null,
-
-            ReviewedByUserId =
-                null,
-
-            ReviewedAt =
-                null,
-
-            CreatedAt =
-                DateTime.UtcNow,
-
-            SubmittedAt =
-                DateTime.UtcNow,
-
-            User =
-                user
+                profileImageUrl
         };
-
-
-    // =========================================================
-    // CREATE EDUCATION RECORDS
-    // =========================================================
-
-    if (request.Educations is not null)
-    {
-        foreach (var education in request.Educations)
-        {
-            trainerApplication.Educations.Add(
-                new TrainerApplicationEducation
-                {
-                    Id =
-                        Guid.NewGuid(),
-
-                    TrainerApplicationId =
-                        trainerApplication.Id,
-
-                    Degree =
-                        education.Degree.Trim(),
-
-                    FieldOfStudy =
-                        CleanString(
-                            education.FieldOfStudy
-                        ),
-
-                    Institution =
-                        education.Institution.Trim(),
-
-                    YearGraduated =
-                        education.YearGraduated
-                }
-            );
-        }
     }
-
-
-    // =========================================================
-    // CREATE CERTIFICATION RECORDS
-    // =========================================================
-
-    if (request.Certifications is not null)
-    {
-        foreach (var certification in request.Certifications)
-        {
-            trainerApplication.Certifications.Add(
-                new TrainerApplicationCertification
-                {
-                    Id =
-                        Guid.NewGuid(),
-
-                    TrainerApplicationId =
-                        trainerApplication.Id,
-
-                    Name =
-                        certification.Name.Trim(),
-
-                    IssuingOrganization =
-                        CleanString(
-                            certification.IssuingOrganization
-                        ),
-
-                    IssuedDate =
-                        certification.IssuedDate,
-
-                    ExpirationDate =
-                        certification.ExpirationDate,
-
-                    CertificateUrl =
-                        CleanString(
-                            certification.CertificateUrl
-                        )
-                }
-            );
-        }
-    }
-
-
-    // =========================================================
-    // ADD USER
-    // =========================================================
-
-    _db.Users.Add(
-        user
-    );
-
-
-    // =========================================================
-    // ADD TRAINER APPLICATION
-    // =========================================================
-
-    _db.TrainerApplications.Add(
-        trainerApplication
-    );
-
-
-    // =========================================================
-    // SAVE DATABASE
-    // =========================================================
-
-    await _db.SaveChangesAsync();
-
-
-    // =========================================================
-    // RETURN RESPONSE
-    // =========================================================
-
-    return new UserRegistrationResponse
-    {
-        Id =
-            user.Id,
-
-        UserCode =
-            user.UserCode,
-
-        FullName =
-            user.FullName,
-
-        Email =
-            user.Email,
-
-        Role =
-            user.Role.ToString(),
-
-        Status =
-            user.Status.ToString(),
-
-        Message =
-            "Trainer registration submitted successfully. Please verify your email using the OTP.",
-
-        TrainerApplicationId =
-            trainerApplication.Id,
-
-        ProfileImageUrl =
-            profileImageUrl
-    };
-}
-
 
     // =========================================================
     // LOGIN
@@ -793,14 +1011,12 @@ public class AuthService : IAuthService
                 .Trim()
                 .ToLowerInvariant();
 
-
         var user =
             await _db.Users
                 .FirstOrDefaultAsync(
                     x =>
                         x.Email == email
                 );
-
 
         if (user is null)
         {
@@ -809,14 +1025,12 @@ public class AuthService : IAuthService
             );
         }
 
-
         var passwordValid =
             _passwordService
                 .VerifyPassword(
                     request.Password,
                     user.PasswordHash
                 );
-
 
         if (!passwordValid)
         {
@@ -825,10 +1039,9 @@ public class AuthService : IAuthService
             );
         }
 
-
-        // -----------------------------------------------------
+        // =====================================================
         // EMAIL VERIFICATION
-        // -----------------------------------------------------
+        // =====================================================
 
         if (!user.IsEmailVerified)
         {
@@ -837,29 +1050,14 @@ public class AuthService : IAuthService
             );
         }
 
-
-        // -----------------------------------------------------
-        // TRAINER PROFILE
-        // -----------------------------------------------------
-
-        var trainerProfile =
-            await _db.TrainerProfiles
-                .FirstOrDefaultAsync(
-                    x =>
-                        x.UserId ==
-                        user.Id
-                );
-
-
-        // -----------------------------------------------------
+        // =====================================================
         // JWT
-        // -----------------------------------------------------
+        // =====================================================
 
         var jwt =
             _jwtService.GenerateToken(
                 user
             );
-
 
         return new LoginResponse
         {
@@ -893,10 +1091,8 @@ public class AuthService : IAuthService
         };
     }
 
-
     // =========================================================
     // FORGOT PASSWORD
-    // POST /api/auth/forgot-password
     // =========================================================
 
     public async Task<OtpResponse>
@@ -908,7 +1104,6 @@ public class AuthService : IAuthService
                 .Trim()
                 .ToLowerInvariant();
 
-
         return await _otpService
             .SendPasswordResetOtpAsync(
                 new SendOtpRequest
@@ -919,10 +1114,8 @@ public class AuthService : IAuthService
             );
     }
 
-
     // =========================================================
     // VERIFY PASSWORD RESET OTP
-    // POST /api/auth/verify-reset-otp
     // =========================================================
 
     public async Task<OtpResponse>
@@ -933,7 +1126,6 @@ public class AuthService : IAuthService
             request.Email
                 .Trim()
                 .ToLowerInvariant();
-
 
         return await _otpService
             .VerifyPasswordResetOtpAsync(
@@ -948,10 +1140,8 @@ public class AuthService : IAuthService
             );
     }
 
-
     // =========================================================
     // RESET PASSWORD
-    // POST /api/auth/reset-password
     // =========================================================
 
     public async Task<OtpResponse>
@@ -963,14 +1153,12 @@ public class AuthService : IAuthService
                 .Trim()
                 .ToLowerInvariant();
 
-
         var user =
             await _db.Users
                 .FirstOrDefaultAsync(
                     x =>
                         x.Email == email
                 );
-
 
         if (user is null)
         {
@@ -982,11 +1170,6 @@ public class AuthService : IAuthService
                     "Unable to reset password."
             };
         }
-
-
-        // -----------------------------------------------------
-        // FIND THE MOST RECENT PASSWORD RESET OTP
-        // -----------------------------------------------------
 
         var otp =
             await _db.OtpVerifications
@@ -1008,7 +1191,6 @@ public class AuthService : IAuthService
                 )
                 .FirstOrDefaultAsync();
 
-
         if (otp is null)
         {
             return new OtpResponse
@@ -1019,11 +1201,6 @@ public class AuthService : IAuthService
                     "Invalid or unverified password reset OTP."
             };
         }
-
-
-        // -----------------------------------------------------
-        // CHECK OTP EXPIRATION
-        // -----------------------------------------------------
 
         if (
             otp.ExpiresAt <=
@@ -1039,24 +1216,16 @@ public class AuthService : IAuthService
             };
         }
 
-
-        // -----------------------------------------------------
-        // HASH NEW PASSWORD
-        // -----------------------------------------------------
-
         user.PasswordHash =
             _passwordService
                 .HashPassword(
                     request.NewPassword
                 );
 
-
         user.UpdatedAt =
             DateTime.UtcNow;
 
-
         await _db.SaveChangesAsync();
-
 
         return new OtpResponse
         {
@@ -1067,11 +1236,8 @@ public class AuthService : IAuthService
         };
     }
 
-
     // =========================================================
     // CHANGE PASSWORD
-    // POST /api/auth/change-password
-    // AUTHENTICATED USER
     // =========================================================
 
     public async Task<OtpResponse>
@@ -1086,7 +1252,6 @@ public class AuthService : IAuthService
                         x.Id == userId
                 );
 
-
         if (user is null)
         {
             return new OtpResponse
@@ -1098,18 +1263,12 @@ public class AuthService : IAuthService
             };
         }
 
-
-        // -----------------------------------------------------
-        // VERIFY CURRENT PASSWORD
-        // -----------------------------------------------------
-
         var currentPasswordValid =
             _passwordService
                 .VerifyPassword(
                     request.CurrentPassword,
                     user.PasswordHash
                 );
-
 
         if (!currentPasswordValid)
         {
@@ -1122,18 +1281,12 @@ public class AuthService : IAuthService
             };
         }
 
-
-        // -----------------------------------------------------
-        // PREVENT SAME PASSWORD
-        // -----------------------------------------------------
-
         var samePassword =
             _passwordService
                 .VerifyPassword(
                     request.NewPassword,
                     user.PasswordHash
                 );
-
 
         if (samePassword)
         {
@@ -1146,24 +1299,16 @@ public class AuthService : IAuthService
             };
         }
 
-
-        // -----------------------------------------------------
-        // HASH NEW PASSWORD
-        // -----------------------------------------------------
-
         user.PasswordHash =
             _passwordService
                 .HashPassword(
                     request.NewPassword
                 );
 
-
         user.UpdatedAt =
             DateTime.UtcNow;
 
-
         await _db.SaveChangesAsync();
-
 
         return new OtpResponse
         {
@@ -1173,7 +1318,6 @@ public class AuthService : IAuthService
                 "Password changed successfully."
         };
     }
-
 
     // =========================================================
     // GENERATE PARTICIPANT USER CODE
@@ -1199,9 +1343,7 @@ public class AuthService : IAuthService
                 )
                 .FirstOrDefaultAsync();
 
-
         var nextNumber = 1;
-
 
         if (
             !string.IsNullOrWhiteSpace(
@@ -1215,7 +1357,6 @@ public class AuthService : IAuthService
                     ""
                 );
 
-
             if (
                 int.TryParse(
                     numberPart,
@@ -1228,10 +1369,8 @@ public class AuthService : IAuthService
             }
         }
 
-
         return $"PAR-{nextNumber:D6}";
     }
-
 
     // =========================================================
     // GENERATE TRAINER USER CODE
@@ -1257,9 +1396,7 @@ public class AuthService : IAuthService
                 )
                 .FirstOrDefaultAsync();
 
-
         var nextNumber = 1;
-
 
         if (
             !string.IsNullOrWhiteSpace(
@@ -1273,7 +1410,6 @@ public class AuthService : IAuthService
                     ""
                 );
 
-
             if (
                 int.TryParse(
                     numberPart,
@@ -1286,10 +1422,8 @@ public class AuthService : IAuthService
             }
         }
 
-
         return $"TRN-{nextNumber:D6}";
     }
-
 
     // =========================================================
     // BUILD FULL NAME
@@ -1316,13 +1450,11 @@ public class AuthService : IAuthService
                     x!.Trim()
             );
 
-
         return string.Join(
             " ",
             parts
         );
     }
-
 
     // =========================================================
     // CLEAN OPTIONAL STRING
@@ -1340,10 +1472,69 @@ public class AuthService : IAuthService
             return null;
         }
 
-
         return value.Trim();
     }
 
+    // =========================================================
+    // EXTRACT GOOGLE PROFILE IMAGE
+    //
+    // IMPORTANT:
+    // The Google ID token has already been validated by
+    // GoogleAuthService before this method is called.
+    //
+    // We only read the "picture" claim here.
+    // =========================================================
+
+    private static string? ExtractGoogleProfileImage(
+        string? idToken)
+    {
+        if (
+            string.IsNullOrWhiteSpace(
+                idToken
+            )
+        )
+        {
+            return null;
+        }
+
+        try
+        {
+            var handler =
+                new JwtSecurityTokenHandler();
+
+            var token =
+                handler.ReadJwtToken(
+                    idToken
+                );
+
+            var picture =
+                token.Claims
+                    .FirstOrDefault(
+                        x =>
+                            x.Type == "picture"
+                    )
+                    ?.Value;
+
+            var cleanedPicture =
+                CleanString(
+                    picture
+                );
+
+            Console.WriteLine(
+                $"GOOGLE TOKEN PICTURE CLAIM: {cleanedPicture}"
+            );
+
+            return cleanedPicture;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(
+                $"Unable to extract Google picture claim: {ex.Message}"
+            );
+
+            return null;
+        }
+    }
 
     // =========================================================
     // VALIDATE PROFILE IMAGE
@@ -1355,7 +1546,6 @@ public class AuthService : IAuthService
         const long maxFileSize =
             5 * 1024 * 1024;
 
-
         if (
             file.Length <= 0
         )
@@ -1364,7 +1554,6 @@ public class AuthService : IAuthService
                 "Profile image is empty."
             );
         }
-
 
         if (
             file.Length > maxFileSize
@@ -1375,7 +1564,6 @@ public class AuthService : IAuthService
             );
         }
 
-
         var allowedContentTypes =
             new[]
             {
@@ -1383,7 +1571,6 @@ public class AuthService : IAuthService
                 "image/png",
                 "image/webp"
             };
-
 
         if (
             !allowedContentTypes.Contains(

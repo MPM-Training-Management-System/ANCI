@@ -15,6 +15,8 @@ import type {
   ChangePasswordRequest,
   MeResponse,
   RegisterTrainerRequest,
+  GoogleLoginRequest,
+  GoogleLoginResponse,
 } from "@repo/types";
 
 export class AuthAPIs {
@@ -29,6 +31,18 @@ export class AuthAPIs {
   ): Promise<LoginResponse> {
     return this.api.request<LoginResponse>(
       AuthEndpoints.login(),
+      {
+        method: "POST",
+        body: request,
+      }
+    );
+  }
+
+  async googleLogin(
+    request: GoogleLoginRequest
+  ): Promise<GoogleLoginResponse> {
+    return this.api.request<GoogleLoginResponse>(
+      AuthEndpoints.google(),
       {
         method: "POST",
         body: request,
@@ -51,25 +65,77 @@ export class AuthAPIs {
       }
     );
   }
-// ==========================================
+
+  // ==========================================
 // TRAINER REGISTRATION
 // ==========================================
 
 async registerTrainer(
   request: RegisterTrainerRequest
 ): Promise<RegisterResponse> {
+
+  console.log(
+    "================================="
+  );
+
+  console.log(
+    "AUTH APIS - REGISTER TRAINER"
+  );
+
+  console.log(
+    "GoogleIdToken received:",
+    request.GoogleIdToken
+      ? `FOUND (${request.GoogleIdToken.length} chars)`
+      : "MISSING"
+  );
+
+  console.log(
+    "GoogleIdToken raw:",
+    request.GoogleIdToken
+      ? request.GoogleIdToken.substring(0, 30) + "..."
+      : "NULL"
+  );
+
+  console.log(
+    "Email:",
+    request.Email
+  );
+
+  console.log(
+    "ProfileImage:",
+    request.ProfileImage
+      ? request.ProfileImage.name
+      : "NO LOCAL IMAGE"
+  );
+
+  console.log(
+    "================================="
+  );
+
   const formData = new FormData();
 
-  // ========================================================
-  // PERSONAL INFORMATION
-  // ========================================================
+  // ==========================================================
+  // GOOGLE AUTHENTICATION
+  // ==========================================================
 
-  if (request.FirstName) {
+  if (
+    request.GoogleIdToken &&
+    request.GoogleIdToken.trim().length > 0
+  ) {
     formData.append(
-      "FirstName",
-      request.FirstName
+      "GoogleIdToken",
+      request.GoogleIdToken.trim()
     );
   }
+
+  // ==========================================================
+  // PERSONAL INFORMATION
+  // ==========================================================
+
+  formData.append(
+    "FirstName",
+    request.FirstName
+  );
 
   if (request.MiddleName) {
     formData.append(
@@ -78,12 +144,10 @@ async registerTrainer(
     );
   }
 
-  if (request.LastName) {
-    formData.append(
-      "LastName",
-      request.LastName
-    );
-  }
+  formData.append(
+    "LastName",
+    request.LastName
+  );
 
   if (request.Suffix) {
     formData.append(
@@ -99,30 +163,24 @@ async registerTrainer(
     );
   }
 
-  if (request.Address) {
-    formData.append(
-      "Address",
-      request.Address
-    );
-  }
+  formData.append(
+    "Address",
+    request.Address
+  );
 
-  if (request.Gender) {
-    formData.append(
-      "Gender",
-      request.Gender
-    );
-  }
+  formData.append(
+    "Gender",
+    request.Gender
+  );
 
-  // ========================================================
+  // ==========================================================
   // ACCOUNT INFORMATION
-  // ========================================================
+  // ==========================================================
 
-  if (request.Email) {
-    formData.append(
-      "Email",
-      request.Email
-    );
-  }
+  formData.append(
+    "Email",
+    request.Email
+  );
 
   if (request.MobileNumber) {
     formData.append(
@@ -131,23 +189,19 @@ async registerTrainer(
     );
   }
 
-  if (request.Password) {
-    formData.append(
-      "Password",
-      request.Password
-    );
-  }
+  formData.append(
+    "Password",
+    request.Password
+  );
 
-  // ========================================================
+  // ==========================================================
   // PROFESSIONAL INFORMATION
-  // ========================================================
+  // ==========================================================
 
-  if (request.Specialization) {
-    formData.append(
-      "Specialization",
-      request.Specialization
-    );
-  }
+  formData.append(
+    "Specialization",
+    request.Specialization
+  );
 
   if (request.ProfessionalTitle) {
     formData.append(
@@ -171,52 +225,43 @@ async registerTrainer(
   }
 
   if (
-    request.YearsOfExperience !==
-      undefined &&
-    request.YearsOfExperience !== null
+    request.YearsOfExperience !== null &&
+    request.YearsOfExperience !== undefined
   ) {
     formData.append(
       "YearsOfExperience",
-      String(
-        request.YearsOfExperience
-      )
+      String(request.YearsOfExperience)
     );
   }
 
-  // ========================================================
+  // ==========================================================
   // PROFESSIONAL LICENSE
-  // ========================================================
+  // ==========================================================
 
-  if (
-    request.ProfessionalLicenseNumber
-  ) {
+  if (request.ProfessionalLicenseNumber) {
     formData.append(
       "ProfessionalLicenseNumber",
       request.ProfessionalLicenseNumber
     );
   }
 
-  if (
-    request.ProfessionalLicenseType
-  ) {
+  if (request.ProfessionalLicenseType) {
     formData.append(
       "ProfessionalLicenseType",
       request.ProfessionalLicenseType
     );
   }
 
-  if (
-    request.ProfessionalLicenseExpirationDate
-  ) {
+  if (request.ProfessionalLicenseExpirationDate) {
     formData.append(
       "ProfessionalLicenseExpirationDate",
       request.ProfessionalLicenseExpirationDate
     );
   }
 
-  // ========================================================
+  // ==========================================================
   // PROFILE IMAGE
-  // ========================================================
+  // ==========================================================
 
   if (request.ProfileImage) {
     formData.append(
@@ -225,138 +270,73 @@ async registerTrainer(
     );
   }
 
-  // ========================================================
+  // ==========================================================
   // EDUCATIONS
-  // ========================================================
+  // ==========================================================
 
-  if (request.Educations?.length) {
-    request.Educations.forEach(
-      (education, index) => {
-        formData.append(
-          `Educations[${index}].Degree`,
-          education.degree
-        );
-
-        if (
-          education.fieldOfStudy
-        ) {
-          formData.append(
-            `Educations[${index}].FieldOfStudy`,
-            education.fieldOfStudy
-          );
-        }
-
-        formData.append(
-          `Educations[${index}].Institution`,
-          education.institution
-        );
-
-        if (
-          education.yearGraduated !==
-            undefined &&
-          education.yearGraduated !== null
-        ) {
-          formData.append(
-            `Educations[${index}].YearGraduated`,
-            String(
-              education.yearGraduated
-            )
-          );
-        }
-      }
+  if (request.Educations) {
+    formData.append(
+      "Educations",
+      JSON.stringify(request.Educations)
     );
   }
 
-  // ========================================================
+  // ==========================================================
   // CERTIFICATIONS
-  // ========================================================
+  // ==========================================================
 
-  if (
-    request.Certifications?.length
-  ) {
-    request.Certifications.forEach(
-      (certification, index) => {
-        formData.append(
-          `Certifications[${index}].Name`,
-          certification.name
-        );
-
-        if (
-          certification.issuingOrganization
-        ) {
-          formData.append(
-            `Certifications[${index}].IssuingOrganization`,
-            certification.issuingOrganization
-          );
-        }
-
-        if (
-          certification.issuedDate
-        ) {
-          formData.append(
-            `Certifications[${index}].IssuedDate`,
-            certification.issuedDate
-          );
-        }
-
-        if (
-          certification.expirationDate
-        ) {
-          formData.append(
-            `Certifications[${index}].ExpirationDate`,
-            certification.expirationDate
-          );
-        }
-
-        if (
-          certification.certificateUrl
-        ) {
-          formData.append(
-            `Certifications[${index}].CertificateUrl`,
-            certification.certificateUrl
-          );
-        }
-      }
+  if (request.Certifications) {
+    formData.append(
+      "Certifications",
+      JSON.stringify(request.Certifications)
     );
   }
 
-  // ========================================================
-  // DEBUG FORMDATA
-  // ========================================================
+  // ==========================================================
+  // VERIFY FORMDATA BEFORE API CLIENT
+  // ==========================================================
 
   console.log(
     "================================="
   );
 
   console.log(
-    "REGISTER TRAINER FORMDATA"
+    "FINAL FORMDATA BEFORE API CLIENT"
+  );
+
+  console.log(
+    "Has GoogleIdToken:",
+    formData.has("GoogleIdToken")
+  );
+
+  console.log(
+    "GoogleIdToken:",
+    formData.get("GoogleIdToken")
+      ? "FOUND"
+      : "MISSING"
+  );
+
+  console.log(
+    "================================="
   );
 
   for (
-    const [key, value] of formData.entries()
+    const [key, value]
+    of formData.entries()
   ) {
-    if (value instanceof File) {
+    if (key === "GoogleIdToken") {
       console.log(
         key,
-        value.name,
-        value.type,
-        value.size
-      );
-    } else {
-      console.log(
-        key,
-        value
+        typeof value === "string"
+          ? `FOUND (${value.length} chars)`
+          : "INVALID"
       );
     }
   }
 
-  console.log(
-    "================================="
-  );
-
-  // ========================================================
-  // API REQUEST
-  // ========================================================
+  // ==========================================================
+  // SEND REQUEST
+  // ==========================================================
 
   return this.api.request<RegisterResponse>(
     AuthEndpoints.registerTrainer(),

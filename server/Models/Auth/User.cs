@@ -25,6 +25,8 @@ public class User
 
     public bool IsEmailVerified { get; set; }
 
+    public string? GoogleSubjectId { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
