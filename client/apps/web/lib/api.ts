@@ -42,6 +42,8 @@ export const trainerApplicationApi =
 
   export const attendanceApi =
   new AttendanceApi(apiClient);
+
+  
     export const authAPIs =
   new AuthAPIs(apiClient);
 

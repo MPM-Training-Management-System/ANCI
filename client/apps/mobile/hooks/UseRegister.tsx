@@ -8,7 +8,15 @@ import type {
   AuthApi,
 } from "@repo/api";
 
+
+// =========================================================
+// FORM VALUES
+// =========================================================
+
 export interface RegisterFormValues {
+  // Google authentication
+  googleIdToken?: string;
+
   firstName: string;
 
   middleName: string;
@@ -33,6 +41,11 @@ export interface RegisterFormValues {
     type: string;
   };
 }
+
+
+// =========================================================
+// HOOK
+// =========================================================
 
 export function useRegister(
   authApi: AuthApi
@@ -84,6 +97,15 @@ export function useRegister(
 
 
       // =====================================================
+      // GOOGLE TOKEN
+      // =====================================================
+
+      const googleIdToken =
+        values.googleIdToken?.trim() ||
+        undefined;
+
+
+      // =====================================================
       // REQUEST
       // =====================================================
 
@@ -121,7 +143,38 @@ export function useRegister(
 
         profileImage:
           values.profileImage,
+
+        // Google registration
+        googleIdToken,
       };
+
+
+      // =====================================================
+      // DEBUG
+      // =====================================================
+
+      console.log(
+        "PARTICIPANT GOOGLE REGISTRATION DEBUG"
+      );
+
+      console.log(
+        "GoogleIdToken:",
+        googleIdToken
+          ? `FOUND (${googleIdToken.length} chars)`
+          : "MISSING"
+      );
+
+      console.log(
+        "ProfileImage:",
+        values.profileImage
+          ? "LOCAL IMAGE"
+          : "NO LOCAL IMAGE"
+      );
+
+      console.log(
+        "Email:",
+        values.email
+      );
 
 
       // =====================================================

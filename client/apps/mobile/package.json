@@ -13,6 +13,7 @@
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
     "@react-native-community/datetimepicker": "8.4.4",
+    "@react-native-google-signin/google-signin": "^16.1.5",
     "@react-native/debugger-frontend": "^0.87.0",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
@@ -23,8 +24,10 @@
     "@repo/ui-mobile": "workspace:*",
     "expo": "~54.0.37",
     "expo-asset": "~12.0.13",
+    "expo-auth-session": "~7.0.11",
     "expo-camera": "~17.0.10",
     "expo-constants": "~18.0.14",
+    "expo-crypto": "~15.0.9",
     "expo-dev-client": "~6.0.21",
     "expo-document-picker": "^14.0.8",
     "expo-font": "~14.0.12",

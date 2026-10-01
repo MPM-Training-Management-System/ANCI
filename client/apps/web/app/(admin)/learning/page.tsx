@@ -4,20 +4,13 @@ import {
   useEffect,
   useMemo,
   useState,
-  type ChangeEvent,
 } from "react";
 
 import type {
-  CreateLearningMaterialRequest,
-  CreateLearningModuleRequest,
-  CreateLearningSectionRequest,
   LearningMaterial,
   LearningModule,
   LearningSection,
   TrainingBatch,
-  UpdateLearningMaterialRequest,
-  UpdateLearningModuleRequest,
-  UpdateLearningSectionRequest,
 } from "@repo/types";
 
 import {
@@ -42,8 +35,8 @@ import {
 import {
   BookCheck,
   BookOpen,
-  FilePenLine,
   Layers3,
+  GraduationCap,
 } from "lucide-react";
 
 import {
@@ -51,13 +44,11 @@ import {
   type LearningMaterialTableMeta,
 } from "./columns";
 
-import ConfirmDeleteModal from "@/components/learning/ConfirmDeleteModal";
 import LearningMaterialDetailsModal from "@/components/learning/LearningMaterialDetailsModal";
-import LearningMaterialsFormModal from "@/components/learning/LearningMaterialFormModal";
 import LearningModuleFormModal from "@/components/learning/LearningModuleFormModal";
 import LearningSectionFormModal from "@/components/learning/LearningSectionFormModal";
+import ConfirmDeleteModal from "@/components/learning/ConfirmDeleteModal";
 import TrainerModulePreviewModal from "@/components/learning/TrainerModulePreviewModal";
-
 
 // ============================================================
 // TYPES
@@ -72,7 +63,6 @@ type MaterialType =
   | "Other";
 
 type DeleteTarget =
-  | "material"
   | "module"
   | "section";
 
@@ -125,35 +115,41 @@ function getMaterialType(
 // PAGE
 // ============================================================
 
-export default function Learning() {
+export default function TrainerLearning() {
+  // ==========================================================
+  // MODULE PREVIEW
+  // ==========================================================
 
   const [
-  showModulePreview,
-  setShowModulePreview,
-] = useState(false);
+    showModulePreview,
+    setShowModulePreview,
+  ] = useState(false);
 
-const [
-  previewModule,
-  setPreviewModule,
-] = useState<LearningModule | null>(
-  null,
-);
-const [
-  generatingModuleId,
-  setGeneratingModuleId,
-] = useState<string | null>(null);
+  const [
+    previewModule,
+    setPreviewModule,
+  ] = useState<LearningModule | null>(
+    null,
+  );
 
-function openModulePreview(
-  module: LearningModule,
-) {
-  setPreviewModule(module);
-  setShowModulePreview(true);
-}
+  const [
+    generatingModuleId,
+    setGeneratingModuleId,
+  ] = useState<string | null>(
+    null,
+  );
 
-function closeModulePreview() {
-  setShowModulePreview(false);
-  setPreviewModule(null);
-}
+  function openModulePreview(
+    module: LearningModule,
+  ) {
+    setPreviewModule(module);
+    setShowModulePreview(true);
+  }
+
+  function closeModulePreview() {
+    setShowModulePreview(false);
+    setPreviewModule(null);
+  }
 
   // ==========================================================
   // LEARNING MATERIAL HOOK
@@ -167,7 +163,6 @@ function closeModulePreview() {
 
     isLoading,
     isSaving,
-    isUploading,
     isGenerating,
     isExtracting,
 
@@ -175,12 +170,6 @@ function closeModulePreview() {
 
     loadLearningMaterials,
     loadLearningMaterial,
-    createLearningMaterial,
-    updateLearningMaterial,
-    deleteLearningMaterial,
-    publishLearningMaterial,
-    uploadLearningMaterial,
-    extractLearningMaterialText,
 
     loadModules,
     createLearningModule,
@@ -220,7 +209,9 @@ function closeModulePreview() {
   const [
     batchError,
     setBatchError,
-  ] = useState<Error | null>(null);
+  ] = useState<Error | null>(
+    null,
+  );
 
   // ==========================================================
   // ALL MATERIALS
@@ -229,7 +220,9 @@ function closeModulePreview() {
   const [
     allMaterials,
     setAllMaterials,
-  ] = useState<LearningMaterial[]>([]);
+  ] = useState<LearningMaterial[]>(
+    [],
+  );
 
   // ==========================================================
   // FILTERS
@@ -267,7 +260,7 @@ function closeModulePreview() {
   );
 
   // ==========================================================
-  // MODAL STATES
+  // DETAILS MODAL
   // ==========================================================
 
   const [
@@ -275,17 +268,9 @@ function closeModulePreview() {
     setShowDetails,
   ] = useState(false);
 
-  const [
-    showMaterialForm,
-    setShowMaterialForm,
-  ] = useState(false);
-
-  const [
-    materialFormMode,
-    setMaterialFormMode,
-  ] = useState<"create" | "edit">(
-    "create",
-  );
+  // ==========================================================
+  // MODULE FORM
+  // ==========================================================
 
   const [
     showModuleForm,
@@ -306,6 +291,10 @@ function closeModulePreview() {
     null,
   );
 
+  // ==========================================================
+  // SECTION FORM
+  // ==========================================================
+
   const [
     showSectionForm,
     setShowSectionForm,
@@ -325,6 +314,10 @@ function closeModulePreview() {
     null,
   );
 
+  // ==========================================================
+  // DELETE
+  // ==========================================================
+
   const [
     showDelete,
     setShowDelete,
@@ -334,7 +327,7 @@ function closeModulePreview() {
     deleteTarget,
     setDeleteTarget,
   ] = useState<DeleteTarget>(
-    "material",
+    "module",
   );
 
   // ==========================================================
@@ -353,7 +346,9 @@ function closeModulePreview() {
   const [
     actionError,
     setActionError,
-  ] = useState<Error | null>(null);
+  ] = useState<Error | null>(
+    null,
+  );
 
   // ==========================================================
   // LOAD BATCHES + MATERIALS
@@ -411,8 +406,23 @@ function closeModulePreview() {
             ).values(),
           );
 
+        /*
+         * TRAINER VIEW
+         *
+         * Only display materials that
+         * Admin has already published.
+         *
+         * Draft materials remain hidden
+         * from the Trainer.
+         */
+        const publishedMaterials =
+          uniqueMaterials.filter(
+            (material) =>
+              material.isPublished,
+          );
+
         setAllMaterials(
-          uniqueMaterials,
+          publishedMaterials,
         );
       } catch (err) {
         if (cancelled) {
@@ -585,11 +595,11 @@ function closeModulePreview() {
         material.isPublished,
     ).length;
 
-  const draftCount =
-    allMaterials.filter(
-      (material) =>
-        !material.isPublished,
-    ).length;
+  const moduleCount =
+    modules.length;
+
+  const lessonCount =
+    sections.length;
 
   // ==========================================================
   // VIEW MATERIAL
@@ -627,415 +637,32 @@ function closeModulePreview() {
   }
 
   // ==========================================================
-  // CREATE MATERIAL
+  // OPEN MATERIAL
+  //
+  // ADMIN-UPLOADED FILE
+  // TRAINER CAN ONLY VIEW IT
   // ==========================================================
 
-  function openCreateMaterial() {
-    setMaterialFormMode(
-      "create",
-    );
-
-    setSelected(null);
-
-    setShowMaterialForm(
-      true,
-    );
-  }
-
-  // ==========================================================
-  // EDIT MATERIAL
-  // ==========================================================
-
-  function openEditMaterial(
+  function openMaterial(
     material: LearningMaterial,
   ) {
-    setMaterialFormMode(
-      "edit",
-    );
-
-    setSelected(material);
-
-    setShowMaterialForm(
-      true,
-    );
-  }
-
-  // ==========================================================
-  // SAVE MATERIAL
-  // ==========================================================
-
-  async function handleMaterialSubmit(
-    data: {
-      trainingBatchId: string;
-      title: string;
-      description: string;
-      materialType: string;
-      file: File | null;
-    },
-  ) {
-    try {
-      setActionError(null);
-
-      if (
-        materialFormMode ===
-        "create"
-      ) {
-        // ----------------------------------------------------
-        // CREATE MATERIAL RECORD
-        // ----------------------------------------------------
-
-        const payload: CreateLearningMaterialRequest =
-          {
-            trainingBatchId:
-              data.trainingBatchId,
-
-            title:
-              data.title,
-
-            description:
-              data.description ||
-              null,
-
-            materialType:
-              data.materialType,
-          };
-
-        const result =
-          await createLearningMaterial(
-            payload,
-          );
-
-        let finalMaterial =
-          result;
-
-        // ----------------------------------------------------
-        // UPLOAD FILE AFTER MATERIAL CREATION
-        // ----------------------------------------------------
-
-        if (data.file) {
-          finalMaterial =
-            await uploadLearningMaterial(
-              result.id,
-              data.file,
-            );
-        }
-
-        // ----------------------------------------------------
-        // UPDATE LOCAL MATERIAL LIST
-        // ----------------------------------------------------
-
-        setAllMaterials(
-          (current) => [
-            finalMaterial,
-            ...current,
-          ],
-        );
-
-        setSelected(
-          finalMaterial,
-        );
-      } else {
-        // ----------------------------------------------------
-        // EDIT MATERIAL
-        // ----------------------------------------------------
-
-        if (!selected) {
-          return;
-        }
-
-        const payload: UpdateLearningMaterialRequest =
-          {
-            title:
-              data.title,
-
-            description:
-              data.description ||
-              null,
-
-            materialType:
-              data.materialType,
-          };
-
-        let result =
-          await updateLearningMaterial(
-            selected.id,
-            payload,
-          );
-
-        // ----------------------------------------------------
-        // OPTIONAL FILE REPLACEMENT
-        // ----------------------------------------------------
-
-        if (data.file) {
-          result =
-            await uploadLearningMaterial(
-              selected.id,
-              data.file,
-            );
-        }
-
-        // ----------------------------------------------------
-        // UPDATE LOCAL MATERIAL LIST
-        // ----------------------------------------------------
-
-        setAllMaterials(
-          (current) =>
-            current.map(
-              (item) =>
-                item.id ===
-                result.id
-                  ? result
-                  : item,
-            ),
-        );
-
-        setSelected(
-          result,
-        );
-      }
-
-      setShowMaterialForm(
-        false,
-      );
-    } catch (err) {
+    if (!material.fileUrl) {
       setActionError(
-        err instanceof Error
-          ? err
-          : new Error(
-              "Failed to save learning material.",
-            ),
+        new Error(
+          "This learning material does not have an uploaded file.",
+        ),
       );
-    }
-  }
 
-  // ==========================================================
-  // DELETE MATERIAL
-  // ==========================================================
-
-  async function deleteMaterial() {
-    if (!selected) {
       return;
     }
 
-    try {
-      setActionError(null);
-
-      await deleteLearningMaterial(
-        selected.id,
-      );
-
-      setAllMaterials(
-        (current) =>
-          current.filter(
-            (material) =>
-              material.id !==
-              selected.id,
-          ),
-      );
-
-      setSelected(null);
-      setShowDelete(false);
-      setShowDetails(false);
-    } catch (err) {
-      setActionError(
-        err instanceof Error
-          ? err
-          : new Error(
-              "Failed to delete learning material.",
-            ),
-      );
-    }
-  }
-
-  // ==========================================================
-  // PUBLISH MATERIAL
-  // ==========================================================
-
-  async function publishMaterial(
-    material: LearningMaterial,
-  ) {
-    try {
-      setActionError(null);
-
-      const result =
-        await publishLearningMaterial(
-          material.id,
-        );
-
-      setAllMaterials(
-        (current) =>
-          current.map(
-            (item) =>
-              item.id ===
-              material.id
-                ? result
-                : item,
-          ),
-      );
-
-      setSelected(
-        result,
-      );
-    } catch (err) {
-      setActionError(
-        err instanceof Error
-          ? err
-          : new Error(
-              "Failed to publish learning material.",
-            ),
-      );
-    }
-  }
-
-  // ==========================================================
-  // UPLOAD MATERIAL FILE
-  // ==========================================================
-
-  async function handleUpload(
-    event: ChangeEvent<HTMLInputElement>,
-  ) {
-    if (!selected) {
-      return;
-    }
-
-    const file =
-      event.target.files?.[0];
-
-    if (!file) {
-      return;
-    }
-
-    try {
-      setActionError(null);
-
-      const result =
-        await uploadLearningMaterial(
-          selected.id,
-          file,
-        );
-
-      setSelected(
-        result,
-      );
-
-      setAllMaterials(
-        (current) =>
-          current.map(
-            (item) =>
-              item.id ===
-              selected.id
-                ? result
-                : item,
-          ),
-      );
-    } catch (err) {
-      setActionError(
-        err instanceof Error
-          ? err
-          : new Error(
-              "Failed to upload learning material.",
-            ),
-      );
-    } finally {
-      event.target.value = "";
-    }
-  }
-
-  // ==========================================================
-  // EXTRACT MATERIAL
-  // ==========================================================
-
-  async function handleExtract() {
-    if (!selected) {
-      return;
-    }
-
-    try {
-      setActionError(null);
-
-      await extractLearningMaterialText(
-        selected.id,
-      );
-    } catch (err) {
-      setActionError(
-        err instanceof Error
-          ? err
-          : new Error(
-              "Failed to extract document text.",
-            ),
-      );
-    }
-  }
-  
-async function handleGenerateModules() {
-  if (!selected) {
-    return;
-  }
-
-  try {
-    setActionError(null);
-
-    if (modules.length === 0) {
-      throw new Error(
-        "No learning modules found. Please create a learning module first.",
-      );
-    }
-
-    for (const module of modules) {
-      await generateModuleAiContent(module.id);
-    }
-
-    const updatedModules = await loadModules(
-      selected.id,
-    );
-
-    // Reload sections for the generated modules.
-    for (const module of updatedModules) {
-      await loadSections(module.id);
-    }
-  } catch (err) {
-    setActionError(
-      err instanceof Error
-        ? err
-        : new Error(
-            "Failed to generate learning module content.",
-          ),
+    window.open(
+      material.fileUrl,
+      "_blank",
+      "noopener,noreferrer",
     );
   }
-}
 
-async function handleGenerateModule(
-  moduleId: string,
-) {
-  try {
-    setActionError(null);
-    setGeneratingModuleId(moduleId);
-
-    await generateModuleAiContent(
-      moduleId,
-    );
-
-    if (selected) {
-      await loadModules(
-        selected.id,
-      );
-    }
-
-    await loadSections(
-      moduleId,
-    );
-  } catch (err) {
-    setActionError(
-      err instanceof Error
-        ? err
-        : new Error(
-            "Failed to generate AI content.",
-          ),
-    );
-  } finally {
-    setGeneratingModuleId(null);
-  }
-}
   // ==========================================================
   // CREATE MODULE
   // ==========================================================
@@ -1079,74 +706,103 @@ async function handleGenerateModule(
   // ==========================================================
   // SAVE MODULE
   // ==========================================================
-async function handleModuleSubmit(
-  data: {
-    learningMaterialId: string;
-    moduleNumber: number;
-    title: string;
-    description: string;
-    displayOrder: number;
-  },
-) {
-  try {
-    setActionError(null);
 
-    if (!selected) {
-      throw new Error(
-        "No learning material is currently selected.",
-      );
-    }
+  async function handleModuleSubmit(
+    data: {
+      learningMaterialId: string;
+      moduleNumber: number;
+      title: string;
+      description: string;
+      displayOrder: number;
+    },
+  ) {
+    try {
+      setActionError(null);
 
-    if (moduleFormMode === "create") {
-      const payload: CreateLearningModuleRequest = {
-        learningMaterialId: selected.id,
-        moduleNumber: data.moduleNumber,
-        title: data.title,
-        description: data.description || null,
-        displayOrder: data.displayOrder,
-      };
-
-      await createLearningModule(payload);
-    } else {
-      if (!selectedModule) {
-        return;
+      if (!selected) {
+        throw new Error(
+          "No learning material is currently selected.",
+        );
       }
 
-      const payload: UpdateLearningModuleRequest = {
-        moduleNumber: data.moduleNumber,
-        title: data.title,
-        description: data.description || null,
-        welcomeContent:
-          selectedModule.welcomeContent,
-        learningObjectives:
-          selectedModule.learningObjectives,
-        summary:
-          selectedModule.summary,
-        keyTakeaways:
-          selectedModule.keyTakeaways,
-        displayOrder: data.displayOrder,
-      };
+      if (
+        moduleFormMode ===
+        "create"
+      ) {
+        await createLearningModule({
+          learningMaterialId:
+            selected.id,
 
-      await updateLearningModule(
-        selectedModule.id,
-        payload,
+          moduleNumber:
+            data.moduleNumber,
+
+          title:
+            data.title,
+
+          description:
+            data.description ||
+            null,
+
+          displayOrder:
+            data.displayOrder,
+        });
+      } else {
+        if (!selectedModule) {
+          return;
+        }
+
+        await updateLearningModule(
+          selectedModule.id,
+          {
+            moduleNumber:
+              data.moduleNumber,
+
+            title:
+              data.title,
+
+            description:
+              data.description ||
+              null,
+
+            welcomeContent:
+              selectedModule.welcomeContent,
+
+            learningObjectives:
+              selectedModule.learningObjectives,
+
+            summary:
+              selectedModule.summary,
+
+            keyTakeaways:
+              selectedModule.keyTakeaways,
+
+            displayOrder:
+              data.displayOrder,
+          },
+        );
+      }
+
+      await loadModules(
+        selected.id,
+      );
+
+      setShowModuleForm(
+        false,
+      );
+
+      setSelectedModule(
+        null,
+      );
+    } catch (err) {
+      setActionError(
+        err instanceof Error
+          ? err
+          : new Error(
+              "Failed to save learning module.",
+            ),
       );
     }
-
-    await loadModules(selected.id);
-
-    setShowModuleForm(false);
-    setSelectedModule(null);
-  } catch (err) {
-    setActionError(
-      err instanceof Error
-        ? err
-        : new Error(
-            "Failed to save learning module.",
-          ),
-    );
   }
-}
 
   // ==========================================================
   // DELETE MODULE
@@ -1283,6 +939,96 @@ async function handleModuleSubmit(
   }
 
   // ==========================================================
+  // GENERATE SINGLE MODULE
+  // ==========================================================
+
+  async function handleGenerateModule(
+    moduleId: string,
+  ) {
+    try {
+      setActionError(null);
+
+      setGeneratingModuleId(
+        moduleId,
+      );
+
+      await generateModuleAiContent(
+        moduleId,
+      );
+
+      if (selected) {
+        await loadModules(
+          selected.id,
+        );
+      }
+
+      await loadSections(
+        moduleId,
+      );
+    } catch (err) {
+      setActionError(
+        err instanceof Error
+          ? err
+          : new Error(
+              "Failed to generate AI content.",
+            ),
+      );
+    } finally {
+      setGeneratingModuleId(
+        null,
+      );
+    }
+  }
+
+  // ==========================================================
+  // GENERATE ALL MODULES
+  // ==========================================================
+
+  async function handleGenerateModules() {
+    if (!selected) {
+      return;
+    }
+
+    try {
+      setActionError(null);
+
+      if (modules.length === 0) {
+        throw new Error(
+          "No learning modules found. Please create a learning module first.",
+        );
+      }
+
+      for (const module of modules) {
+        await generateModuleAiContent(
+          module.id,
+        );
+      }
+
+      const updatedModules =
+        await loadModules(
+          selected.id,
+        );
+
+      for (
+        const module of
+        updatedModules
+      ) {
+        await loadSections(
+          module.id,
+        );
+      }
+    } catch (err) {
+      setActionError(
+        err instanceof Error
+          ? err
+          : new Error(
+              "Failed to generate learning module content.",
+            ),
+      );
+    }
+  }
+
+  // ==========================================================
   // LOAD SECTIONS
   // ==========================================================
 
@@ -1376,41 +1122,37 @@ async function handleModuleSubmit(
         sectionFormMode ===
         "create"
       ) {
-        const payload: CreateLearningSectionRequest =
-          {
-            learningModuleId:
-              data.learningModuleId,
+        await createLearningSection({
+          learningModuleId:
+            data.learningModuleId,
 
-            sectionNumber:
-              data.sectionNumber,
+          sectionNumber:
+            data.sectionNumber,
 
-            title:
-              data.title,
+          title:
+            data.title,
 
-            contentType:
-              data.contentType,
+          contentType:
+            data.contentType,
 
-            content:
-              data.content ||
-              null,
+          content:
+            data.content ||
+            null,
 
-            mediaUrl:
-              data.mediaUrl ||
-              null,
+          mediaUrl:
+            data.mediaUrl ||
+            null,
 
-            displayOrder:
-              data.displayOrder,
-          };
-
-        await createLearningSection(
-          payload,
-        );
+          displayOrder:
+            data.displayOrder,
+        });
       } else {
         if (!selectedSection) {
           return;
         }
 
-        const payload: UpdateLearningSectionRequest =
+        await updateLearningSection(
+          selectedSection.id,
           {
             sectionNumber:
               data.sectionNumber,
@@ -1431,11 +1173,7 @@ async function handleModuleSubmit(
 
             displayOrder:
               data.displayOrder,
-          };
-
-        await updateLearningSection(
-          selectedSection.id,
-          payload,
+          },
         );
       }
 
@@ -1508,42 +1246,8 @@ async function handleModuleSubmit(
   }
 
   // ==========================================================
-  // OPEN FILE
-  // ==========================================================
-
-  function openMaterial(
-    material: LearningMaterial,
-  ) {
-    if (!material.fileUrl) {
-      return;
-    }
-
-    window.open(
-      material.fileUrl,
-      "_blank",
-      "noopener,noreferrer",
-    );
-  }
-
-  // ==========================================================
   // DELETE TARGET
   // ==========================================================
-
-  function openDeleteMaterial(
-    material: LearningMaterial,
-  ) {
-    setSelected(
-      material,
-    );
-
-    setDeleteTarget(
-      "material",
-    );
-
-    setShowDelete(
-      true,
-    );
-  }
 
   function openDeleteModule(
     module: LearningModule,
@@ -1580,14 +1284,6 @@ async function handleModuleSubmit(
   async function handleDeleteConfirm() {
     if (
       deleteTarget ===
-      "material"
-    ) {
-      await deleteMaterial();
-      return;
-    }
-
-    if (
-      deleteTarget ===
       "module"
     ) {
       await deleteModule();
@@ -1603,30 +1299,19 @@ async function handleModuleSubmit(
 
   const deleteTitle =
     deleteTarget ===
-    "material"
-      ? "Remove Material?"
-      : deleteTarget ===
-          "module"
-        ? "Remove Module?"
-        : "Remove Section?";
+    "module"
+      ? "Remove Module?"
+      : "Remove Section?";
 
   const deleteDescription =
     deleteTarget ===
-    "material"
-      ? `Are you sure you want to remove "${selected?.title ?? ""}" from this training batch?`
-      : deleteTarget ===
-          "module"
-        ? `Are you sure you want to remove "${selectedModule?.title ?? ""}"?`
-        : `Are you sure you want to remove "${selectedSection?.title ?? ""}"?`;
+    "module"
+      ? `Are you sure you want to remove "${selectedModule?.title ?? ""}"?`
+      : `Are you sure you want to remove "${selectedSection?.title ?? ""}"?`;
 
   // ==========================================================
-  // PAGE STATES
+  // PAGE ERROR
   // ==========================================================
-
-  const isPageLoading =
-    isLoadingBatches ||
-    isLoading ||
-    isLoadingDetails;
 
   const pageErrorMessage =
     actionError?.message ??
@@ -1635,30 +1320,36 @@ async function handleModuleSubmit(
     null;
 
   // ==========================================================
+  // PAGE LOADING
+  // ==========================================================
+
+  const isPageLoading =
+    isLoadingBatches ||
+    isLoading ||
+    isLoadingDetails;
+
+  // ==========================================================
   // TABLE META
   // ==========================================================
 
-  const tableMeta: LearningMaterialTableMeta = {
-    batchMap,
+  const tableMeta:
+    LearningMaterialTableMeta = {
+      batchMap,
 
-    onView: (material) => {
-      void viewMaterial(
-        material,
-      );
-    },
-
-    onPublish: (material) => {
-      void publishMaterial(
-        material,
-      );
-    },
-
-    onDelete: (material) => {
-      openDeleteMaterial(
-        material,
-      );
-    },
-  };
+      onView: (
+        material
+      ) => {
+        void viewMaterial(
+          material
+        );
+      },
+      onPublish: function (material: LearningMaterial): void {
+        throw new Error("Function not implemented.");
+      },
+      onDelete: function (material: LearningMaterial): void {
+        throw new Error("Function not implemented.");
+      }
+    };
 
   // ==========================================================
   // RENDER
@@ -1666,13 +1357,14 @@ async function handleModuleSubmit(
 
   return (
     <div className="space-y-6">
+
       {/* ======================================================
           PAGE HEADER
       ====================================================== */}
 
       <PageSection
         title="Learning Materials"
-        description="Manage, review, and monitor learning resources across training batches."
+        description="View published learning materials and develop training modules and lessons."
       />
 
       {/* ======================================================
@@ -1682,6 +1374,7 @@ async function handleModuleSubmit(
       {pageErrorMessage && (
         <div className="rounded-2xl border border-red-100 bg-red-50 p-4">
           <div className="flex items-start gap-3">
+
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-100 text-sm font-bold text-red-600">
               !
             </div>
@@ -1695,6 +1388,7 @@ async function handleModuleSubmit(
                 {pageErrorMessage}
               </p>
             </div>
+
           </div>
         </div>
       )}
@@ -1704,9 +1398,10 @@ async function handleModuleSubmit(
       ====================================================== */}
 
       <StatGrid>
+
         <StatCard
-          title="Total Materials"
-          description="All uploaded resources"
+          title="Learning Materials"
+          description="Published resources available"
           value={
             allMaterials.length
           }
@@ -1716,7 +1411,7 @@ async function handleModuleSubmit(
 
         <StatCard
           title="Published"
-          description="Available to participants"
+          description="Available training resources"
           value={
             publishedCount
           }
@@ -1725,24 +1420,25 @@ async function handleModuleSubmit(
         />
 
         <StatCard
-          title="Draft"
-          description="Not yet published"
+          title="Modules"
+          description="Modules you manage"
           value={
-            draftCount
-          }
-          variant="warning"
-          icon={FilePenLine}
-        />
-
-        <StatCard
-          title="Training Batches"
-          description="Batches with training content"
-          value={
-            batches.length
+            moduleCount
           }
           variant="primary"
           icon={Layers3}
         />
+
+        <StatCard
+          title="Lessons"
+          description="Lessons you manage"
+          value={
+            lessonCount
+          }
+          variant="warning"
+          icon={GraduationCap}
+        />
+
       </StatGrid>
 
       {/* ======================================================
@@ -1757,10 +1453,13 @@ async function handleModuleSubmit(
         searchable
         toolbar={
           <div className="flex flex-wrap items-center gap-2">
+
             {/* TRAINING */}
 
             <Select
-              value={trainingFilter}
+              value={
+                trainingFilter
+              }
               onValueChange={
                 setTrainingFilter
               }
@@ -1771,12 +1470,20 @@ async function handleModuleSubmit(
 
               <SelectContent>
                 {trainings.map(
-                  (training) => (
+                  (
+                    training,
+                  ) => (
                     <SelectItem
-                      key={training}
-                      value={training}
+                      key={
+                        training
+                      }
+                      value={
+                        training
+                      }
                     >
-                      {training}
+                      {
+                        training
+                      }
                     </SelectItem>
                   ),
                 )}
@@ -1786,7 +1493,9 @@ async function handleModuleSubmit(
             {/* TYPE */}
 
             <Select
-              value={typeFilter}
+              value={
+                typeFilter
+              }
               onValueChange={
                 setTypeFilter
               }
@@ -1796,6 +1505,7 @@ async function handleModuleSubmit(
               </SelectTrigger>
 
               <SelectContent>
+
                 <SelectItem value="All Types">
                   All Types
                 </SelectItem>
@@ -1823,13 +1533,16 @@ async function handleModuleSubmit(
                 <SelectItem value="Other">
                   Other
                 </SelectItem>
+
               </SelectContent>
             </Select>
 
             {/* STATUS */}
 
             <Select
-              value={statusFilter}
+              value={
+                statusFilter
+              }
               onValueChange={
                 setStatusFilter
               }
@@ -1839,6 +1552,7 @@ async function handleModuleSubmit(
               </SelectTrigger>
 
               <SelectContent>
+
                 <SelectItem value="All Status">
                   All Status
                 </SelectItem>
@@ -1850,20 +1564,10 @@ async function handleModuleSubmit(
                 <SelectItem value="Draft">
                   Draft
                 </SelectItem>
+
               </SelectContent>
             </Select>
 
-            {/* CREATE */}
-
-            <button
-              type="button"
-              onClick={
-                openCreateMaterial
-              }
-              className="h-10 rounded-xl bg-[#191c1e] px-4 text-xs font-semibold text-white transition hover:opacity-90"
-            >
-              Add Material
-            </button>
           </div>
         }
       />
@@ -1874,173 +1578,196 @@ async function handleModuleSubmit(
 
       <LearningMaterialDetailsModal
         open={showDetails}
+
         material={selected}
+
         modules={modules}
+
         sections={sections}
+
         batchMap={batchMap}
-         generatingModuleId={
-    generatingModuleId
-  }
-  onGenerateModule={(
-    moduleId,
-  ) => {
-    void handleGenerateModule(
-      moduleId,
-    );
-  }}
+
+        generatingModuleId={generatingModuleId}
+
+        onGenerateModule={(
+          moduleId
+        ) => {
+          void handleGenerateModule(
+            moduleId
+          );
+        } }
+
         extraction={extraction}
+
         onViewModule={openModulePreview}
-        moduleFileExtraction={
-          moduleFileExtraction
-        }
+
+        moduleFileExtraction={moduleFileExtraction}
+
         isSaving={isSaving}
-        isUploading={
-          isUploading
-        }
-        isGenerating={
-          isGenerating
-        }
-        isExtracting={
-          isExtracting
-        }
+
+        /*
+         * Trainer does not upload
+         * or modify Admin's source file.
+         */
+        isUploading={false}
+
+        isGenerating={isGenerating}
+
+        isExtracting={isExtracting}
+
         onClose={() => {
-          setShowDetails(false);
-          setSelected(null);
-        }}
-        onPublish={() => {
-          if (selected) {
-            void publishMaterial(
-              selected,
-            );
-          }
-        }}
+          setShowDetails(
+            false
+          );
+
+          setSelected(
+            null
+          );
+        } }
+
+        /*
+         * ADMIN-ONLY ACTIONS ARE
+         * INTENTIONALLY NOT PASSED:
+         *
+         * onPublish
+         * onUploadMaterial
+         * onExtractMaterial
+         */
         onOpenMaterial={() => {
           if (selected) {
             openMaterial(
-              selected,
+              selected
             );
           }
-        }}
-        onUploadMaterial={
-          handleUpload
-        }
-        onExtractMaterial={() => {
-          void handleExtract();
-        }}
+        } }
+
+        /*
+         * TRAINER MODULE ACTIONS
+         */
         onGenerateModules={() => {
           void handleGenerateModules();
-        }}
+        } }
+
         onUploadModuleFile={(
           moduleId,
-          file,
+          file
         ) => {
           void handleUploadModuleFile(
             moduleId,
-            file,
+            file
           );
-        }}
+        } }
+
         onExtractModuleFile={(
           moduleId,
-          moduleFileId,
+          moduleFileId
         ) => {
           void handleExtractModuleFile(
             moduleId,
-            moduleFileId,
+            moduleFileId
           );
-        }}
+        } }
+
         onExtractAllModuleFiles={(
-          moduleId,
+          moduleId
         ) => {
           void handleExtractAllModuleFiles(
-            moduleId,
+            moduleId
           );
-        }}
+        } }
+
         onLoadSections={(
-          module,
+          module
         ) => {
           void handleLoadSections(
-            module,
+            module
           );
-        }}
-        onCreateModule={
-          openCreateModule
-        }
-        onEditModule={
-          openEditModule
-        }
-        onCreateSection={
-          openCreateSection
-        }
-        onEditSection={
-          openEditSection
-        }
-        onDeleteModule={
-          openDeleteModule
-        }
-        onDeleteSection={
-          openDeleteSection
-        }
-        onClearModuleFileExtraction={
-          clearModuleFileExtraction
-        }
-      />
+        } }
 
-<TrainerModulePreviewModal
-  open={showModulePreview}
-  module={previewModule}
-  sections={sections}
-  onClose={closeModulePreview}
-/>
+        onCreateModule={openCreateModule}
+
+        onEditModule={openEditModule}
+
+        onCreateSection={openCreateSection}
+
+        onEditSection={openEditSection}
+
+        onDeleteModule={openDeleteModule}
+
+        onDeleteSection={openDeleteSection}
+
+        onClearModuleFileExtraction={clearModuleFileExtraction} onPublish={function (): void {
+          throw new Error("Function not implemented.");
+        } } onUploadMaterial={function (event: React.ChangeEvent<HTMLInputElement>): void {
+          throw new Error("Function not implemented.");
+        } } onExtractMaterial={function (): void {
+          throw new Error("Function not implemented.");
+        } }      />
+
       {/* ======================================================
-          MATERIAL FORM
+          MODULE PREVIEW
       ====================================================== */}
 
-      <LearningMaterialsFormModal
+      <TrainerModulePreviewModal
         open={
-          showMaterialForm
+          showModulePreview
         }
-        mode={
-          materialFormMode
+
+        module={
+          previewModule
         }
-        material={
-          selected
+
+        sections={
+          sections
         }
-        batches={
-          batches
+
+        onClose={
+          closeModulePreview
         }
-        loading={
-          isSaving ||
-          isUploading
-        }
-        onClose={() => {
-          setShowMaterialForm(
-            false,
-          );
-        }}
-        onSubmit={(data) => {
-          void handleMaterialSubmit(
-            data,
-          );
-        }}
       />
 
       {/* ======================================================
           MODULE FORM
       ====================================================== */}
-<LearningModuleFormModal
-  open={showModuleForm}
-  mode={moduleFormMode}
-  module={selectedModule}
-  learningMaterialId={selected?.id ?? ""}
-  loading={isSaving}
-  onClose={() => {
-    setShowModuleForm(false);
-    setSelectedModule(null);
-  }}
-  onSubmit={(data) => {
-    void handleModuleSubmit(data);
-  }}
-/>
+
+      <LearningModuleFormModal
+        open={
+          showModuleForm
+        }
+
+        mode={
+          moduleFormMode
+        }
+
+        module={
+          selectedModule
+        }
+
+        learningMaterialId={
+          selected?.id ?? ""
+        }
+
+        loading={
+          isSaving
+        }
+
+        onClose={() => {
+          setShowModuleForm(
+            false,
+          );
+
+          setSelectedModule(
+            null,
+          );
+        }}
+
+        onSubmit={(data) => {
+          void handleModuleSubmit(
+            data,
+          );
+        }}
+      />
+
       {/* ======================================================
           SECTION FORM
       ====================================================== */}
@@ -2049,20 +1776,25 @@ async function handleModuleSubmit(
         open={
           showSectionForm
         }
+
         mode={
           sectionFormMode
         }
+
         learningModuleId={
           selectedModule?.id ??
           selectedSection?.learningModuleId ??
           ""
         }
+
         section={
           selectedSection
         }
+
         loading={
           isSaving
         }
+
         onClose={() => {
           setShowSectionForm(
             false,
@@ -2076,6 +1808,7 @@ async function handleModuleSubmit(
             null,
           );
         }}
+
         onSubmit={(data) => {
           void handleSectionSubmit(
             data,
@@ -2092,22 +1825,27 @@ async function handleModuleSubmit(
           title={
             deleteTitle
           }
+
           description={
             deleteDescription
           }
+
           loading={
             isSaving
           }
+
           onCancel={() => {
             setShowDelete(
               false,
             );
           }}
+
           onConfirm={() => {
             void handleDeleteConfirm();
           }}
         />
       )}
+
     </div>
   );
 }

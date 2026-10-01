@@ -370,6 +370,8 @@ export interface RegisterTrainerRequest {
   Address: string;
   Gender: string;
 
+  GoogleIdToken?: string | null;
+
   // -------------------------------------------------------
   // Account Information
   // -------------------------------------------------------

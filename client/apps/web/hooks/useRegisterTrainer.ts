@@ -16,6 +16,8 @@ export interface RegisterTrainerFormValues {
   // PERSONAL INFORMATION
   // ==========================================================
 
+  googleIdToken?: string;
+
   firstName: string;
   middleName?: string;
   lastName: string;
@@ -70,12 +72,17 @@ export interface RegisterTrainerFormValues {
   certifications: CreateTrainerCertificationRequest[];
 }
 
-export function useRegisterTrainer(authApi: AuthApi) {
-  const [isLoading, setIsLoading] = useState(false);
+export function useRegisterTrainer(
+  authApi: AuthApi
+) {
+  const [isLoading, setIsLoading] =
+    useState(false);
 
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] =
+    useState<string | null>(null);
 
-  const [success, setSuccess] = useState(false);
+  const [success, setSuccess] =
+    useState(false);
 
   // ==========================================================
   // REGISTER TRAINER
@@ -93,21 +100,28 @@ export function useRegisterTrainer(authApi: AuthApi) {
       // CLEAN VALUES
       // ======================================================
 
-      const firstName = values.firstName.trim();
+      const firstName =
+        values.firstName.trim();
 
       const middleName =
-        values.middleName?.trim() || undefined;
+        values.middleName?.trim() ||
+        undefined;
 
-      const lastName = values.lastName.trim();
+      const lastName =
+        values.lastName.trim();
 
       const suffix =
-        values.suffix?.trim() || undefined;
+        values.suffix?.trim() ||
+        undefined;
 
       const email =
-        values.email.trim().toLowerCase();
+        values.email
+          .trim()
+          .toLowerCase();
 
       const mobileNumber =
-        values.mobileNumber?.trim() || undefined;
+        values.mobileNumber?.trim() ||
+        undefined;
 
       const address =
         values.address.trim();
@@ -116,155 +130,200 @@ export function useRegisterTrainer(authApi: AuthApi) {
         values.specialization.trim();
 
       const professionalTitle =
-        values.professionalTitle?.trim() || undefined;
+        values.professionalTitle?.trim() ||
+        undefined;
 
       const currentOrganization =
-        values.currentOrganization?.trim() || undefined;
+        values.currentOrganization?.trim() ||
+        undefined;
 
       const bio =
-        values.bio?.trim() || undefined;
+        values.bio?.trim() ||
+        undefined;
 
       const professionalLicenseNumber =
-        values.professionalLicenseNumber?.trim() ||
+        values.professionalLicenseNumber
+          ?.trim() ||
         undefined;
 
       const professionalLicenseType =
-        values.professionalLicenseType?.trim() ||
+        values.professionalLicenseType
+          ?.trim() ||
         undefined;
 
+      // ======================================================
+      // GOOGLE TOKEN
+      // ======================================================
+
+      const googleIdToken =
+  values.googleIdToken?.trim() || null;
       // ======================================================
       // EDUCATIONS
       // ======================================================
 
-      const educations: CreateTrainerEducationRequest[] =
-        values.educations.map((education) => ({
-          degree: education.degree.trim(),
+      const educations:
+        CreateTrainerEducationRequest[] =
+        values.educations.map(
+          (education) => ({
+            degree:
+              education.degree.trim(),
 
-          fieldOfStudy:
-            education.fieldOfStudy?.trim() || null,
+            fieldOfStudy:
+              education.fieldOfStudy?.trim() ||
+              null,
 
-          institution:
-            education.institution.trim(),
+            institution:
+              education.institution.trim(),
 
-          yearGraduated:
-            education.yearGraduated ?? null,
-        }));
+            yearGraduated:
+              education.yearGraduated ??
+              null,
+          })
+        );
 
       // ======================================================
       // CERTIFICATIONS
       // ======================================================
 
-      const certifications: CreateTrainerCertificationRequest[] =
-        values.certifications.map((certification) => ({
-          name: certification.name.trim(),
+      const certifications:
+        CreateTrainerCertificationRequest[] =
+        values.certifications.map(
+          (certification) => ({
+            name:
+              certification.name.trim(),
 
-          issuingOrganization:
-            certification.issuingOrganization?.trim() ||
-            null,
+            issuingOrganization:
+              certification.issuingOrganization
+                ?.trim() ||
+              null,
 
-          issuedDate:
-            certification.issuedDate || null,
+            issuedDate:
+              certification.issuedDate ||
+              null,
 
-          expirationDate:
-            certification.expirationDate || null,
+            expirationDate:
+              certification.expirationDate ||
+              null,
 
-          certificateUrl:
-            certification.certificateUrl?.trim() ||
-            null,
-        }));
+            certificateUrl:
+              certification.certificateUrl
+                ?.trim() ||
+              null,
+          })
+        );
 
       // ======================================================
       // REQUEST
       // ======================================================
 
-      const request: RegisterTrainerRequest = {
-        // ----------------------------------------------------
-        // PERSONAL
-        // ----------------------------------------------------
+      const request:
+        RegisterTrainerRequest = {
+          // --------------------------------------------------
+          // GOOGLE AUTHENTICATION
+          // --------------------------------------------------
 
-        FirstName: firstName,
+          GoogleIdToken:
+            googleIdToken ?? null,
 
-        MiddleName: middleName ?? null,
+          // --------------------------------------------------
+          // PERSONAL
+          // --------------------------------------------------
 
-        LastName: lastName,
+          FirstName:
+            firstName,
 
-        Suffix: suffix ?? null,
+          MiddleName:
+            middleName ?? null,
 
-        BirthDate:
-          values.birthDate || null,
+          LastName:
+            lastName,
 
-        Address: address,
+          Suffix:
+            suffix ?? null,
 
-        Gender: values.gender,
+          BirthDate:
+            values.birthDate || null,
 
-        // ----------------------------------------------------
-        // ACCOUNT
-        // ----------------------------------------------------
+          Address:
+            address,
 
-        Email: email,
+          Gender:
+            values.gender,
 
-        MobileNumber:
-          mobileNumber ?? null,
+          // --------------------------------------------------
+          // ACCOUNT
+          // --------------------------------------------------
 
-        Password: values.password,
+          Email:
+            email,
 
-        // ----------------------------------------------------
-        // PROFESSIONAL
-        // ----------------------------------------------------
+          MobileNumber:
+            mobileNumber ?? null,
 
-        Specialization:
-          specialization,
+          Password:
+            values.password,
 
-        ProfessionalTitle:
-          professionalTitle ?? null,
+          // --------------------------------------------------
+          // PROFESSIONAL
+          // --------------------------------------------------
 
-        CurrentOrganization:
-          currentOrganization ?? null,
+          Specialization:
+            specialization,
 
-        Bio:
-          bio ?? null,
+          ProfessionalTitle:
+            professionalTitle ?? null,
 
-        YearsOfExperience:
-          values.yearsOfExperience ?? null,
+          CurrentOrganization:
+            currentOrganization ?? null,
 
-        // ----------------------------------------------------
-        // PROFESSIONAL LICENSE
-        // ----------------------------------------------------
+          Bio:
+            bio ?? null,
 
-        ProfessionalLicenseNumber:
-          professionalLicenseNumber ?? null,
+          YearsOfExperience:
+            values.yearsOfExperience ??
+            null,
 
-        ProfessionalLicenseType:
-          professionalLicenseType ?? null,
+          // --------------------------------------------------
+          // LICENSE
+          // --------------------------------------------------
 
-        ProfessionalLicenseExpirationDate:
-          values.professionalLicenseExpirationDate ||
-          null,
+          ProfessionalLicenseNumber:
+            professionalLicenseNumber ??
+            null,
 
-        // ----------------------------------------------------
-        // PROFILE IMAGE
-        // ----------------------------------------------------
+          ProfessionalLicenseType:
+            professionalLicenseType ??
+            null,
 
-        ProfileImage:
-          values.profileImage ?? null,
+          ProfessionalLicenseExpirationDate:
+            values.professionalLicenseExpirationDate ||
+            null,
 
-        // ----------------------------------------------------
-        // EDUCATION
-        // ----------------------------------------------------
+          // --------------------------------------------------
+          // PROFILE IMAGE
+          // --------------------------------------------------
 
-        Educations:
-          educations,
+          ProfileImage:
+            values.profileImage ??
+            null,
 
-        // ----------------------------------------------------
-        // CERTIFICATIONS
-        // ----------------------------------------------------
+          // --------------------------------------------------
+          // EDUCATION
+          // --------------------------------------------------
 
-        Certifications:
-          certifications,
-      };
+          Educations:
+            educations,
+
+          // --------------------------------------------------
+          // CERTIFICATIONS
+          // --------------------------------------------------
+
+          Certifications:
+            certifications,
+        };
 
       // ======================================================
-      // DEBUG
+      // DEBUG GOOGLE TOKEN
       // ======================================================
 
       console.log(
@@ -272,10 +331,27 @@ export function useRegisterTrainer(authApi: AuthApi) {
       );
 
       console.log(
-        "REGISTER TRAINER REQUEST:"
+        "REGISTER TRAINER GOOGLE DEBUG"
       );
 
-      console.log(request);
+      console.log(
+        "GoogleIdToken:",
+        request.GoogleIdToken
+          ? `FOUND (${request.GoogleIdToken.length} chars)`
+          : "NOT FOUND"
+      );
+
+      console.log(
+        "ProfileImage:",
+        request.ProfileImage
+          ? request.ProfileImage.name
+          : "NO LOCAL IMAGE"
+      );
+
+      console.log(
+        "Email:",
+        request.Email
+      );
 
       console.log(
         "================================="
@@ -286,7 +362,9 @@ export function useRegisterTrainer(authApi: AuthApi) {
       // ======================================================
 
       const response =
-        await authApi.registerTrainer(request);
+        await authApi.registerTrainer(
+          request
+        );
 
       // ======================================================
       // RESPONSE DEBUG
@@ -359,13 +437,9 @@ export function useRegisterTrainer(authApi: AuthApi) {
 
   return {
     registerTrainer,
-
     isLoading,
-
     error,
-
     success,
-
     reset,
   };
 }

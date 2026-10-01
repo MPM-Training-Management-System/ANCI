@@ -10,6 +10,9 @@ function createWindow() {
     minWidth: 1000,
     minHeight: 700,
 
+    // ANCI app icon
+    icon: path.join(__dirname, "../assets/icon.ico"),
+
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -19,9 +22,7 @@ function createWindow() {
 
   mainWindow.loadURL("http://localhost:3001");
 
-  
-  mainWindow.webContents.on("before-input-event", () => {
-  });
+  mainWindow.webContents.on("before-input-event", () => {});
 
   mainWindow.on("closed", () => {
     mainWindow = null;

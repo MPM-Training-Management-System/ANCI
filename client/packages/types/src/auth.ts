@@ -11,6 +11,7 @@ export interface RegisterRequest {
   birthDate: string;
   address: string;
   gender: string;
+   googleIdToken?: string;
 
   profileImage?: {
     uri: string;
@@ -131,3 +132,26 @@ export interface MeResponse {
 }
 
 
+
+
+// =========================================================
+// GOOGLE AUTH
+// =========================================================
+
+export interface GoogleLoginRequest {
+  idToken: string;
+}
+
+export interface GoogleLoginResponse {
+  isNewUser: boolean;
+  requiresRegistration: boolean;
+
+  googleSubjectId?: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
+  profileImageUrl?: string;
+
+  login?: LoginResponse | null;
+}

@@ -9,17 +9,14 @@ export const AuthEndpoints = {
 
   registerTrainer: () => `/api/auth/register/trainer`,
 
-  // ==========================================
-  // EMAIL VERIFICATION
-  // ==========================================
+  google: () => `/api/auth/google`,
+
 
   sendOtp: () => `/api/auth/send-otp`,
 
   verifyOtp: () => `/api/auth/verify-otp`,
 
-  // ==========================================
-  // FORGOT PASSWORD
-  // ==========================================
+
 
   forgotPassword: () => `/api/auth/forgot-password`,
 

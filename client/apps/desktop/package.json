@@ -3,41 +3,40 @@
   "version": "1.0.0",
   "private": true,
   "main": "src/main.js",
-
   "scripts": {
     "dev": "electron .",
     "start": "electron .",
     "build": "electron-builder",
     "build:win": "electron-builder --win"
   },
-
   "devDependencies": {
     "electron": "^43.4.0",
-    "electron-builder": "^26.15.3"
+    "electron-builder": "^26.15.3",
+    "png-to-ico": "^3.0.2",
+    "sharp": "^0.35.5"
   },
-
   "build": {
     "appId": "com.anci.desktop",
     "productName": "ANCI",
-
+    "icon": "assets/icon.ico",
     "directories": {
       "output": "dist"
     },
-
     "files": [
       "src/**/*",
       "package.json"
     ],
-
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "artifactName": "ANCI-Setup-${version}.${ext}",
+      "icon": "assets/icon.ico"
     },
-
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "shortcutName": "ANCI"
     }
   }
 }

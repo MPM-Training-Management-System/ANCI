@@ -1,3 +1,5 @@
+"use client";
+
 import React, {
   useEffect,
   useMemo,
@@ -19,15 +21,18 @@ import {
   View,
 } from "react-native";
 
-import * as ImagePicker from "expo-image-picker";
-
 import DateTimePicker from "@react-native-community/datetimepicker";
+import * as ImagePicker from "expo-image-picker";
+import * as SecureStore from "expo-secure-store";
 
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
 
-import { useRouter } from "expo-router";
+import {
+  useLocalSearchParams,
+  useRouter,
+} from "expo-router";
 
 import {
   useRegister,
@@ -35,11 +40,6 @@ import {
 } from "@/hooks/UseRegister";
 
 import { authApi } from "@/api/api";
-
-
-// =============================================================
-// TYPES
-// =============================================================
 
 type Step = 1 | 2 | 3;
 
@@ -54,35 +54,224 @@ type LocationItem = {
   name: string;
 };
 
+type InputProps = {
+  label: string;
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  value: string;
+  onChangeText: (value: string) => void;
+  placeholder: string;
+  keyboardType?: React.ComponentProps<
+    typeof TextInput
+  >["keyboardType"];
+  secureTextEntry?: boolean;
+  rightElement?: React.ReactNode;
+  autoCapitalize?: React.ComponentProps<
+    typeof TextInput
+  >["autoCapitalize"];
+  editable?: boolean;
+};
 
-// =============================================================
-// PSGC API
-// =============================================================
+type DropdownButtonProps = {
+  label: string;
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  value?: string;
+  placeholder: string;
+  onPress: () => void;
+  loading?: boolean;
+  disabled?: boolean;
+};
 
-const PSGC_API =
-  "https://psgc.gitlab.io/api";
+const PSGC_API = "https://psgc.gitlab.io/api";
 
+const GOOGLE_REGISTRATION_TOKEN_KEY =
+  "google_registration_id_token";
 
-// =============================================================
-// COMPONENT
-// =============================================================
+const genderOptions = [
+  "Male",
+  "Female",
+  "Prefer not to say",
+];
+
+// ======================================================
+// REUSABLE INPUT
+// ======================================================
+
+function Input({
+  label,
+  icon,
+  value,
+  onChangeText,
+  placeholder,
+  keyboardType = "default",
+  secureTextEntry = false,
+  rightElement,
+  autoCapitalize = "sentences",
+  editable = true,
+}: InputProps) {
+  return (
+    <View style={styles.field}>
+      <Text style={styles.label}>
+        {label}
+      </Text>
+
+      <View
+        style={[
+          styles.inputWrapper,
+          value.length > 0 &&
+            styles.inputWrapperActive,
+        ]}
+      >
+        <Ionicons
+          name={icon}
+          size={20}
+          color="#2563EB"
+          style={styles.inputIcon}
+        />
+
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor="#A0AEC0"
+          keyboardType={keyboardType}
+          secureTextEntry={secureTextEntry}
+          autoCapitalize={autoCapitalize}
+          autoCorrect={false}
+          editable={editable}
+          style={styles.input}
+        />
+
+        {rightElement}
+      </View>
+    </View>
+  );
+}
+
+// ======================================================
+// DROPDOWN BUTTON
+// ======================================================
+
+function DropdownButton({
+  label,
+  icon,
+  value,
+  placeholder,
+  onPress,
+  loading = false,
+  disabled = false,
+}: DropdownButtonProps) {
+  return (
+    <View style={styles.field}>
+      <Text style={styles.label}>
+        {label}
+      </Text>
+
+      <Pressable
+        onPress={onPress}
+        disabled={disabled}
+        style={({ pressed }) => [
+          styles.inputWrapper,
+          value &&
+            styles.inputWrapperActive,
+          pressed &&
+            !disabled &&
+            styles.dropdownPressed,
+          disabled &&
+            styles.dropdownDisabled,
+        ]}
+      >
+        <Ionicons
+          name={icon}
+          size={20}
+          color="#2563EB"
+          style={styles.inputIcon}
+        />
+
+        <Text
+          style={[
+            styles.dropdownText,
+            !value &&
+              styles.dropdownPlaceholder,
+          ]}
+          numberOfLines={1}
+        >
+          {loading
+            ? "Loading..."
+            : value || placeholder}
+        </Text>
+
+        {loading ? (
+          <ActivityIndicator
+            size="small"
+            color="#2563EB"
+          />
+        ) : (
+          <Ionicons
+            name="chevron-down"
+            size={19}
+            color="#64748B"
+          />
+        )}
+      </Pressable>
+    </View>
+  );
+}
+
+// ======================================================
+// REGISTER FORM
+// ======================================================
 
 export default function RegisterForm() {
-
   const router = useRouter();
 
+  // ====================================================
+  // GOOGLE REGISTRATION
+  // ====================================================
 
-  // ===========================================================
-  // STEP
-  // ===========================================================
+  const params = useLocalSearchParams<{
+    google?: string;
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+    fullName?: string;
+    profileImageUrl?: string;
+  }>();
 
-  const [step, setStep] =
-    useState<Step>(1);
+  const isGoogleRegistration =
+    params.google === "1";
 
+  const googleEmail =
+    typeof params.email === "string"
+      ? params.email
+      : "";
 
-  // ===========================================================
+  const googleFirstName =
+    typeof params.firstName === "string"
+      ? params.firstName
+      : "";
+
+  const googleLastName =
+    typeof params.lastName === "string"
+      ? params.lastName
+      : "";
+
+  const googleProfileImageUrl =
+    typeof params.profileImageUrl ===
+    "string"
+      ? params.profileImageUrl
+      : "";
+
+  const {
+    register,
+    isLoading,
+    error,
+  } = useRegister(authApi);
+
+  const [step, setStep] = useState<Step>(1);
+
+  // --------------------------------------------------
   // PERSONAL INFORMATION
-  // ===========================================================
+  // --------------------------------------------------
 
   const [firstName, setFirstName] =
     useState("");
@@ -92,11 +281,6 @@ export default function RegisterForm() {
 
   const [lastName, setLastName] =
     useState("");
-
-
-  // ===========================================================
-  // ADDRESS
-  // ===========================================================
 
   const [houseNumber, setHouseNumber] =
     useState("");
@@ -110,49 +294,15 @@ export default function RegisterForm() {
   const [barangay, setBarangay] =
     useState<LocationItem | null>(null);
 
-
-  // ===========================================================
-  // BIRTH DATE
-  // ===========================================================
-
   const [birthDate, setBirthDate] =
     useState("");
-
-  const [showDatePicker, setShowDatePicker] =
-    useState(false);
-
-
-  // ===========================================================
-  // GENDER
-  // ===========================================================
 
   const [gender, setGender] =
     useState("");
 
-  const [showGenderDropdown, setShowGenderDropdown] =
-    useState(false);
-
-
-  const genderOptions = [
-    "Male",
-    "Female",
-    "Prefer not to say",
-  ];
-
-
-  // ===========================================================
-  // PROFILE IMAGE
-  // ===========================================================
-
-  const [profileImage, setProfileImage] =
-    useState<ProfileImage | undefined>(
-      undefined
-    );
-
-
-  // ===========================================================
-  // ACCOUNT
-  // ===========================================================
+  // --------------------------------------------------
+  // ACCOUNT INFORMATION
+  // --------------------------------------------------
 
   const [email, setEmail] =
     useState("");
@@ -166,7 +316,6 @@ export default function RegisterForm() {
   const [confirmPassword, setConfirmPassword] =
     useState("");
 
-
   const [showPassword, setShowPassword] =
     useState(false);
 
@@ -175,10 +324,23 @@ export default function RegisterForm() {
     setShowConfirmPassword,
   ] = useState(false);
 
+  // --------------------------------------------------
+  // PROFILE IMAGE
+  // --------------------------------------------------
 
-  // ===========================================================
+  const [profileImage, setProfileImage] =
+    useState<ProfileImage | null>(null);
+
+  // --------------------------------------------------
+  // GOOGLE ID TOKEN
+  // --------------------------------------------------
+
+  const [googleIdToken, setGoogleIdToken] =
+    useState<string | null>(null);
+
+  // --------------------------------------------------
   // LOCATION DATA
-  // ===========================================================
+  // --------------------------------------------------
 
   const [provinces, setProvinces] =
     useState<LocationItem[]>([]);
@@ -188,7 +350,6 @@ export default function RegisterForm() {
 
   const [barangays, setBarangays] =
     useState<LocationItem[]>([]);
-
 
   const [
     isLoadingProvinces,
@@ -205,63 +366,116 @@ export default function RegisterForm() {
     setIsLoadingBarangays,
   ] = useState(false);
 
-
-  // ===========================================================
-  // DROPDOWN
-  // ===========================================================
-
-  type DropdownType =
-    | "province"
-    | "municipality"
-    | "barangay"
-    | null;
+  // --------------------------------------------------
+  // DROPDOWNS / MODALS
+  // --------------------------------------------------
 
   const [activeDropdown, setActiveDropdown] =
-    useState<DropdownType>(null);
+    useState<
+      | "province"
+      | "municipality"
+      | "barangay"
+      | null
+    >(null);
 
+  const [
+    showGenderDropdown,
+    setShowGenderDropdown,
+  ] = useState(false);
 
-  // ===========================================================
-  // ERROR
-  // ===========================================================
+  const [showDatePicker, setShowDatePicker] =
+    useState(false);
 
   const [localError, setLocalError] =
-    useState<string | null>(null);
+    useState("");
 
-
-  // ===========================================================
-  // REGISTER HOOK
-  // ===========================================================
-
-  const {
-    register,
-    isLoading,
-    error,
-  } = useRegister(authApi);
-
-
-  // ===========================================================
-  // LOAD PROVINCES
-  // ===========================================================
+  // ==================================================
+  // GOOGLE REGISTRATION INITIALIZATION
+  // ==================================================
 
   useEffect(() => {
+    if (!isGoogleRegistration) {
+      return;
+    }
 
-    loadProvinces();
+    setFirstName(
+      googleFirstName.trim()
+    );
 
-  }, []);
+    setLastName(
+      googleLastName.trim()
+    );
 
+    setEmail(
+      googleEmail.trim().toLowerCase()
+    );
 
-  const loadProvinces =
-    async () => {
+    if (googleProfileImageUrl) {
+      setProfileImage({
+        uri: googleProfileImageUrl,
+        name: "google-profile.jpg",
+        type: "image/jpeg",
+      });
+    }
 
-      try {
+    const loadGoogleToken =
+      async () => {
+        try {
+          const token =
+            await SecureStore.getItemAsync(
+              GOOGLE_REGISTRATION_TOKEN_KEY
+            );
 
-        setIsLoadingProvinces(true);
+          if (!token) {
+            console.warn(
+              "GOOGLE REGISTRATION: ID token not found."
+            );
 
-        const response =
-          await fetch(
-            `${PSGC_API}/provinces/`
+            setLocalError(
+              "Your Google registration session has expired. Please continue with Google again."
+            );
+
+            return;
+          }
+
+          setGoogleIdToken(token);
+
+          console.log(
+            "GOOGLE REGISTRATION: ID token found."
+          );
+        } catch (error) {
+          console.error(
+            "GOOGLE TOKEN LOAD ERROR:",
+            error
           );
 
+          setLocalError(
+            "Unable to restore your Google registration session."
+          );
+        }
+      };
+
+    loadGoogleToken();
+  }, [
+    isGoogleRegistration,
+    googleEmail,
+    googleFirstName,
+    googleLastName,
+    googleProfileImageUrl,
+  ]);
+
+  // ==================================================
+  // LOAD PROVINCES
+  // ==================================================
+
+  useEffect(() => {
+    const loadProvinces = async () => {
+      try {
+        setIsLoadingProvinces(true);
+
+        const response = await fetch(
+          `${PSGC_API}/provinces/`
+        );
 
         if (!response.ok) {
           throw new Error(
@@ -269,71 +483,73 @@ export default function RegisterForm() {
           );
         }
 
+        const data = await response.json();
 
-        const data =
-          await response.json();
+        const formatted: LocationItem[] =
+          data
+            .map(
+              (item: {
+                code: string;
+                name: string;
+              }) => ({
+                code: item.code,
+                name: item.name,
+              })
+            )
+            .sort(
+              (
+                a: LocationItem,
+                b: LocationItem
+              ) =>
+                a.name.localeCompare(
+                  b.name
+                )
+            );
 
-
-        setProvinces(
-          data.map(
-            (item: any) => ({
-              code: item.code,
-              name: item.name,
-            })
-          )
-        );
-
-      }
-
-      catch (error) {
-
-        console.log(
-          "Province API error:",
+        setProvinces(formatted);
+      } catch (error) {
+        console.error(
+          "LOAD PROVINCES ERROR:",
           error
         );
 
         setLocalError(
-          "Unable to load provinces. Please check your internet connection."
+          "Unable to load provinces. Please try again."
         );
-
-      }
-
-      finally {
-
+      } finally {
         setIsLoadingProvinces(false);
-
       }
-
     };
 
+    loadProvinces();
+  }, []);
 
-  // ===========================================================
+  // ==================================================
   // LOAD MUNICIPALITIES
-  // ===========================================================
+  // ==================================================
 
-  const loadMunicipalities =
+  const handleProvinceSelect =
     async (
-      provinceCode: string
+      item: LocationItem
     ) => {
+      setProvince(item);
+
+      setMunicipality(null);
+      setBarangay(null);
+
+      setMunicipalities([]);
+      setBarangays([]);
+
+      setActiveDropdown(null);
 
       try {
+        setIsLoadingMunicipalities(
+          true
+        );
 
-        setIsLoadingMunicipalities(true);
-
-        setMunicipalities([]);
-
-        setBarangays([]);
-
-        setMunicipality(null);
-
-        setBarangay(null);
-
-
-        const response =
-          await fetch(
-            `${PSGC_API}/provinces/${provinceCode}/municipalities/`
-          );
-
+        const response = await fetch(
+          `${PSGC_API}/provinces/${item.code}/municipalities/`
+        );
 
         if (!response.ok) {
           throw new Error(
@@ -341,67 +557,67 @@ export default function RegisterForm() {
           );
         }
 
+        const data = await response.json();
 
-        const data =
-          await response.json();
+        const formatted: LocationItem[] =
+          data
+            .map(
+              (location: {
+                code: string;
+                name: string;
+              }) => ({
+                code: location.code,
+                name: location.name,
+              })
+            )
+            .sort(
+              (
+                a: LocationItem,
+                b: LocationItem
+              ) =>
+                a.name.localeCompare(
+                  b.name
+                )
+            );
 
-
-        setMunicipalities(
-          data.map(
-            (item: any) => ({
-              code: item.code,
-              name: item.name,
-            })
-          )
-        );
-
-      }
-
-      catch (error) {
-
-        console.log(
-          "Municipality API error:",
+        setMunicipalities(formatted);
+      } catch (error) {
+        console.error(
+          "LOAD MUNICIPALITIES ERROR:",
           error
         );
 
         setLocalError(
           "Unable to load municipalities."
         );
-
+      } finally {
+        setIsLoadingMunicipalities(
+          false
+        );
       }
-
-      finally {
-
-        setIsLoadingMunicipalities(false);
-
-      }
-
     };
 
-
-  // ===========================================================
+  // ==================================================
   // LOAD BARANGAYS
-  // ===========================================================
+  // ==================================================
 
-  const loadBarangays =
+  const handleMunicipalitySelect =
     async (
-      municipalityCode: string
+      item: LocationItem
     ) => {
+      setMunicipality(item);
+
+      setBarangay(null);
+      setBarangays([]);
+
+      setActiveDropdown(null);
 
       try {
-
         setIsLoadingBarangays(true);
 
-        setBarangays([]);
-
-        setBarangay(null);
-
-
-        const response =
-          await fetch(
-            `${PSGC_API}/municipalities/${municipalityCode}/barangays/`
-          );
-
+        const response = await fetch(
+          `${PSGC_API}/municipalities/${item.code}/barangays/`
+        );
 
         if (!response.ok) {
           throw new Error(
@@ -409,562 +625,433 @@ export default function RegisterForm() {
           );
         }
 
+        const data = await response.json();
 
-        const data =
-          await response.json();
+        const formatted: LocationItem[] =
+          data
+            .map(
+              (location: {
+                code: string;
+                name: string;
+              }) => ({
+                code: location.code,
+                name: location.name,
+              })
+            )
+            .sort(
+              (
+                a: LocationItem,
+                b: LocationItem
+              ) =>
+                a.name.localeCompare(
+                  b.name
+                )
+            );
 
-
-        setBarangays(
-          data.map(
-            (item: any) => ({
-              code: item.code,
-              name: item.name,
-            })
-          )
-        );
-
-      }
-
-      catch (error) {
-
-        console.log(
-          "Barangay API error:",
+        setBarangays(formatted);
+      } catch (error) {
+        console.error(
+          "LOAD BARANGAYS ERROR:",
           error
         );
 
         setLocalError(
           "Unable to load barangays."
         );
-
-      }
-
-      finally {
-
+      } finally {
         setIsLoadingBarangays(false);
-
       }
-
     };
 
+  const handleBarangaySelect = (
+    item: LocationItem
+  ) => {
+    setBarangay(item);
+    setActiveDropdown(null);
+  };
 
-  // ===========================================================
-  // ADDRESS STRING
-  // ===========================================================
+  // ==================================================
+  // ADDRESS
+  // ==================================================
 
-  const address =
-    useMemo(() => {
+  const formattedAddress = useMemo(() => {
+    const parts = [
+      houseNumber.trim(),
+      barangay?.name,
+      municipality?.name,
+      province?.name,
+    ].filter(Boolean);
 
-      return [
-        houseNumber.trim(),
-        barangay?.name,
-        municipality?.name,
-        province?.name,
-      ]
-        .filter(Boolean)
-        .join(", ");
+    return parts.join(", ");
+  }, [
+    houseNumber,
+    barangay,
+    municipality,
+    province,
+  ]);
 
-    }, [
-      houseNumber,
-      barangay,
-      municipality,
-      province,
-    ]);
-
-
-  // ===========================================================
+  // ==================================================
   // PROFILE IMAGE
-  // ===========================================================
+  // ==================================================
 
-  const pickProfileImage =
+  const handlePickProfileImage =
     async () => {
-
       try {
-
-        setLocalError(null);
-
-
         const permission =
-          await ImagePicker
-            .requestMediaLibraryPermissionsAsync();
-
+          await ImagePicker.requestMediaLibraryPermissionsAsync();
 
         if (!permission.granted) {
-
-          setLocalError(
-            "Please allow access to your photos."
+          Alert.alert(
+            "Permission Required",
+            "Please allow photo library access to select a profile picture."
           );
 
           return;
         }
-
 
         const result =
-          await ImagePicker
-            .launchImageLibraryAsync({
-
+          await ImagePicker.launchImageLibraryAsync(
+            {
               mediaTypes: ["images"],
-
               allowsEditing: true,
-
               aspect: [1, 1],
-
               quality: 0.8,
-
-            });
-
-
-        if (result.canceled) {
-          return;
-        }
-
-
-        const asset =
-          result.assets?.[0];
-
-
-        if (!asset?.uri) {
-
-          setLocalError(
-            "Unable to select the image."
+            }
           );
 
+        if (
+          result.canceled ||
+          !result.assets?.length
+        ) {
           return;
         }
 
+        const asset =
+          result.assets[0];
 
-        const image: ProfileImage = {
+        const fileName =
+          asset.fileName ??
+          `profile-${Date.now()}.jpg`;
 
-          uri:
-            asset.uri,
+        const mimeType =
+          asset.mimeType ??
+          "image/jpeg";
 
-          name:
-            asset.fileName ??
-            `profile-${Date.now()}.jpg`,
-
-          type:
-            asset.mimeType ??
-            "image/jpeg",
-
-        };
-
-
-        setProfileImage(image);
-
-      }
-
-      catch (error) {
-
-        setLocalError(
-          error instanceof Error
-            ? error.message
-            : "Unable to select profile image."
+        setProfileImage({
+          uri: asset.uri,
+          name: fileName,
+          type: mimeType,
+        });
+      } catch (error) {
+        console.error(
+          "PROFILE IMAGE ERROR:",
+          error
         );
 
+        Alert.alert(
+          "Image Error",
+          "Unable to select your profile picture."
+        );
       }
-
     };
 
-
-  // ===========================================================
+  // ==================================================
   // DATE
-  // ===========================================================
+  // ==================================================
 
- const handleDateChange = (
-  event: any,
-  selectedDate?: Date
-) => {
+  const handleBirthDateChange = (
+    _event: unknown,
+    selectedDate?: Date
+  ) => {
+    if (!selectedDate) {
+      return;
+    }
 
-  if (
-    event?.type === "dismissed"
-  ) {
-    return;
-  }
+    const year =
+      selectedDate.getFullYear();
 
-  if (!selectedDate) {
-    return;
-  }
-
-  const year =
-    selectedDate.getFullYear();
-
-  const month =
-    String(
+    const month = String(
       selectedDate.getMonth() + 1
     ).padStart(2, "0");
 
-  const day =
-    String(
+    const day = String(
       selectedDate.getDate()
     ).padStart(2, "0");
 
-  setBirthDate(
-    `${year}-${month}-${day}`
-  );
+    setBirthDate(
+      `${year}-${month}-${day}`
+    );
 
-  // Android closes automatically
-  if (Platform.OS === "android") {
     setShowDatePicker(false);
-  }
-};
+  };
 
+  const parsedBirthDate = useMemo(() => {
+    if (!birthDate) {
+      return new Date(
+        new Date().getFullYear() - 18,
+        0,
+        1
+      );
+    }
 
-  // ===========================================================
-  // DATE DISPLAY
-  // ===========================================================
+    const date = new Date(
+      `${birthDate}T00:00:00`
+    );
+
+    if (
+      Number.isNaN(
+        date.getTime()
+      )
+    ) {
+      return new Date(
+        new Date().getFullYear() - 18,
+        0,
+        1
+      );
+    }
+
+    return date;
+  }, [birthDate]);
 
   const formattedBirthDate =
-    birthDate
-      ? new Date(
-          `${birthDate}T00:00:00`
-        ).toLocaleDateString(
-          "en-PH",
-          {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          }
-        )
-      : "";
-
-
-  // ===========================================================
-  // DROPDOWN SELECTION
-  // ===========================================================
-
-  const handleProvinceSelect =
-    async (
-      item: LocationItem
-    ) => {
-
-      setProvince(item);
-
-      setActiveDropdown(null);
-
-      await loadMunicipalities(
-        item.code
-      );
-
-    };
-
-
-  const handleMunicipalitySelect =
-    async (
-      item: LocationItem
-    ) => {
-
-      setMunicipality(item);
-
-      setActiveDropdown(null);
-
-      await loadBarangays(
-        item.code
-      );
-
-    };
-
-
-  const handleBarangaySelect =
-    (
-      item: LocationItem
-    ) => {
-
-      setBarangay(item);
-
-      setActiveDropdown(null);
-
-    };
-
-
-  // ===========================================================
-  // STEP 1 VALIDATION
-  // ===========================================================
-
-  const validateStepOne =
-    () => {
-
-      setLocalError(null);
-
-
-      if (!firstName.trim()) {
-
-        setLocalError(
-          "Please enter your first name."
-        );
-
-        return false;
-      }
-
-
-      if (!lastName.trim()) {
-
-        setLocalError(
-          "Please enter your last name."
-        );
-
-        return false;
-      }
-
-
-      if (!houseNumber.trim()) {
-
-        setLocalError(
-          "Please enter your house number and street."
-        );
-
-        return false;
-      }
-
-
-      if (!province) {
-
-        setLocalError(
-          "Please select your province."
-        );
-
-        return false;
-      }
-
-
-      if (!municipality) {
-
-        setLocalError(
-          "Please select your municipality or city."
-        );
-
-        return false;
-      }
-
-
-      if (!barangay) {
-
-        setLocalError(
-          "Please select your barangay."
-        );
-
-        return false;
-      }
-
-
+    useMemo(() => {
       if (!birthDate) {
-
-        setLocalError(
-          "Please select your birth date."
-        );
-
-        return false;
+        return "";
       }
 
-
-      if (!gender) {
-
-        setLocalError(
-          "Please select your gender."
-        );
-
-        return false;
-      }
-
-
-      return true;
-
-    };
-
-
-  // ===========================================================
-  // STEP 2 VALIDATION
-  // ===========================================================
-
-  const validateStepTwo =
-    () => {
-
-      setLocalError(null);
-
-
-      if (!email.trim()) {
-
-        setLocalError(
-          "Please enter your email address."
-        );
-
-        return false;
-      }
-
-
-      const emailRegex =
-        /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
+      const date = new Date(
+        `${birthDate}T00:00:00`
+      );
 
       if (
-        !emailRegex.test(
-          email.trim()
+        Number.isNaN(
+          date.getTime()
         )
       ) {
-
-        setLocalError(
-          "Please enter a valid email address."
-        );
-
-        return false;
+        return birthDate;
       }
 
+      return date.toLocaleDateString(
+        "en-US",
+        {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        }
+      );
+    }, [birthDate]);
 
-      if (!mobileNumber.trim()) {
+  // ==================================================
+  // VALIDATION
+  // ==================================================
 
-        setLocalError(
-          "Please enter your mobile number."
-        );
+  const validateStepOne = () => {
+    setLocalError("");
 
-        return false;
-      }
+    if (!firstName.trim()) {
+      setLocalError(
+        "Please enter your first name."
+      );
+      return false;
+    }
 
+    if (!lastName.trim()) {
+      setLocalError(
+        "Please enter your last name."
+      );
+      return false;
+    }
 
-      return true;
+    if (!houseNumber.trim()) {
+      setLocalError(
+        "Please enter your house number or street."
+      );
+      return false;
+    }
 
-    };
+    if (!province) {
+      setLocalError(
+        "Please select your province."
+      );
+      return false;
+    }
 
+    if (!municipality) {
+      setLocalError(
+        "Please select your municipality or city."
+      );
+      return false;
+    }
 
-  // ===========================================================
-  // STEP 3 VALIDATION
-  // ===========================================================
+    if (!barangay) {
+      setLocalError(
+        "Please select your barangay."
+      );
+      return false;
+    }
 
-  const validateStepThree =
-    () => {
+    if (!birthDate) {
+      setLocalError(
+        "Please select your birth date."
+      );
+      return false;
+    }
 
-      setLocalError(null);
+    if (!gender) {
+      setLocalError(
+        "Please select your gender."
+      );
+      return false;
+    }
 
+    return true;
+  };
 
-      if (!password) {
+  const validateStepTwo = () => {
+    setLocalError("");
 
-        setLocalError(
-          "Please enter a password."
-        );
+    if (!email.trim()) {
+      setLocalError(
+        "Please enter your email address."
+      );
+      return false;
+    }
 
-        return false;
-      }
+    const emailRegex =
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+    if (
+      !emailRegex.test(
+        email.trim()
+      )
+    ) {
+      setLocalError(
+        "Please enter a valid email address."
+      );
+      return false;
+    }
 
-      if (
-        password.length < 8
-      ) {
+    if (!mobileNumber.trim()) {
+      setLocalError(
+        "Please enter your mobile number."
+      );
+      return false;
+    }
 
-        setLocalError(
-          "Password must contain at least 8 characters."
-        );
+    return true;
+  };
 
-        return false;
-      }
+  const validateStepThree = () => {
+    setLocalError("");
 
+    if (!password) {
+      setLocalError(
+        "Please enter a password."
+      );
+      return false;
+    }
 
-      if (!confirmPassword) {
+    if (password.length < 8) {
+      setLocalError(
+        "Password must be at least 8 characters."
+      );
+      return false;
+    }
 
-        setLocalError(
-          "Please confirm your password."
-        );
+    if (!confirmPassword) {
+      setLocalError(
+        "Please confirm your password."
+      );
+      return false;
+    }
 
-        return false;
-      }
+    if (
+      password !==
+      confirmPassword
+    ) {
+      setLocalError(
+        "Passwords do not match."
+      );
+      return false;
+    }
 
+    // ----------------------------------------------
+    // GOOGLE REGISTRATION TOKEN VALIDATION
+    // ----------------------------------------------
 
-      if (
-        password !==
-        confirmPassword
-      ) {
+    if (
+      isGoogleRegistration &&
+      !googleIdToken
+    ) {
+      setLocalError(
+        "Your Google registration session has expired. Please continue with Google again."
+      );
 
-        setLocalError(
-          "Passwords do not match."
-        );
+      return false;
+    }
 
-        return false;
-      }
+    return true;
+  };
 
-
-      return true;
-
-    };
-
-
-  // ===========================================================
+  // ==================================================
   // NEXT
-  // ===========================================================
+  // ==================================================
 
   const handleNext = () => {
-
-    setLocalError(null);
-
-
     if (step === 1) {
-
       if (!validateStepOne()) {
         return;
       }
 
-
       setStep(2);
-
       return;
     }
 
-
     if (step === 2) {
-
       if (!validateStepTwo()) {
         return;
       }
 
-
       setStep(3);
-
     }
-
   };
 
-
-  // ===========================================================
+  // ==================================================
   // BACK
-  // ===========================================================
+  // ==================================================
 
   const handleBack = () => {
-
-    setLocalError(null);
-
+    setLocalError("");
 
     if (step === 1) {
-
-      router.back();
+      router.replace({
+        pathname: "/",
+        params: {
+          slide: "3",
+        },
+      });
 
       return;
     }
 
-
-    setStep(
-      current =>
-        (current - 1) as Step
+    setStep((current) =>
+      current === 3
+        ? 2
+        : 1
     );
-
   };
 
-
-  // ===========================================================
+  // ==================================================
   // REGISTER
-  // ===========================================================
+  // ==================================================
 
-  const handleRegister =
-    async () => {
+  const handleRegister = async () => {
+    if (!validateStepThree()) {
+      return;
+    }
 
-      if (!validateStepThree()) {
-        return;
-      }
-
-
-      // IMPORTANT:
-      // structured address -> one string
-      //
-      // Example:
-      // 123 Rizal St, San Jose,
-      // Rodriguez, Rizal
-
+    try {
       const values: RegisterFormValues = {
-
         firstName:
           firstName.trim(),
 
@@ -975,13 +1062,11 @@ export default function RegisterForm() {
           lastName.trim(),
 
         address:
-          address,
+          formattedAddress,
 
-        birthDate:
-          birthDate,
+        birthDate,
 
-        gender:
-          gender,
+        gender,
 
         email:
           email
@@ -993,145 +1078,230 @@ export default function RegisterForm() {
 
         password,
 
-        profileImage,
+        profileImage:
+          profileImage ?? undefined,
 
+        // --------------------------------------------
+        // GOOGLE REGISTRATION
+        // --------------------------------------------
+
+        googleIdToken:
+          isGoogleRegistration
+            ? googleIdToken ??
+              undefined
+            : undefined,
       };
 
+      console.log(
+        "========================================"
+      );
 
-      const registered =
+      console.log(
+        "PARTICIPANT REGISTRATION"
+      );
+
+      console.log(
+        "Google Registration:",
+        isGoogleRegistration
+      );
+
+      console.log(
+        "Google ID Token:",
+        googleIdToken
+          ? `FOUND (${googleIdToken.length} chars)`
+          : "NOT USED"
+      );
+
+      console.log(
+        "Email:",
+        values.email
+      );
+
+      console.log(
+        "Profile Image:",
+        values.profileImage
+          ? values.profileImage.uri
+          : "NONE"
+      );
+
+      console.log(
+        "========================================"
+      );
+
+      const response =
         await register(values);
 
-
-      if (!registered) {
+      if (!response) {
         return;
       }
 
+      // =================================================
+      // GOOGLE TOKEN CLEANUP
+      // =================================================
 
-      try {
-
-        const otpResponse =
-          await authApi.sendOtp({
-
-            email:
-              email
-                .trim()
-                .toLowerCase(),
-
-          });
-
-
-        if (!otpResponse.success) {
-
-          setLocalError(
-            otpResponse.message ||
-              "Unable to send verification code."
+      if (isGoogleRegistration) {
+        try {
+          await SecureStore.deleteItemAsync(
+            GOOGLE_REGISTRATION_TOKEN_KEY
           );
 
-          return;
+          console.log(
+            "GOOGLE REGISTRATION: temporary token deleted."
+          );
+        } catch (error) {
+          console.error(
+            "GOOGLE TOKEN CLEANUP ERROR:",
+            error
+          );
         }
+      }
 
+      // =================================================
+      // SEND OTP
+      // =================================================
 
+      const otpResponse =
+        await authApi.sendOtp({
+          email:
+            email
+              .trim()
+              .toLowerCase(),
+        });
+
+      if (!otpResponse) {
         Alert.alert(
-
           "Registration Successful",
-
-          "A verification code has been sent to your email.",
-
-          [
-            {
-              text: "OK",
-
-              onPress: () => {
-
-                router.push({
-                  pathname:
-                    "/(auth)/otp-verification",
-
-                  params: {
-                    email:
-                      email
-                        .trim()
-                        .toLowerCase(),
-                  },
-                });
-
-              },
-
-            },
-
-          ]
-
+          "Your account was created, but we could not send the verification code. Please try again."
         );
 
+        return;
       }
 
-      catch (error) {
+      // =================================================
+      // SUCCESS
+      // =================================================
 
-        setLocalError(
-          error instanceof Error
-            ? error.message
-            : "Unable to send verification code."
-        );
+      Alert.alert(
+        "Registration Successful",
+        isGoogleRegistration
+          ? "Your account has been created with Google. Please verify your email address."
+          : "Your account has been created. Please verify your email address.",
+        [
+          {
+            text: "Continue",
+            onPress: () =>
+              router.push({
+                pathname:
+                  "/(auth)/otp-verification",
+                params: {
+                  email:
+                    email
+                      .trim()
+                      .toLowerCase(),
+                },
+              }),
+          },
+        ]
+      );
+    } catch (error) {
+      console.error(
+        "REGISTER ERROR:",
+        error
+      );
 
+      Alert.alert(
+        "Registration Failed",
+        error instanceof Error
+          ? error.message
+          : "Unable to create your account. Please try again."
+      );
+    }
+  };
+
+  // ==================================================
+  // LOCATION MODAL
+  // ==================================================
+
+  const locationItems =
+    useMemo(() => {
+      if (
+        activeDropdown ===
+        "province"
+      ) {
+        return provinces;
       }
 
-    };
+      if (
+        activeDropdown ===
+        "municipality"
+      ) {
+        return municipalities;
+      }
 
+      if (
+        activeDropdown ===
+        "barangay"
+      ) {
+        return barangays;
+      }
 
-  // ===========================================================
+      return [];
+    }, [
+      activeDropdown,
+      provinces,
+      municipalities,
+      barangays,
+    ]);
+
+  const locationTitle =
+    activeDropdown === "province"
+      ? "Select Province"
+      : activeDropdown ===
+          "municipality"
+        ? "Select Municipality / City"
+        : "Select Barangay";
+
+  const handleLocationItemPress = (
+    item: LocationItem
+  ) => {
+    if (
+      activeDropdown ===
+      "province"
+    ) {
+      handleProvinceSelect(item);
+      return;
+    }
+
+    if (
+      activeDropdown ===
+      "municipality"
+    ) {
+      handleMunicipalitySelect(
+        item
+      );
+      return;
+    }
+
+    if (
+      activeDropdown ===
+      "barangay"
+    ) {
+      handleBarangaySelect(item);
+    }
+  };
+
+  // ==================================================
   // ERROR
-  // ===========================================================
+  // ==================================================
 
   const displayError =
     localError || error;
 
-
-  // ===========================================================
-  // STEP TITLE
-  // ===========================================================
-
-  const stepTitle =
-    step === 1
-      ? "Personal Information"
-      : step === 2
-      ? "Contact Information"
-      : "Account Security";
-
-
-  const stepDescription =
-    step === 1
-      ? "Tell us a little about yourself."
-      : step === 2
-      ? "We'll use these details to secure your account."
-      : "Create a secure password for your account.";
-
-
-  // ===========================================================
-  // DROPDOWN DATA
-  // ===========================================================
-
-  const dropdownItems =
-    activeDropdown === "province"
-      ? provinces
-      : activeDropdown === "municipality"
-      ? municipalities
-      : barangays;
-
-
-  const dropdownTitle =
-    activeDropdown === "province"
-      ? "Select Province"
-      : activeDropdown === "municipality"
-      ? "Select Municipality / City"
-      : "Select Barangay";
-
-
-  // ===========================================================
-  // UI
-  // ===========================================================
+  // ==================================================
+  // RENDER
+  // ==================================================
 
   return (
-
     <SafeAreaView
       style={styles.safeArea}
       edges={[
@@ -1139,7 +1309,6 @@ export default function RegisterForm() {
         "bottom",
       ]}
     >
-
       <KeyboardAvoidingView
         style={styles.container}
         behavior={
@@ -1148,826 +1317,397 @@ export default function RegisterForm() {
             : undefined
         }
       >
-
         <ScrollView
-          showsVerticalScrollIndicator={false}
+          showsVerticalScrollIndicator={
+            false
+          }
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={
-            styles.scroll
+            styles.scrollContent
           }
         >
+          {/* -------------------------------- */}
+          {/* HEADER */}
+          {/* -------------------------------- */}
 
-          {/* ==================================================
-              HEADER
-          ================================================== */}
-
-          <View
-            style={styles.header}
-          >
-
-            <Pressable
-              onPress={handleBack}
-              disabled={isLoading}
-              style={
-                styles.backButton
-              }
-            >
-
-              <Ionicons
-                name="arrow-back"
-                size={20}
-                color="#0F172A"
-              />
-
-            </Pressable>
-
-
-            <View
-              style={
-                styles.headerBrand
-              }
-            >
-
-              <View
-                style={styles.logo}
+          <View style={styles.header}>
+            <View style={styles.logoRow}>
+              <Pressable
+                onPress={handleBack}
+                disabled={isLoading}
+                hitSlop={10}
+                style={({ pressed }) => [
+                  styles.backButton,
+                  pressed &&
+                    styles.backButtonPressed,
+                ]}
               >
-
-                <Text
-                  style={
-                    styles.logoText
-                  }
-                >
-                  A
-                </Text>
-
-              </View>
-
-
-              <View>
-
-                <Text
-                  style={
-                    styles.brandName
-                  }
-                >
-                  ACE NEXTGEN
-                </Text>
-
-
-                <Text
-                  style={
-                    styles.brandCaption
-                  }
-                >
-                  PARTICIPANT PORTAL
-                </Text>
-
-              </View>
-
+                <Ionicons
+                  name="arrow-back"
+                  size={22}
+                  color="#0F172A"
+                />
+              </Pressable>
             </View>
+          </View>
 
+          {/* -------------------------------- */}
+          {/* TITLE */}
+          {/* -------------------------------- */}
+
+          <View style={styles.content}>
+            <Text
+              style={styles.welcomeTitle}
+            >
+              Create your account
+            </Text>
+
+            <Text
+              style={
+                styles.welcomeSubtitle
+              }
+            >
+              {
+                stepDescriptions[
+                  step
+                ]
+              }
+            </Text>
+
+            {/* -------------------------------- */}
+            {/* STEP INDICATOR */}
+            {/* -------------------------------- */}
 
             <View
               style={
-                styles.headerSpacer
-              }
-            />
-
-          </View>
-
-
-          {/* ==================================================
-              INTRO
-          ================================================== */}
-
-          <View
-            style={styles.intro}
-          >
-
-            <Text
-              style={
-                styles.introEyebrow
+                styles.stepIndicator
               }
             >
-              CREATE ACCOUNT
-            </Text>
-
-
-            <Text
-              style={
-                styles.introTitle
-              }
-            >
-              Join ACE NextGen
-            </Text>
-
-
-            <Text
-              style={
-                styles.introDescription
-              }
-            >
-              Create your participant
-              account and start your
-              learning journey.
-            </Text>
-
-          </View>
-
-
-          {/* ==================================================
-              CARD
-          ================================================== */}
-
-          <View
-            style={styles.card}
-          >
-
-            {/* =================================================
-                PROGRESS
-            ================================================= */}
-
-            <View
-              style={
-                styles.progressContainer
-              }
-            >
-
               {[1, 2, 3].map(
-                item => {
+                (item, index) => {
+                  const isActive =
+                    item === step;
 
-                  const active =
-                    item <= step;
-
-                  const completed =
+                  const isCompleted =
                     item < step;
 
-
                   return (
-
                     <React.Fragment
                       key={item}
                     >
-
                       <View
                         style={[
-                          styles.progressStep,
-
-                          active &&
-                            styles.progressStepActive,
+                          styles.stepCircle,
+                          isActive &&
+                            styles.stepCircleActive,
+                          isCompleted &&
+                            styles.stepCircleCompleted,
                         ]}
                       >
-
-                        {completed ? (
-
+                        {isCompleted ? (
                           <Ionicons
                             name="checkmark"
-                            size={13}
+                            size={14}
                             color="#FFFFFF"
                           />
-
                         ) : (
-
                           <Text
                             style={[
-                              styles.progressNumber,
-
-                              active &&
-                                styles.progressNumberActive,
+                              styles.stepNumber,
+                              isActive &&
+                                styles.stepNumberActive,
                             ]}
                           >
                             {item}
                           </Text>
-
                         )}
-
                       </View>
 
-
-                      {item < 3 && (
-
+                      {index < 2 && (
                         <View
                           style={[
-                            styles.progressLine,
-
+                            styles.stepLine,
                             item < step &&
-                              styles.progressLineActive,
+                              styles.stepLineActive,
                           ]}
                         />
-
                       )}
-
                     </React.Fragment>
-
                   );
-
                 }
               )}
-
             </View>
 
-
-            <View
-              style={
-                styles.stepCounter
-              }
+            <Text
+              style={styles.stepTitle}
             >
+              {stepTitles[step]}
+            </Text>
 
-              <Text
-                style={
-                  styles.stepCounterText
-                }
-              >
-                STEP {step} OF 3
-              </Text>
+            {/* ================================= */}
+            {/* GOOGLE ACCOUNT NOTICE */}
+            {/* ================================= */}
 
-            </View>
-
-
-            {/* =================================================
-                CARD HEADER
-            ================================================= */}
-
-            <View
-              style={
-                styles.cardHeader
-              }
-            >
-
-              <View
-                style={styles.badge}
-              >
-
-                <Ionicons
-                  name={
-                    step === 1
-                      ? "person-outline"
-                      : step === 2
-                      ? "call-outline"
-                      : "shield-checkmark-outline"
-                  }
-                  size={14}
-                  color="#2563EB"
-                />
-
-
-                <Text
+            {isGoogleRegistration &&
+              step === 1 && (
+                <View
                   style={
-                    styles.badgeText
+                    styles.googleInfoBox
                   }
                 >
-                  {stepTitle.toUpperCase()}
-                </Text>
-
-              </View>
-
-
-              <Text
-                style={
-                  styles.cardTitle
-                }
-              >
-                {stepTitle}
-              </Text>
-
-
-              <Text
-                style={
-                  styles.cardSubtitle
-                }
-              >
-                {stepDescription}
-              </Text>
-
-            </View>
-
-
-            {/* =================================================
-                STEP 1
-            ================================================= */}
-
-            {step === 1 && (
-
-              <View>
-
-                {/* FIRST NAME */}
-
-                <View
-                  style={styles.field}
-                >
-
-                  <Text
-                    style={
-                      styles.label
-                    }
-                  >
-                    FIRST NAME
-                  </Text>
-
-
-                  <Input
-                    icon="person-outline"
-                    value={firstName}
-                    onChangeText={
-                      setFirstName
-                    }
-                    placeholder="Juan"
-                    disabled={isLoading}
+                  <Ionicons
+                    name="logo-google"
+                    size={20}
+                    color="#2563EB"
                   />
-
-                </View>
-
-
-                {/* MIDDLE NAME */}
-
-                <View
-                  style={styles.field}
-                >
-
-                  <Text
-                    style={
-                      styles.label
-                    }
-                  >
-                    MIDDLE NAME
-
-                    <Text
-                      style={
-                        styles.optional
-                      }
-                    >
-                      {" "}
-                      OPTIONAL
-                    </Text>
-
-                  </Text>
-
-
-                  <Input
-                    icon="person-outline"
-                    value={middleName}
-                    onChangeText={
-                      setMiddleName
-                    }
-                    placeholder="Middle name"
-                    disabled={isLoading}
-                  />
-
-                </View>
-
-
-                {/* LAST NAME */}
-
-                <View
-                  style={styles.field}
-                >
-
-                  <Text
-                    style={
-                      styles.label
-                    }
-                  >
-                    LAST NAME
-                  </Text>
-
-
-                  <Input
-                    icon="person-outline"
-                    value={lastName}
-                    onChangeText={
-                      setLastName
-                    }
-                    placeholder="Dela Cruz"
-                    disabled={isLoading}
-                  />
-
-                </View>
-
-
-                {/* =================================================
-                    HOUSE NUMBER
-                ================================================= */}
-
-                <View
-                  style={styles.field}
-                >
-
-                  <Text
-                    style={
-                      styles.label
-                    }
-                  >
-                    HOUSE NUMBER / STREET
-                  </Text>
-
-
-                  <Input
-                    icon="home-outline"
-                    value={houseNumber}
-                    onChangeText={
-                      setHouseNumber
-                    }
-                    placeholder="123 Rizal Street"
-                    disabled={isLoading}
-                  />
-
-                </View>
-
-
-                {/* =================================================
-                    PROVINCE
-                ================================================= */}
-
-                <View
-                  style={styles.field}
-                >
-
-                  <Text
-                    style={
-                      styles.label
-                    }
-                  >
-                    PROVINCE
-                  </Text>
-
-
-                  <DropdownButton
-                    icon="map-outline"
-                    value={
-                      province?.name
-                    }
-                    placeholder={
-                      isLoadingProvinces
-                        ? "Loading provinces..."
-                        : "Select province"
-                    }
-                    disabled={
-                      isLoading ||
-                      isLoadingProvinces
-                    }
-                    onPress={() =>
-                      setActiveDropdown(
-                        "province"
-                      )
-                    }
-                  />
-
-                </View>
-
-
-                {/* =================================================
-                    MUNICIPALITY
-                ================================================= */}
-
-                <View
-                  style={styles.field}
-                >
-
-                  <Text
-                    style={
-                      styles.label
-                    }
-                  >
-                    MUNICIPALITY / CITY
-                  </Text>
-
-
-                  <DropdownButton
-                    icon="business-outline"
-                    value={
-                      municipality?.name
-                    }
-                    placeholder={
-                      !province
-                        ? "Select province first"
-                        : isLoadingMunicipalities
-                        ? "Loading municipalities..."
-                        : "Select municipality / city"
-                    }
-                    disabled={
-                      isLoading ||
-                      !province ||
-                      isLoadingMunicipalities
-                    }
-                    onPress={() =>
-                      setActiveDropdown(
-                        "municipality"
-                      )
-                    }
-                  />
-
-                </View>
-
-
-                {/* =================================================
-                    BARANGAY
-                ================================================= */}
-
-                <View
-                  style={styles.field}
-                >
-
-                  <Text
-                    style={
-                      styles.label
-                    }
-                  >
-                    BARANGAY
-                  </Text>
-
-
-                  <DropdownButton
-                    icon="location-outline"
-                    value={
-                      barangay?.name
-                    }
-                    placeholder={
-                      !municipality
-                        ? "Select municipality first"
-                        : isLoadingBarangays
-                        ? "Loading barangays..."
-                        : "Select barangay"
-                    }
-                    disabled={
-                      isLoading ||
-                      !municipality ||
-                      isLoadingBarangays
-                    }
-                    onPress={() =>
-                      setActiveDropdown(
-                        "barangay"
-                      )
-                    }
-                  />
-
-                </View>
-
-
-                {/* =================================================
-                    ADDRESS PREVIEW
-                ================================================= */}
-
-                {address && (
 
                   <View
                     style={
-                      styles.addressPreview
+                      styles.googleInfoContent
                     }
                   >
-
-                    <View
+                    <Text
                       style={
-                        styles.addressPreviewIcon
+                        styles.googleInfoTitle
                       }
                     >
+                      Google account detected
+                    </Text>
 
-                      <Ionicons
-                        name="location"
-                        size={17}
-                        color="#2563EB"
-                      />
-
-                    </View>
-
-
-                    <View
+                    <Text
                       style={
-                        styles.addressPreviewContent
+                        styles.googleInfoText
                       }
                     >
+                      Your Google name, email,
+                      and profile picture have
+                      been filled in automatically.
+                      Please complete the remaining
+                      information.
+                    </Text>
+                  </View>
+                </View>
+              )}
 
-                      <Text
-                        style={
-                          styles.addressPreviewLabel
-                        }
-                      >
-                        COMPLETE ADDRESS
-                      </Text>
+            {/* ================================= */}
+            {/* STEP 1 */}
+            {/* ================================= */}
 
-
-                      <Text
-                        style={
-                          styles.addressPreviewText
-                        }
-                      >
-                        {address}
-                      </Text>
-
-                    </View>
-
+            {step === 1 && (
+              <>
+                <View
+                  style={styles.nameRow}
+                >
+                  <View
+                    style={
+                      styles.nameField
+                    }
+                  >
+                    <Input
+                      label="First Name"
+                      icon="person-outline"
+                      value={
+                        firstName
+                      }
+                      onChangeText={
+                        setFirstName
+                      }
+                      placeholder="First name"
+                      autoCapitalize="words"
+                      editable={
+                        !isLoading &&
+                        !isGoogleRegistration
+                      }
+                    />
                   </View>
 
-                )}
+                  <View
+                    style={
+                      styles.nameField
+                    }
+                  >
+                    <Input
+                      label="Last Name"
+                      icon="person-outline"
+                      value={
+                        lastName
+                      }
+                      onChangeText={
+                        setLastName
+                      }
+                      placeholder="Last name"
+                      autoCapitalize="words"
+                      editable={
+                        !isLoading &&
+                        !isGoogleRegistration
+                      }
+                    />
+                  </View>
+                </View>
 
+                <Input
+                  label="Middle Name"
+                  icon="person-outline"
+                  value={middleName}
+                  onChangeText={
+                    setMiddleName
+                  }
+                  placeholder="Middle name (optional)"
+                  autoCapitalize="words"
+                  editable={!isLoading}
+                />
 
-                {/* =================================================
-                    BIRTH DATE
-                ================================================= */}
+                <Input
+                  label="House Number / Street"
+                  icon="home-outline"
+                  value={
+                    houseNumber
+                  }
+                  onChangeText={
+                    setHouseNumber
+                  }
+                  placeholder="House number or street"
+                  autoCapitalize="words"
+                  editable={!isLoading}
+                />
+
+                <DropdownButton
+                  label="Province"
+                  icon="location-outline"
+                  value={
+                    province?.name
+                  }
+                  placeholder="Select province"
+                  onPress={() =>
+                    setActiveDropdown(
+                      "province"
+                    )
+                  }
+                  loading={
+                    isLoadingProvinces
+                  }
+                  disabled={
+                    isLoading ||
+                    isLoadingProvinces
+                  }
+                />
+
+                <DropdownButton
+                  label="Municipality / City"
+                  icon="business-outline"
+                  value={
+                    municipality?.name
+                  }
+                  placeholder={
+                    province
+                      ? "Select municipality / city"
+                      : "Select province first"
+                  }
+                  onPress={() =>
+                    setActiveDropdown(
+                      "municipality"
+                    )
+                  }
+                  loading={
+                    isLoadingMunicipalities
+                  }
+                  disabled={
+                    isLoading ||
+                    !province ||
+                    isLoadingMunicipalities
+                  }
+                />
+
+                <DropdownButton
+                  label="Barangay"
+                  icon="map-outline"
+                  value={
+                    barangay?.name
+                  }
+                  placeholder={
+                    municipality
+                      ? "Select barangay"
+                      : "Select municipality first"
+                  }
+                  onPress={() =>
+                    setActiveDropdown(
+                      "barangay"
+                    )
+                  }
+                  loading={
+                    isLoadingBarangays
+                  }
+                  disabled={
+                    isLoading ||
+                    !municipality ||
+                    isLoadingBarangays
+                  }
+                />
+
+                {/* BIRTH DATE */}
 
                 <View
                   style={styles.field}
                 >
-
                   <Text
-                    style={
-                      styles.label
-                    }
+                    style={styles.label}
                   >
-                    BIRTH DATE
+                    Birth Date
                   </Text>
-
 
                   <Pressable
                     onPress={() =>
-                      setShowDatePicker(true)
+                      setShowDatePicker(
+                        true
+                      )
                     }
                     disabled={isLoading}
-                    style={
-                      styles.inputWrapper
-                    }
+                    style={({ pressed }) => [
+                      styles.inputWrapper,
+                      birthDate &&
+                        styles.inputWrapperActive,
+                      pressed &&
+                        styles.dropdownPressed,
+                    ]}
                   >
-
-                    <View
+                    <Ionicons
+                      name="calendar-outline"
+                      size={20}
+                      color="#2563EB"
                       style={
                         styles.inputIcon
                       }
-                    >
-
-                      <Ionicons
-                        name="calendar-outline"
-                        size={18}
-                        color="#2563EB"
-                      />
-
-                    </View>
-
+                    />
 
                     <Text
                       style={[
-                        styles.dateText,
-
+                        styles.dropdownText,
                         !birthDate &&
-                          styles.placeholderText,
+                          styles.dropdownPlaceholder,
                       ]}
                     >
                       {formattedBirthDate ||
-                        "Select your birth date"}
+                        "Select birth date"}
                     </Text>
-
 
                     <Ionicons
                       name="chevron-down"
-                      size={18}
+                      size={19}
                       color="#64748B"
                     />
-
                   </Pressable>
-
                 </View>
 
-
-                {/* =================================================
-                    DATE PICKER
-                ================================================= */}
-
-              {showDatePicker && (
-  <Modal
-    visible={showDatePicker}
-    transparent
-    animationType="fade"
-    onRequestClose={() =>
-      setShowDatePicker(false)
-    }
-  >
-    <View style={styles.dateModalOverlay}>
-
-      <View style={styles.dateModal}>
-
-        {/* HEADER */}
-        <View style={styles.dateModalHeader}>
-
-          <View>
-            <Text style={styles.dateModalTitle}>
-              Date of Birth
-            </Text>
-
-            <Text style={styles.dateModalSubtitle}>
-              Select your birth date
-            </Text>
-          </View>
-
-          <Pressable
-            onPress={() =>
-              setShowDatePicker(false)
-            }
-            style={styles.modalClose}
-          >
-            <Ionicons
-              name="close"
-              size={20}
-              color="#475569"
-            />
-          </Pressable>
-
-        </View>
-
-
-        {/* DATE PICKER */}
-
-        <View style={styles.datePickerContainer}>
-
-          <DateTimePicker
-            value={
-              birthDate
-                ? new Date(
-                    `${birthDate}T00:00:00`
-                  )
-                : new Date(
-                    2000,
-                    0,
-                    1
-                  )
-            }
-
-            mode="date"
-
-            display={
-              Platform.OS === "ios"
-                ? "spinner"
-                : "default"
-            }
-
-            maximumDate={
-              new Date()
-            }
-
-            themeVariant="light"
-
-            textColor="#0F172A"
-
-            accentColor="#2563EB"
-
-            onChange={
-              handleDateChange
-            }
-
-            style={
-              styles.datePicker
-            }
-          />
-
-        </View>
-
-
-        {/* DONE */}
-
-        <Pressable
-          onPress={() =>
-            setShowDatePicker(false)
-          }
-          style={
-            styles.dateDoneButton
-          }
-        >
-
-          <Text
-            style={
-              styles.dateDoneText
-            }
-          >
-            Done
-          </Text>
-
-          <Ionicons
-            name="checkmark"
-            size={18}
-            color="#FFFFFF"
-          />
-
-        </Pressable>
-
-      </View>
-
-    </View>
-  </Modal>
-)}
-
-                {/* =================================================
-                    GENDER
-                ================================================= */}
+                {/* GENDER */}
 
                 <View
                   style={styles.field}
                 >
-
                   <Text
-                    style={
-                      styles.label
-                    }
+                    style={styles.label}
                   >
-                    GENDER
+                    Gender
                   </Text>
-
 
                   <Pressable
                     onPress={() =>
@@ -1976,569 +1716,505 @@ export default function RegisterForm() {
                       )
                     }
                     disabled={isLoading}
-                    style={
-                      styles.inputWrapper
-                    }
+                    style={({ pressed }) => [
+                      styles.inputWrapper,
+                      gender &&
+                        styles.inputWrapperActive,
+                      pressed &&
+                        styles.dropdownPressed,
+                    ]}
                   >
-
-                    <View
+                    <Ionicons
+                      name="male-female-outline"
+                      size={20}
+                      color="#2563EB"
                       style={
                         styles.inputIcon
                       }
-                    >
-
-                      <Ionicons
-                        name="people-outline"
-                        size={18}
-                        color="#2563EB"
-                      />
-
-                    </View>
-
+                    />
 
                     <Text
                       style={[
-                        styles.dateText,
-
+                        styles.dropdownText,
                         !gender &&
-                          styles.placeholderText,
+                          styles.dropdownPlaceholder,
                       ]}
                     >
                       {gender ||
                         "Select gender"}
                     </Text>
 
-
                     <Ionicons
                       name="chevron-down"
-                      size={18}
+                      size={19}
                       color="#64748B"
                     />
-
                   </Pressable>
-
                 </View>
 
-
-                {/* =================================================
-                    PROFILE IMAGE
-                ================================================= */}
+                {/* PROFILE IMAGE */}
 
                 <View
-                  style={styles.field}
+                  style={
+                    styles.profileSection
+                  }
                 >
-
                   <Text
-                    style={
-                      styles.label
-                    }
+                    style={styles.label}
                   >
-                    PROFILE IMAGE
-
-                    <Text
-                      style={
-                        styles.optional
-                      }
-                    >
-                      {" "}
-                      OPTIONAL
-                    </Text>
-
+                    Profile Picture
                   </Text>
-
 
                   <Pressable
                     onPress={
-                      pickProfileImage
+                      handlePickProfileImage
                     }
                     disabled={isLoading}
-                    style={
-                      styles.imagePicker
-                    }
+                    style={({ pressed }) => [
+                      styles.profilePicker,
+                      pressed &&
+                        styles.profilePickerPressed,
+                    ]}
                   >
-
                     {profileImage ? (
-
-                      <Image
-                        source={{
-                          uri:
-                            profileImage.uri,
-                        }}
-                        style={
-                          styles.profilePreview
-                        }
-                      />
-
-                    ) : (
-
-                      <View
-                        style={
-                          styles.imagePlaceholder
-                        }
-                      >
+                      <>
+                        <Image
+                          source={{
+                            uri: profileImage.uri,
+                          }}
+                          style={
+                            styles.profileImage
+                          }
+                        />
 
                         <View
                           style={
-                            styles.imageIconCircle
+                            styles.profileOverlay
                           }
                         >
-
                           <Ionicons
                             name="camera-outline"
-                            size={25}
+                            size={20}
+                            color="#FFFFFF"
+                          />
+                        </View>
+                      </>
+                    ) : (
+                      <>
+                        <View
+                          style={
+                            styles.profileIconCircle
+                          }
+                        >
+                          <Ionicons
+                            name="camera-outline"
+                            size={24}
                             color="#2563EB"
                           />
-
                         </View>
 
+                        <Text
+                          style={
+                            styles.profileTitle
+                          }
+                        >
+                          Add profile picture
+                        </Text>
 
                         <Text
                           style={
-                            styles.imagePickerText
+                            styles.profileSubtitle
                           }
                         >
-                          Select Profile
-                          Image
+                          Optional
                         </Text>
-
-
-                        <Text
-                          style={
-                            styles.imagePickerSubtext
-                          }
-                        >
-                          JPG or PNG
-                        </Text>
-
-                      </View>
-
+                      </>
                     )}
-
                   </Pressable>
+                </View>
 
+                {/* ADDRESS */}
 
-                  {profileImage && (
+                {formattedAddress ? (
+                  <View
+                    style={
+                      styles.addressPreview
+                    }
+                  >
+                    <Ionicons
+                      name="navigate-outline"
+                      size={18}
+                      color="#2563EB"
+                    />
 
+                    <View
+                      style={
+                        styles.addressContent
+                      }
+                    >
+                      <Text
+                        style={
+                          styles.addressLabel
+                        }
+                      >
+                        Address Preview
+                      </Text>
+
+                      <Text
+                        style={
+                          styles.addressText
+                        }
+                      >
+                        {
+                          formattedAddress
+                        }
+                      </Text>
+                    </View>
+                  </View>
+                ) : null}
+              </>
+            )}
+
+            {/* ================================= */}
+            {/* STEP 2 */}
+            {/* ================================= */}
+
+            {step === 2 && (
+              <>
+                <Input
+                  label="Email"
+                  icon="mail-outline"
+                  value={email}
+                  onChangeText={
+                    setEmail
+                  }
+                  placeholder="you@email.com"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  editable={
+                    !isLoading &&
+                    !isGoogleRegistration
+                  }
+                />
+
+                <Input
+                  label="Mobile Number"
+                  icon="phone-portrait-outline"
+                  value={
+                    mobileNumber
+                  }
+                  onChangeText={
+                    setMobileNumber
+                  }
+                  placeholder="09XXXXXXXXX"
+                  keyboardType="phone-pad"
+                  autoCapitalize="none"
+                  editable={!isLoading}
+                />
+
+                {isGoogleRegistration && (
+                  <View
+                    style={
+                      styles.googleEmailNote
+                    }
+                  >
+                    <Ionicons
+                      name="logo-google"
+                      size={16}
+                      color="#2563EB"
+                    />
+
+                    <Text
+                      style={
+                        styles.googleEmailNoteText
+                      }
+                    >
+                      This email is linked to
+                      your Google account.
+                    </Text>
+                  </View>
+                )}
+
+                <View
+                  style={styles.infoBox}
+                >
+                  <Ionicons
+                    name="information-circle-outline"
+                    size={20}
+                    color="#2563EB"
+                  />
+
+                  <Text
+                    style={styles.infoText}
+                  >
+                    Make sure your email
+                    address and mobile
+                    number are active.
+                    We may use them for
+                    account verification
+                    and important
+                    notifications.
+                  </Text>
+                </View>
+              </>
+            )}
+
+            {/* ================================= */}
+            {/* STEP 3 */}
+            {/* ================================= */}
+
+            {step === 3 && (
+              <>
+                <Input
+                  label="Password"
+                  icon="lock-closed-outline"
+                  value={password}
+                  onChangeText={
+                    setPassword
+                  }
+                  placeholder="Enter your password"
+                  secureTextEntry={
+                    !showPassword
+                  }
+                  autoCapitalize="none"
+                  editable={!isLoading}
+                  rightElement={
                     <Pressable
-                      onPress={
-                        pickProfileImage
+                      onPress={() =>
+                        setShowPassword(
+                          (value) =>
+                            !value
+                        )
                       }
                       disabled={
                         isLoading
                       }
+                      hitSlop={10}
                       style={
-                        styles.changeImageButton
+                        styles.eyeButton
                       }
                     >
-
-                      <Ionicons
-                        name="image-outline"
-                        size={15}
-                        color="#2563EB"
-                      />
-
-
-                      <Text
-                        style={
-                          styles.changeImageText
-                        }
-                      >
-                        Change Image
-                      </Text>
-
-                    </Pressable>
-
-                  )}
-
-                </View>
-
-              </View>
-
-            )}
-
-
-            {/* =================================================
-                STEP 2
-            ================================================= */}
-
-            {step === 2 && (
-
-              <View>
-
-                <View
-                  style={styles.field}
-                >
-
-                  <Text
-                    style={
-                      styles.label
-                    }
-                  >
-                    EMAIL ADDRESS
-                  </Text>
-
-
-                  <Input
-                    icon="mail-outline"
-                    value={email}
-                    onChangeText={
-                      setEmail
-                    }
-                    placeholder="you@email.com"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    disabled={isLoading}
-                  />
-
-                </View>
-
-
-                <View
-                  style={styles.field}
-                >
-
-                  <Text
-                    style={
-                      styles.label
-                    }
-                  >
-                    MOBILE NUMBER
-                  </Text>
-
-
-                  <Input
-                    icon="call-outline"
-                    value={mobileNumber}
-                    onChangeText={
-                      setMobileNumber
-                    }
-                    placeholder="09XXXXXXXXX"
-                    keyboardType="phone-pad"
-                    disabled={isLoading}
-                  />
-
-                </View>
-
-
-                <View
-                  style={
-                    styles.infoBox
-                  }
-                >
-
-                  <Ionicons
-                    name="information-circle-outline"
-                    size={18}
-                    color="#2563EB"
-                  />
-
-
-                  <Text
-                    style={
-                      styles.infoText
-                    }
-                  >
-                    Make sure your email
-                    address is correct. A
-                    verification code will
-                    be sent after registration.
-                  </Text>
-
-                </View>
-
-              </View>
-
-            )}
-
-
-            {/* =================================================
-                STEP 3
-            ================================================= */}
-
-            {step === 3 && (
-
-              <View>
-
-                <View
-                  style={styles.field}
-                >
-
-                  <Text
-                    style={
-                      styles.label
-                    }
-                  >
-                    PASSWORD
-                  </Text>
-
-
-                  <View
-                    style={
-                      styles.inputWrapper
-                    }
-                  >
-
-                    <View
-                      style={
-                        styles.inputIcon
-                      }
-                    >
-
-                      <Ionicons
-                        name="lock-closed-outline"
-                        size={18}
-                        color="#2563EB"
-                      />
-
-                    </View>
-
-
-                    <TextInput
-                      value={password}
-                      onChangeText={
-                        setPassword
-                      }
-                      placeholder="At least 8 characters"
-                      placeholderTextColor="#94A3B8"
-                      secureTextEntry={
-                        !showPassword
-                      }
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      editable={!isLoading}
-                      style={
-                        styles.input
-                      }
-                    />
-
-
-                    <Pressable
-                      onPress={() =>
-                        setShowPassword(
-                          value =>
-                            !value
-                        )
-                      }
-                    >
-
                       <Ionicons
                         name={
                           showPassword
                             ? "eye-off-outline"
                             : "eye-outline"
                         }
-                        size={20}
-                        color="#64748B"
+                        size={21}
+                        color="#718096"
                       />
-
                     </Pressable>
+                  }
+                />
 
-                  </View>
-
-                </View>
-
-
-                <View
-                  style={styles.field}
-                >
-
-                  <Text
-                    style={
-                      styles.label
-                    }
-                  >
-                    CONFIRM PASSWORD
-                  </Text>
-
-
-                  <View
-                    style={
-                      styles.inputWrapper
-                    }
-                  >
-
-                    <View
-                      style={
-                        styles.inputIcon
-                      }
-                    >
-
-                      <Ionicons
-                        name="shield-checkmark-outline"
-                        size={18}
-                        color="#2563EB"
-                      />
-
-                    </View>
-
-
-                    <TextInput
-                      value={
-                        confirmPassword
-                      }
-                      onChangeText={
-                        setConfirmPassword
-                      }
-                      placeholder="Repeat your password"
-                      placeholderTextColor="#94A3B8"
-                      secureTextEntry={
-                        !showConfirmPassword
-                      }
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      editable={!isLoading}
-                      style={
-                        styles.input
-                      }
-                    />
-
-
+                <Input
+                  label="Confirm Password"
+                  icon="lock-closed-outline"
+                  value={
+                    confirmPassword
+                  }
+                  onChangeText={
+                    setConfirmPassword
+                  }
+                  placeholder="Confirm your password"
+                  secureTextEntry={
+                    !showConfirmPassword
+                  }
+                  autoCapitalize="none"
+                  editable={!isLoading}
+                  rightElement={
                     <Pressable
                       onPress={() =>
                         setShowConfirmPassword(
-                          value =>
+                          (value) =>
                             !value
                         )
                       }
+                      disabled={
+                        isLoading
+                      }
+                      hitSlop={10}
+                      style={
+                        styles.eyeButton
+                      }
                     >
-
                       <Ionicons
                         name={
                           showConfirmPassword
                             ? "eye-off-outline"
                             : "eye-outline"
                         }
-                        size={20}
-                        color="#64748B"
+                        size={21}
+                        color="#718096"
                       />
-
                     </Pressable>
+                  }
+                />
 
+                {/* PASSWORD RULES */}
+
+                <View
+                  style={
+                    styles.passwordRules
+                  }
+                >
+                  <Text
+                    style={
+                      styles.passwordRulesTitle
+                    }
+                  >
+                    Password requirements
+                  </Text>
+
+                  <View
+                    style={
+                      styles.ruleRow
+                    }
+                  >
+                    <Ionicons
+                      name={
+                        password.length >=
+                        8
+                          ? "checkmark-circle"
+                          : "ellipse-outline"
+                      }
+                      size={17}
+                      color={
+                        password.length >=
+                        8
+                          ? "#16A34A"
+                          : "#94A3B8"
+                      }
+                    />
+
+                    <Text
+                      style={
+                        styles.ruleText
+                      }
+                    >
+                      At least 8 characters
+                    </Text>
                   </View>
 
+                  <View
+                    style={
+                      styles.ruleRow
+                    }
+                  >
+                    <Ionicons
+                      name={
+                        password &&
+                        confirmPassword &&
+                        password ===
+                          confirmPassword
+                          ? "checkmark-circle"
+                          : "ellipse-outline"
+                      }
+                      size={17}
+                      color={
+                        password &&
+                        confirmPassword &&
+                        password ===
+                          confirmPassword
+                          ? "#16A34A"
+                          : "#94A3B8"
+                      }
+                    />
+
+                    <Text
+                      style={
+                        styles.ruleText
+                      }
+                    >
+                      Passwords match
+                    </Text>
+                  </View>
                 </View>
 
+                {/* SECURITY */}
 
                 <View
                   style={
                     styles.securityBox
                   }
                 >
-
                   <Ionicons
-                    name="shield-checkmark"
-                    size={19}
+                    name="shield-checkmark-outline"
+                    size={20}
                     color="#2563EB"
                   />
 
-
-                  <View
+                  <Text
                     style={
-                      styles.securityContent
+                      styles.securityBoxText
                     }
                   >
-
-                    <Text
-                      style={
-                        styles.securityTitle
-                      }
-                    >
-                      Keep your account secure
-                    </Text>
-
-
-                    <Text
-                      style={
-                        styles.securityText
-                      }
-                    >
-                      Use at least 8 characters
-                      and avoid easily guessed
-                      passwords.
-                    </Text>
-
-                  </View>
-
+                    Your password is
+                    securely protected
+                    and will be used to
+                    access your
+                    participant account.
+                  </Text>
                 </View>
-
-              </View>
-
+              </>
             )}
 
+            {/* -------------------------------- */}
+            {/* ERROR */}
+            {/* -------------------------------- */}
 
-            {/* =================================================
-                ERROR
-            ================================================= */}
-
-            {displayError && (
-
+            {displayError ? (
               <View
                 style={
-                  styles.errorBox
+                  styles.errorContainer
                 }
               >
-
                 <Ionicons
-                  name="alert-circle"
+                  name="alert-circle-outline"
                   size={18}
                   color="#DC2626"
                 />
 
-
                 <Text
-                  style={
-                    styles.errorText
-                  }
+                  style={styles.errorText}
                 >
                   {displayError}
                 </Text>
-
               </View>
+            ) : null}
 
-            )}
-
-
-            {/* =================================================
-                ACTIONS
-            ================================================= */}
+            {/* -------------------------------- */}
+            {/* ACTION BUTTONS */}
+            {/* -------------------------------- */}
 
             <View
-              style={styles.actions}
+              style={styles.actionArea}
             >
-
               {step > 1 && (
-
                 <Pressable
-                  onPress={
-                    handleBack
-                  }
-                  disabled={
-                    isLoading
-                  }
-                  style={
-                    styles.backAction
-                  }
+                  onPress={handleBack}
+                  disabled={isLoading}
+                  style={({ pressed }) => [
+                    styles.secondaryButton,
+                    pressed &&
+                      styles.secondaryButtonPressed,
+                  ]}
                 >
-
                   <Ionicons
                     name="arrow-back"
                     size={18}
-                    color="#475569"
+                    color="#2563EB"
                   />
-
 
                   <Text
                     style={
-                      styles.backActionText
+                      styles.secondaryButtonText
                     }
                   >
                     Back
                   </Text>
-
                 </Pressable>
-
               )}
-
 
               <Pressable
                 onPress={
@@ -2546,126 +2222,273 @@ export default function RegisterForm() {
                     ? handleRegister
                     : handleNext
                 }
-                disabled={
-                  isLoading
-                }
-                style={[
-                  styles.nextButton,
-
-                  step === 1 &&
-                    styles.nextButtonFull,
-
+                disabled={isLoading}
+                style={({ pressed }) => [
+                  styles.primaryButton,
+                  step > 1 &&
+                    styles.primaryButtonWithBack,
+                  pressed &&
+                    !isLoading &&
+                    styles.primaryButtonPressed,
                   isLoading &&
-                    styles.nextButtonDisabled,
+                    styles.primaryButtonDisabled,
                 ]}
               >
-
                 {isLoading ? (
-
-                  <>
-
+                  <View
+                    style={
+                      styles.loadingContent
+                    }
+                  >
                     <ActivityIndicator
                       size="small"
                       color="#FFFFFF"
                     />
 
-
                     <Text
                       style={
-                        styles.nextButtonText
+                        styles.primaryButtonText
                       }
                     >
-                      Creating...
+                      Creating account...
                     </Text>
-
-                  </>
-
+                  </View>
                 ) : (
-
-                  <>
-
+                  <View
+                    style={
+                      styles.primaryButtonContent
+                    }
+                  >
                     <Text
                       style={
-                        styles.nextButtonText
+                        styles.primaryButtonText
                       }
                     >
                       {step === 3
-                        ? "Create Account"
+                        ? "Create account"
                         : "Continue"}
                     </Text>
 
-
                     <Ionicons
-                      name="arrow-forward"
-                      size={18}
+                      name={
+                        step === 3
+                          ? "checkmark"
+                          : "arrow-forward"
+                      }
+                      size={19}
                       color="#FFFFFF"
                     />
-
-                  </>
-
+                  </View>
                 )}
-
               </Pressable>
-
             </View>
 
-
-            {/* =================================================
-                LOGIN
-            ================================================= */}
+            {/* -------------------------------- */}
+            {/* LOGIN */}
+            {/* -------------------------------- */}
 
             <View
-              style={
-                styles.loginSection
-              }
+              style={styles.loginSection}
             >
+              <View
+                style={
+                  styles.loginDivider
+                }
+              >
+                <View
+                  style={styles.divider}
+                />
+
+                <Text
+                  style={
+                    styles.dividerText
+                  }
+                >
+                  OR
+                </Text>
+
+                <View
+                  style={styles.divider}
+                />
+              </View>
 
               <Text
                 style={
-                  styles.loginText
+                  styles.loginQuestion
                 }
               >
                 Already have an account?
               </Text>
 
-
               <Pressable
                 onPress={() =>
-                  router.back()
+                  router.replace(
+                    "/(auth)/login"
+                  )
                 }
+                disabled={isLoading}
+                style={({ pressed }) => [
+                  styles.loginButton,
+                  pressed &&
+                    styles.loginButtonPressed,
+                ]}
               >
-
                 <Text
                   style={
-                    styles.loginLink
+                    styles.loginButtonText
                   }
                 >
-                  Sign In
+                  Sign in
                 </Text>
 
+                <Ionicons
+                  name="arrow-forward"
+                  size={17}
+                  color="#2563EB"
+                />
               </Pressable>
+            </View>
+          </View>
 
+          {/* -------------------------------- */}
+          {/* FOOTER */}
+          {/* -------------------------------- */}
+
+          <View style={styles.footer}>
+            <View
+              style={
+                styles.securityRow
+              }
+            >
+              <Ionicons
+                name="shield-checkmark-outline"
+                size={15}
+                color="#64748B"
+              />
+
+              <Text
+                style={
+                  styles.securityText
+                }
+              >
+                Secure and protected access
+              </Text>
             </View>
 
-
             <Text
-              style={
-                styles.footer
-              }
+              style={styles.footerText}
             >
               ACE NextGen • Participant Portal
             </Text>
-
           </View>
-
         </ScrollView>
-
       </KeyboardAvoidingView>
 
+      {/* ====================================== */}
+      {/* DATE PICKER MODAL */}
+      {/* ====================================== */}
 
-      {/* =======================================================
-          GENDER MODAL
-      ======================================================= */}
+      <Modal
+        visible={showDatePicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() =>
+          setShowDatePicker(false)
+        }
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() =>
+            setShowDatePicker(false)
+          }
+        >
+          <Pressable
+            style={styles.dateModal}
+            onPress={(event) =>
+              event.stopPropagation()
+            }
+          >
+            <View
+              style={styles.modalHeader}
+            >
+              <View>
+                <Text
+                  style={
+                    styles.modalTitle
+                  }
+                >
+                  Date of Birth
+                </Text>
+
+                <Text
+                  style={
+                    styles.modalSubtitle
+                  }
+                >
+                  Select your birth date
+                </Text>
+              </View>
+
+              <Pressable
+                onPress={() =>
+                  setShowDatePicker(false)
+                }
+                hitSlop={10}
+              >
+                <Ionicons
+                  name="close"
+                  size={23}
+                  color="#64748B"
+                />
+              </Pressable>
+            </View>
+
+            <DateTimePicker
+              value={parsedBirthDate}
+              mode="date"
+              display={
+                Platform.OS === "ios"
+                  ? "spinner"
+                  : "calendar"
+              }
+              maximumDate={
+                new Date()
+              }
+              onChange={
+                handleBirthDateChange
+              }
+              style={
+                styles.datePicker
+              }
+            />
+
+            {Platform.OS === "ios" && (
+              <Pressable
+                onPress={() =>
+                  setShowDatePicker(
+                    false
+                  )
+                }
+                style={
+                  styles.modalDoneButton
+                }
+              >
+                <Text
+                  style={
+                    styles.modalDoneText
+                  }
+                >
+                  Done
+                </Text>
+              </Pressable>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* ====================================== */}
+      {/* GENDER MODAL */}
+      {/* ====================================== */}
 
       <Modal
         visible={
@@ -2674,36 +2497,31 @@ export default function RegisterForm() {
         transparent
         animationType="fade"
         onRequestClose={() =>
-          setShowGenderDropdown(false)
+          setShowGenderDropdown(
+            false
+          )
         }
       >
-
         <Pressable
-          style={
-            styles.modalOverlay
-          }
+          style={styles.modalOverlay}
           onPress={() =>
-            setShowGenderDropdown(false)
+            setShowGenderDropdown(
+              false
+            )
           }
         >
-
           <Pressable
             style={
-              styles.dropdownModal
+              styles.selectionModal
             }
-            onPress={event =>
+            onPress={(event) =>
               event.stopPropagation()
             }
           >
-
             <View
-              style={
-                styles.modalHeader
-              }
+              style={styles.modalHeader}
             >
-
               <View>
-
                 <Text
                   style={
                     styles.modalTitle
@@ -2712,17 +2530,14 @@ export default function RegisterForm() {
                   Select Gender
                 </Text>
 
-
                 <Text
                   style={
                     styles.modalSubtitle
                   }
                 >
-                  Choose your preferred option
+                  Choose an option
                 </Text>
-
               </View>
-
 
               <Pressable
                 onPress={() =>
@@ -2730,980 +2545,747 @@ export default function RegisterForm() {
                     false
                   )
                 }
-                style={
-                  styles.modalClose
-                }
+                hitSlop={10}
               >
-
                 <Ionicons
                   name="close"
-                  size={20}
-                  color="#475569"
+                  size={23}
+                  color="#64748B"
                 />
-
               </Pressable>
-
             </View>
 
+            <View
+              style={
+                styles.optionList
+              }
+            >
+              {genderOptions.map(
+                (option) => {
+                  const selected =
+                    gender ===
+                    option;
 
-            {genderOptions.map(
-              option => (
+                  return (
+                    <Pressable
+                      key={option}
+                      onPress={() => {
+                        setGender(
+                          option
+                        );
 
-                <Pressable
-                  key={option}
-                  onPress={() => {
+                        setShowGenderDropdown(
+                          false
+                        );
+                      }}
+                      style={({ pressed }) => [
+                        styles.optionItem,
+                        selected &&
+                          styles.optionItemSelected,
+                        pressed &&
+                          styles.optionItemPressed,
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.optionIcon,
+                          selected &&
+                            styles.optionIconSelected,
+                        ]}
+                      >
+                        <Ionicons
+                          name={
+                            option ===
+                            "Male"
+                              ? "male-outline"
+                              : option ===
+                                  "Female"
+                                ? "female-outline"
+                                : "person-outline"
+                          }
+                          size={20}
+                          color={
+                            selected
+                              ? "#FFFFFF"
+                              : "#2563EB"
+                          }
+                        />
+                      </View>
 
-                    setGender(option);
+                      <Text
+                        style={[
+                          styles.optionText,
+                          selected &&
+                            styles.optionTextSelected,
+                        ]}
+                      >
+                        {option}
+                      </Text>
 
-                    setShowGenderDropdown(
-                      false
-                    );
-
-                  }}
-                  style={[
-                    styles.option,
-
-                    gender === option &&
-                      styles.optionSelected,
-                  ]}
-                >
-
-                  <View
-                    style={[
-                      styles.optionIcon,
-
-                      gender === option &&
-                        styles.optionIconSelected,
-                    ]}
-                  >
-
-                    <Ionicons
-                      name={
-                        option === "Male"
-                          ? "male"
-                          : option === "Female"
-                          ? "female"
-                          : "person-outline"
-                      }
-                      size={17}
-                      color={
-                        gender === option
-                          ? "#FFFFFF"
-                          : "#2563EB"
-                      }
-                    />
-
-                  </View>
-
-
-                  <Text
-                    style={[
-                      styles.optionText,
-
-                      gender === option &&
-                        styles.optionTextSelected,
-                    ]}
-                  >
-                    {option}
-                  </Text>
-
-
-                  {gender === option && (
-
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={20}
-                      color="#2563EB"
-                    />
-
-                  )}
-
-                </Pressable>
-
-              )
-            )}
-
+                      {selected && (
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={21}
+                          color="#2563EB"
+                          style={
+                            styles.optionCheck
+                          }
+                        />
+                      )}
+                    </Pressable>
+                  );
+                }
+              )}
+            </View>
           </Pressable>
-
         </Pressable>
-
       </Modal>
 
-
-      {/* =======================================================
-          LOCATION MODAL
-      ======================================================= */}
+      {/* ====================================== */}
+      {/* LOCATION MODAL */}
+      {/* ====================================== */}
 
       <Modal
         visible={
-          activeDropdown !== null
+          activeDropdown !==
+          null
         }
         transparent
         animationType="slide"
         onRequestClose={() =>
-          setActiveDropdown(null)
+          setActiveDropdown(
+            null
+          )
         }
       >
-
         <View
           style={
             styles.locationModalOverlay
           }
         >
-
           <Pressable
             style={
-              styles.locationModalBackdrop
+              styles.locationBackdrop
             }
             onPress={() =>
-              setActiveDropdown(null)
+              setActiveDropdown(
+                null
+              )
             }
           />
-
 
           <View
             style={
               styles.locationModal
             }
           >
-
             <View
               style={
-                styles.locationHandle
+                styles.modalHandle
               }
             />
 
-
             <View
-              style={
-                styles.locationHeader
-              }
+              style={styles.modalHeader}
             >
-
               <View>
-
                 <Text
                   style={
                     styles.modalTitle
                   }
                 >
-                  {dropdownTitle}
+                  {locationTitle}
                 </Text>
-
 
                 <Text
                   style={
                     styles.modalSubtitle
                   }
                 >
-                  Select one option
+                  Select from the list below
                 </Text>
-
               </View>
-
 
               <Pressable
                 onPress={() =>
-                  setActiveDropdown(null)
+                  setActiveDropdown(
+                    null
+                  )
                 }
-                style={
-                  styles.modalClose
-                }
+                hitSlop={10}
               >
-
                 <Ionicons
                   name="close"
-                  size={20}
-                  color="#475569"
+                  size={23}
+                  color="#64748B"
                 />
-
               </Pressable>
-
             </View>
 
-
-            {dropdownItems.length === 0 ? (
-
-              <View
-                style={
-                  styles.emptyLocation
-                }
-              >
-
-                <Ionicons
-                  name="location-outline"
-                  size={32}
-                  color="#94A3B8"
-                />
-
-
-                <Text
+            <ScrollView
+              showsVerticalScrollIndicator={
+                false
+              }
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={
+                styles.locationList
+              }
+            >
+              {locationItems.length ===
+              0 ? (
+                <View
                   style={
-                    styles.emptyLocationText
+                    styles.emptyLocation
                   }
                 >
-                  No locations available.
-                </Text>
+                  <Ionicons
+                    name="location-outline"
+                    size={30}
+                    color="#94A3B8"
+                  />
 
-              </View>
-
-            ) : (
-
-              <ScrollView
-                showsVerticalScrollIndicator={
-                  false
-                }
-                keyboardShouldPersistTaps="handled"
-                contentContainerStyle={
-                  styles.locationList
-                }
-              >
-
-                {dropdownItems.map(
-                  item => {
-
-                    const selected =
-                      activeDropdown ===
-                        "province"
-                        ? province?.code ===
-                          item.code
-                        : activeDropdown ===
-                          "municipality"
-                        ? municipality?.code ===
-                          item.code
-                        : barangay?.code ===
-                          item.code;
-
-
-                    return (
-
-                      <Pressable
-                        key={item.code}
-                        onPress={() => {
-
-                          if (
-                            activeDropdown ===
-                            "province"
-                          ) {
-
-                            handleProvinceSelect(
-                              item
-                            );
-
-                          }
-
-                          else if (
-                            activeDropdown ===
-                            "municipality"
-                          ) {
-
-                            handleMunicipalitySelect(
-                              item
-                            );
-
-                          }
-
-                          else {
-
-                            handleBarangaySelect(
-                              item
-                            );
-
-                          }
-
-                        }}
-                        style={[
-                          styles.locationOption,
-
-                          selected &&
-                            styles.locationOptionSelected,
-                        ]}
+                  <Text
+                    style={
+                      styles.emptyLocationText
+                    }
+                  >
+                    No locations
+                    available.
+                  </Text>
+                </View>
+              ) : (
+                locationItems.map(
+                  (item) => (
+                    <Pressable
+                      key={item.code}
+                      onPress={() =>
+                        handleLocationItemPress(
+                          item
+                        )
+                      }
+                      style={({ pressed }) => [
+                        styles.locationItem,
+                        pressed &&
+                          styles.locationItemPressed,
+                      ]}
+                    >
+                      <View
+                        style={
+                          styles.locationIcon
+                        }
                       >
+                        <Ionicons
+                          name="location-outline"
+                          size={18}
+                          color="#2563EB"
+                        />
+                      </View>
 
-                        <View
-                          style={
-                            styles.locationIcon
-                          }
-                        >
+                      <Text
+                        style={
+                          styles.locationItemText
+                        }
+                      >
+                        {item.name}
+                      </Text>
 
-                          <Ionicons
-                            name="location-outline"
-                            size={17}
-                            color="#2563EB"
-                          />
-
-                        </View>
-
-
-                        <Text
-                          style={[
-                            styles.locationText,
-
-                            selected &&
-                              styles.locationTextSelected,
-                          ]}
-                        >
-                          {item.name}
-                        </Text>
-
-
-                        {selected && (
-
-                          <Ionicons
-                            name="checkmark-circle"
-                            size={20}
-                            color="#2563EB"
-                          />
-
-                        )}
-
-                      </Pressable>
-
-                    );
-
-                  }
-                )}
-
-              </ScrollView>
-
-            )}
-
+                      <Ionicons
+                        name="chevron-forward"
+                        size={17}
+                        color="#CBD5E1"
+                      />
+                    </Pressable>
+                  )
+                )
+              )}
+            </ScrollView>
           </View>
-
         </View>
-
       </Modal>
-
     </SafeAreaView>
   );
 }
 
+// ======================================================
+// STEP INFORMATION
+// ======================================================
 
-// =============================================================
-// REUSABLE INPUT
-// =============================================================
+const stepTitles: Record<
+  Step,
+  string
+> = {
+  1: "Personal Information",
+  2: "Contact Information",
+  3: "Account Security",
+};
 
-function Input({
-  icon,
-  value,
-  onChangeText,
-  placeholder,
-  keyboardType,
-  autoCapitalize,
-  disabled,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  value: string;
-  onChangeText: (value: string) => void;
-  placeholder: string;
-  keyboardType?: any;
-  autoCapitalize?: any;
-  disabled?: boolean;
-}) {
+const stepDescriptions: Record<
+  Step,
+  string
+> = {
+  1: "Tell us a little about yourself.",
+  2: "We'll use these details to secure your account.",
+  3: "Create a secure password for your account.",
+};
 
-  return (
-
-    <View
-      style={
-        styles.inputWrapper
-      }
-    >
-
-      <View
-        style={
-          styles.inputIcon
-        }
-      >
-
-        <Ionicons
-          name={icon}
-          size={18}
-          color="#2563EB"
-        />
-
-      </View>
-
-
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor="#94A3B8"
-        keyboardType={keyboardType}
-        autoCapitalize={
-          autoCapitalize
-        }
-        editable={!disabled}
-        style={
-          styles.input
-        }
-      />
-
-    </View>
-
-  );
-}
-
-
-// =============================================================
-// DROPDOWN BUTTON
-// =============================================================
-
-function DropdownButton({
-  icon,
-  value,
-  placeholder,
-  disabled,
-  onPress,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  value?: string;
-  placeholder: string;
-  disabled?: boolean;
-  onPress: () => void;
-}) {
-
-  return (
-
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      style={[
-        styles.inputWrapper,
-
-        disabled &&
-          styles.inputDisabled,
-      ]}
-    >
-
-      <View
-        style={
-          styles.inputIcon
-        }
-      >
-
-        <Ionicons
-          name={icon}
-          size={18}
-          color="#2563EB"
-        />
-
-      </View>
-
-
-      <Text
-        style={[
-          styles.dateText,
-
-          !value &&
-            styles.placeholderText,
-        ]}
-        numberOfLines={1}
-      >
-        {value || placeholder}
-      </Text>
-
-
-      <Ionicons
-        name="chevron-down"
-        size={18}
-        color="#64748B"
-      />
-
-    </Pressable>
-
-  );
-}
-
-
-// =============================================================
+// ======================================================
 // STYLES
-// =============================================================
+// ======================================================
 
 const styles = StyleSheet.create({
-
   safeArea: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#FFFFFF",
   },
 
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
   },
 
-  scroll: {
+  scrollContent: {
     flexGrow: 1,
-    paddingBottom: 35,
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 30,
   },
 
-
-  // ===========================================================
+  // --------------------------------------------------
   // HEADER
-  // ===========================================================
+  // --------------------------------------------------
 
   header: {
-    height: 68,
-    paddingHorizontal: 18,
+    width: "100%",
+    alignItems: "center",
+  },
+
+  logoRow: {
+    width: "100%",
+    height: 88,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
   },
 
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 13,
+    width: 42,
+    height: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 21,
     backgroundColor: "#F8FAFC",
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  headerBrand: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 9,
-  },
-
-  logo: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: "#2563EB",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  logoText: {
-    fontSize: 15,
-    fontWeight: "900",
-    color: "#FFFFFF",
-  },
-
-  brandName: {
-    fontSize: 11,
-    fontWeight: "900",
-    letterSpacing: 1.4,
-    color: "#0F172A",
-  },
-
-  brandCaption: {
-    marginTop: 2,
-    fontSize: 7,
-    fontWeight: "700",
-    letterSpacing: 0.9,
-    color: "#64748B",
-  },
-
-  headerSpacer: {
-    width: 40,
-  },
-
-
-  // ===========================================================
-  // INTRO
-  // ===========================================================
-
-  intro: {
-    paddingHorizontal: 22,
-    paddingTop: 27,
-    paddingBottom: 21,
-  },
-
-  introEyebrow: {
-    fontSize: 9,
-    fontWeight: "900",
-    letterSpacing: 1.7,
-    color: "#2563EB",
-  },
-
-  introTitle: {
-    marginTop: 6,
-    fontSize: 30,
-    lineHeight: 35,
-    fontWeight: "800",
-    letterSpacing: -0.8,
-    color: "#0F172A",
-  },
-
-  introDescription: {
-    marginTop: 6,
-    maxWidth: 340,
-    fontSize: 13,
-    lineHeight: 20,
-    color: "#64748B",
-  },
-
-
-  // ===========================================================
-  // CARD
-  // ===========================================================
-
-  card: {
-    marginHorizontal: 16,
-    padding: 20,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.06,
-    shadowRadius: 20,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
     shadowOffset: {
       width: 0,
-      height: 8,
+      height: 2,
     },
-
-    elevation: 5,
   },
 
-
-  // ===========================================================
-  // PROGRESS
-  // ===========================================================
-
-  progressContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
+  backButtonPressed: {
+    opacity: 0.6,
+    transform: [
+      {
+        scale: 0.95,
+      },
+    ],
   },
 
-  progressStep: {
-    width: 31,
-    height: 31,
-    borderRadius: 11,
-    backgroundColor: "#F1F5F9",
-    alignItems: "center",
-    justifyContent: "center",
+  // --------------------------------------------------
+  // CONTENT
+  // --------------------------------------------------
+
+  content: {
+    width: "100%",
   },
 
-  progressStepActive: {
-    backgroundColor: "#2563EB",
-  },
-
-  progressNumber: {
-    fontSize: 10,
+  welcomeTitle: {
+    fontSize: 29,
+    lineHeight: 36,
     fontWeight: "800",
-    color: "#94A3B8",
+    letterSpacing: -0.7,
+    color: "#111827",
   },
 
-  progressNumberActive: {
-    color: "#FFFFFF",
-  },
-
-  progressLine: {
-    width: 46,
-    height: 2,
-    backgroundColor: "#E2E8F0",
-  },
-
-  progressLineActive: {
-    backgroundColor: "#2563EB",
-  },
-
-  stepCounter: {
-    alignItems: "center",
-    marginBottom: 22,
-  },
-
-  stepCounterText: {
-    fontSize: 8,
-    fontWeight: "900",
-    letterSpacing: 1.3,
-    color: "#94A3B8",
-  },
-
-
-  // ===========================================================
-  // CARD HEADER
-  // ===========================================================
-
-  cardHeader: {
-    marginBottom: 24,
-  },
-
-  badge: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: "#EEF4FF",
-    marginBottom: 12,
-  },
-
-  badgeText: {
-    fontSize: 8,
-    fontWeight: "900",
-    letterSpacing: 1,
-    color: "#2563EB",
-  },
-
-  cardTitle: {
-    fontSize: 25,
-    fontWeight: "800",
-    letterSpacing: -0.5,
-    color: "#0F172A",
-  },
-
-  cardSubtitle: {
-    marginTop: 5,
-    fontSize: 13,
-    lineHeight: 20,
+  welcomeSubtitle: {
+    marginTop: 8,
+    maxWidth: 340,
+    fontSize: 14,
+    lineHeight: 21,
     color: "#64748B",
   },
 
+  // --------------------------------------------------
+  // GOOGLE INFO
+  // --------------------------------------------------
 
-  // ===========================================================
-  // FORM
-  // ===========================================================
-
-  field: {
-    marginBottom: 18,
-  },
-
-  label: {
-    marginBottom: 8,
-    fontSize: 9,
-    fontWeight: "900",
-    letterSpacing: 1,
-    color: "#64748B",
-  },
-
-  optional: {
-    color: "#94A3B8",
-    fontWeight: "600",
-  },
-
-  inputWrapper: {
-    minHeight: 55,
+  googleInfoBox: {
     flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 10,
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 15,
-  },
-
-  inputDisabled: {
-    opacity: 0.55,
-  },
-
-  inputIcon: {
-    width: 35,
-    height: 35,
-    borderRadius: 10,
-    backgroundColor: "#EEF4FF",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 8,
-  },
-
-  input: {
-    flex: 1,
-    minHeight: 53,
-    fontSize: 14,
-    color: "#0F172A",
-  },
-
-  dateText: {
-    flex: 1,
-    fontSize: 14,
-    color: "#0F172A",
-  },
-
-  placeholderText: {
-    color: "#94A3B8",
-  },
-
-
-  // ===========================================================
-  // ADDRESS PREVIEW
-  // ===========================================================
-
-  addressPreview: {
-    flexDirection: "row",
+    alignItems: "flex-start",
+    marginTop: 16,
     padding: 13,
-    marginTop: -3,
-    marginBottom: 18,
-    borderRadius: 15,
-    backgroundColor: "#EEF4FF",
+    borderRadius: 11,
+    backgroundColor: "#F8FBFF",
     borderWidth: 1,
     borderColor: "#DBEAFE",
   },
 
-  addressPreviewIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  addressPreviewContent: {
+  googleInfoContent: {
     flex: 1,
     marginLeft: 9,
   },
 
-  addressPreviewLabel: {
-    fontSize: 8,
-    fontWeight: "900",
-    letterSpacing: 1,
+  googleInfoTitle: {
+    fontSize: 12,
+    fontWeight: "800",
     color: "#2563EB",
   },
 
-  addressPreviewText: {
+  googleInfoText: {
     marginTop: 4,
     fontSize: 11,
     lineHeight: 17,
+    color: "#475569",
+  },
+
+  googleEmailNote: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+    borderRadius: 9,
+    backgroundColor: "#EFF6FF",
+  },
+
+  googleEmailNoteText: {
+    flex: 1,
+    marginLeft: 7,
+    fontSize: 10,
+    color: "#475569",
+  },
+
+  // --------------------------------------------------
+  // STEP INDICATOR
+  // --------------------------------------------------
+
+  stepIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 23,
+    marginBottom: 11,
+  },
+
+  stepCircle: {
+    width: 27,
+    height: 27,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    backgroundColor: "#FFFFFF",
+  },
+
+  stepCircleActive: {
+    borderColor: "#2563EB",
+    backgroundColor: "#2563EB",
+  },
+
+  stepCircleCompleted: {
+    borderColor: "#2563EB",
+    backgroundColor: "#2563EB",
+  },
+
+  stepNumber: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#64748B",
+  },
+
+  stepNumberActive: {
+    color: "#FFFFFF",
+  },
+
+  stepLine: {
+    flex: 1,
+    height: 1,
+    marginHorizontal: 6,
+    backgroundColor: "#E2E8F0",
+  },
+
+  stepLineActive: {
+    backgroundColor: "#2563EB",
+  },
+
+  stepTitle: {
+    marginBottom: 1,
+    fontSize: 13,
+    fontWeight: "800",
     color: "#334155",
   },
 
+  // --------------------------------------------------
+  // FIELDS
+  // --------------------------------------------------
 
-  // ===========================================================
-  // PROFILE IMAGE
-  // ===========================================================
+  field: {
+    marginTop: 19,
+  },
 
-  imagePicker: {
+  nameRow: {
     width: "100%",
-    minHeight: 155,
-    borderRadius: 16,
+    flexDirection: "row",
+    gap: 12,
+  },
+
+  nameField: {
+    flex: 1,
+  },
+
+  label: {
+    marginBottom: 8,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#334155",
+  },
+
+  inputWrapper: {
+    width: "100%",
+    minHeight: 55,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
     borderWidth: 1,
-    borderStyle: "dashed",
-    borderColor: "#CBD5E1",
-    backgroundColor: "#F8FAFC",
+    borderColor: "#D9E2EC",
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+  },
+
+  inputWrapperActive: {
+    borderColor: "#93C5FD",
+  },
+
+  inputIcon: {
+    marginRight: 10,
+  },
+
+  input: {
+    flex: 1,
+    height: 53,
+    paddingVertical: 0,
+    fontSize: 14,
+    color: "#111827",
+  },
+
+  eyeButton: {
+    width: 32,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  dropdownText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#111827",
+  },
+
+  dropdownPlaceholder: {
+    color: "#A0AEC0",
+  },
+
+  dropdownPressed: {
+    opacity: 0.75,
+  },
+
+  dropdownDisabled: {
+    opacity: 0.55,
+  },
+
+  // --------------------------------------------------
+  // PROFILE IMAGE
+  // --------------------------------------------------
+
+  profileSection: {
+    marginTop: 20,
+  },
+
+  profilePicker: {
+    minHeight: 130,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "#BFDBFE",
+    borderRadius: 14,
+    backgroundColor: "#F8FBFF",
     overflow: "hidden",
   },
 
-  imagePlaceholder: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 28,
+  profilePickerPressed: {
+    opacity: 0.75,
   },
 
-  imageIconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#EEF4FF",
+  profileIconCircle: {
+    width: 48,
+    height: 48,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 9,
+    borderRadius: 24,
+    backgroundColor: "#EFF6FF",
   },
 
-  imagePickerText: {
+  profileTitle: {
+    marginTop: 9,
     fontSize: 13,
     fontWeight: "700",
     color: "#2563EB",
   },
 
-  imagePickerSubtext: {
-    marginTop: 4,
+  profileSubtitle: {
+    marginTop: 3,
     fontSize: 10,
     color: "#94A3B8",
   },
 
-  profilePreview: {
-    width: 155,
-    height: 155,
-    borderRadius: 77.5,
+  profileImage: {
+    width: 130,
+    height: 130,
   },
 
-  changeImageButton: {
-    alignSelf: "center",
-    flexDirection: "row",
+  profileOverlay: {
+    position: "absolute",
+    right: 9,
+    bottom: 9,
+    width: 36,
+    height: 36,
     alignItems: "center",
-    gap: 5,
-    marginTop: 8,
+    justifyContent: "center",
+    borderRadius: 18,
+    backgroundColor: "#2563EB",
   },
 
-  changeImageText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#2563EB",
+  // --------------------------------------------------
+  // ADDRESS
+  // --------------------------------------------------
+
+  addressPreview: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginTop: 14,
+    paddingHorizontal: 13,
+    paddingVertical: 12,
+    borderRadius: 11,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
   },
 
+  addressContent: {
+    flex: 1,
+    marginLeft: 9,
+  },
 
-  // ===========================================================
-  // INFO
-  // ===========================================================
+  addressLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#64748B",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+
+  addressText: {
+    marginTop: 4,
+    fontSize: 12,
+    lineHeight: 17,
+    color: "#334155",
+  },
+
+  // --------------------------------------------------
+  // INFO / SECURITY
+  // --------------------------------------------------
 
   infoBox: {
     flexDirection: "row",
     alignItems: "flex-start",
+    marginTop: 20,
     padding: 13,
-    marginTop: 2,
-    borderRadius: 15,
-    backgroundColor: "#EEF4FF",
+    borderRadius: 11,
+    backgroundColor: "#F8FBFF",
     borderWidth: 1,
     borderColor: "#DBEAFE",
   },
 
   infoText: {
     flex: 1,
-    marginLeft: 8,
+    marginLeft: 9,
     fontSize: 11,
     lineHeight: 17,
     color: "#475569",
   },
 
-
-  // ===========================================================
-  // SECURITY
-  // ===========================================================
-
-  securityBox: {
-    flexDirection: "row",
+  passwordRules: {
+    marginTop: 18,
     padding: 14,
-    borderRadius: 15,
+    borderRadius: 11,
     backgroundColor: "#F8FAFC",
     borderWidth: 1,
     borderColor: "#E2E8F0",
   },
 
-  securityContent: {
-    flex: 1,
-    marginLeft: 10,
-  },
-
-  securityTitle: {
-    fontSize: 12,
+  passwordRulesTitle: {
+    marginBottom: 9,
+    fontSize: 11,
     fontWeight: "800",
-    color: "#0F172A",
+    color: "#334155",
   },
 
-  securityText: {
-    marginTop: 3,
-    fontSize: 10,
-    lineHeight: 16,
+  ruleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 6,
+  },
+
+  ruleText: {
+    marginLeft: 8,
+    fontSize: 11,
     color: "#64748B",
   },
 
-
-  // ===========================================================
-  // ERROR
-  // ===========================================================
-
-  errorBox: {
+  securityBox: {
     flexDirection: "row",
     alignItems: "flex-start",
-    padding: 12,
-    marginTop: 3,
-    marginBottom: 18,
-    borderRadius: 14,
+    marginTop: 13,
+    padding: 13,
+    borderRadius: 11,
+    backgroundColor: "#F8FBFF",
+    borderWidth: 1,
+    borderColor: "#DBEAFE",
+  },
+
+  securityBoxText: {
+    flex: 1,
+    marginLeft: 9,
+    fontSize: 11,
+    lineHeight: 17,
+    color: "#475569",
+  },
+
+  // --------------------------------------------------
+  // ERROR
+  // --------------------------------------------------
+
+  errorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
     backgroundColor: "#FEF2F2",
     borderWidth: 1,
     borderColor: "#FECACA",
@@ -3712,238 +3294,219 @@ const styles = StyleSheet.create({
   errorText: {
     flex: 1,
     marginLeft: 8,
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 11,
+    lineHeight: 16,
     color: "#B91C1C",
   },
 
+  // --------------------------------------------------
+  // ACTION BUTTONS
+  // --------------------------------------------------
 
-  // ===========================================================
-  // ACTIONS
-  // ===========================================================
-
-  actions: {
+  actionArea: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    marginTop: 4,
+    marginTop: 25,
   },
 
-  backAction: {
+  primaryButton: {
+    flex: 1,
     height: 55,
-    paddingHorizontal: 17,
-    borderRadius: 15,
-    backgroundColor: "#F1F5F9",
+    borderRadius: 12,
+    backgroundColor: "#2563EB",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#2563EB",
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: {
+      width: 0,
+      height: 5,
+    },
+    elevation: 4,
+  },
+
+  primaryButtonWithBack: {
+    flex: 1,
+  },
+
+  primaryButtonContent: {
+    width: "100%",
+    height: 55,
+    paddingHorizontal: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+
+  primaryButtonText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#FFFFFF",
+  },
+
+  primaryButtonPressed: {
+    opacity: 0.88,
+    transform: [
+      {
+        scale: 0.985,
+      },
+    ],
+  },
+
+  primaryButtonDisabled: {
+    opacity: 0.6,
+  },
+
+  secondaryButton: {
+    height: 55,
+    paddingHorizontal: 18,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 7,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    backgroundColor: "#F8FBFF",
   },
 
-  backActionText: {
+  secondaryButtonPressed: {
+    opacity: 0.7,
+  },
+
+  secondaryButtonText: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#475569",
+    color: "#2563EB",
   },
 
-  nextButton: {
-    flex: 1,
-    height: 55,
-    borderRadius: 15,
-    backgroundColor: "#2563EB",
+  loadingContent: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 9,
   },
 
-  nextButtonFull: {
-    flex: 1,
-  },
-
-  nextButtonDisabled: {
-    opacity: 0.6,
-  },
-
-  nextButtonText: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#FFFFFF",
-  },
-
-
-  // ===========================================================
-  // LOGIN
-  // ===========================================================
+  // --------------------------------------------------
+  // LOGIN SECTION
+  // --------------------------------------------------
 
   loginSection: {
+    marginTop: 28,
+  },
+
+  loginDivider: {
+    flexDirection: "row",
     alignItems: "center",
-    marginTop: 24,
+    width: "100%",
   },
 
-  loginText: {
-    fontSize: 13,
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#E2E8F0",
+  },
+
+  dividerText: {
+    marginHorizontal: 12,
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#94A3B8",
+  },
+
+  loginQuestion: {
+    marginTop: 17,
+    textAlign: "center",
+    fontSize: 12,
     color: "#64748B",
-    marginBottom: 6,
   },
 
-  loginLink: {
-    fontSize: 14,
+  loginButton: {
+    width: "100%",
+    height: 50,
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    backgroundColor: "#F8FBFF",
+  },
+
+  loginButtonPressed: {
+    opacity: 0.7,
+  },
+
+  loginButtonText: {
+    fontSize: 13,
     fontWeight: "700",
     color: "#2563EB",
   },
-// ===========================================================
-// DATE MODAL
-// ===========================================================
 
-dateModalOverlay: {
-  flex: 1,
-
-  backgroundColor:
-    "rgba(15, 23, 42, 0.45)",
-
-  alignItems: "center",
-
-  justifyContent: "center",
-
-  paddingHorizontal: 20,
-},
-
-dateModal: {
-  width: "100%",
-
-  backgroundColor: "#FFFFFF",
-
-  borderRadius: 24,
-
-  padding: 20,
-
-  shadowColor: "#0F172A",
-
-  shadowOpacity: 0.15,
-
-  shadowRadius: 25,
-
-  shadowOffset: {
-    width: 0,
-    height: 10,
-  },
-
-  elevation: 10,
-},
-
-dateModalHeader: {
-  flexDirection: "row",
-
-  alignItems: "center",
-
-  justifyContent: "space-between",
-
-  marginBottom: 12,
-},
-
-dateModalTitle: {
-  fontSize: 19,
-
-  fontWeight: "800",
-
-  color: "#0F172A",
-},
-
-dateModalSubtitle: {
-  marginTop: 3,
-
-  fontSize: 11,
-
-  color: "#64748B",
-},
-
-datePickerContainer: {
-  alignItems: "center",
-
-  justifyContent: "center",
-
-  backgroundColor: "#F8FAFC",
-
-  borderRadius: 18,
-
-  borderWidth: 1,
-
-  borderColor: "#E2E8F0",
-
-  marginTop: 5,
-
-  marginBottom: 15,
-
-  overflow: "hidden",
-},
-
-datePicker: {
-  width: "100%",
-
-  height: 190,
-},
-
-dateDoneButton: {
-  height: 52,
-
-  borderRadius: 15,
-
-  backgroundColor: "#2563EB",
-
-  flexDirection: "row",
-
-  alignItems: "center",
-
-  justifyContent: "center",
-
-  gap: 8,
-},
-
-dateDoneText: {
-  fontSize: 14,
-
-  fontWeight: "800",
-
-  color: "#FFFFFF",
-},
-
-  // ===========================================================
+  // --------------------------------------------------
   // FOOTER
-  // ===========================================================
+  // --------------------------------------------------
 
   footer: {
-    marginTop: 17,
-    textAlign: "center",
+    alignItems: "center",
+    marginTop: 30,
+  },
+
+  securityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  securityText: {
+    marginLeft: 6,
+    fontSize: 10,
+    color: "#64748B",
+  },
+
+  footerText: {
+    marginTop: 9,
     fontSize: 9,
     color: "#CBD5E1",
   },
 
-
-  // ===========================================================
-  // GENDER MODAL
-  // ===========================================================
+  // --------------------------------------------------
+  // MODALS
+  // --------------------------------------------------
 
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.45)",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 20,
+    paddingHorizontal: 22,
+    backgroundColor:
+      "rgba(15, 23, 42, 0.45)",
   },
 
-  dropdownModal: {
+  dateModal: {
     width: "100%",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
+    maxWidth: 400,
     padding: 20,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+  },
+
+  selectionModal: {
+    width: "100%",
+    maxWidth: 400,
+    padding: 20,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
   },
 
   modalHeader: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
-    marginBottom: 18,
   },
 
   modalTitle: {
@@ -3953,40 +3516,63 @@ dateDoneText: {
   },
 
   modalSubtitle: {
-    marginTop: 3,
+    marginTop: 4,
     fontSize: 11,
     color: "#64748B",
   },
 
-  modalClose: {
-    width: 36,
-    height: 36,
-    borderRadius: 11,
-    backgroundColor: "#F1F5F9",
+  datePicker: {
+    alignSelf: "center",
+    marginTop: 12,
+  },
+
+  modalDoneButton: {
+    height: 48,
+    marginTop: 10,
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: 11,
+    backgroundColor: "#2563EB",
   },
 
-  option: {
-    minHeight: 58,
+  modalDoneText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#FFFFFF",
+  },
+
+  optionList: {
+    marginTop: 18,
+  },
+
+  optionItem: {
+    minHeight: 57,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 10,
-    borderRadius: 14,
-    marginBottom: 8,
+    paddingHorizontal: 11,
+    marginBottom: 9,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#FFFFFF",
   },
 
-  optionSelected: {
-    backgroundColor: "#EEF4FF",
+  optionItemSelected: {
+    borderColor: "#BFDBFE",
+    backgroundColor: "#F8FBFF",
+  },
+
+  optionItemPressed: {
+    opacity: 0.7,
   },
 
   optionIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 11,
-    backgroundColor: "#EEF4FF",
+    width: 37,
+    height: 37,
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: 19,
+    backgroundColor: "#EFF6FF",
   },
 
   optionIconSelected: {
@@ -3995,8 +3581,8 @@ dateDoneText: {
 
   optionText: {
     flex: 1,
-    marginLeft: 10,
-    fontSize: 14,
+    marginLeft: 11,
+    fontSize: 13,
     fontWeight: "600",
     color: "#334155",
   },
@@ -4006,84 +3592,82 @@ dateDoneText: {
     fontWeight: "800",
   },
 
+  optionCheck: {
+    marginLeft: 8,
+  },
 
-  // ===========================================================
-  // LOCATION MODAL
-  // ===========================================================
+  // --------------------------------------------------
+  // LOCATION BOTTOM SHEET
+  // --------------------------------------------------
 
   locationModalOverlay: {
     flex: 1,
     justifyContent: "flex-end",
-    backgroundColor: "rgba(15, 23, 42, 0.35)",
   },
 
-  locationModalBackdrop: {
-    flex: 1,
+  locationBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor:
+      "rgba(15, 23, 42, 0.45)",
   },
 
   locationModal: {
+    width: "100%",
     maxHeight: "78%",
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
     paddingHorizontal: 20,
     paddingTop: 10,
-    paddingBottom: 25,
+    paddingBottom: 24,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    backgroundColor: "#FFFFFF",
   },
 
-  locationHandle: {
+  modalHandle: {
     alignSelf: "center",
-    width: 42,
+    width: 40,
     height: 4,
+    marginBottom: 18,
     borderRadius: 2,
     backgroundColor: "#CBD5E1",
-    marginBottom: 17,
-  },
-
-  locationHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 15,
   },
 
   locationList: {
-    paddingBottom: 15,
+    paddingTop: 17,
+    paddingBottom: 10,
   },
 
-  locationOption: {
+  locationItem: {
     minHeight: 55,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 10,
-    borderRadius: 14,
-    marginBottom: 7,
+    marginBottom: 8,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#FFFFFF",
   },
 
-  locationOptionSelected: {
-    backgroundColor: "#EEF4FF",
+  locationItemPressed: {
+    opacity: 0.65,
+    backgroundColor: "#F8FAFC",
   },
 
   locationIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 11,
-    backgroundColor: "#F1F5F9",
+    width: 35,
+    height: 35,
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: 18,
+    backgroundColor: "#EFF6FF",
   },
 
-  locationText: {
+  locationItemText: {
     flex: 1,
     marginLeft: 10,
     fontSize: 13,
     fontWeight: "600",
     color: "#334155",
-  },
-
-  locationTextSelected: {
-    color: "#2563EB",
-    fontWeight: "800",
   },
 
   emptyLocation: {
@@ -4097,5 +3681,4 @@ dateDoneText: {
     fontSize: 12,
     color: "#94A3B8",
   },
-
 });

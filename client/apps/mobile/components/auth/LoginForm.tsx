@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from "react";
 
 import {
@@ -11,7 +13,7 @@ import {
   Text,
   TextInput,
   View,
-  Image
+  Image,
 } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -22,7 +24,6 @@ import { useRouter } from "expo-router";
 
 import {
   useLogin,
-  useMe,
   type LoginFormValues,
 } from "@repo/hooks";
 
@@ -35,8 +36,7 @@ export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const [showPassword, setShowPassword] =
-    useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     login,
@@ -44,128 +44,68 @@ export default function LoginForm() {
     error,
   } = useLogin(authApi);
 
-
- 
-  // =========================================================
-  // LOGIN
-  // =========================================================
-
- const handleLogin = async () => {
-  // ============================================
-  // VALIDATE EMAIL
-  // ============================================
-
-  if (!email.trim()) {
-    Alert.alert(
-      "Login Required",
-      "Please enter your email address."
-    );
-
-    return;
-  }
-
-  // ============================================
-  // VALIDATE PASSWORD
-  // ============================================
-
-  if (!password) {
-    Alert.alert(
-      "Login Required",
-      "Please enter your password."
-    );
-
-    return;
-  }
-
-  try {
-    // ============================================
-    // LOGIN
-    // ============================================
-
-    const values: LoginFormValues = {
-      email: email
-        .trim()
-        .toLowerCase(),
-
-      password,
-    };
-
-    const response =
-      await login(values);
-
-    // ============================================
-    // LOGIN FAILED
-    // ============================================
-
-    if (!response) {
+  const handleLogin = async () => {
+    if (!email.trim()) {
+      Alert.alert(
+        "Login Required",
+        "Please enter your email address."
+      );
       return;
     }
 
-    // ============================================
-    // CHECK ROLE
-    // ============================================
+    if (!password) {
+      Alert.alert(
+        "Login Required",
+        "Please enter your password."
+      );
+      return;
+    }
 
-    const role =
-      String(
+    try {
+      const values: LoginFormValues = {
+        email: email.trim().toLowerCase(),
+        password,
+      };
+
+      const response = await login(values);
+
+      if (!response) {
+        return;
+      }
+
+      const role = String(
         response.user?.role ?? ""
       ).toLowerCase();
 
-    // ============================================
-    // PARTICIPANT ONLY
-    // ============================================
+      if (role !== "participant") {
+        Alert.alert(
+          "Access Denied",
+          "This mobile application is only available for Participants."
+        );
+        return;
+      }
 
-    if (role !== "participant") {
+      await auth.saveToken(response.token);
+      await auth.saveUser(response.user);
+
+      router.replace("/(tabs)");
+    } catch (error) {
+      console.error("LOGIN ERROR:", error);
+
       Alert.alert(
-        "Access Denied",
-        "This mobile application is only available for Participants."
+        "Login Failed",
+        error instanceof Error
+          ? error.message
+          : "Unable to login. Please try again."
       );
-
-      return;
     }
-
-    // ============================================
-    // SAVE AUTH ONLY AFTER ROLE CHECK
-    // ============================================
-
-    await auth.saveToken(
-      response.token
-    );
-
-    await auth.saveUser(
-      response.user
-    );
-
-    // ============================================
-    // GO TO PARTICIPANT APP
-    // ============================================
-
-    router.replace(
-      "/(tabs)"
-    );
-  } catch (error) {
-    console.error(
-      "LOGIN ERROR:",
-      error
-    );
-
-    Alert.alert(
-      "Login Failed",
-      error instanceof Error
-        ? error.message
-        : "Unable to login. Please try again."
-    );
-  }
-};
+  };
 
   return (
     <SafeAreaView
       style={styles.safeArea}
-      edges={[
-        "top",
-        "bottom",
-      ]}
+      edges={["top", "bottom"]}
     >
-
       <KeyboardAvoidingView
         style={styles.container}
         behavior={
@@ -174,290 +114,174 @@ export default function LoginForm() {
             : undefined
         }
       >
-
         <ScrollView
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={
-            styles.scrollContent
-          }
+          contentContainerStyle={styles.scrollContent}
         >
+          {/* ================================================== */}
+          {/* HEADER */}
+          {/* ================================================== */}
 
-       
+          <View style={styles.header}>
 
-          <View
-            style={styles.brandSection}
-          >
+            <View style={styles.logoContainer}>
+              <Image
+                source={require("@/assets/images/ANCILOGO.png")}
+                resizeMode="contain"
+                style={styles.logo}
+              />
 
-           <View style={styles.logo}>
-          <Image
-            source={require("@/assets/images/ANCILOGO.png")}
-         
-            resizeMode="contain"
-          />
-          </View>
-
-
-            <Text
-              style={styles.brandName}
-            >
-              ACE NEXTGEN
-            </Text>
-
-
-            <Text
-              style={styles.brandCaption}
-            >
-              TRAINING MANAGEMENT
-            </Text>
-
-          </View>
-
-
-          {/* =================================================
-              LOGIN CARD
-          ================================================= */}
-
-          <View
-            style={styles.loginCard}
-          >
-
-            {/* CARD HEADER */}
-
-            <View
-              style={styles.cardHeader}
-            >
-
-              <View
-                style={styles.accessBadge}
-              >
-
-                <Ionicons
-                  name="person-outline"
-                  size={15}
-                  color="#2563EB"
-                />
-
-                <Text
-                  style={styles.accessBadgeText}
-                >
-                  PARTICIPANT ACCESS
-                </Text>
-
-              </View>
-
-
-              <Text
-                style={styles.title}
-              >
-                Welcome back!
+              <Text style={styles.brandName}>
+                ACE NEXTGEN
               </Text>
 
-
-              <Text
-                style={styles.subtitle}
-              >
-                Sign in to continue your
-                learning journey.
+              <Text style={styles.brandSubtitle}>
+                TRAINING MANAGEMENT
               </Text>
-
             </View>
+          </View>
 
+          {/* ================================================== */}
+          {/* LOGIN CONTENT */}
+          {/* ================================================== */}
 
-            {/* =================================================
-                SEPARATOR
-            ================================================= */}
+          <View style={styles.content}>
+            <Text style={styles.welcomeTitle}>
+              Welcome back!
+            </Text>
 
-            <View
-              style={styles.separator}
-            />
+            <Text style={styles.welcomeSubtitle}>
+              Sign in to continue your learning journey.
+            </Text>
 
+            {/* ================================================== */}
+            {/* EMAIL */}
+            {/* ================================================== */}
 
-            {/* =================================================
-                EMAIL
-            ================================================= */}
-
-            <View
-              style={styles.field}
-            >
-
-              <Text
-                style={styles.label}
-              >
+            <View style={styles.field}>
+              <Text style={styles.label}>
                 Email
               </Text>
 
-
               <View
-                style={styles.inputContainer}
+                style={[
+                  styles.inputWrapper,
+                  email.length > 0 &&
+                    styles.inputWrapperActive,
+                ]}
               >
-
-                <View
+                <Ionicons
+                  name="mail-outline"
+                  size={20}
+                  color="#2563EB"
                   style={styles.inputIcon}
-                >
-
-                  <Ionicons
-                    name="mail-outline"
-                    size={19}
-                    color="#2563EB"
-                  />
-
-                </View>
-
+                />
 
                 <TextInput
                   value={email}
-                  onChangeText={
-                    setEmail
-                  }
+                  onChangeText={setEmail}
                   placeholder="you@email.com"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor="#A0AEC0"
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
                   editable={!isLoading}
                   style={styles.input}
                 />
-
               </View>
-
             </View>
 
+            {/* ================================================== */}
+            {/* PASSWORD */}
+            {/* ================================================== */}
 
-            {/* =================================================
-                PASSWORD
-            ================================================= */}
-
-            <View
-              style={styles.field}
-            >
-
-              <View
-                style={styles.passwordHeader}
-              >
-
-                <Text
-                  style={styles.label}
-                >
+            <View style={styles.field}>
+              <View style={styles.passwordHeader}>
+                <Text style={styles.label}>
                   Password
                 </Text>
-
 
                 <Pressable
                   disabled={isLoading}
                   hitSlop={8}
                 >
-
-                  <Text
-                    style={styles.forgotPassword}
-                  >
+                  <Text style={styles.forgotPassword}>
                     Forgot password?
                   </Text>
-
                 </Pressable>
-
               </View>
 
-
               <View
-                style={styles.inputContainer}
+                style={[
+                  styles.inputWrapper,
+                  password.length > 0 &&
+                    styles.inputWrapperActive,
+                ]}
               >
-
-                <View
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={20}
+                  color="#2563EB"
                   style={styles.inputIcon}
-                >
-
-                  <Ionicons
-                    name="lock-closed-outline"
-                    size={19}
-                    color="#2563EB"
-                  />
-
-                </View>
-
+                />
 
                 <TextInput
                   value={password}
-                  onChangeText={
-                    setPassword
-                  }
+                  onChangeText={setPassword}
                   placeholder="Enter your password"
-                  placeholderTextColor="#94A3B8"
-                  secureTextEntry={
-                    !showPassword
-                  }
+                  placeholderTextColor="#A0AEC0"
+                  secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   autoCorrect={false}
                   editable={!isLoading}
                   style={styles.input}
                 />
 
-
                 <Pressable
                   onPress={() =>
                     setShowPassword(
-                      value => !value
+                      (value) => !value
                     )
                   }
                   disabled={isLoading}
                   hitSlop={10}
                   style={styles.eyeButton}
                 >
-
                   <Ionicons
                     name={
                       showPassword
                         ? "eye-off-outline"
                         : "eye-outline"
                     }
-                    size={20}
-                    color="#64748B"
+                    size={21}
+                    color="#718096"
                   />
-
                 </Pressable>
-
               </View>
-
             </View>
 
-
-            {/* =================================================
-                ERROR
-            ================================================= */}
+            {/* ================================================== */}
+            {/* ERROR */}
+            {/* ================================================== */}
 
             {error && (
+              <View style={styles.errorContainer}>
+                <Ionicons
+                  name="alert-circle-outline"
+                  size={18}
+                  color="#DC2626"
+                />
 
-              <View
-                style={styles.errorContainer}
-              >
-
-                <View
-                  style={styles.errorIcon}
-                >
-
-                  <Ionicons
-                    name="alert-circle-outline"
-                    size={17}
-                    color="#DC2626"
-                  />
-
-                </View>
-
-
-                <Text
-                  style={styles.errorText}
-                >
+                <Text style={styles.errorText}>
                   {error}
                 </Text>
-
               </View>
-
             )}
 
-
-            {/* =================================================
-                LOGIN BUTTON
-            ================================================= */}
+            {/* ================================================== */}
+            {/* LOGIN BUTTON */}
+            {/* ================================================== */}
 
             <Pressable
               onPress={handleLogin}
@@ -473,208 +297,116 @@ export default function LoginForm() {
                   styles.loginButtonDisabled,
               ]}
             >
-
               {isLoading ? (
-
-                <View
-                  style={styles.loadingContainer}
-                >
-
+                <View style={styles.loadingContent}>
                   <ActivityIndicator
                     size="small"
                     color="#FFFFFF"
                   />
 
-                  <Text
-                    style={styles.loginButtonText}
-                  >
+                  <Text style={styles.loginButtonText}>
                     Signing in...
                   </Text>
-
                 </View>
-
               ) : (
-
                 <View
                   style={styles.loginButtonContent}
                 >
-
                   <Text
                     style={styles.loginButtonText}
                   >
                     Sign in
                   </Text>
 
-
-                  <View
-                    style={styles.arrowContainer}
-                  >
-
-                    <Ionicons
-                      name="arrow-forward"
-                      size={18}
-                      color="#2563EB"
-                    />
-
-                  </View>
-
+                  <Ionicons
+                    name="arrow-forward"
+                    size={19}
+                    color="#FFFFFF"
+                  />
                 </View>
-
               )}
-
             </Pressable>
 
+            {/* ================================================== */}
+            {/* REGISTER */}
+            {/* ================================================== */}
 
-            {/* =================================================
-                REGISTER DIVIDER
-            ================================================= */}
+            <View style={styles.registerSection}>
+              <View style={styles.registerDivider}>
+                <View style={styles.divider} />
 
-            <View
-              style={styles.dividerRow}
-            >
+                <Text style={styles.dividerText}>
+                  OR
+                </Text>
 
-              <View
-                style={styles.divider}
-              />
-
-              <Text
-                style={styles.dividerText}
-              >
-                NEW HERE?
-              </Text>
-
-              <View
-                style={styles.divider}
-              />
-
-            </View>
-
-
-            {/* =================================================
-                REGISTER
-            ================================================= */}
-
-            <Pressable
-              onPress={() =>
-                router.push("/register")
-              }
-              disabled={isLoading}
-              style={({ pressed }) => [
-                styles.registerButton,
-
-                pressed &&
-                  styles.registerButtonPressed,
-              ]}
-            >
-
-              <View
-                style={styles.registerIcon}
-              >
-
-                <Ionicons
-                  name="person-add-outline"
-                  size={19}
-                  color="#2563EB"
-                />
-
+                <View style={styles.divider} />
               </View>
 
+              <Text style={styles.registerQuestion}>
+                Don't have an account?
+              </Text>
 
-              <View
-                style={styles.registerContent}
+              <Pressable
+                onPress={() =>
+                  router.push("/register")
+                }
+                disabled={isLoading}
+                style={({ pressed }) => [
+                  styles.registerButton,
+                  pressed &&
+                    styles.registerButtonPressed,
+                ]}
               >
-
                 <Text
-                  style={styles.registerTitle}
+                  style={styles.registerButtonText}
                 >
                   Create an account
                 </Text>
 
-
-                <Text
-                  style={styles.registerSubtitle}
-                >
-                  Register as a participant
-                </Text>
-
-              </View>
-
-
-              <View
-                style={styles.registerArrow}
-              >
-
                 <Ionicons
-                  name="chevron-forward"
-                  size={18}
+                  name="arrow-forward"
+                  size={17}
                   color="#2563EB"
                 />
-
-              </View>
-
-            </Pressable>
-
+              </Pressable>
+            </View>
           </View>
 
+          {/* ================================================== */}
+          {/* FOOTER */}
+          {/* ================================================== */}
 
-          {/* =================================================
-              SECURITY FOOTER
-          ================================================= */}
-
-          <View
-            style={styles.securityFooter}
-          >
-
-            <View
-              style={styles.securityIcon}
-            >
-
+          <View style={styles.footer}>
+            <View style={styles.securityRow}>
               <Ionicons
                 name="shield-checkmark-outline"
                 size={15}
                 color="#64748B"
               />
 
+              <Text style={styles.securityText}>
+                Secure and protected access
+              </Text>
             </View>
 
-
-            <Text
-              style={styles.securityText}
-            >
-              Secure and protected access
+            <Text style={styles.footerText}>
+              ACE NextGen • Participant Portal
             </Text>
-
           </View>
-
-
-          <Text
-            style={styles.footerText}
-          >
-            ACE NextGen • Participant Portal
-          </Text>
-
         </ScrollView>
-
       </KeyboardAvoidingView>
-
     </SafeAreaView>
   );
 }
 
-
-// =============================================================
-// STYLES
-// =============================================================
-
 const styles = StyleSheet.create({
-
-  // ===========================================================
-  // SCREEN
-  // ===========================================================
+  /* ================================================== */
+  /* SAFE AREA */
+  /* ================================================== */
 
   safeArea: {
     flex: 1,
-    backgroundColor: "#F3F6FA",
+    backgroundColor: "#FFFFFF",
   },
 
   container: {
@@ -683,245 +415,237 @@ const styles = StyleSheet.create({
 
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: 24,
+    paddingTop: 95,
     paddingBottom: 30,
   },
 
+  /* ================================================== */
+  /* HEADER */
+  /* ================================================== */
 
-  // ===========================================================
-  // BRAND
-  // ===========================================================
-
-  brandSection: {
-    alignItems: "center",
-    marginBottom: 24,
-    marginTop:70,
+  header: {
+    width: "100%",
+    marginBottom: 38,
   },
 
-  logo: {
-    width: 20,
-    height: 58,
-    borderRadius: 18,
-    backgroundColor: "#2563EB",
+  /* ================================================== */
+  /* BACK BUTTON */
+  /* ================================================== */
+
+  backButtonRow: {
+    width: "100%",
+    height: 48,
+
+    justifyContent: "flex-start",
+    alignItems: "flex-start",
+  },
+
+  backButton: {
+    width: 42,
+    height: 42,
+
     alignItems: "center",
     justifyContent: "center",
 
-    shadowColor: "#2563EB",
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
+    borderRadius: 21,
 
-    elevation: 5,
-  },
-
-  logoText: {
-    fontSize: 27,
-    fontWeight: "900",
-    color: "#FFFFFF",
-  },
-
-  brandName: {
-    marginTop: 11,
-    fontSize: 15,
-    fontWeight: "900",
-    letterSpacing: 2,
-    color: "#0F172A",
-  },
-
-  brandCaption: {
-    marginTop: 3,
-    fontSize: 8,
-    fontWeight: "700",
-    letterSpacing: 1.7,
-    color: "#94A3B8",
-  },
-
-
-  // ===========================================================
-  // LOGIN CARD
-  // ===========================================================
-
-  loginCard: {
-    width: "100%",
-    paddingHorizontal: 20,
-    paddingTop: 22,
-    paddingBottom: 22,
-
-    backgroundColor: "#FFFFFF",
-
-    borderRadius: 24,
+    backgroundColor: "#F8FAFC",
 
     borderWidth: 1,
     borderColor: "#E2E8F0",
 
-    shadowColor: "#0F172A",
+    elevation: 3,
+
+    shadowColor: "#000",
     shadowOpacity: 0.08,
-    shadowRadius: 22,
+    shadowRadius: 4,
+
     shadowOffset: {
       width: 0,
-      height: 10,
+      height: 2,
     },
-
-    elevation: 6,
   },
 
+  backButtonPressed: {
+    opacity: 0.6,
 
-  // ===========================================================
-  // CARD HEADER
-  // ===========================================================
-
-  cardHeader: {
-    alignItems: "flex-start",
+    transform: [
+      {
+        scale: 0.95,
+      },
+    ],
   },
 
-  accessBadge: {
-    flexDirection: "row",
-    alignItems: "center",
+  /* ================================================== */
+  /* LOGO */
+  /* ================================================== */
 
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-
-    borderRadius: 10,
-
-    backgroundColor: "#EFF6FF",
-  },
-
-  accessBadgeText: {
-    marginLeft: 6,
-    fontSize: 9,
-    fontWeight: "900",
-    letterSpacing: 1,
-    color: "#2563EB",
-  },
-
-  title: {
-    marginTop: 15,
-    fontSize: 29,
-    lineHeight: 35,
-    fontWeight: "800",
-    letterSpacing: -0.8,
-    color: "#0F172A",
-  },
-
-  subtitle: {
-    marginTop: 6,
-    fontSize: 13,
-    lineHeight: 20,
-    color: "#64748B",
-  },
-
-
-  // ===========================================================
-  // SEPARATOR
-  // ===========================================================
-
-  separator: {
+  logoContainer: {
     width: "100%",
-    height: 1,
-    backgroundColor: "#E2E8F0",
-    marginVertical: 23,
-  },
-
-
-  // ===========================================================
-  // FORM
-  // ===========================================================
-
-  field: {
-    marginBottom: 19,
-  },
-
-  passwordHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-
-  label: {
-    marginBottom: 8,
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#334155",
-  },
-
-  forgotPassword: {
-    marginBottom: 8,
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#2563EB",
-  },
-
-  inputContainer: {
-    width: "100%",
-    minHeight: 57,
-
-    flexDirection: "row",
-    alignItems: "center",
-
-    paddingHorizontal: 10,
-
-    borderRadius: 15,
-
-    borderWidth: 1,
-    borderColor: "#DCE3EC",
-
-    backgroundColor: "#F8FAFC",
-  },
-
-  inputIcon: {
-    width: 37,
-    height: 37,
-
-    borderRadius: 11,
 
     alignItems: "center",
     justifyContent: "center",
 
-    backgroundColor: "#EAF2FF",
+    marginTop: 4,
+  },
+
+  logo: {
+    width: 92,
+    height: 92,
+  },
+
+  /* ================================================== */
+  /* BRAND */
+  /* ================================================== */
+
+  brandName: {
+    marginTop: 8,
+
+    fontSize: 20,
+    fontWeight: "900",
+
+    letterSpacing: 1.8,
+
+    color: "#0F172A",
+  },
+
+  brandSubtitle: {
+    marginTop: 4,
+
+    fontSize: 9,
+    fontWeight: "700",
+
+    letterSpacing: 1.8,
+
+    color: "#64748B",
+  },
+
+  /* ================================================== */
+  /* CONTENT */
+  /* ================================================== */
+
+  content: {
+    width: "100%",
+  },
+
+  welcomeTitle: {
+    fontSize: 30,
+    lineHeight: 36,
+
+    fontWeight: "800",
+
+    letterSpacing: -0.7,
+
+    color: "#111827",
+  },
+
+  welcomeSubtitle: {
+    marginTop: 8,
+
+    maxWidth: 330,
+
+    fontSize: 14,
+    lineHeight: 21,
+
+    color: "#64748B",
+  },
+
+  /* ================================================== */
+  /* FORM */
+  /* ================================================== */
+
+  field: {
+    marginTop: 25,
+  },
+
+  passwordHeader: {
+    flexDirection: "row",
+
+    alignItems: "center",
+
+    justifyContent: "space-between",
+  },
+
+  label: {
+    marginBottom: 9,
+
+    fontSize: 12,
+    fontWeight: "700",
+
+    color: "#334155",
+  },
+
+  forgotPassword: {
+    marginBottom: 9,
+
+    fontSize: 11,
+    fontWeight: "700",
+
+    color: "#2563EB",
+  },
+
+  inputWrapper: {
+    width: "100%",
+    height: 56,
+
+    flexDirection: "row",
+
+    alignItems: "center",
+
+    paddingHorizontal: 15,
+
+    borderWidth: 1,
+    borderColor: "#D9E2EC",
+
+    borderRadius: 12,
+
+    backgroundColor: "#FFFFFF",
+  },
+
+  inputWrapperActive: {
+    borderColor: "#93C5FD",
+  },
+
+  inputIcon: {
+    marginRight: 11,
   },
 
   input: {
     flex: 1,
 
-    minHeight: 55,
-
-    marginLeft: 10,
+    height: 54,
 
     paddingVertical: 0,
 
     fontSize: 14,
 
-    color: "#0F172A",
+    color: "#111827",
   },
 
   eyeButton: {
-    width: 36,
-    height: 42,
+    width: 32,
+    height: 40,
 
     alignItems: "center",
     justifyContent: "center",
   },
 
-
-  // ===========================================================
-  // ERROR
-  // ===========================================================
+  /* ================================================== */
+  /* ERROR */
+  /* ================================================== */
 
   errorContainer: {
-    width: "100%",
-
     flexDirection: "row",
+
     alignItems: "center",
 
-    padding: 11,
+    marginTop: 14,
 
-    marginBottom: 17,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
 
-    borderRadius: 13,
+    borderRadius: 10,
 
     backgroundColor: "#FEF2F2",
 
@@ -929,87 +653,72 @@ const styles = StyleSheet.create({
     borderColor: "#FECACA",
   },
 
-  errorIcon: {
-    width: 28,
-    height: 28,
-
-    borderRadius: 9,
-
-    alignItems: "center",
-    justifyContent: "center",
-
-    backgroundColor: "#FEE2E2",
-  },
-
   errorText: {
     flex: 1,
 
-    marginLeft: 9,
+    marginLeft: 8,
 
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: 11,
+    lineHeight: 16,
 
     color: "#B91C1C",
   },
 
-
-  // ===========================================================
-  // LOGIN BUTTON
-  // ===========================================================
+  /* ================================================== */
+  /* LOGIN BUTTON */
+  /* ================================================== */
 
   loginButton: {
     width: "100%",
-    minHeight: 58,
+    height: 56,
 
-    borderRadius: 15,
+    marginTop: 27,
 
-    paddingHorizontal: 7,
+    borderRadius: 12,
 
     backgroundColor: "#2563EB",
 
+    alignItems: "center",
+    justifyContent: "center",
+
     shadowColor: "#2563EB",
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
+
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+
     shadowOffset: {
       width: 0,
-      height: 6,
+      height: 5,
     },
 
     elevation: 4,
   },
 
   loginButtonContent: {
-    minHeight: 58,
+    width: "100%",
+    height: 56,
 
-    paddingLeft: 13,
+    paddingHorizontal: 20,
 
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-
-  loginButtonText: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: "#FFFFFF",
-  },
-
-  arrowContainer: {
-    width: 43,
-    height: 43,
-
-    borderRadius: 13,
 
     alignItems: "center",
     justifyContent: "center",
 
-    backgroundColor: "#FFFFFF",
+    gap: 12,
   },
 
-  loadingContainer: {
-    minHeight: 58,
+  loginButtonText: {
+    fontSize: 15,
 
+    fontWeight: "800",
+
+    color: "#FFFFFF",
+  },
+
+  loadingContent: {
     flexDirection: "row",
+
     alignItems: "center",
     justifyContent: "center",
 
@@ -1017,7 +726,7 @@ const styles = StyleSheet.create({
   },
 
   loginButtonPressed: {
-    opacity: 0.9,
+    opacity: 0.88,
 
     transform: [
       {
@@ -1030,18 +739,20 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
 
+  /* ================================================== */
+  /* REGISTER */
+  /* ================================================== */
 
-  // ===========================================================
-  // DIVIDER
-  // ===========================================================
+  registerSection: {
+    marginTop: 30,
+  },
 
-  dividerRow: {
-    width: "100%",
-
+  registerDivider: {
     flexDirection: "row",
+
     alignItems: "center",
 
-    marginVertical: 22,
+    width: "100%",
   },
 
   divider: {
@@ -1053,131 +764,86 @@ const styles = StyleSheet.create({
   },
 
   dividerText: {
-    marginHorizontal: 10,
+    marginHorizontal: 12,
 
-    fontSize: 8,
-    fontWeight: "900",
-
-    letterSpacing: 1.2,
+    fontSize: 10,
+    fontWeight: "700",
 
     color: "#94A3B8",
   },
 
+  registerQuestion: {
+    marginTop: 18,
 
-  // ===========================================================
-  // REGISTER
-  // ===========================================================
+    textAlign: "center",
+
+    fontSize: 12,
+
+    color: "#64748B",
+  },
 
   registerButton: {
     width: "100%",
-    minHeight: 67,
+    height: 50,
+
+    marginTop: 11,
 
     flexDirection: "row",
-    alignItems: "center",
-
-    paddingHorizontal: 11,
-
-    borderRadius: 15,
-
-    backgroundColor: "#FFFFFF",
-
-    borderWidth: 1,
-    borderColor: "#DBEAFE",
-  },
-
-  registerButtonPressed: {
-    opacity: 0.75,
-  },
-
-  registerIcon: {
-    width: 40,
-    height: 40,
-
-    borderRadius: 12,
 
     alignItems: "center",
     justifyContent: "center",
 
-    backgroundColor: "#EFF6FF",
+    gap: 8,
+
+    borderRadius: 11,
+
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+
+    backgroundColor: "#F8FBFF",
   },
 
-  registerContent: {
-    flex: 1,
-
-    marginLeft: 11,
-
-    paddingRight: 8,
+  registerButtonPressed: {
+    opacity: 0.7,
   },
 
-  registerTitle: {
+  registerButtonText: {
     fontSize: 13,
-    fontWeight: "800",
 
-    color: "#0F172A",
+    fontWeight: "700",
+
+    color: "#2563EB",
   },
 
-  registerSubtitle: {
-    marginTop: 3,
+  /* ================================================== */
+  /* FOOTER */
+  /* ================================================== */
+
+  footer: {
+    alignItems: "center",
+
+    marginTop: 32,
+  },
+
+  securityRow: {
+    flexDirection: "row",
+
+    alignItems: "center",
+  },
+
+  securityText: {
+    marginLeft: 6,
 
     fontSize: 10,
 
     color: "#64748B",
   },
 
-  registerArrow: {
-    width: 33,
-    height: 33,
-
-    borderRadius: 10,
-
-    alignItems: "center",
-    justifyContent: "center",
-
-    backgroundColor: "#EFF6FF",
-  },
-
-
-  // ===========================================================
-  // SECURITY
-  // ===========================================================
-
-  securityFooter: {
-    marginTop: 24,
-
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  securityIcon: {
-    width: 27,
-    height: 27,
-
-    borderRadius: 8,
-
-    alignItems: "center",
-    justifyContent: "center",
-
-    backgroundColor: "#E2E8F0",
-  },
-
-  securityText: {
-    marginLeft: 7,
-
-    fontSize: 10,
-    fontWeight: "600",
-
-    color: "#94A3B8",
-  },
-
   footerText: {
-    marginTop: 8,
-
-    textAlign: "center",
+    marginTop: 9,
 
     fontSize: 9,
 
     color: "#CBD5E1",
   },
-
 });
