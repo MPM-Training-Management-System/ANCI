@@ -77,13 +77,14 @@ export default function LoginPage() {
     );
   }
 
-  return (
-    <GoogleOAuthProvider
-      clientId={GOOGLE_CLIENT_ID}
-    >
-      <LoginPageContent />
-    </GoogleOAuthProvider>
-  );
+ return ( 
+  <GoogleOAuthProvider 
+    clientId={GOOGLE_CLIENT_ID}
+    locale="en"
+  > 
+    <LoginPageContent /> 
+  </GoogleOAuthProvider> 
+);
 }
 
 
@@ -1819,9 +1820,6 @@ if (
               )}
 
 
-              {/* ================================================= */}
-              {/* REGISTER */}
-              {/* ================================================= */}
 
               <div className="mt-8">
 

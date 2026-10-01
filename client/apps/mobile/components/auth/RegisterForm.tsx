@@ -41,7 +41,7 @@ import {
 
 import { authApi } from "@/api/api";
 
-type Step = 1 | 2 | 3;
+type Step = 1 | 2 | 3 | 4;
 
 type ProfileImage = {
   uri: string;
@@ -267,47 +267,19 @@ export default function RegisterForm() {
     error,
   } = useRegister(authApi);
 
-  const [step, setStep] = useState<Step>(1);
+  // ====================================================
+  // STEP
+  // ====================================================
 
-  // --------------------------------------------------
-  // PERSONAL INFORMATION
-  // --------------------------------------------------
+  const [step, setStep] =
+    useState<Step>(1);
 
-  const [firstName, setFirstName] =
-    useState("");
-
-  const [middleName, setMiddleName] =
-    useState("");
-
-  const [lastName, setLastName] =
-    useState("");
-
-  const [houseNumber, setHouseNumber] =
-    useState("");
-
-  const [province, setProvince] =
-    useState<LocationItem | null>(null);
-
-  const [municipality, setMunicipality] =
-    useState<LocationItem | null>(null);
-
-  const [barangay, setBarangay] =
-    useState<LocationItem | null>(null);
-
-  const [birthDate, setBirthDate] =
-    useState("");
-
-  const [gender, setGender] =
-    useState("");
-
-  // --------------------------------------------------
+  // ====================================================
   // ACCOUNT INFORMATION
-  // --------------------------------------------------
+  // STEP 1
+  // ====================================================
 
   const [email, setEmail] =
-    useState("");
-
-  const [mobileNumber, setMobileNumber] =
     useState("");
 
   const [password, setPassword] =
@@ -324,23 +296,68 @@ export default function RegisterForm() {
     setShowConfirmPassword,
   ] = useState(false);
 
-  // --------------------------------------------------
+  // ====================================================
+  // PERSONAL INFORMATION
+  // STEP 2
+  // ====================================================
+
+  const [firstName, setFirstName] =
+    useState("");
+
+  const [middleName, setMiddleName] =
+    useState("");
+
+  const [lastName, setLastName] =
+    useState("");
+
+  const [birthDate, setBirthDate] =
+    useState("");
+
+  const [gender, setGender] =
+    useState("");
+
+  // ====================================================
+  // ADDRESS INFORMATION
+  // STEP 3
+  // ====================================================
+
+  const [houseNumber, setHouseNumber] =
+    useState("");
+
+  const [province, setProvince] =
+    useState<LocationItem | null>(null);
+
+  const [municipality, setMunicipality] =
+    useState<LocationItem | null>(null);
+
+  const [barangay, setBarangay] =
+    useState<LocationItem | null>(null);
+
+  // ====================================================
+  // CONTACT INFORMATION
+  // ====================================================
+
+  const [mobileNumber, setMobileNumber] =
+    useState("");
+
+  // ====================================================
   // PROFILE IMAGE
-  // --------------------------------------------------
+  // STEP 4
+  // ====================================================
 
   const [profileImage, setProfileImage] =
     useState<ProfileImage | null>(null);
 
-  // --------------------------------------------------
+  // ====================================================
   // GOOGLE ID TOKEN
-  // --------------------------------------------------
+  // ====================================================
 
   const [googleIdToken, setGoogleIdToken] =
     useState<string | null>(null);
 
-  // --------------------------------------------------
+  // ====================================================
   // LOCATION DATA
-  // --------------------------------------------------
+  // ====================================================
 
   const [provinces, setProvinces] =
     useState<LocationItem[]>([]);
@@ -366,9 +383,9 @@ export default function RegisterForm() {
     setIsLoadingBarangays,
   ] = useState(false);
 
-  // --------------------------------------------------
+  // ====================================================
   // DROPDOWNS / MODALS
-  // --------------------------------------------------
+  // ====================================================
 
   const [activeDropdown, setActiveDropdown] =
     useState<
@@ -483,7 +500,8 @@ export default function RegisterForm() {
           );
         }
 
-        const data = await response.json();
+        const data =
+          await response.json();
 
         const formatted: LocationItem[] =
           data
@@ -557,7 +575,8 @@ export default function RegisterForm() {
           );
         }
 
-        const data = await response.json();
+        const data =
+          await response.json();
 
         const formatted: LocationItem[] =
           data
@@ -580,7 +599,9 @@ export default function RegisterForm() {
                 )
             );
 
-        setMunicipalities(formatted);
+        setMunicipalities(
+          formatted
+        );
       } catch (error) {
         console.error(
           "LOAD MUNICIPALITIES ERROR:",
@@ -625,7 +646,8 @@ export default function RegisterForm() {
           );
         }
 
-        const data = await response.json();
+        const data =
+          await response.json();
 
         const formatted: LocationItem[] =
           data
@@ -674,21 +696,22 @@ export default function RegisterForm() {
   // ADDRESS
   // ==================================================
 
-  const formattedAddress = useMemo(() => {
-    const parts = [
-      houseNumber.trim(),
-      barangay?.name,
-      municipality?.name,
-      province?.name,
-    ].filter(Boolean);
+  const formattedAddress =
+    useMemo(() => {
+      const parts = [
+        houseNumber.trim(),
+        barangay?.name,
+        municipality?.name,
+        province?.name,
+      ].filter(Boolean);
 
-    return parts.join(", ");
-  }, [
-    houseNumber,
-    barangay,
-    municipality,
-    province,
-  ]);
+      return parts.join(", ");
+    }, [
+      houseNumber,
+      barangay,
+      municipality,
+      province,
+    ]);
 
   // ==================================================
   // PROFILE IMAGE
@@ -785,33 +808,34 @@ export default function RegisterForm() {
     setShowDatePicker(false);
   };
 
-  const parsedBirthDate = useMemo(() => {
-    if (!birthDate) {
-      return new Date(
-        new Date().getFullYear() - 18,
-        0,
-        1
+  const parsedBirthDate =
+    useMemo(() => {
+      if (!birthDate) {
+        return new Date(
+          new Date().getFullYear() - 18,
+          0,
+          1
+        );
+      }
+
+      const date = new Date(
+        `${birthDate}T00:00:00`
       );
-    }
 
-    const date = new Date(
-      `${birthDate}T00:00:00`
-    );
+      if (
+        Number.isNaN(
+          date.getTime()
+        )
+      ) {
+        return new Date(
+          new Date().getFullYear() - 18,
+          0,
+          1
+        );
+      }
 
-    if (
-      Number.isNaN(
-        date.getTime()
-      )
-    ) {
-      return new Date(
-        new Date().getFullYear() - 18,
-        0,
-        1
-      );
-    }
-
-    return date;
-  }, [birthDate]);
+      return date;
+    }, [birthDate]);
 
   const formattedBirthDate =
     useMemo(() => {
@@ -842,78 +866,18 @@ export default function RegisterForm() {
     }, [birthDate]);
 
   // ==================================================
-  // VALIDATION
+  // VALIDATION - STEP 1
+  // ACCOUNT
   // ==================================================
 
   const validateStepOne = () => {
-    setLocalError("");
-
-    if (!firstName.trim()) {
-      setLocalError(
-        "Please enter your first name."
-      );
-      return false;
-    }
-
-    if (!lastName.trim()) {
-      setLocalError(
-        "Please enter your last name."
-      );
-      return false;
-    }
-
-    if (!houseNumber.trim()) {
-      setLocalError(
-        "Please enter your house number or street."
-      );
-      return false;
-    }
-
-    if (!province) {
-      setLocalError(
-        "Please select your province."
-      );
-      return false;
-    }
-
-    if (!municipality) {
-      setLocalError(
-        "Please select your municipality or city."
-      );
-      return false;
-    }
-
-    if (!barangay) {
-      setLocalError(
-        "Please select your barangay."
-      );
-      return false;
-    }
-
-    if (!birthDate) {
-      setLocalError(
-        "Please select your birth date."
-      );
-      return false;
-    }
-
-    if (!gender) {
-      setLocalError(
-        "Please select your gender."
-      );
-      return false;
-    }
-
-    return true;
-  };
-
-  const validateStepTwo = () => {
     setLocalError("");
 
     if (!email.trim()) {
       setLocalError(
         "Please enter your email address."
       );
+
       return false;
     }
 
@@ -928,26 +892,15 @@ export default function RegisterForm() {
       setLocalError(
         "Please enter a valid email address."
       );
+
       return false;
     }
-
-    if (!mobileNumber.trim()) {
-      setLocalError(
-        "Please enter your mobile number."
-      );
-      return false;
-    }
-
-    return true;
-  };
-
-  const validateStepThree = () => {
-    setLocalError("");
 
     if (!password) {
       setLocalError(
         "Please enter a password."
       );
+
       return false;
     }
 
@@ -955,6 +908,7 @@ export default function RegisterForm() {
       setLocalError(
         "Password must be at least 8 characters."
       );
+
       return false;
     }
 
@@ -962,6 +916,7 @@ export default function RegisterForm() {
       setLocalError(
         "Please confirm your password."
       );
+
       return false;
     }
 
@@ -972,12 +927,9 @@ export default function RegisterForm() {
       setLocalError(
         "Passwords do not match."
       );
+
       return false;
     }
-
-    // ----------------------------------------------
-    // GOOGLE REGISTRATION TOKEN VALIDATION
-    // ----------------------------------------------
 
     if (
       isGoogleRegistration &&
@@ -989,6 +941,124 @@ export default function RegisterForm() {
 
       return false;
     }
+
+    return true;
+  };
+
+  // ==================================================
+  // VALIDATION - STEP 2
+  // PERSONAL INFORMATION
+  // ==================================================
+
+  const validateStepTwo = () => {
+    setLocalError("");
+
+    if (!firstName.trim()) {
+      setLocalError(
+        "Please enter your first name."
+      );
+
+      return false;
+    }
+
+    if (!lastName.trim()) {
+      setLocalError(
+        "Please enter your last name."
+      );
+
+      return false;
+    }
+
+    if (!birthDate) {
+      setLocalError(
+        "Please select your birth date."
+      );
+
+      return false;
+    }
+
+    if (!gender) {
+      setLocalError(
+        "Please select your gender."
+      );
+
+      return false;
+    }
+
+    return true;
+  };
+
+  // ==================================================
+  // VALIDATION - STEP 3
+  // ADDRESS
+  // ==================================================
+
+  const validateStepThree = () => {
+    setLocalError("");
+
+    if (!houseNumber.trim()) {
+      setLocalError(
+        "Please enter your house number or street."
+      );
+
+      return false;
+    }
+
+    if (!province) {
+      setLocalError(
+        "Please select your province."
+      );
+
+      return false;
+    }
+
+    if (!municipality) {
+      setLocalError(
+        "Please select your municipality or city."
+      );
+
+      return false;
+    }
+
+    if (!barangay) {
+      setLocalError(
+        "Please select your barangay."
+      );
+
+      return false;
+    }
+
+    if (!mobileNumber.trim()) {
+      setLocalError(
+        "Please enter your mobile number."
+      );
+
+      return false;
+    }
+
+    return true;
+  };
+
+  // ==================================================
+  // VALIDATION - STEP 4
+  // PROFILE
+  // ==================================================
+
+  const validateStepFour = () => {
+    setLocalError("");
+
+    // Profile picture is optional.
+    // If you want it required, uncomment this.
+
+    /*
+    if (!profileImage) {
+      setLocalError(
+        "Please select a profile picture."
+      );
+
+      return false;
+    }
+    */
 
     return true;
   };
@@ -1013,6 +1083,16 @@ export default function RegisterForm() {
       }
 
       setStep(3);
+      return;
+    }
+
+    if (step === 3) {
+      if (!validateStepThree()) {
+        return;
+      }
+
+      setStep(4);
+      return;
     }
   };
 
@@ -1034,189 +1114,203 @@ export default function RegisterForm() {
       return;
     }
 
-    setStep((current) =>
-      current === 3
-        ? 2
-        : 1
-    );
+    setStep((current) => {
+      if (current === 4) {
+        return 3;
+      }
+
+      if (current === 3) {
+        return 2;
+      }
+
+      return 1;
+    });
   };
+// ==================================================
+// REGISTER
+// ==================================================
 
-  // ==================================================
-  // REGISTER
-  // ==================================================
+const handleRegister = async () => {
+  if (!validateStepFour()) {
+    return;
+  }
 
-  const handleRegister = async () => {
-    if (!validateStepThree()) {
+  try {
+    const normalizedEmail =
+      email.trim().toLowerCase();
+
+    const values: RegisterFormValues = {
+      firstName: firstName.trim(),
+      middleName: middleName.trim(),
+      lastName: lastName.trim(),
+      address: formattedAddress,
+      birthDate,
+      gender,
+      email: normalizedEmail,
+      mobileNumber: mobileNumber.trim(),
+      password,
+      profileImage: profileImage ?? undefined,
+      googleIdToken: isGoogleRegistration
+        ? googleIdToken ?? undefined
+        : undefined,
+    };
+
+    console.log(
+      "========================================"
+    );
+
+    console.log(
+      "PARTICIPANT REGISTRATION"
+    );
+
+    console.log(
+      "Google Registration:",
+      isGoogleRegistration
+    );
+
+    console.log(
+      "Google ID Token:",
+      googleIdToken
+        ? `FOUND (${googleIdToken.length} chars)`
+        : "NOT USED"
+    );
+
+    console.log(
+      "Email:",
+      values.email
+    );
+
+    console.log(
+      "First Name:",
+      values.firstName
+    );
+
+    console.log(
+      "Last Name:",
+      values.lastName
+    );
+
+    console.log(
+      "Address:",
+      values.address
+    );
+
+    console.log(
+      "Profile Image:",
+      values.profileImage
+        ? values.profileImage.uri
+        : "NONE"
+    );
+
+    console.log(
+      "========================================"
+    );
+
+    // =================================================
+    // CREATE ACCOUNT
+    // =================================================
+
+    const response =
+      await register(values);
+
+    if (!response) {
       return;
     }
 
-    try {
-      const values: RegisterFormValues = {
-        firstName:
-          firstName.trim(),
+    console.log(
+      "REGISTRATION SUCCESSFUL"
+    );
 
-        middleName:
-          middleName.trim(),
+    // =================================================
+    // SEND OTP AFTER SUCCESSFUL REGISTRATION
+    // =================================================
 
-        lastName:
-          lastName.trim(),
+    console.log(
+      "SENDING OTP TO:",
+      normalizedEmail
+    );
 
-        address:
-          formattedAddress,
+    const otpResponse =
+      await authApi.sendOtp({
+        email: normalizedEmail,
+      });
 
-        birthDate,
+    console.log(
+      "SEND OTP RESPONSE:",
+      otpResponse
+    );
 
-        gender,
-
-        email:
-          email
-            .trim()
-            .toLowerCase(),
-
-        mobileNumber:
-          mobileNumber.trim(),
-
-        password,
-
-        profileImage:
-          profileImage ?? undefined,
-
-        // --------------------------------------------
-        // GOOGLE REGISTRATION
-        // --------------------------------------------
-
-        googleIdToken:
-          isGoogleRegistration
-            ? googleIdToken ??
-              undefined
-            : undefined,
-      };
-
-      console.log(
-        "========================================"
-      );
-
-      console.log(
-        "PARTICIPANT REGISTRATION"
-      );
-
-      console.log(
-        "Google Registration:",
-        isGoogleRegistration
-      );
-
-      console.log(
-        "Google ID Token:",
-        googleIdToken
-          ? `FOUND (${googleIdToken.length} chars)`
-          : "NOT USED"
-      );
-
-      console.log(
-        "Email:",
-        values.email
-      );
-
-      console.log(
-        "Profile Image:",
-        values.profileImage
-          ? values.profileImage.uri
-          : "NONE"
-      );
-
-      console.log(
-        "========================================"
-      );
-
-      const response =
-        await register(values);
-
-      if (!response) {
-        return;
-      }
-
-      // =================================================
-      // GOOGLE TOKEN CLEANUP
-      // =================================================
-
-      if (isGoogleRegistration) {
-        try {
-          await SecureStore.deleteItemAsync(
-            GOOGLE_REGISTRATION_TOKEN_KEY
-          );
-
-          console.log(
-            "GOOGLE REGISTRATION: temporary token deleted."
-          );
-        } catch (error) {
-          console.error(
-            "GOOGLE TOKEN CLEANUP ERROR:",
-            error
-          );
-        }
-      }
-
-      // =================================================
-      // SEND OTP
-      // =================================================
-
-      const otpResponse =
-        await authApi.sendOtp({
-          email:
-            email
-              .trim()
-              .toLowerCase(),
-        });
-
-      if (!otpResponse) {
-        Alert.alert(
-          "Registration Successful",
-          "Your account was created, but we could not send the verification code. Please try again."
-        );
-
-        return;
-      }
-
-      // =================================================
-      // SUCCESS
-      // =================================================
-
+    if (!otpResponse) {
       Alert.alert(
         "Registration Successful",
-        isGoogleRegistration
-          ? "Your account has been created with Google. Please verify your email address."
-          : "Your account has been created. Please verify your email address.",
-        [
-          {
-            text: "Continue",
-            onPress: () =>
-              router.push({
-                pathname:
-                  "/(auth)/otp-verification",
-                params: {
-                  email:
-                    email
-                      .trim()
-                      .toLowerCase(),
-                },
-              }),
-          },
-        ]
-      );
-    } catch (error) {
-      console.error(
-        "REGISTER ERROR:",
-        error
+        "Your account was created successfully, but we could not send the verification code. Please try sending the code again."
       );
 
-      Alert.alert(
-        "Registration Failed",
-        error instanceof Error
-          ? error.message
-          : "Unable to create your account. Please try again."
-      );
+      return;
     }
-  };
+
+    console.log(
+      "OTP SENT SUCCESSFULLY"
+    );
+
+    // =================================================
+    // GOOGLE TOKEN CLEANUP
+    // =================================================
+
+    if (isGoogleRegistration) {
+      try {
+        await SecureStore.deleteItemAsync(
+          GOOGLE_REGISTRATION_TOKEN_KEY
+        );
+
+        console.log(
+          "GOOGLE REGISTRATION: temporary token deleted."
+        );
+      } catch (error) {
+        console.error(
+          "GOOGLE TOKEN CLEANUP ERROR:",
+          error
+        );
+      }
+    }
+
+    // =================================================
+    // GO TO OTP VERIFICATION
+    // =================================================
+
+    Alert.alert(
+      "Registration Successful",
+      isGoogleRegistration
+        ? "Your account has been created with Google. A verification code has been sent to your email."
+        : "Your account has been created. A verification code has been sent to your email.",
+      [
+        {
+          text: "Continue",
+          onPress: () =>
+            router.push({
+              pathname:
+                "/(auth)/otp-verification",
+              params: {
+                email: normalizedEmail,
+              },
+            }),
+        },
+      ]
+    );
+  } catch (error) {
+    console.error(
+      "REGISTER ERROR:",
+      error
+    );
+
+    Alert.alert(
+      "Registration Failed",
+      error instanceof Error
+        ? error.message
+        : "Unable to create your account. Please try again."
+    );
+  }
+};
 
   // ==================================================
   // LOCATION MODAL
@@ -1279,6 +1373,7 @@ export default function RegisterForm() {
       handleMunicipalitySelect(
         item
       );
+
       return;
     }
 
@@ -1326,9 +1421,9 @@ export default function RegisterForm() {
             styles.scrollContent
           }
         >
-          {/* -------------------------------- */}
+          {/* ================================= */}
           {/* HEADER */}
-          {/* -------------------------------- */}
+          {/* ================================= */}
 
           <View style={styles.header}>
             <View style={styles.logoRow}>
@@ -1351,9 +1446,9 @@ export default function RegisterForm() {
             </View>
           </View>
 
-          {/* -------------------------------- */}
+          {/* ================================= */}
           {/* TITLE */}
-          {/* -------------------------------- */}
+          {/* ================================= */}
 
           <View style={styles.content}>
             <Text
@@ -1374,16 +1469,16 @@ export default function RegisterForm() {
               }
             </Text>
 
-            {/* -------------------------------- */}
+            {/* ================================= */}
             {/* STEP INDICATOR */}
-            {/* -------------------------------- */}
+            {/* ================================= */}
 
             <View
               style={
                 styles.stepIndicator
               }
             >
-              {[1, 2, 3].map(
+              {[1, 2, 3, 4].map(
                 (item, index) => {
                   const isActive =
                     item === step;
@@ -1423,7 +1518,7 @@ export default function RegisterForm() {
                         )}
                       </View>
 
-                      {index < 2 && (
+                      {index < 3 && (
                         <View
                           style={[
                             styles.stepLine,
@@ -1479,21 +1574,253 @@ export default function RegisterForm() {
                         styles.googleInfoText
                       }
                     >
-                      Your Google name, email,
-                      and profile picture have
-                      been filled in automatically.
-                      Please complete the remaining
-                      information.
+                      Your Google email,
+                      name, and profile
+                      picture have been
+                      filled in automatically.
+                      Please complete the
+                      remaining information.
                     </Text>
                   </View>
                 </View>
               )}
 
             {/* ================================= */}
-            {/* STEP 1 */}
+            {/* STEP 1 - ACCOUNT INFORMATION */}
             {/* ================================= */}
 
             {step === 1 && (
+              <>
+                <Input
+                  label="Email"
+                  icon="mail-outline"
+                  value={email}
+                  onChangeText={
+                    setEmail
+                  }
+                  placeholder="you@email.com"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  editable={
+                    !isLoading &&
+                    !isGoogleRegistration
+                  }
+                />
+
+                <Input
+                  label="Password"
+                  icon="lock-closed-outline"
+                  value={password}
+                  onChangeText={
+                    setPassword
+                  }
+                  placeholder="Enter your password"
+                  secureTextEntry={
+                    !showPassword
+                  }
+                  autoCapitalize="none"
+                  editable={!isLoading}
+                  rightElement={
+                    <Pressable
+                      onPress={() =>
+                        setShowPassword(
+                          (value) =>
+                            !value
+                        )
+                      }
+                      disabled={
+                        isLoading
+                      }
+                      hitSlop={10}
+                      style={
+                        styles.eyeButton
+                      }
+                    >
+                      <Ionicons
+                        name={
+                          showPassword
+                            ? "eye-off-outline"
+                            : "eye-outline"
+                        }
+                        size={21}
+                        color="#718096"
+                      />
+                    </Pressable>
+                  }
+                />
+
+                <Input
+                  label="Confirm Password"
+                  icon="lock-closed-outline"
+                  value={
+                    confirmPassword
+                  }
+                  onChangeText={
+                    setConfirmPassword
+                  }
+                  placeholder="Confirm your password"
+                  secureTextEntry={
+                    !showConfirmPassword
+                  }
+                  autoCapitalize="none"
+                  editable={!isLoading}
+                  rightElement={
+                    <Pressable
+                      onPress={() =>
+                        setShowConfirmPassword(
+                          (value) =>
+                            !value
+                        )
+                      }
+                      disabled={
+                        isLoading
+                      }
+                      hitSlop={10}
+                      style={
+                        styles.eyeButton
+                      }
+                    >
+                      <Ionicons
+                        name={
+                          showConfirmPassword
+                            ? "eye-off-outline"
+                            : "eye-outline"
+                        }
+                        size={21}
+                        color="#718096"
+                      />
+                    </Pressable>
+                  }
+                />
+
+                <View
+                  style={
+                    styles.passwordRules
+                  }
+                >
+                  <Text
+                    style={
+                      styles.passwordRulesTitle
+                    }
+                  >
+                    Password requirements
+                  </Text>
+
+                  <View
+                    style={
+                      styles.ruleRow
+                    }
+                  >
+                    <Ionicons
+                      name={
+                        password.length >=
+                        8
+                          ? "checkmark-circle"
+                          : "ellipse-outline"
+                      }
+                      size={17}
+                      color={
+                        password.length >=
+                        8
+                          ? "#16A34A"
+                          : "#94A3B8"
+                      }
+                    />
+
+                    <Text
+                      style={
+                        styles.ruleText
+                      }
+                    >
+                      At least 8 characters
+                    </Text>
+                  </View>
+
+                  <View
+                    style={
+                      styles.ruleRow
+                    }
+                  >
+                    <Ionicons
+                      name={
+                        password &&
+                        confirmPassword &&
+                        password ===
+                          confirmPassword
+                          ? "checkmark-circle"
+                          : "ellipse-outline"
+                      }
+                      size={17}
+                      color={
+                        password &&
+                        confirmPassword &&
+                        password ===
+                          confirmPassword
+                          ? "#16A34A"
+                          : "#94A3B8"
+                      }
+                    />
+
+                    <Text
+                      style={
+                        styles.ruleText
+                      }
+                    >
+                      Passwords match
+                    </Text>
+                  </View>
+                </View>
+
+                {isGoogleRegistration && (
+                  <View
+                    style={
+                      styles.googleEmailNote
+                    }
+                  >
+                    <Ionicons
+                      name="logo-google"
+                      size={16}
+                      color="#2563EB"
+                    />
+
+                    <Text
+                      style={
+                        styles.googleEmailNoteText
+                      }
+                    >
+                      This email is linked
+                      to your Google
+                      account.
+                    </Text>
+                  </View>
+                )}
+
+                <View
+                  style={styles.infoBox}
+                >
+                  <Ionicons
+                    name="information-circle-outline"
+                    size={20}
+                    color="#2563EB"
+                  />
+
+                  <Text
+                    style={styles.infoText}
+                  >
+                    Your email and
+                    password will be used
+                    to access your
+                    participant account.
+                  </Text>
+                </View>
+              </>
+            )}
+
+            {/* ================================= */}
+            {/* STEP 2 - PERSONAL INFORMATION */}
+            {/* ================================= */}
+
+            {step === 2 && (
               <>
                 <View
                   style={styles.nameRow}
@@ -1557,6 +1884,141 @@ export default function RegisterForm() {
                   editable={!isLoading}
                 />
 
+                {/* GENDER */}
+
+                <View
+                  style={styles.field}
+                >
+                  <Text
+                    style={styles.label}
+                  >
+                    Gender
+                  </Text>
+
+                  <Pressable
+                    onPress={() =>
+                      setShowGenderDropdown(
+                        true
+                      )
+                    }
+                    disabled={isLoading}
+                    style={({ pressed }) => [
+                      styles.inputWrapper,
+                      gender &&
+                        styles.inputWrapperActive,
+                      pressed &&
+                        styles.dropdownPressed,
+                    ]}
+                  >
+                    <Ionicons
+                      name="male-female-outline"
+                      size={20}
+                      color="#2563EB"
+                      style={
+                        styles.inputIcon
+                      }
+                    />
+
+                    <Text
+                      style={[
+                        styles.dropdownText,
+                        !gender &&
+                          styles.dropdownPlaceholder,
+                      ]}
+                    >
+                      {gender ||
+                        "Select gender"}
+                    </Text>
+
+                    <Ionicons
+                      name="chevron-down"
+                      size={19}
+                      color="#64748B"
+                    />
+                  </Pressable>
+                </View>
+
+                {/* BIRTH DATE */}
+
+                <View
+                  style={styles.field}
+                >
+                  <Text
+                    style={styles.label}
+                  >
+                    Birth Date
+                  </Text>
+
+                  <Pressable
+                    onPress={() =>
+                      setShowDatePicker(
+                        true
+                      )
+                    }
+                    disabled={isLoading}
+                    style={({ pressed }) => [
+                      styles.inputWrapper,
+                      birthDate &&
+                        styles.inputWrapperActive,
+                      pressed &&
+                        styles.dropdownPressed,
+                    ]}
+                  >
+                    <Ionicons
+                      name="calendar-outline"
+                      size={20}
+                      color="#2563EB"
+                      style={
+                        styles.inputIcon
+                      }
+                    />
+
+                    <Text
+                      style={[
+                        styles.dropdownText,
+                        !birthDate &&
+                          styles.dropdownPlaceholder,
+                      ]}
+                    >
+                      {formattedBirthDate ||
+                        "Select birth date"}
+                    </Text>
+
+                    <Ionicons
+                      name="chevron-down"
+                      size={19}
+                      color="#64748B"
+                    />
+                  </Pressable>
+                </View>
+
+                <View
+                  style={styles.infoBox}
+                >
+                  <Ionicons
+                    name="information-circle-outline"
+                    size={20}
+                    color="#2563EB"
+                  />
+
+                  <Text
+                    style={styles.infoText}
+                  >
+                    Please make sure your
+                    personal information
+                    matches your valid
+                    identification details.
+                  </Text>
+                </View>
+              </>
+            )}
+
+            {/* ================================= */}
+            {/* STEP 3 - ADDRESS */}
+            {/* ================================= */}
+
+            {step === 3 && (
+              <>
                 <Input
                   label="House Number / Street"
                   icon="home-outline"
@@ -1644,115 +2106,110 @@ export default function RegisterForm() {
                   }
                 />
 
-                {/* BIRTH DATE */}
+                <Input
+                  label="Mobile Number"
+                  icon="phone-portrait-outline"
+                  value={
+                    mobileNumber
+                  }
+                  onChangeText={
+                    setMobileNumber
+                  }
+                  placeholder="09XXXXXXXXX"
+                  keyboardType="phone-pad"
+                  autoCapitalize="none"
+                  editable={!isLoading}
+                />
+
+                {formattedAddress ? (
+                  <View
+                    style={
+                      styles.addressPreview
+                    }
+                  >
+                    <Ionicons
+                      name="navigate-outline"
+                      size={18}
+                      color="#2563EB"
+                    />
+
+                    <View
+                      style={
+                        styles.addressContent
+                      }
+                    >
+                      <Text
+                        style={
+                          styles.addressLabel
+                        }
+                      >
+                        Address Preview
+                      </Text>
+
+                      <Text
+                        style={
+                          styles.addressText
+                        }
+                      >
+                        {
+                          formattedAddress
+                        }
+                      </Text>
+                    </View>
+                  </View>
+                ) : null}
 
                 <View
-                  style={styles.field}
+                  style={styles.infoBox}
                 >
+                  <Ionicons
+                    name="information-circle-outline"
+                    size={20}
+                    color="#2563EB"
+                  />
+
                   <Text
-                    style={styles.label}
+                    style={styles.infoText}
                   >
-                    Birth Date
+                    Your address will be
+                    used for your
+                    participant profile
+                    and official training
+                    records.
                   </Text>
-
-                  <Pressable
-                    onPress={() =>
-                      setShowDatePicker(
-                        true
-                      )
-                    }
-                    disabled={isLoading}
-                    style={({ pressed }) => [
-                      styles.inputWrapper,
-                      birthDate &&
-                        styles.inputWrapperActive,
-                      pressed &&
-                        styles.dropdownPressed,
-                    ]}
-                  >
-                    <Ionicons
-                      name="calendar-outline"
-                      size={20}
-                      color="#2563EB"
-                      style={
-                        styles.inputIcon
-                      }
-                    />
-
-                    <Text
-                      style={[
-                        styles.dropdownText,
-                        !birthDate &&
-                          styles.dropdownPlaceholder,
-                      ]}
-                    >
-                      {formattedBirthDate ||
-                        "Select birth date"}
-                    </Text>
-
-                    <Ionicons
-                      name="chevron-down"
-                      size={19}
-                      color="#64748B"
-                    />
-                  </Pressable>
                 </View>
+              </>
+            )}
 
-                {/* GENDER */}
+            {/* ================================= */}
+            {/* STEP 4 - PROFILE PICTURE */}
+            {/* ================================= */}
 
+            {step === 4 && (
+              <>
                 <View
-                  style={styles.field}
+                  style={
+                    styles.profileIntro
+                  }
                 >
                   <Text
-                    style={styles.label}
+                    style={
+                      styles.profileIntroTitle
+                    }
                   >
-                    Gender
+                    Add your profile picture
                   </Text>
 
-                  <Pressable
-                    onPress={() =>
-                      setShowGenderDropdown(
-                        true
-                      )
+                  <Text
+                    style={
+                      styles.profileIntroText
                     }
-                    disabled={isLoading}
-                    style={({ pressed }) => [
-                      styles.inputWrapper,
-                      gender &&
-                        styles.inputWrapperActive,
-                      pressed &&
-                        styles.dropdownPressed,
-                    ]}
                   >
-                    <Ionicons
-                      name="male-female-outline"
-                      size={20}
-                      color="#2563EB"
-                      style={
-                        styles.inputIcon
-                      }
-                    />
-
-                    <Text
-                      style={[
-                        styles.dropdownText,
-                        !gender &&
-                          styles.dropdownPlaceholder,
-                      ]}
-                    >
-                      {gender ||
-                        "Select gender"}
-                    </Text>
-
-                    <Ionicons
-                      name="chevron-down"
-                      size={19}
-                      color="#64748B"
-                    />
-                  </Pressable>
+                    Upload a clear photo so
+                    your profile can be easily
+                    identified.
+                  </Text>
                 </View>
-
-                {/* PROFILE IMAGE */}
 
                 <View
                   style={
@@ -1833,305 +2290,100 @@ export default function RegisterForm() {
                   </Pressable>
                 </View>
 
-                {/* ADDRESS */}
-
-                {formattedAddress ? (
-                  <View
-                    style={
-                      styles.addressPreview
-                    }
-                  >
-                    <Ionicons
-                      name="navigate-outline"
-                      size={18}
-                      color="#2563EB"
-                    />
-
-                    <View
-                      style={
-                        styles.addressContent
-                      }
-                    >
-                      <Text
-                        style={
-                          styles.addressLabel
-                        }
-                      >
-                        Address Preview
-                      </Text>
-
-                      <Text
-                        style={
-                          styles.addressText
-                        }
-                      >
-                        {
-                          formattedAddress
-                        }
-                      </Text>
-                    </View>
-                  </View>
-                ) : null}
-              </>
-            )}
-
-            {/* ================================= */}
-            {/* STEP 2 */}
-            {/* ================================= */}
-
-            {step === 2 && (
-              <>
-                <Input
-                  label="Email"
-                  icon="mail-outline"
-                  value={email}
-                  onChangeText={
-                    setEmail
-                  }
-                  placeholder="you@email.com"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  editable={
-                    !isLoading &&
-                    !isGoogleRegistration
-                  }
-                />
-
-                <Input
-                  label="Mobile Number"
-                  icon="phone-portrait-outline"
-                  value={
-                    mobileNumber
-                  }
-                  onChangeText={
-                    setMobileNumber
-                  }
-                  placeholder="09XXXXXXXXX"
-                  keyboardType="phone-pad"
-                  autoCapitalize="none"
-                  editable={!isLoading}
-                />
-
-                {isGoogleRegistration && (
-                  <View
-                    style={
-                      styles.googleEmailNote
-                    }
-                  >
-                    <Ionicons
-                      name="logo-google"
-                      size={16}
-                      color="#2563EB"
-                    />
-
-                    <Text
-                      style={
-                        styles.googleEmailNoteText
-                      }
-                    >
-                      This email is linked to
-                      your Google account.
-                    </Text>
-                  </View>
-                )}
-
-                <View
-                  style={styles.infoBox}
-                >
-                  <Ionicons
-                    name="information-circle-outline"
-                    size={20}
-                    color="#2563EB"
-                  />
-
-                  <Text
-                    style={styles.infoText}
-                  >
-                    Make sure your email
-                    address and mobile
-                    number are active.
-                    We may use them for
-                    account verification
-                    and important
-                    notifications.
-                  </Text>
-                </View>
-              </>
-            )}
-
-            {/* ================================= */}
-            {/* STEP 3 */}
-            {/* ================================= */}
-
-            {step === 3 && (
-              <>
-                <Input
-                  label="Password"
-                  icon="lock-closed-outline"
-                  value={password}
-                  onChangeText={
-                    setPassword
-                  }
-                  placeholder="Enter your password"
-                  secureTextEntry={
-                    !showPassword
-                  }
-                  autoCapitalize="none"
-                  editable={!isLoading}
-                  rightElement={
-                    <Pressable
-                      onPress={() =>
-                        setShowPassword(
-                          (value) =>
-                            !value
-                        )
-                      }
-                      disabled={
-                        isLoading
-                      }
-                      hitSlop={10}
-                      style={
-                        styles.eyeButton
-                      }
-                    >
-                      <Ionicons
-                        name={
-                          showPassword
-                            ? "eye-off-outline"
-                            : "eye-outline"
-                        }
-                        size={21}
-                        color="#718096"
-                      />
-                    </Pressable>
-                  }
-                />
-
-                <Input
-                  label="Confirm Password"
-                  icon="lock-closed-outline"
-                  value={
-                    confirmPassword
-                  }
-                  onChangeText={
-                    setConfirmPassword
-                  }
-                  placeholder="Confirm your password"
-                  secureTextEntry={
-                    !showConfirmPassword
-                  }
-                  autoCapitalize="none"
-                  editable={!isLoading}
-                  rightElement={
-                    <Pressable
-                      onPress={() =>
-                        setShowConfirmPassword(
-                          (value) =>
-                            !value
-                        )
-                      }
-                      disabled={
-                        isLoading
-                      }
-                      hitSlop={10}
-                      style={
-                        styles.eyeButton
-                      }
-                    >
-                      <Ionicons
-                        name={
-                          showConfirmPassword
-                            ? "eye-off-outline"
-                            : "eye-outline"
-                        }
-                        size={21}
-                        color="#718096"
-                      />
-                    </Pressable>
-                  }
-                />
-
-                {/* PASSWORD RULES */}
-
                 <View
                   style={
-                    styles.passwordRules
+                    styles.accountSummary
                   }
                 >
-                  <Text
-                    style={
-                      styles.passwordRulesTitle
-                    }
-                  >
-                    Password requirements
-                  </Text>
-
                   <View
                     style={
-                      styles.ruleRow
+                      styles.summaryHeader
                     }
                   >
                     <Ionicons
-                      name={
-                        password.length >=
-                        8
-                          ? "checkmark-circle"
-                          : "ellipse-outline"
-                      }
-                      size={17}
-                      color={
-                        password.length >=
-                        8
-                          ? "#16A34A"
-                          : "#94A3B8"
-                      }
+                      name="checkmark-circle-outline"
+                      size={19}
+                      color="#16A34A"
                     />
 
                     <Text
                       style={
-                        styles.ruleText
+                        styles.summaryTitle
                       }
                     >
-                      At least 8 characters
+                      Registration Summary
                     </Text>
                   </View>
 
                   <View
                     style={
-                      styles.ruleRow
+                      styles.summaryRow
                     }
                   >
-                    <Ionicons
-                      name={
-                        password &&
-                        confirmPassword &&
-                        password ===
-                          confirmPassword
-                          ? "checkmark-circle"
-                          : "ellipse-outline"
+                    <Text
+                      style={
+                        styles.summaryLabel
                       }
-                      size={17}
-                      color={
-                        password &&
-                        confirmPassword &&
-                        password ===
-                          confirmPassword
-                          ? "#16A34A"
-                          : "#94A3B8"
-                      }
-                    />
+                    >
+                      Name
+                    </Text>
 
                     <Text
                       style={
-                        styles.ruleText
+                        styles.summaryValue
                       }
                     >
-                      Passwords match
+                      {firstName}{" "}
+                      {lastName}
+                    </Text>
+                  </View>
+
+                  <View
+                    style={
+                      styles.summaryRow
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.summaryLabel
+                      }
+                    >
+                      Email
+                    </Text>
+
+                    <Text
+                      style={
+                        styles.summaryValue
+                      }
+                      numberOfLines={1}
+                    >
+                      {email}
+                    </Text>
+                  </View>
+
+                  <View
+                    style={
+                      styles.summaryRow
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.summaryLabel
+                      }
+                    >
+                      Address
+                    </Text>
+
+                    <Text
+                      style={
+                        styles.summaryValue
+                      }
+                      numberOfLines={2}
+                    >
+                      {formattedAddress}
                     </Text>
                   </View>
                 </View>
-
-                {/* SECURITY */}
 
                 <View
                   style={
@@ -2149,19 +2401,19 @@ export default function RegisterForm() {
                       styles.securityBoxText
                     }
                   >
-                    Your password is
-                    securely protected
-                    and will be used to
-                    access your
-                    participant account.
+                    Your account information
+                    is securely protected.
+                    Review your details before
+                    creating your participant
+                    account.
                   </Text>
                 </View>
               </>
             )}
 
-            {/* -------------------------------- */}
+            {/* ================================= */}
             {/* ERROR */}
-            {/* -------------------------------- */}
+            {/* ================================= */}
 
             {displayError ? (
               <View
@@ -2183,9 +2435,9 @@ export default function RegisterForm() {
               </View>
             ) : null}
 
-            {/* -------------------------------- */}
+            {/* ================================= */}
             {/* ACTION BUTTONS */}
-            {/* -------------------------------- */}
+            {/* ================================= */}
 
             <View
               style={styles.actionArea}
@@ -2218,7 +2470,7 @@ export default function RegisterForm() {
 
               <Pressable
                 onPress={
-                  step === 3
+                  step === 4
                     ? handleRegister
                     : handleNext
                 }
@@ -2264,14 +2516,14 @@ export default function RegisterForm() {
                         styles.primaryButtonText
                       }
                     >
-                      {step === 3
+                      {step === 4
                         ? "Create account"
                         : "Continue"}
                     </Text>
 
                     <Ionicons
                       name={
-                        step === 3
+                        step === 4
                           ? "checkmark"
                           : "arrow-forward"
                       }
@@ -2283,9 +2535,9 @@ export default function RegisterForm() {
               </Pressable>
             </View>
 
-            {/* -------------------------------- */}
+            {/* ================================= */}
             {/* LOGIN */}
-            {/* -------------------------------- */}
+            {/* ================================= */}
 
             <View
               style={styles.loginSection}
@@ -2350,9 +2602,9 @@ export default function RegisterForm() {
             </View>
           </View>
 
-          {/* -------------------------------- */}
+          {/* ================================= */}
           {/* FOOTER */}
-          {/* -------------------------------- */}
+          {/* ================================= */}
 
           <View style={styles.footer}>
             <View
@@ -2814,18 +3066,20 @@ const stepTitles: Record<
   Step,
   string
 > = {
-  1: "Personal Information",
-  2: "Contact Information",
-  3: "Account Security",
+  1: "Account Information",
+  2: "Personal Information",
+  3: "Address Information",
+  4: "Profile Picture",
 };
 
 const stepDescriptions: Record<
   Step,
   string
 > = {
-  1: "Tell us a little about yourself.",
-  2: "We'll use these details to secure your account.",
-  3: "Create a secure password for your account.",
+  1: "Create your account credentials.",
+  2: "Tell us a little about yourself.",
+  3: "Enter your current residential address.",
+  4: "Add a profile picture to complete your account.",
 };
 
 // ======================================================
@@ -3107,6 +3361,32 @@ const styles = StyleSheet.create({
   },
 
   // --------------------------------------------------
+  // PROFILE INTRO
+  // --------------------------------------------------
+
+  profileIntro: {
+    marginTop: 20,
+    padding: 15,
+    borderRadius: 12,
+    backgroundColor: "#F8FBFF",
+    borderWidth: 1,
+    borderColor: "#DBEAFE",
+  },
+
+  profileIntroTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#2563EB",
+  },
+
+  profileIntroText: {
+    marginTop: 5,
+    fontSize: 11,
+    lineHeight: 17,
+    color: "#64748B",
+  },
+
+  // --------------------------------------------------
   // PROFILE IMAGE
   // --------------------------------------------------
 
@@ -3115,7 +3395,7 @@ const styles = StyleSheet.create({
   },
 
   profilePicker: {
-    minHeight: 130,
+    minHeight: 190,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
@@ -3131,17 +3411,17 @@ const styles = StyleSheet.create({
   },
 
   profileIconCircle: {
-    width: 48,
-    height: 48,
+    width: 58,
+    height: 58,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 24,
+    borderRadius: 29,
     backgroundColor: "#EFF6FF",
   },
 
   profileTitle: {
-    marginTop: 9,
-    fontSize: 13,
+    marginTop: 10,
+    fontSize: 14,
     fontWeight: "700",
     color: "#2563EB",
   },
@@ -3153,20 +3433,66 @@ const styles = StyleSheet.create({
   },
 
   profileImage: {
-    width: 130,
-    height: 130,
+    width: 190,
+    height: 190,
   },
 
   profileOverlay: {
     position: "absolute",
-    right: 9,
-    bottom: 9,
-    width: 36,
-    height: 36,
+    right: 10,
+    bottom: 10,
+    width: 38,
+    height: 38,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 18,
+    borderRadius: 19,
     backgroundColor: "#2563EB",
+  },
+
+  // --------------------------------------------------
+  // ACCOUNT SUMMARY
+  // --------------------------------------------------
+
+  accountSummary: {
+    marginTop: 18,
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+
+  summaryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 11,
+  },
+
+  summaryTitle: {
+    marginLeft: 7,
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#334155",
+  },
+
+  summaryRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginTop: 8,
+  },
+
+  summaryLabel: {
+    width: 70,
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#94A3B8",
+  },
+
+  summaryValue: {
+    flex: 1,
+    fontSize: 11,
+    lineHeight: 16,
+    color: "#334155",
   },
 
   // --------------------------------------------------

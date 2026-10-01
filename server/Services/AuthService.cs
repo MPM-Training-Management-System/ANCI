@@ -240,7 +240,7 @@ public class AuthService : IAuthService
                     UserStatus.Pending,
 
                 IsEmailVerified =
-                    googleUser is not null,
+    false,
 
                 GoogleSubjectId =
                     googleUser?.GoogleSubjectId,
@@ -313,7 +313,15 @@ public class AuthService : IAuthService
         // =====================================================
 
         await _db.SaveChangesAsync();
-
+if (googleUser is not null)
+{
+    await _otpService.SendVerificationOtpAsync(
+        new SendOtpRequest
+        {
+            Email = user.Email
+        }
+    );
+}
         // =====================================================
         // RESPONSE
         // =====================================================
