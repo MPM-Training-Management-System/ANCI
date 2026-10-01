@@ -36,6 +36,7 @@ import { onboardingData } from "./data";
 import { authApi } from "@/api/api";
 
 import { useGoogleAuth } from "@repo/hooks";
+import { auth } from "@/api/auth";
 
 // =========================================================
 // GOOGLE CLIENT ID
@@ -154,15 +155,10 @@ export default function Onboarding() {
           return;
         }
 
-        // =================================================
-        // START LOADING
-        // =================================================
+  
 
         setIsGoogleLoading(true);
 
-        // =================================================
-        // DEBUG
-        // =================================================
 
         console.log(
           "========================================"
@@ -181,9 +177,7 @@ export default function Onboarding() {
           "========================================"
         );
 
-        // =================================================
-        // CHECK GOOGLE PLAY SERVICES
-        // =================================================
+     
 
         console.log(
           "Checking Google Play Services..."
@@ -492,6 +486,23 @@ export default function Onboarding() {
 
           return;
         }
+
+        console.log(
+  "SAVING GOOGLE AUTH SESSION..."
+);
+
+await auth.saveToken(
+  loginResult.login.token
+);
+
+await auth.saveUser(
+  loginResult.login.user
+);
+
+console.log(
+  "GOOGLE AUTH SESSION SAVED"
+);
+
 
         console.log(
           "EXISTING GOOGLE USER LOGIN SUCCESSFUL"

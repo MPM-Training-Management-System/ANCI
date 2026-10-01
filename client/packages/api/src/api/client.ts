@@ -224,46 +224,40 @@ export class ApiClient {
        * 401 UNAUTHORIZED
        * ==========================================================
        */
+if (response.status === 401) {
+  console.error(
+    "================================"
+  );
 
-      if (
-        response.status === 401
-      ) {
-        console.error(
-          "================================"
-        );
+  console.error(
+    "UNAUTHORIZED - SESSION EXPIRED"
+  );
 
-        console.error(
-          "UNAUTHORIZED - SESSION EXPIRED"
-        );
+  console.error(
+    "URL:",
+    url
+  );
 
-        console.error(
-          "URL:",
-          url
-        );
+  console.error(
+    "================================"
+  );
 
-        console.error(
-          "================================"
-        );
+  this.options.onUnauthorized?.();
 
-        this.options
-          .onUnauthorized?.();
+  // Browser only
+  if (
+    typeof window !== "undefined" &&
+    typeof CustomEvent !== "undefined"
+  ) {
+    window.dispatchEvent(
+      new CustomEvent("auth:unauthorized")
+    );
+  }
 
-        if (
-          typeof window !==
-          "undefined"
-        ) {
-          window.dispatchEvent(
-            new CustomEvent(
-              "auth:unauthorized"
-            )
-          );
-        }
-
-        throw new Error(
-          "Your session has expired. Please login again."
-        );
-      }
-
+  throw new Error(
+    "Your session has expired. Please login again."
+  );
+}
       /*
        * ==========================================================
        * OTHER API ERRORS
