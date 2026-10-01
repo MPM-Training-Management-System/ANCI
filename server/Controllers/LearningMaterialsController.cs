@@ -1,6 +1,9 @@
 using System.Security.Claims;
+
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+
+using server.DTOs.Trainer.Learning;
 using server.DTOs.Training.LearningMaterials;
 using server.Services.Interfaces;
 
@@ -12,8 +15,7 @@ namespace server.Controllers;
 public class LearningMaterialsController
     : ControllerBase
 {
-    private readonly ILearningMaterialService
-        _service;
+    private readonly ILearningMaterialService _service;
 
     public LearningMaterialsController(
         ILearningMaterialService service)
@@ -27,6 +29,7 @@ public class LearningMaterialsController
     // =========================================================
 
     [HttpGet("batch/{batchId:guid}")]
+    [Authorize(Roles = "Admin,Trainer,Participant")]
     public async Task<
         ActionResult<IReadOnlyList<LearningMaterialDto>>>
         GetByBatch(
@@ -55,6 +58,7 @@ public class LearningMaterialsController
     // =========================================================
 
     [HttpGet("{id:guid}")]
+    [Authorize(Roles = "Admin,Trainer,Participant")]
     public async Task<
         ActionResult<LearningMaterialDto>>
         GetById(
@@ -77,7 +81,7 @@ public class LearningMaterialsController
     }
 
     // =========================================================
-    // CREATE
+    // CREATE LEARNING MATERIAL
     // POST /api/learning-materials
     // =========================================================
 
@@ -150,12 +154,12 @@ public class LearningMaterialsController
     }
 
     // =========================================================
-    // UPDATE
+    // UPDATE LEARNING MATERIAL
     // PUT /api/learning-materials/{id}
     // =========================================================
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "Admin, Trainer")]
+    [Authorize(Roles = "Trainer")]
     public async Task<
         ActionResult<LearningMaterialDto>>
         Update(
@@ -189,12 +193,12 @@ public class LearningMaterialsController
     }
 
     // =========================================================
-    // DELETE
+    // DELETE LEARNING MATERIAL
     // DELETE /api/learning-materials/{id}
     // =========================================================
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "Admin, Trainer")]
+    [Authorize(Roles = "Trainer")]
     public async Task<IActionResult>
         Delete(
             Guid id)
@@ -215,12 +219,12 @@ public class LearningMaterialsController
     }
 
     // =========================================================
-    // PUBLISH
+    // PUBLISH LEARNING MATERIAL
     // PUT /api/learning-materials/{id}/publish
     // =========================================================
 
     [HttpPut("{id:guid}/publish")]
-    [Authorize(Roles = "Admin, Trainer")]
+    [Authorize(Roles = "Trainer")]
     public async Task<
         ActionResult<LearningMaterialDto>>
         Publish(
@@ -255,7 +259,7 @@ public class LearningMaterialsController
     // =========================================================
 
     [HttpPost("modules")]
-    [Authorize(Roles = "Admin, Trainer")]
+    [Authorize(Roles = "Trainer")]
     public async Task<
         ActionResult<LearningModuleDto>>
         CreateModule(
@@ -327,7 +331,7 @@ public class LearningMaterialsController
     // =========================================================
 
     [HttpPut("modules/{moduleId:guid}")]
-    [Authorize(Roles = "Admin,Trainer")]
+    [Authorize(Roles = "Trainer")]
     public async Task<
         ActionResult<LearningModuleDto>>
         UpdateModule(
@@ -373,7 +377,7 @@ public class LearningMaterialsController
     // =========================================================
 
     [HttpDelete("modules/{moduleId:guid}")]
-    [Authorize(Roles = "Admin,Trainer")]
+    [Authorize(Roles = "Trainer")]
     public async Task<IActionResult>
         DeleteModule(
             Guid moduleId)
@@ -395,12 +399,227 @@ public class LearningMaterialsController
     }
 
     // =========================================================
+    // UPLOAD MODULE FILE
+    //
+    // POST
+    // /api/learning-materials/modules/{moduleId}/files
+    // =========================================================
+
+    [HttpPost(
+        "modules/{moduleId:guid}/files")]
+    [Authorize(Roles = "Trainer")]
+    [Consumes("multipart/form-data")]
+    public async Task<
+        ActionResult<LearningModuleFileDto>>
+        UploadModuleFile(
+            Guid moduleId,
+            [FromForm]
+            UploadLearningModuleRequest request)
+    {
+        try
+        {
+            if (request.File == null ||
+                request.File.Length == 0)
+            {
+                return BadRequest(new
+                {
+                    message =
+                        "A module file is required."
+                });
+            }
+
+            var result =
+                await _service.UploadModuleFileAsync(
+                    moduleId,
+                    request.File);
+
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+    }
+
+    // =========================================================
+    // EXTRACT SINGLE MODULE FILE
+    //
+    // POST
+    // /api/learning-materials/modules/{moduleId}/files/{fileId}/extract
+    // =========================================================
+
+    [HttpPost(
+        "modules/{moduleId:guid}/files/{fileId:guid}/extract")]
+    [Authorize(Roles = "Trainer")]
+    public async Task<
+        ActionResult<LearningModuleFileExtractionDto>>
+        ExtractModuleFileText(
+            Guid moduleId,
+            Guid fileId)
+    {
+        try
+        {
+            var result =
+                await _service.ExtractModuleFileTextAsync(
+                    fileId);
+
+            if (result.LearningModuleId != moduleId)
+            {
+                return BadRequest(new
+                {
+                    message =
+                        "The module file does not belong to the specified module."
+                });
+            }
+
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+    }
+
+    // =========================================================
+    // EXTRACT ALL MODULE FILES
+    //
+    // POST
+    // /api/learning-materials/modules/{moduleId}/extract
+    // =========================================================
+
+    [HttpPost(
+        "modules/{moduleId:guid}/extract")]
+    [Authorize(Roles = "Trainer")]
+    public async Task<IActionResult>
+        ExtractAllModuleFiles(
+            Guid moduleId)
+    {
+        try
+        {
+            var result =
+                await _service.ExtractAllModuleFilesAsync(
+                    moduleId);
+
+            return Ok(new
+            {
+                success = result,
+
+                message = result
+                    ? "All module files were extracted successfully."
+                    : "Some module files could not be extracted."
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+    }
+
+    // =========================================================
+    // GENERATE AI MODULE CONTENT
+    //
+    // POST
+    // /api/learning-materials/modules/{moduleId}/generate-ai
+    // =========================================================
+
+    [HttpPost(
+        "modules/{moduleId:guid}/generate-ai")]
+    [Authorize(Roles = "Trainer")]
+    public async Task<
+        ActionResult<LearningModuleDto>>
+        GenerateModuleAiContent(
+            Guid moduleId)
+    {
+        try
+        {
+            var result =
+                await _service
+                    .GenerateModuleAiContentAsync(
+                        moduleId);
+
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+    }
+
+    // =========================================================
     // CREATE SECTION
     // POST /api/learning-materials/sections
     // =========================================================
 
     [HttpPost("sections")]
-    [Authorize(Roles = "Admin,Trainer")]
+    [Authorize(Roles = "Trainer")]
     public async Task<
         ActionResult<LearningSectionDto>>
         CreateSection(
@@ -440,7 +659,9 @@ public class LearningMaterialsController
 
     // =========================================================
     // GET SECTIONS
-    // GET /api/learning-materials/modules/{moduleId}/sections
+    //
+    // GET
+    // /api/learning-materials/modules/{moduleId}/sections
     // =========================================================
 
     [HttpGet(
@@ -470,12 +691,14 @@ public class LearningMaterialsController
 
     // =========================================================
     // UPDATE SECTION
-    // PUT /api/learning-materials/sections/{sectionId}
+    //
+    // PUT
+    // /api/learning-materials/sections/{sectionId}
     // =========================================================
 
     [HttpPut(
         "sections/{sectionId:guid}")]
-    [Authorize(Roles = "Admin,Trainer")]
+    [Authorize(Roles = "Trainer")]
     public async Task<
         ActionResult<LearningSectionDto>>
         UpdateSection(
@@ -517,12 +740,14 @@ public class LearningMaterialsController
 
     // =========================================================
     // DELETE SECTION
-    // DELETE /api/learning-materials/sections/{sectionId}
+    //
+    // DELETE
+    // /api/learning-materials/sections/{sectionId}
     // =========================================================
 
     [HttpDelete(
         "sections/{sectionId:guid}")]
-    [Authorize(Roles = "Admin, Trainer")]
+    [Authorize(Roles = "Trainer")]
     public async Task<IActionResult>
         DeleteSection(
             Guid sectionId)
@@ -544,12 +769,14 @@ public class LearningMaterialsController
     }
 
     // =========================================================
-    // UPLOAD FILE
-    // POST /api/learning-materials/{id}/upload
+    // UPLOAD LEARNING MATERIAL FILE
+    //
+    // POST
+    // /api/learning-materials/{id}/upload
     // =========================================================
 
     [HttpPost("{id:guid}/upload")]
-    [Authorize(Roles = "Admin, Trainer")]
+    [Authorize(Roles = "Trainer")]
     [Consumes("multipart/form-data")]
     public async Task<
         ActionResult<LearningMaterialDto>>
@@ -560,46 +787,20 @@ public class LearningMaterialsController
     {
         try
         {
+            if (request.File == null ||
+                request.File.Length == 0)
+            {
+                return BadRequest(new
+                {
+                    message =
+                        "A file is required."
+                });
+            }
+
             var result =
                 await _service.UploadFileAsync(
                     id,
                     request);
-
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new
-            {
-                message = ex.Message
-            });
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
-        }
-    }
-
-    // =========================================================
-    // EXTRACT TEXT
-    // POST /api/learning-materials/{id}/extract
-    // =========================================================
-
-    [HttpPost("{id:guid}/extract")]
-    [Authorize(Roles = "Admin, Trainer")]
-    public async Task<
-        ActionResult<LearningMaterialExtractionDto>>
-        ExtractText(
-            Guid id)
-    {
-        try
-        {
-            var result =
-                await _service.ExtractTextAsync(
-                    id);
 
             return Ok(result);
         }
@@ -627,23 +828,24 @@ public class LearningMaterialsController
     }
 
     // =========================================================
-    // GENERATE MODULES
-    // POST /api/learning-materials/{id}/generate-modules
+    // EXTRACT LEARNING MATERIAL TEXT
+    //
+    // POST
+    // /api/learning-materials/{id}/extract
     // =========================================================
 
-    [HttpPost("{id:guid}/generate-modules")]
-    [Authorize(Roles = "Admin, Trainer")]
+    [HttpPost("{id:guid}/extract")]
+    [Authorize(Roles = "Trainer")]
     public async Task<
-        ActionResult<IReadOnlyList<LearningModuleDto>>>
-        GenerateModules(
+        ActionResult<LearningMaterialExtractionDto>>
+        ExtractText(
             Guid id)
     {
         try
         {
             var result =
-                await _service
-                    .GenerateModulesFromDocumentAsync(
-                        id);
+                await _service.ExtractTextAsync(
+                    id);
 
             return Ok(result);
         }

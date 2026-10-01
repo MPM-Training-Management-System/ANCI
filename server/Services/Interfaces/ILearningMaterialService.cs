@@ -1,9 +1,16 @@
+using Microsoft.AspNetCore.Http;
+
+using server.DTOs.Trainer.Learning;
 using server.DTOs.Training.LearningMaterials;
 
 namespace server.Services.Interfaces;
 
 public interface ILearningMaterialService
 {
+    // =========================================================
+    // LEARNING MATERIALS
+    // =========================================================
+
     Task<IReadOnlyList<LearningMaterialDto>>
         GetByBatchIdAsync(
             Guid trainingBatchId);
@@ -13,9 +20,9 @@ public interface ILearningMaterialService
             Guid id);
 
     Task<LearningMaterialDto>
-    CreateAsync(
-        Guid trainerUserId,
-        CreateLearningMaterialRequest request);
+        CreateAsync(
+            Guid trainerUserId,
+            CreateLearningMaterialRequest request);
 
     Task<LearningMaterialDto>
         UpdateAsync(
@@ -28,6 +35,16 @@ public interface ILearningMaterialService
     Task<LearningMaterialDto>
         PublishAsync(
             Guid id);
+
+    Task<LearningMaterialDto>
+        UploadFileAsync(
+            Guid id,
+            UploadLearningMaterialRequest request);
+
+    Task<LearningMaterialExtractionDto>
+        ExtractTextAsync(
+            Guid id);
+
 
     // =========================================================
     // LEARNING MODULES
@@ -49,6 +66,39 @@ public interface ILearningMaterialService
     Task DeleteModuleAsync(
         Guid moduleId);
 
+
+    // =========================================================
+    // MODULE FILES
+    // =========================================================
+
+    // Add one or more files to a module.
+    // Call this method multiple times if the module has
+    // multiple source files.
+    Task<LearningModuleFileDto>
+        UploadModuleFileAsync(
+            Guid moduleId,
+            IFormFile file);
+
+    // Extract text from ONE specific module file.
+    Task<LearningModuleFileExtractionDto>
+        ExtractModuleFileTextAsync(
+            Guid moduleFileId);
+
+    // Extract text from ALL files belonging to a module.
+    Task<bool>
+        ExtractAllModuleFilesAsync(
+            Guid moduleId);
+
+
+    // =========================================================
+    // AI MODULE CONTENT
+    // =========================================================
+
+    Task<LearningModuleDto>
+        GenerateModuleAiContentAsync(
+            Guid moduleId);
+
+
     // =========================================================
     // LEARNING SECTIONS
     // =========================================================
@@ -68,15 +118,4 @@ public interface ILearningMaterialService
 
     Task DeleteSectionAsync(
         Guid sectionId);
-        Task<LearningMaterialDto>
-    UploadFileAsync(
-        Guid id,
-        UploadLearningMaterialRequest request);
-
-        Task<LearningMaterialExtractionDto>
-    ExtractTextAsync(Guid id);
-
-    Task<IReadOnlyList<LearningModuleDto>>
-    GenerateModulesFromDocumentAsync(
-        Guid learningMaterialId);
 }

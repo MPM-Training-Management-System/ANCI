@@ -1,51 +1,62 @@
 "use client";
 
 import {
-  useCallback,
   useEffect,
   useMemo,
   useState,
-  type FormEvent,
+  type ChangeEvent,
 } from "react";
 
 import type {
   CreateLearningMaterialRequest,
   CreateLearningModuleRequest,
+  CreateLearningSectionRequest,
   LearningMaterial,
   LearningModule,
   LearningSection,
   TrainingBatch,
-  TrainerAssignment,
+  UpdateLearningMaterialRequest,
+  UpdateLearningModuleRequest,
+  UpdateLearningSectionRequest,
 } from "@repo/types";
 
 import {
-  BookOpen,
-  ChevronRight,
-  FileText,
-  Layers3,
-  Loader2,
-  Plus,
-  RefreshCw,
-  Upload,
-  X,
-} from "lucide-react";
-
-import {
-  Badge,
-  Button,
-  DataTable,
-  PageSection,
-} from "@repo/ui/index";
-
-import {
-  learningMaterialApi,
-  trainerAssignmentApi,
   trainingBatchApi,
+  learningMaterialApi,
 } from "@/lib/api";
 
 import { useLearningMaterials } from "@repo/hooks";
-import { useTrainerAssignments } from "@repo/hooks";
-import { columns } from "./columns";
+
+import {
+  PageSection,
+  StatCard,
+  StatGrid,
+  DataTable,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@repo/ui/index";
+
+import {
+  BookCheck,
+  BookOpen,
+  FilePenLine,
+  Layers3,
+} from "lucide-react";
+
+import {
+  columns,
+  type LearningMaterialTableMeta,
+} from "./columns";
+
+import ConfirmDeleteModal from "@/components/learning/ConfirmDeleteModal";
+import LearningMaterialDetailsModal from "@/components/learning/LearningMaterialDetailsModal";
+import LearningMaterialsFormModal from "@/components/learning/LearningMaterialFormModal";
+import LearningModuleFormModal from "@/components/learning/LearningModuleFormModal";
+import LearningSectionFormModal from "@/components/learning/LearningSectionFormModal";
+import TrainerModulePreviewModal from "@/components/learning/TrainerModulePreviewModal";
 
 
 // ============================================================
@@ -60,36 +71,145 @@ type MaterialType =
   | "Activity"
   | "Other";
 
+type DeleteTarget =
+  | "material"
+  | "module"
+  | "section";
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+function getMaterialType(
+  value: string,
+): MaterialType {
+  const type = value
+    .trim()
+    .toLowerCase();
+
+  if (type === "pdf") {
+    return "PDF";
+  }
+
+  if (
+    type === "presentation" ||
+    type === "ppt" ||
+    type === "pptx"
+  ) {
+    return "Presentation";
+  }
+
+  if (
+    type === "document" ||
+    type === "doc" ||
+    type === "docx"
+  ) {
+    return "Document";
+  }
+
+  if (
+    type === "video" ||
+    type === "mp4"
+  ) {
+    return "Video";
+  }
+
+  if (type === "activity") {
+    return "Activity";
+  }
+
+  return "Other";
+}
 
 // ============================================================
 // PAGE
 // ============================================================
 
-export default function TrainerLearningMaterialsPage() {
+export default function Learning() {
+
+  const [
+  showModulePreview,
+  setShowModulePreview,
+] = useState(false);
+
+const [
+  previewModule,
+  setPreviewModule,
+] = useState<LearningModule | null>(
+  null,
+);
+const [
+  generatingModuleId,
+  setGeneratingModuleId,
+] = useState<string | null>(null);
+
+function openModulePreview(
+  module: LearningModule,
+) {
+  setPreviewModule(module);
+  setShowModulePreview(true);
+}
+
+function closeModulePreview() {
+  setShowModulePreview(false);
+  setPreviewModule(null);
+}
+
   // ==========================================================
-  // TRAINER ASSIGNMENTS
+  // LEARNING MATERIAL HOOK
   // ==========================================================
 
   const {
-    myAssignments,
-    isLoadingMyAssignments,
-    loadMyAssignments,
-    error: assignmentError,
-  } = useTrainerAssignments(
-    trainerAssignmentApi,
-    {
-      loadAll: false,
-    },
+    extraction,
+    modules,
+    moduleFileExtraction,
+    sections,
+
+    isLoading,
+    isSaving,
+    isUploading,
+    isGenerating,
+    isExtracting,
+
+    error,
+
+    loadLearningMaterials,
+    loadLearningMaterial,
+    createLearningMaterial,
+    updateLearningMaterial,
+    deleteLearningMaterial,
+    publishLearningMaterial,
+    uploadLearningMaterial,
+    extractLearningMaterialText,
+
+    loadModules,
+    createLearningModule,
+    updateLearningModule,
+    deleteLearningModule,
+
+    uploadLearningModuleFile,
+    extractLearningModuleFileText,
+    extractAllLearningModuleFiles,
+
+    generateModuleAiContent,
+
+    loadSections,
+    createLearningSection,
+    updateLearningSection,
+    deleteLearningSection,
+
+    clearModuleFileExtraction,
+  } = useLearningMaterials(
+    learningMaterialApi,
   );
 
-
   // ==========================================================
-  // TRAINING BATCHES
+  // BATCHES
   // ==========================================================
 
   const [
-    allBatches,
-    setAllBatches,
+    batches,
+    setBatches,
   ] = useState<TrainingBatch[]>([]);
 
   const [
@@ -100,48 +220,10 @@ export default function TrainerLearningMaterialsPage() {
   const [
     batchError,
     setBatchError,
-  ] = useState<string | null>(null);
-
-
-  // ==========================================================
-  // LEARNING MATERIALS
-  // ==========================================================
-
-  const {
-    learningMaterials,
-    modules,
-    sections,
-
-    isLoading,
-    isSaving,
-    isUploading,
-    isGenerating,
-
-    error: learningMaterialError,
-
-    loadLearningMaterials,
-    loadLearningMaterial,
-
-    createLearningMaterial,
-
-    publishLearningMaterial,
-    deleteLearningMaterial,
-
-    uploadLearningMaterial,
-
-    generateLearningModules,
-    loadModules,
-
-    createLearningModule,
-
-    loadSections,
-  } = useLearningMaterials(
-    learningMaterialApi,
-  );
-
+  ] = useState<Error | null>(null);
 
   // ==========================================================
-  // LOCAL MATERIAL STATE
+  // ALL MATERIALS
   // ==========================================================
 
   const [
@@ -149,32 +231,73 @@ export default function TrainerLearningMaterialsPage() {
     setAllMaterials,
   ] = useState<LearningMaterial[]>([]);
 
+  // ==========================================================
+  // FILTERS
+  // ==========================================================
+
   const [
-    selectedMaterial,
-    setSelectedMaterial,
+    search,
+    setSearch,
+  ] = useState("");
+
+  const [
+    trainingFilter,
+    setTrainingFilter,
+  ] = useState("All Trainings");
+
+  const [
+    typeFilter,
+    setTypeFilter,
+  ] = useState("All Types");
+
+  const [
+    statusFilter,
+    setStatusFilter,
+  ] = useState("All Status");
+
+  // ==========================================================
+  // SELECTED MATERIAL
+  // ==========================================================
+
+  const [
+    selected,
+    setSelected,
   ] = useState<LearningMaterial | null>(
     null,
   );
 
-
   // ==========================================================
-  // UI STATE
+  // MODAL STATES
   // ==========================================================
 
   const [
-    showCreateMaterial,
-    setShowCreateMaterial,
+    showDetails,
+    setShowDetails,
   ] = useState(false);
 
   const [
-    showCreateModule,
-    setShowCreateModule,
+    showMaterialForm,
+    setShowMaterialForm,
   ] = useState(false);
 
   const [
-    showMaterialDetails,
-    setShowMaterialDetails,
+    materialFormMode,
+    setMaterialFormMode,
+  ] = useState<"create" | "edit">(
+    "create",
+  );
+
+  const [
+    showModuleForm,
+    setShowModuleForm,
   ] = useState(false);
+
+  const [
+    moduleFormMode,
+    setModuleFormMode,
+  ] = useState<"create" | "edit">(
+    "create",
+  );
 
   const [
     selectedModule,
@@ -184,873 +307,1358 @@ export default function TrainerLearningMaterialsPage() {
   );
 
   const [
-    showDeleteConfirm,
-    setShowDeleteConfirm,
+    showSectionForm,
+    setShowSectionForm,
   ] = useState(false);
 
   const [
-    materialToDelete,
-    setMaterialToDelete,
-  ] = useState<LearningMaterial | null>(
+    sectionFormMode,
+    setSectionFormMode,
+  ] = useState<"create" | "edit">(
+    "create",
+  );
+
+  const [
+    selectedSection,
+    setSelectedSection,
+  ] = useState<LearningSection | null>(
     null,
   );
 
   const [
+    showDelete,
+    setShowDelete,
+  ] = useState(false);
+
+  const [
+    deleteTarget,
+    setDeleteTarget,
+  ] = useState<DeleteTarget>(
+    "material",
+  );
+
+  // ==========================================================
+  // DETAIL LOADING
+  // ==========================================================
+
+  const [
+    isLoadingDetails,
+    setIsLoadingDetails,
+  ] = useState(false);
+
+  // ==========================================================
+  // ACTION ERROR
+  // ==========================================================
+
+  const [
     actionError,
     setActionError,
-  ] = useState<string | null>(null);
-
-
-  // ==========================================================
-  // CREATE MATERIAL FORM
-  // ==========================================================
-
-  const [
-    materialForm,
-    setMaterialForm,
-  ] = useState({
-    trainingBatchId: "",
-    title: "",
-    description: "",
-    materialType: "PDF" as MaterialType,
-    file: null as File | null,
-  });
-
+  ] = useState<Error | null>(null);
 
   // ==========================================================
-  // CREATE MODULE FORM
+  // LOAD BATCHES + MATERIALS
   // ==========================================================
 
-  const [
-    moduleForm,
-    setModuleForm,
-  ] = useState({
-    title: "",
-    description: "",
-  });
+  useEffect(() => {
+    let cancelled = false;
 
-
-  // ==========================================================
-  // LOAD ALL BATCHES
-  // ==========================================================
-
-  const loadBatches = useCallback(
-    async () => {
+    async function loadData() {
       try {
         setIsLoadingBatches(true);
         setBatchError(null);
+        setActionError(null);
 
-        const result =
+        const batchResult =
           await trainingBatchApi.getAll();
 
-        setAllBatches(
-          Array.isArray(result)
-            ? result
-            : [],
-        );
-      } catch (error) {
-        console.error(
-          "LOAD TRAINING BATCHES ERROR:",
-          error,
-        );
-
-        setBatchError(
-          error instanceof Error
-            ? error.message
-            : "Unable to load training batches.",
-        );
-
-        setAllBatches([]);
-      } finally {
-        setIsLoadingBatches(false);
-      }
-    },
-    [],
-  );
-
-
-  // ==========================================================
-  // INITIAL LOAD
-  // ==========================================================
-
-  useEffect(() => {
-    loadMyAssignments();
-    loadBatches();
-  }, [
-    loadMyAssignments,
-    loadBatches,
-  ]);
-
-
-  // ==========================================================
-  // ONLY BATCHES ASSIGNED TO CURRENT TRAINER
-  // ==========================================================
-
-  const assignedBatchIds = useMemo(
-    () =>
-      new Set(
-        myAssignments
-          .filter(
-            assignment =>
-              assignment.isActive,
-          )
-          .map(
-            assignment =>
-              assignment.trainingBatchId,
-          ),
-      ),
-    [myAssignments],
-  );
-
-
-  const assignedBatches =
-    useMemo(
-      () =>
-        allBatches.filter(
-          batch =>
-            assignedBatchIds.has(
-              batch.id,
-            ),
-        ),
-      [
-        allBatches,
-        assignedBatchIds,
-      ],
-    );
-
-
-  // ==========================================================
-  // ASSIGNMENT MAP
-  // ==========================================================
-
-  const assignmentMap =
-    useMemo(() => {
-      const map =
-        new Map<
-          string,
-          TrainerAssignment
-        >();
-
-      myAssignments.forEach(
-        assignment => {
-          if (
-            assignment.isActive
-          ) {
-            map.set(
-              assignment.trainingBatchId,
-              assignment,
-            );
-          }
-        },
-      );
-
-      return map;
-    }, [myAssignments]);
-
-
-  // ==========================================================
-  // LOAD MATERIALS ONLY FROM ASSIGNED BATCHES
-  // ==========================================================
-
-  const loadAssignedMaterials =
-    useCallback(
-      async () => {
-        if (
-          assignedBatches.length === 0
-        ) {
-          setAllMaterials([]);
+        if (cancelled) {
           return;
         }
 
-        try {
-          const results =
-            await Promise.all(
-              assignedBatches.map(
-                async batch => {
-                  try {
-                    return await loadLearningMaterials(
-                      batch.id,
-                    );
-                  } catch (error) {
-                    console.error(
-                      `LOAD MATERIALS FOR BATCH ${batch.id} ERROR:`,
-                      error,
-                    );
+        setBatches(batchResult);
 
-                    return [];
-                  }
-                },
-              ),
-            );
-
-          const merged =
-            results.flat();
-
-          const unique =
-            Array.from(
-              new Map(
-                merged.map(
-                  material => [
-                    material.id,
-                    material,
-                  ],
-                ),
-              ).values(),
-            );
-
-          setAllMaterials(unique);
-        } catch (error) {
-          console.error(
-            "LOAD ASSIGNED MATERIALS ERROR:",
-            error,
+        const materialResults =
+          await Promise.all(
+            batchResult.map(
+              async (batch) => {
+                try {
+                  return await loadLearningMaterials(
+                    batch.id,
+                  );
+                } catch {
+                  return [];
+                }
+              },
+            ),
           );
 
-          setAllMaterials([]);
+        if (cancelled) {
+          return;
         }
-      },
-      [
-        assignedBatches,
-        loadLearningMaterials,
-      ],
-    );
 
+        const combined =
+          materialResults.flat();
 
-  useEffect(() => {
-    if (
-      !isLoadingMyAssignments &&
-      !isLoadingBatches
-    ) {
-      loadAssignedMaterials();
+        const uniqueMaterials =
+          Array.from(
+            new Map(
+              combined.map(
+                (material) => [
+                  material.id,
+                  material,
+                ],
+              ),
+            ).values(),
+          );
+
+        setAllMaterials(
+          uniqueMaterials,
+        );
+      } catch (err) {
+        if (cancelled) {
+          return;
+        }
+
+        const normalized =
+          err instanceof Error
+            ? err
+            : new Error(
+                "Failed to load learning materials.",
+              );
+
+        setBatchError(
+          normalized,
+        );
+      } finally {
+        if (!cancelled) {
+          setIsLoadingBatches(
+            false,
+          );
+        }
+      }
     }
-  }, [
-    isLoadingMyAssignments,
-    isLoadingBatches,
-    loadAssignedMaterials,
-  ]);
 
+    void loadData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    loadLearningMaterials,
+  ]);
 
   // ==========================================================
   // BATCH MAP
   // ==========================================================
 
-  const batchMap =
-    useMemo(
-      () =>
-        new Map(
-          assignedBatches.map(
-            batch => [
-              batch.id,
-              batch,
-            ],
+  const batchMap = useMemo(
+    () =>
+      new Map(
+        batches.map(
+          (batch) => [
+            batch.id,
+            batch,
+          ],
+        ),
+      ),
+    [batches],
+  );
+
+  // ==========================================================
+  // TRAININGS
+  // ==========================================================
+
+  const trainings =
+    useMemo(() => {
+      return [
+        "All Trainings",
+        ...Array.from(
+          new Set(
+            batches
+              .map(
+                (batch) =>
+                  batch.programName,
+              )
+              .filter(Boolean),
           ),
         ),
-      [assignedBatches],
-    );
-
+      ];
+    }, [batches]);
 
   // ==========================================================
-  // SAFETY FILTER
+  // FILTER MATERIALS
   // ==========================================================
-  //
-  // Even if something accidentally gets returned by the API,
-  // only show materials belonging to assigned batches.
-  //
 
-  const trainerMaterials =
-    useMemo(
-      () =>
-        allMaterials.filter(
-          material =>
-            assignedBatchIds.has(
+  const filteredMaterials =
+    useMemo(() => {
+      const query =
+        search
+          .toLowerCase()
+          .trim();
+
+      return allMaterials.filter(
+        (material) => {
+          const batch =
+            batchMap.get(
               material.trainingBatchId,
-            ),
-        ),
-      [
-        allMaterials,
-        assignedBatchIds,
-      ],
-    );
+            );
 
+          const trainingName =
+            batch?.programName ??
+            "";
+
+          const batchCode =
+            material.batchCode ??
+            batch?.batchCode ??
+            "";
+
+          const materialType =
+            getMaterialType(
+              material.materialType,
+            );
+
+          const status =
+            material.isPublished
+              ? "Published"
+              : "Draft";
+
+          const matchesSearch =
+            !query ||
+            material.title
+              .toLowerCase()
+              .includes(query) ||
+            trainingName
+              .toLowerCase()
+              .includes(query) ||
+            batchCode
+              .toLowerCase()
+              .includes(query) ||
+            (
+              material.fileName ??
+              ""
+            )
+              .toLowerCase()
+              .includes(query);
+
+          const matchesTraining =
+            trainingFilter ===
+              "All Trainings" ||
+            trainingName ===
+              trainingFilter;
+
+          const matchesType =
+            typeFilter ===
+              "All Types" ||
+            materialType ===
+              typeFilter;
+
+          const matchesStatus =
+            statusFilter ===
+              "All Status" ||
+            status ===
+              statusFilter;
+
+          return (
+            matchesSearch &&
+            matchesTraining &&
+            matchesType &&
+            matchesStatus
+          );
+        },
+      );
+    }, [
+      allMaterials,
+      batchMap,
+      search,
+      trainingFilter,
+      typeFilter,
+      statusFilter,
+    ]);
 
   // ==========================================================
-  // STATS
+  // SUMMARY
   // ==========================================================
 
   const publishedCount =
-    trainerMaterials.filter(
-      material =>
+    allMaterials.filter(
+      (material) =>
         material.isPublished,
     ).length;
 
   const draftCount =
-    trainerMaterials.filter(
-      material =>
+    allMaterials.filter(
+      (material) =>
         !material.isPublished,
     ).length;
 
-
   // ==========================================================
-  // OPEN MATERIAL
-  // ==========================================================
-
-  const handleView =
-    useCallback(
-      async (
-        material: LearningMaterial,
-      ) => {
-        // ----------------------------------------------------
-        // SECURITY / UI GUARD
-        // ----------------------------------------------------
-
-        if (
-          !assignedBatchIds.has(
-            material.trainingBatchId,
-          )
-        ) {
-          setActionError(
-            "You can only manage learning materials for training batches assigned to you.",
-          );
-
-          return;
-        }
-
-        try {
-          setActionError(null);
-
-          const loaded =
-            await loadLearningMaterial(
-              material.id,
-            );
-
-          setSelectedMaterial(
-            loaded,
-          );
-
-          setShowMaterialDetails(
-            true,
-          );
-
-          await loadModules(
-            material.id,
-          );
-        } catch (error) {
-          setActionError(
-            error instanceof Error
-              ? error.message
-              : "Unable to open learning material.",
-          );
-        }
-      },
-      [
-        assignedBatchIds,
-        loadLearningMaterial,
-        loadModules,
-      ],
-    );
-
-
-  // ==========================================================
-  // PUBLISH
+  // VIEW MATERIAL
   // ==========================================================
 
-  const handlePublish =
-    useCallback(
-      async (
-        material: LearningMaterial,
-      ) => {
-        if (
-          !assignedBatchIds.has(
-            material.trainingBatchId,
-          )
-        ) {
-          setActionError(
-            "You are not assigned to this training batch.",
-          );
+  async function viewMaterial(
+    material: LearningMaterial,
+  ) {
+    try {
+      setActionError(null);
+      setIsLoadingDetails(true);
 
-          return;
-        }
-
-        try {
-          setActionError(null);
-
-          const updated =
-            await publishLearningMaterial(
-              material.id,
-            );
-
-          setAllMaterials(
-            current =>
-              current.map(
-                item =>
-                  item.id === updated.id
-                    ? updated
-                    : item,
-              ),
-          );
-
-          if (
-            selectedMaterial?.id ===
-            updated.id
-          ) {
-            setSelectedMaterial(
-              updated,
-            );
-          }
-        } catch (error) {
-          setActionError(
-            error instanceof Error
-              ? error.message
-              : "Unable to publish learning material.",
-          );
-        }
-      },
-      [
-        assignedBatchIds,
-        publishLearningMaterial,
-        selectedMaterial?.id,
-      ],
-    );
-
-
-  // ==========================================================
-  // DELETE
-  // ==========================================================
-
-  const handleDelete =
-    useCallback(
-      (material: LearningMaterial) => {
-        if (
-          !assignedBatchIds.has(
-            material.trainingBatchId,
-          )
-        ) {
-          setActionError(
-            "You are not assigned to this training batch.",
-          );
-
-          return;
-        }
-
-        setMaterialToDelete(
-          material,
+      const result =
+        await loadLearningMaterial(
+          material.id,
         );
 
-        setShowDeleteConfirm(
-          true,
-        );
-      },
-      [assignedBatchIds],
-    );
+      setSelected(result);
+      setShowDetails(true);
 
-
-  const confirmDelete =
-    useCallback(
-      async () => {
-        if (
-          !materialToDelete
-        ) {
-          return;
-        }
-
-        if (
-          !assignedBatchIds.has(
-            materialToDelete.trainingBatchId,
-          )
-        ) {
-          setActionError(
-            "You are not assigned to this training batch.",
-          );
-
-          setShowDeleteConfirm(
-            false,
-          );
-
-          return;
-        }
-
-        try {
-          setActionError(null);
-
-          await deleteLearningMaterial(
-            materialToDelete.id,
-          );
-
-          setAllMaterials(
-            current =>
-              current.filter(
-                material =>
-                  material.id !==
-                  materialToDelete.id,
-              ),
-          );
-
-          if (
-            selectedMaterial?.id ===
-            materialToDelete.id
-          ) {
-            setSelectedMaterial(
-              null,
-            );
-
-            setShowMaterialDetails(
-              false,
-            );
-          }
-
-          setMaterialToDelete(
-            null,
-          );
-
-          setShowDeleteConfirm(
-            false,
-          );
-        } catch (error) {
-          setActionError(
-            error instanceof Error
-              ? error.message
-              : "Unable to delete learning material.",
-          );
-        }
-      },
-      [
-        materialToDelete,
-        assignedBatchIds,
-        deleteLearningMaterial,
-        selectedMaterial?.id,
-      ],
-    );
-
+      await loadModules(
+        material.id,
+      );
+    } catch (err) {
+      setActionError(
+        err instanceof Error
+          ? err
+          : new Error(
+              "Failed to load material details.",
+            ),
+      );
+    } finally {
+      setIsLoadingDetails(false);
+    }
+  }
 
   // ==========================================================
   // CREATE MATERIAL
   // ==========================================================
 
-  const handleCreateMaterial =
-    async (
-      event: FormEvent<HTMLFormElement>,
-    ) => {
-      event.preventDefault();
+  function openCreateMaterial() {
+    setMaterialFormMode(
+      "create",
+    );
 
+    setSelected(null);
+
+    setShowMaterialForm(
+      true,
+    );
+  }
+
+  // ==========================================================
+  // EDIT MATERIAL
+  // ==========================================================
+
+  function openEditMaterial(
+    material: LearningMaterial,
+  ) {
+    setMaterialFormMode(
+      "edit",
+    );
+
+    setSelected(material);
+
+    setShowMaterialForm(
+      true,
+    );
+  }
+
+  // ==========================================================
+  // SAVE MATERIAL
+  // ==========================================================
+
+  async function handleMaterialSubmit(
+    data: {
+      trainingBatchId: string;
+      title: string;
+      description: string;
+      materialType: string;
+      file: File | null;
+    },
+  ) {
+    try {
       setActionError(null);
 
-      // ------------------------------------------------------
-      // REQUIRED VALIDATION
-      // ------------------------------------------------------
-
       if (
-        !materialForm.trainingBatchId
+        materialFormMode ===
+        "create"
       ) {
-        setActionError(
-          "Please select a training batch.",
-        );
-
-        return;
-      }
-
-      // ------------------------------------------------------
-      // IMPORTANT:
-      // NEVER trust the selected batch from the UI.
-      // Make sure it exists in trainer assignments.
-      // ------------------------------------------------------
-
-      if (
-        !assignedBatchIds.has(
-          materialForm.trainingBatchId,
-        )
-      ) {
-        setActionError(
-          "You can only create learning materials for training batches assigned to you.",
-        );
-
-        return;
-      }
-
-      if (
-        !materialForm.title.trim()
-      ) {
-        setActionError(
-          "Learning material title is required.",
-        );
-
-        return;
-      }
-
-      try {
         // ----------------------------------------------------
-        // CREATE MATERIAL
+        // CREATE MATERIAL RECORD
         // ----------------------------------------------------
 
-        const request =
+        const payload: CreateLearningMaterialRequest =
           {
             trainingBatchId:
-              materialForm.trainingBatchId,
+              data.trainingBatchId,
 
             title:
-              materialForm.title.trim(),
+              data.title,
 
             description:
-              materialForm.description.trim(),
+              data.description ||
+              null,
 
             materialType:
-              materialForm.materialType,
-          } as CreateLearningMaterialRequest;
+              data.materialType,
+          };
 
-        const created =
+        const result =
           await createLearningMaterial(
-            request,
+            payload,
           );
 
-        // ----------------------------------------------------
-        // UPLOAD FILE AFTER CREATE
-        // ----------------------------------------------------
-
         let finalMaterial =
-          created;
+          result;
 
-        if (
-          materialForm.file
-        ) {
+        // ----------------------------------------------------
+        // UPLOAD FILE AFTER MATERIAL CREATION
+        // ----------------------------------------------------
+
+        if (data.file) {
           finalMaterial =
             await uploadLearningMaterial(
-              created.id,
-              materialForm.file,
+              result.id,
+              data.file,
             );
         }
 
         // ----------------------------------------------------
-        // UPDATE LOCAL LIST
+        // UPDATE LOCAL MATERIAL LIST
         // ----------------------------------------------------
 
         setAllMaterials(
-          current => {
-            const exists =
-              current.some(
-                material =>
-                  material.id ===
-                  finalMaterial.id,
-              );
-
-            if (exists) {
-              return current.map(
-                material =>
-                  material.id ===
-                  finalMaterial.id
-                    ? finalMaterial
-                    : material,
-              );
-            }
-
-            return [
-              ...current,
-              finalMaterial,
-            ];
-          },
+          (current) => [
+            finalMaterial,
+            ...current,
+          ],
         );
 
-        // ----------------------------------------------------
-        // RESET
-        // ----------------------------------------------------
-
-        setMaterialForm({
-          trainingBatchId:
-            assignedBatches[0]?.id ??
-            "",
-          title: "",
-          description: "",
-          materialType: "PDF",
-          file: null,
-        });
-
-        setShowCreateMaterial(
-          false,
-        );
-
-        // ----------------------------------------------------
-        // OPEN CREATED MATERIAL
-        // ----------------------------------------------------
-
-        await handleView(
+        setSelected(
           finalMaterial,
         );
-      } catch (error) {
-        setActionError(
-          error instanceof Error
-            ? error.message
-            : "Unable to create learning material.",
+      } else {
+        // ----------------------------------------------------
+        // EDIT MATERIAL
+        // ----------------------------------------------------
+
+        if (!selected) {
+          return;
+        }
+
+        const payload: UpdateLearningMaterialRequest =
+          {
+            title:
+              data.title,
+
+            description:
+              data.description ||
+              null,
+
+            materialType:
+              data.materialType,
+          };
+
+        let result =
+          await updateLearningMaterial(
+            selected.id,
+            payload,
+          );
+
+        // ----------------------------------------------------
+        // OPTIONAL FILE REPLACEMENT
+        // ----------------------------------------------------
+
+        if (data.file) {
+          result =
+            await uploadLearningMaterial(
+              selected.id,
+              data.file,
+            );
+        }
+
+        // ----------------------------------------------------
+        // UPDATE LOCAL MATERIAL LIST
+        // ----------------------------------------------------
+
+        setAllMaterials(
+          (current) =>
+            current.map(
+              (item) =>
+                item.id ===
+                result.id
+                  ? result
+                  : item,
+            ),
+        );
+
+        setSelected(
+          result,
         );
       }
-    };
 
+      setShowMaterialForm(
+        false,
+      );
+    } catch (err) {
+      setActionError(
+        err instanceof Error
+          ? err
+          : new Error(
+              "Failed to save learning material.",
+            ),
+      );
+    }
+  }
 
+  // ==========================================================
+  // DELETE MATERIAL
+  // ==========================================================
+
+  async function deleteMaterial() {
+    if (!selected) {
+      return;
+    }
+
+    try {
+      setActionError(null);
+
+      await deleteLearningMaterial(
+        selected.id,
+      );
+
+      setAllMaterials(
+        (current) =>
+          current.filter(
+            (material) =>
+              material.id !==
+              selected.id,
+          ),
+      );
+
+      setSelected(null);
+      setShowDelete(false);
+      setShowDetails(false);
+    } catch (err) {
+      setActionError(
+        err instanceof Error
+          ? err
+          : new Error(
+              "Failed to delete learning material.",
+            ),
+      );
+    }
+  }
+
+  // ==========================================================
+  // PUBLISH MATERIAL
+  // ==========================================================
+
+  async function publishMaterial(
+    material: LearningMaterial,
+  ) {
+    try {
+      setActionError(null);
+
+      const result =
+        await publishLearningMaterial(
+          material.id,
+        );
+
+      setAllMaterials(
+        (current) =>
+          current.map(
+            (item) =>
+              item.id ===
+              material.id
+                ? result
+                : item,
+          ),
+      );
+
+      setSelected(
+        result,
+      );
+    } catch (err) {
+      setActionError(
+        err instanceof Error
+          ? err
+          : new Error(
+              "Failed to publish learning material.",
+            ),
+      );
+    }
+  }
+
+  // ==========================================================
+  // UPLOAD MATERIAL FILE
+  // ==========================================================
+
+  async function handleUpload(
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    if (!selected) {
+      return;
+    }
+
+    const file =
+      event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    try {
+      setActionError(null);
+
+      const result =
+        await uploadLearningMaterial(
+          selected.id,
+          file,
+        );
+
+      setSelected(
+        result,
+      );
+
+      setAllMaterials(
+        (current) =>
+          current.map(
+            (item) =>
+              item.id ===
+              selected.id
+                ? result
+                : item,
+          ),
+      );
+    } catch (err) {
+      setActionError(
+        err instanceof Error
+          ? err
+          : new Error(
+              "Failed to upload learning material.",
+            ),
+      );
+    } finally {
+      event.target.value = "";
+    }
+  }
+
+  // ==========================================================
+  // EXTRACT MATERIAL
+  // ==========================================================
+
+  async function handleExtract() {
+    if (!selected) {
+      return;
+    }
+
+    try {
+      setActionError(null);
+
+      await extractLearningMaterialText(
+        selected.id,
+      );
+    } catch (err) {
+      setActionError(
+        err instanceof Error
+          ? err
+          : new Error(
+              "Failed to extract document text.",
+            ),
+      );
+    }
+  }
+  
+async function handleGenerateModules() {
+  if (!selected) {
+    return;
+  }
+
+  try {
+    setActionError(null);
+
+    if (modules.length === 0) {
+      throw new Error(
+        "No learning modules found. Please create a learning module first.",
+      );
+    }
+
+    for (const module of modules) {
+      await generateModuleAiContent(module.id);
+    }
+
+    const updatedModules = await loadModules(
+      selected.id,
+    );
+
+    // Reload sections for the generated modules.
+    for (const module of updatedModules) {
+      await loadSections(module.id);
+    }
+  } catch (err) {
+    setActionError(
+      err instanceof Error
+        ? err
+        : new Error(
+            "Failed to generate learning module content.",
+          ),
+    );
+  }
+}
+
+async function handleGenerateModule(
+  moduleId: string,
+) {
+  try {
+    setActionError(null);
+    setGeneratingModuleId(moduleId);
+
+    await generateModuleAiContent(
+      moduleId,
+    );
+
+    if (selected) {
+      await loadModules(
+        selected.id,
+      );
+    }
+
+    await loadSections(
+      moduleId,
+    );
+  } catch (err) {
+    setActionError(
+      err instanceof Error
+        ? err
+        : new Error(
+            "Failed to generate AI content.",
+          ),
+    );
+  } finally {
+    setGeneratingModuleId(null);
+  }
+}
   // ==========================================================
   // CREATE MODULE
   // ==========================================================
 
-  const handleCreateModule =
-    async (
-      event: FormEvent<HTMLFormElement>,
-    ) => {
-      event.preventDefault();
+  function openCreateModule() {
+    if (!selected) {
+      return;
+    }
 
-      if (
-        !selectedMaterial
-      ) {
+    setSelectedModule(null);
+
+    setModuleFormMode(
+      "create",
+    );
+
+    setShowModuleForm(
+      true,
+    );
+  }
+
+  // ==========================================================
+  // EDIT MODULE
+  // ==========================================================
+
+  function openEditModule(
+    module: LearningModule,
+  ) {
+    setSelectedModule(
+      module,
+    );
+
+    setModuleFormMode(
+      "edit",
+    );
+
+    setShowModuleForm(
+      true,
+    );
+  }
+
+  // ==========================================================
+  // SAVE MODULE
+  // ==========================================================
+async function handleModuleSubmit(
+  data: {
+    learningMaterialId: string;
+    moduleNumber: number;
+    title: string;
+    description: string;
+    displayOrder: number;
+  },
+) {
+  try {
+    setActionError(null);
+
+    if (!selected) {
+      throw new Error(
+        "No learning material is currently selected.",
+      );
+    }
+
+    if (moduleFormMode === "create") {
+      const payload: CreateLearningModuleRequest = {
+        learningMaterialId: selected.id,
+        moduleNumber: data.moduleNumber,
+        title: data.title,
+        description: data.description || null,
+        displayOrder: data.displayOrder,
+      };
+
+      await createLearningModule(payload);
+    } else {
+      if (!selectedModule) {
         return;
       }
 
-      if (
-        !assignedBatchIds.has(
-          selectedMaterial.trainingBatchId,
-        )
-      ) {
-        setActionError(
-          "You can only create modules for materials belonging to your assigned training batches.",
+      const payload: UpdateLearningModuleRequest = {
+        moduleNumber: data.moduleNumber,
+        title: data.title,
+        description: data.description || null,
+        welcomeContent:
+          selectedModule.welcomeContent,
+        learningObjectives:
+          selectedModule.learningObjectives,
+        summary:
+          selectedModule.summary,
+        keyTakeaways:
+          selectedModule.keyTakeaways,
+        displayOrder: data.displayOrder,
+      };
+
+      await updateLearningModule(
+        selectedModule.id,
+        payload,
+      );
+    }
+
+    await loadModules(selected.id);
+
+    setShowModuleForm(false);
+    setSelectedModule(null);
+  } catch (err) {
+    setActionError(
+      err instanceof Error
+        ? err
+        : new Error(
+            "Failed to save learning module.",
+          ),
+    );
+  }
+}
+
+  // ==========================================================
+  // DELETE MODULE
+  // ==========================================================
+
+  async function deleteModule() {
+    if (!selectedModule) {
+      return;
+    }
+
+    try {
+      setActionError(null);
+
+      await deleteLearningModule(
+        selectedModule.id,
+      );
+
+      if (selected) {
+        await loadModules(
+          selected.id,
         );
-
-        return;
       }
+
+      setSelectedModule(
+        null,
+      );
+
+      setShowDelete(
+        false,
+      );
+    } catch (err) {
+      setActionError(
+        err instanceof Error
+          ? err
+          : new Error(
+              "Failed to delete learning module.",
+            ),
+      );
+    }
+  }
+
+  // ==========================================================
+  // UPLOAD MODULE FILE
+  // ==========================================================
+
+  async function handleUploadModuleFile(
+    moduleId: string,
+    file: File,
+  ) {
+    try {
+      setActionError(null);
+
+      await uploadLearningModuleFile(
+        moduleId,
+        file,
+      );
+
+      if (selected) {
+        await loadModules(
+          selected.id,
+        );
+      }
+    } catch (err) {
+      setActionError(
+        err instanceof Error
+          ? err
+          : new Error(
+              "Failed to upload module file.",
+            ),
+      );
+    }
+  }
+
+  // ==========================================================
+  // EXTRACT MODULE FILE
+  // ==========================================================
+
+  async function handleExtractModuleFile(
+    moduleId: string,
+    moduleFileId: string,
+  ) {
+    try {
+      setActionError(null);
+
+      await extractLearningModuleFileText(
+        moduleId,
+        moduleFileId,
+      );
+
+      if (selected) {
+        await loadModules(
+          selected.id,
+        );
+      }
+    } catch (err) {
+      setActionError(
+        err instanceof Error
+          ? err
+          : new Error(
+              "Failed to extract module file.",
+            ),
+      );
+    }
+  }
+
+  // ==========================================================
+  // EXTRACT ALL MODULE FILES
+  // ==========================================================
+
+  async function handleExtractAllModuleFiles(
+    moduleId: string,
+  ) {
+    try {
+      setActionError(null);
+
+      await extractAllLearningModuleFiles(
+        moduleId,
+      );
+
+      if (selected) {
+        await loadModules(
+          selected.id,
+        );
+      }
+    } catch (err) {
+      setActionError(
+        err instanceof Error
+          ? err
+          : new Error(
+              "Failed to extract all module files.",
+            ),
+      );
+    }
+  }
+
+  // ==========================================================
+  // LOAD SECTIONS
+  // ==========================================================
+
+  async function handleLoadSections(
+    module: LearningModule,
+  ) {
+    try {
+      setActionError(null);
+
+      await loadSections(
+        module.id,
+      );
+    } catch (err) {
+      setActionError(
+        err instanceof Error
+          ? err
+          : new Error(
+              "Failed to load learning sections.",
+            ),
+      );
+    }
+  }
+
+  // ==========================================================
+  // CREATE SECTION
+  // ==========================================================
+
+  function openCreateSection(
+    module: LearningModule,
+  ) {
+    setSelectedModule(
+      module,
+    );
+
+    setSelectedSection(
+      null,
+    );
+
+    setSectionFormMode(
+      "create",
+    );
+
+    setShowSectionForm(
+      true,
+    );
+  }
+
+  // ==========================================================
+  // EDIT SECTION
+  // ==========================================================
+
+  function openEditSection(
+    section: LearningSection,
+  ) {
+    setSelectedSection(
+      section,
+    );
+
+    setSelectedModule(
+      null,
+    );
+
+    setSectionFormMode(
+      "edit",
+    );
+
+    setShowSectionForm(
+      true,
+    );
+  }
+
+  // ==========================================================
+  // SAVE SECTION
+  // ==========================================================
+
+  async function handleSectionSubmit(
+    data: {
+      learningModuleId: string;
+      sectionNumber: number;
+      title: string;
+      contentType: string;
+      content: string;
+      mediaUrl: string;
+      displayOrder: number;
+    },
+  ) {
+    try {
+      setActionError(null);
 
       if (
-        !moduleForm.title.trim()
+        sectionFormMode ===
+        "create"
       ) {
-        setActionError(
-          "Module title is required.",
-        );
-
-        return;
-      }
-
-      try {
-        setActionError(null);
-
-        const nextModuleNumber =
-          modules.length === 0
-            ? 1
-            : Math.max(
-                ...modules.map(
-                  module =>
-                    Number(
-                      module.moduleNumber,
-                    ) || 0,
-                ),
-              ) + 1;
-
-        const request =
+        const payload: CreateLearningSectionRequest =
           {
-            learningMaterialId:
-              selectedMaterial.id,
+            learningModuleId:
+              data.learningModuleId,
+
+            sectionNumber:
+              data.sectionNumber,
 
             title:
-              moduleForm.title.trim(),
+              data.title,
 
-            description:
-              moduleForm.description.trim(),
+            contentType:
+              data.contentType,
 
-            moduleNumber:
-              nextModuleNumber,
-          } as CreateLearningModuleRequest;
+            content:
+              data.content ||
+              null,
 
-        await createLearningModule(
-          request,
+            mediaUrl:
+              data.mediaUrl ||
+              null,
+
+            displayOrder:
+              data.displayOrder,
+          };
+
+        await createLearningSection(
+          payload,
         );
+      } else {
+        if (!selectedSection) {
+          return;
+        }
 
-        setModuleForm({
-          title: "",
-          description: "",
-        });
+        const payload: UpdateLearningSectionRequest =
+          {
+            sectionNumber:
+              data.sectionNumber,
 
-        setShowCreateModule(
-          false,
-        );
-      } catch (error) {
-        setActionError(
-          error instanceof Error
-            ? error.message
-            : "Unable to create learning module.",
+            title:
+              data.title,
+
+            contentType:
+              data.contentType,
+
+            content:
+              data.content ||
+              null,
+
+            mediaUrl:
+              data.mediaUrl ||
+              null,
+
+            displayOrder:
+              data.displayOrder,
+          };
+
+        await updateLearningSection(
+          selectedSection.id,
+          payload,
         );
       }
-    };
 
+      await loadSections(
+        data.learningModuleId,
+      );
+
+      setShowSectionForm(
+        false,
+      );
+
+      setSelectedSection(
+        null,
+      );
+
+      setSelectedModule(
+        null,
+      );
+    } catch (err) {
+      setActionError(
+        err instanceof Error
+          ? err
+          : new Error(
+              "Failed to save learning section.",
+            ),
+      );
+    }
+  }
 
   // ==========================================================
-  // OPEN CREATE MATERIAL
+  // DELETE SECTION
   // ==========================================================
 
-  const openCreateMaterial =
-    () => {
+  async function deleteSection() {
+    if (!selectedSection) {
+      return;
+    }
+
+    try {
       setActionError(null);
 
-      setMaterialForm(
-        current => ({
-          ...current,
-
-          trainingBatchId:
-            current.trainingBatchId &&
-            assignedBatchIds.has(
-              current.trainingBatchId,
-            )
-              ? current.trainingBatchId
-              : assignedBatches[0]
-                  ?.id ?? "",
-        }),
+      await deleteLearningSection(
+        selectedSection.id,
       );
 
-      setShowCreateMaterial(
-        true,
+      if (
+        selectedSection.learningModuleId
+      ) {
+        await loadSections(
+          selectedSection.learningModuleId,
+        );
+      }
+
+      setSelectedSection(
+        null,
       );
-    };
 
-
-  // ==========================================================
-  // OPEN CREATE MODULE
-  // ==========================================================
-
-  const openCreateModule =
-    () => {
-      setActionError(null);
-
-      setModuleForm({
-        title: "",
-        description: "",
-      });
-
-      setShowCreateModule(
-        true,
+      setShowDelete(
+        false,
       );
-    };
-
-
-  // ==========================================================
-  // REFRESH
-  // ==========================================================
-
-  const refresh =
-    async () => {
-      await loadMyAssignments();
-      await loadBatches();
-    };
-
+    } catch (err) {
+      setActionError(
+        err instanceof Error
+          ? err
+          : new Error(
+              "Failed to delete learning section.",
+            ),
+      );
+    }
+  }
 
   // ==========================================================
-  // LOADING
+  // OPEN FILE
   // ==========================================================
 
-  const pageLoading =
-    isLoadingMyAssignments ||
-    isLoadingBatches;
+  function openMaterial(
+    material: LearningMaterial,
+  ) {
+    if (!material.fileUrl) {
+      return;
+    }
 
+    window.open(
+      material.fileUrl,
+      "_blank",
+      "noopener,noreferrer",
+    );
+  }
 
   // ==========================================================
-  // ERROR
+  // DELETE TARGET
   // ==========================================================
 
-  const pageError =
-    actionError ??
-    assignmentError ??
-    batchError ??
-    learningMaterialError?.message ??
+  function openDeleteMaterial(
+    material: LearningMaterial,
+  ) {
+    setSelected(
+      material,
+    );
+
+    setDeleteTarget(
+      "material",
+    );
+
+    setShowDelete(
+      true,
+    );
+  }
+
+  function openDeleteModule(
+    module: LearningModule,
+  ) {
+    setSelectedModule(
+      module,
+    );
+
+    setDeleteTarget(
+      "module",
+    );
+
+    setShowDelete(
+      true,
+    );
+  }
+
+  function openDeleteSection(
+    section: LearningSection,
+  ) {
+    setSelectedSection(
+      section,
+    );
+
+    setDeleteTarget(
+      "section",
+    );
+
+    setShowDelete(
+      true,
+    );
+  }
+
+  async function handleDeleteConfirm() {
+    if (
+      deleteTarget ===
+      "material"
+    ) {
+      await deleteMaterial();
+      return;
+    }
+
+    if (
+      deleteTarget ===
+      "module"
+    ) {
+      await deleteModule();
+      return;
+    }
+
+    await deleteSection();
+  }
+
+  // ==========================================================
+  // DELETE MODAL TEXT
+  // ==========================================================
+
+  const deleteTitle =
+    deleteTarget ===
+    "material"
+      ? "Remove Material?"
+      : deleteTarget ===
+          "module"
+        ? "Remove Module?"
+        : "Remove Section?";
+
+  const deleteDescription =
+    deleteTarget ===
+    "material"
+      ? `Are you sure you want to remove "${selected?.title ?? ""}" from this training batch?`
+      : deleteTarget ===
+          "module"
+        ? `Are you sure you want to remove "${selectedModule?.title ?? ""}"?`
+        : `Are you sure you want to remove "${selectedSection?.title ?? ""}"?`;
+
+  // ==========================================================
+  // PAGE STATES
+  // ==========================================================
+
+  const isPageLoading =
+    isLoadingBatches ||
+    isLoading ||
+    isLoadingDetails;
+
+  const pageErrorMessage =
+    actionError?.message ??
+    batchError?.message ??
+    error ??
     null;
 
+  // ==========================================================
+  // TABLE META
+  // ==========================================================
+
+  const tableMeta: LearningMaterialTableMeta = {
+    batchMap,
+
+    onView: (material) => {
+      void viewMaterial(
+        material,
+      );
+    },
+
+    onPublish: (material) => {
+      void publishMaterial(
+        material,
+      );
+    },
+
+    onDelete: (material) => {
+      openDeleteMaterial(
+        material,
+      );
+    },
+  };
 
   // ==========================================================
   // RENDER
@@ -1058,1363 +1666,448 @@ export default function TrainerLearningMaterialsPage() {
 
   return (
     <div className="space-y-6">
+      {/* ======================================================
+          PAGE HEADER
+      ====================================================== */}
 
-      {/* ====================================================
-          HEADER
-      ==================================================== */}
+      <PageSection
+        title="Learning Materials"
+        description="Manage, review, and monitor learning resources across training batches."
+      />
 
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-
-        <PageSection
-          title="Learning Materials"
-          description="Create and manage learning materials for your assigned training batches."
-        />
-
-        <div className="flex items-center gap-2">
-
-          <Button
-            type="button"
-            variant="outline"
-            onClick={refresh}
-            disabled={pageLoading}
-          >
-            <RefreshCw
-              className={`mr-2 h-4 w-4 ${
-                pageLoading
-                  ? "animate-spin"
-                  : ""
-              }`}
-            />
-
-            Refresh
-          </Button>
-
-          <Button
-            type="button"
-            onClick={
-              openCreateMaterial
-            }
-            disabled={
-              pageLoading ||
-              assignedBatches.length ===
-                0
-            }
-          >
-            <Plus className="mr-2 h-4 w-4" />
-
-            Create Material
-          </Button>
-
-        </div>
-
-      </div>
-
-
-      {/* ====================================================
+      {/* ======================================================
           ERROR
-      ==================================================== */}
+      ====================================================== */}
 
-      {pageError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {pageError}
+      {pageErrorMessage && (
+        <div className="rounded-2xl border border-red-100 bg-red-50 p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-100 text-sm font-bold text-red-600">
+              !
+            </div>
+
+            <div>
+              <p className="text-sm font-semibold text-red-900">
+                Learning Material Error
+              </p>
+
+              <p className="mt-1 text-xs leading-5 text-red-700">
+                {pageErrorMessage}
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
-
-      {/* ====================================================
-          ASSIGNED BATCHES
-      ==================================================== */}
-
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-
-        <div className="mb-4 flex items-center justify-between">
-
-          <div>
-            <h2 className="text-sm font-semibold text-slate-900">
-              My Assigned Training Batches
-            </h2>
-
-            <p className="mt-1 text-xs text-slate-500">
-              You can only create learning materials
-              for these batches.
-            </p>
-          </div>
-
-          <Badge variant="success">
-            {assignedBatches.length} assigned
-          </Badge>
-
-        </div>
-
-
-        {pageLoading ? (
-          <div className="flex items-center justify-center py-8 text-sm text-slate-500">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Loading your assignments...
-          </div>
-        ) : assignedBatches.length ===
-          0 ? (
-          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-center">
-
-            <Layers3 className="mx-auto h-8 w-8 text-slate-300" />
-
-            <p className="mt-3 text-sm font-semibold text-slate-700">
-              No training batches assigned
-            </p>
-
-            <p className="mt-1 text-xs text-slate-500">
-              You currently do not have an active
-              training batch assignment.
-            </p>
-
-          </div>
-        ) : (
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-
-            {assignedBatches.map(
-              batch => {
-                const assignment =
-                  assignmentMap.get(
-                    batch.id,
-                  );
-
-                return (
-                  <div
-                    key={batch.id}
-                    className="rounded-xl border border-slate-200 bg-slate-50 p-4"
-                  >
-
-                    <div className="flex items-start justify-between gap-3">
-
-                      <div className="min-w-0">
-
-                        <p className="truncate text-sm font-semibold text-slate-900">
-                          {batch.programName ??
-                            "Training Program"}
-                        </p>
-
-                        <p className="mt-1 font-mono text-xs text-slate-500">
-                          {batch.batchCode ??
-                            "No batch code"}
-                        </p>
-
-                      </div>
-
-                      <Badge variant="success">
-                        Assigned
-                      </Badge>
-
-                    </div>
-
-                    {assignment && (
-                      <p className="mt-3 text-[11px] text-slate-400">
-                        Assignment ID:{" "}
-                        {assignment.id}
-                      </p>
-                    )}
-
-                  </div>
-                );
-              },
-            )}
-
-          </div>
-        )}
-
-      </div>
-
-
-      {/* ====================================================
+      {/* ======================================================
           STATS
-      ==================================================== */}
+      ====================================================== */}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-
+      <StatGrid>
         <StatCard
-          icon={
-            <FileText className="h-5 w-5" />
-          }
-          label="My Materials"
+          title="Total Materials"
+          description="All uploaded resources"
           value={
-            trainerMaterials.length
+            allMaterials.length
           }
+          variant="primary"
+          icon={BookOpen}
         />
 
         <StatCard
-          icon={
-            <BookOpen className="h-5 w-5" />
-          }
-          label="Published"
+          title="Published"
+          description="Available to participants"
           value={
             publishedCount
           }
+          variant="success"
+          icon={BookCheck}
         />
 
         <StatCard
-          icon={
-            <FileText className="h-5 w-5" />
-          }
-          label="Drafts"
+          title="Draft"
+          description="Not yet published"
           value={
             draftCount
           }
+          variant="warning"
+          icon={FilePenLine}
         />
 
         <StatCard
-          icon={
-            <Layers3 className="h-5 w-5" />
-          }
-          label="Assigned Batches"
+          title="Training Batches"
+          description="Batches with training content"
           value={
-            assignedBatches.length
+            batches.length
           }
+          variant="primary"
+          icon={Layers3}
         />
+      </StatGrid>
 
-      </div>
+      {/* ======================================================
+          DATA TABLE
+      ====================================================== */}
 
+      <DataTable
+        columns={columns}
+        data={filteredMaterials}
+        meta={tableMeta}
+        loading={isPageLoading}
+        searchable
+        toolbar={
+          <div className="flex flex-wrap items-center gap-2">
+            {/* TRAINING */}
 
-      {/* ====================================================
-          TABLE
-      ==================================================== */}
+            <Select
+              value={trainingFilter}
+              onValueChange={
+                setTrainingFilter
+              }
+            >
+              <SelectTrigger className="h-10 w-55 rounded-xl border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium text-gray-700">
+                <SelectValue placeholder="All Trainings" />
+              </SelectTrigger>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-
-        <DataTable
-          columns={columns}
-          data={trainerMaterials}
-          meta={{
-            batchMap,
-            onView: handleView,
-            onPublish: handlePublish,
-            onDelete: handleDelete,
-          }}
-        />
-
-      </div>
-
-
-      {/* ====================================================
-          CREATE MATERIAL MODAL
-      ==================================================== */}
-
-      {showCreateMaterial && (
-        <Modal
-          title="Create Learning Material"
-          onClose={() =>
-            setShowCreateMaterial(
-              false,
-            )
-          }
-        >
-
-          <form
-            onSubmit={
-              handleCreateMaterial
-            }
-            className="space-y-5"
-          >
-
-            {/* BATCH */}
-
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                Training Batch
-              </label>
-
-              <select
-                value={
-                  materialForm.trainingBatchId
-                }
-                onChange={event =>
-                  setMaterialForm(
-                    current => ({
-                      ...current,
-                      trainingBatchId:
-                        event.target.value,
-                    }),
-                  )
-                }
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
-              >
-
-                <option value="">
-                  Select assigned training batch
-                </option>
-
-                {assignedBatches.map(
-                  batch => (
-                    <option
-                      key={batch.id}
-                      value={batch.id}
+              <SelectContent>
+                {trainings.map(
+                  (training) => (
+                    <SelectItem
+                      key={training}
+                      value={training}
                     >
-                      {batch.programName} —{" "}
-                      {batch.batchCode}
-                    </option>
+                      {training}
+                    </SelectItem>
                   ),
                 )}
-
-              </select>
-
-              <p className="mt-1.5 text-[11px] text-slate-400">
-                Only training batches assigned to
-                you are available.
-              </p>
-            </div>
-
-
-            {/* TITLE */}
-
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                Title
-              </label>
-
-              <input
-                type="text"
-                value={
-                  materialForm.title
-                }
-                onChange={event =>
-                  setMaterialForm(
-                    current => ({
-                      ...current,
-                      title:
-                        event.target.value,
-                    }),
-                  )
-                }
-                placeholder="e.g. Introduction to Anatomy"
-                className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-slate-400"
-              />
-            </div>
-
+              </SelectContent>
+            </Select>
 
             {/* TYPE */}
 
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                Material Type
-              </label>
-
-              <select
-                value={
-                  materialForm.materialType
-                }
-                onChange={event =>
-                  setMaterialForm(
-                    current => ({
-                      ...current,
-                      materialType:
-                        event.target
-                          .value as MaterialType,
-                    }),
-                  )
-                }
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-400"
-              >
-
-                <option value="PDF">
-                  PDF
-                </option>
-
-                <option value="Presentation">
-                  Presentation
-                </option>
-
-                <option value="Document">
-                  Document
-                </option>
-
-                <option value="Video">
-                  Video
-                </option>
-
-                <option value="Activity">
-                  Activity
-                </option>
-
-                <option value="Other">
-                  Other
-                </option>
-
-              </select>
-            </div>
-
-
-            {/* DESCRIPTION */}
-
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                Description
-              </label>
-
-              <textarea
-                value={
-                  materialForm.description
-                }
-                onChange={event =>
-                  setMaterialForm(
-                    current => ({
-                      ...current,
-                      description:
-                        event.target.value,
-                    }),
-                  )
-                }
-                rows={4}
-                placeholder="Describe this learning material..."
-                className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
-              />
-            </div>
-
-
-            {/* FILE */}
-
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                File
-                <span className="ml-1 font-normal text-slate-400">
-                  (optional)
-                </span>
-              </label>
-
-              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 transition hover:border-slate-400 hover:bg-slate-100">
-
-                <Upload className="h-5 w-5 text-slate-400" />
-
-                <div className="min-w-0">
-
-                  <p className="truncate text-sm font-medium text-slate-700">
-                    {materialForm.file
-                      ? materialForm.file.name
-                      : "Choose a file"}
-                  </p>
-
-                  <p className="text-[11px] text-slate-400">
-                    File will be uploaded after
-                    the material is created.
-                  </p>
-
-                </div>
-
-                <input
-                  type="file"
-                  className="hidden"
-                  onChange={event =>
-                    setMaterialForm(
-                      current => ({
-                        ...current,
-                        file:
-                          event.target
-                            .files?.[0] ??
-                          null,
-                      }),
-                    )
-                  }
-                />
-
-              </label>
-            </div>
-
-
-            {/* ACTIONS */}
-
-            <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
-
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() =>
-                  setShowCreateMaterial(
-                    false,
-                  )
-                }
-              >
-                Cancel
-              </Button>
-
-              <Button
-                type="submit"
-                disabled={
-                  isSaving ||
-                  isUploading ||
-                  assignedBatches.length ===
-                    0
-                }
-              >
-
-                {isSaving ||
-                isUploading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create Material
-                  </>
-                )}
-
-              </Button>
-
-            </div>
-
-          </form>
-
-        </Modal>
-      )}
-
-
-      {/* ====================================================
-          MATERIAL DETAILS
-      ==================================================== */}
-
-      {showMaterialDetails &&
-        selectedMaterial && (
-          <Modal
-            title={
-              selectedMaterial.title
-            }
-            onClose={() => {
-              setShowMaterialDetails(
-                false,
-              );
-
-              setSelectedModule(
-                null,
-              );
-            }}
-            wide
-          >
-
-            <div className="space-y-6">
-
-              {/* MATERIAL INFO */}
-
-              <div className="grid gap-4 md:grid-cols-2">
-
-                <Info
-                  label="Training Program"
-                  value={
-                    batchMap.get(
-                      selectedMaterial.trainingBatchId,
-                    )?.programName ??
-                    "Unknown"
-                  }
-                />
-
-                <Info
-                  label="Batch"
-                  value={
-                    selectedMaterial.batchCode ??
-                    batchMap.get(
-                      selectedMaterial.trainingBatchId,
-                    )?.batchCode ??
-                    "—"
-                  }
-                />
-
-                <Info
-                  label="Type"
-                  value={
-                    selectedMaterial.materialType
-                  }
-                />
-
-                <Info
-                  label="Status"
-                  value={
-                    selectedMaterial.isPublished
-                      ? "Published"
-                      : "Draft"
-                  }
-                />
-
-              </div>
-
-
-              {/* FILE */}
-
-              <div className="rounded-xl border border-slate-200 p-4">
-
-                <div className="flex items-center justify-between gap-4">
-
-                  <div className="flex min-w-0 items-center gap-3">
-
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100">
-                      <FileText className="h-5 w-5 text-slate-500" />
-                    </div>
-
-                    <div className="min-w-0">
-
-                      <p className="truncate text-sm font-semibold text-slate-800">
-                        {selectedMaterial.fileName ??
-                          "No file uploaded"}
-                      </p>
-
-                      <p className="text-xs text-slate-400">
-                        {formatFileSize(
-                          selectedMaterial.fileSize,
-                        )}
-                      </p>
-
-                    </div>
-
-                  </div>
-
-                  <label className="cursor-pointer">
-
-                    <span className="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                      <Upload className="mr-2 h-3.5 w-3.5" />
-                      Replace
-                    </span>
-
-                    <input
-                      type="file"
-                      className="hidden"
-                      disabled={
-                        isUploading
-                      }
-                      onChange={async event => {
-                        const file =
-                          event.target
-                            .files?.[0];
-
-                        if (!file) {
-                          return;
-                        }
-
-                        try {
-                          const updated =
-                            await uploadLearningMaterial(
-                              selectedMaterial.id,
-                              file,
-                            );
-
-                          setSelectedMaterial(
-                            updated,
-                          );
-
-                          setAllMaterials(
-                            current =>
-                              current.map(
-                                material =>
-                                  material.id ===
-                                  updated.id
-                                    ? updated
-                                    : material,
-                              ),
-                          );
-                        } catch (error) {
-                          setActionError(
-                            error instanceof Error
-                              ? error.message
-                              : "Unable to upload file.",
-                          );
-                        }
-                      }}
-                    />
-
-                  </label>
-
-                </div>
-
-              </div>
-
-
-              {/* MODULES */}
-
-              <div>
-
-                <div className="mb-3 flex items-center justify-between">
-
-                  <div>
-                    <h3 className="text-sm font-semibold text-slate-900">
-                      Learning Modules
-                    </h3>
-
-                    <p className="text-xs text-slate-400">
-                      Modules belonging to this
-                      learning material.
-                    </p>
-                  </div>
-
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={
-                      openCreateModule
-                    }
-                  >
-                    <Plus className="mr-1.5 h-3.5 w-3.5" />
-                    Add Module
-                  </Button>
-
-                </div>
-
-
-                {modules.length ===
-                0 ? (
-                  <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-center">
-
-                    <Layers3 className="mx-auto h-8 w-8 text-slate-300" />
-
-                    <p className="mt-2 text-sm font-semibold text-slate-700">
-                      No modules yet
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-400">
-                      Create a module or generate
-                      modules from the material.
-                    </p>
-
-                    <div className="mt-4 flex justify-center gap-2">
-
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={
-                          isGenerating
-                        }
-                        onClick={async () => {
-                          try {
-                            await generateLearningModules(
-                              selectedMaterial.id,
-                            );
-                          } catch (error) {
-                            setActionError(
-                              error instanceof Error
-                                ? error.message
-                                : "Unable to generate modules.",
-                            );
-                          }
-                        }}
-                      >
-                        {isGenerating ? (
-                          <>
-                            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                            Generating...
-                          </>
-                        ) : (
-                          "Generate Modules"
-                        )}
-                      </Button>
-
-                    </div>
-
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-
-                    {modules.map(
-                      (module, index) => (
-                        <button
-                          key={
-                            module.id
-                          }
-                          type="button"
-                          onClick={async () => {
-                            setSelectedModule(
-                              module,
-                            );
-
-                            try {
-                              await loadSections(
-                                module.id,
-                              );
-                            } catch (error) {
-                              setActionError(
-                                error instanceof Error
-                                  ? error.message
-                                  : "Unable to load sections.",
-                              );
-                            }
-                          }}
-                          className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-slate-300 hover:bg-slate-50"
-                        >
-
-                          <div className="flex min-w-0 items-center gap-3">
-
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-600">
-                              {module.moduleNumber ??
-                                index + 1}
-                            </div>
-
-                            <div className="min-w-0">
-
-                              <p className="truncate text-sm font-semibold text-slate-800">
-                                {module.title}
-                              </p>
-
-                              {module.description && (
-                                <p className="mt-0.5 truncate text-xs text-slate-400">
-                                  {
-                                    module.description
-                                  }
-                                </p>
-                              )}
-
-                            </div>
-
-                          </div>
-
-                          <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
-
-                        </button>
-                      ),
-                    )}
-
-                  </div>
-                )}
-
-              </div>
-
-
-              {/* SELECTED MODULE SECTIONS */}
-
-              {selectedModule && (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-
-                  <div className="mb-3">
-
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      Module
-                    </p>
-
-                    <h4 className="mt-1 text-sm font-semibold text-slate-900">
-                      {selectedModule.title}
-                    </h4>
-
-                  </div>
-
-
-                  {sections.length ===
-                  0 ? (
-                    <p className="text-xs text-slate-400">
-                      No sections found for this
-                      module.
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-
-                      {sections.map(
-                        (
-                          section,
-                          index,
-                        ) => (
-                          <div
-                            key={
-                              section.id
-                            }
-                            className="rounded-lg border border-slate-200 bg-white px-3 py-3"
-                          >
-
-                            <div className="flex items-start gap-3">
-
-                              <span className="text-xs font-bold text-slate-400">
-                                {index +
-                                  1}
-                              </span>
-
-                              <div>
-
-                                <p className="text-sm font-medium text-slate-800">
-                                  {section.title}
-                                </p>
-
-                                {section.content && (
-                                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                                    {
-                                      section.content
-                                    }
-                                  </p>
-                                )}
-
-                              </div>
-
-                            </div>
-
-                          </div>
-                        ),
-                      )}
-
-                    </div>
-                  )}
-
-                </div>
-              )}
-
-
-              {/* FOOTER */}
-
-              <div className="flex justify-end border-t border-slate-100 pt-4">
-
-                {!selectedMaterial.isPublished && (
-                  <Button
-                    type="button"
-                    onClick={() =>
-                      handlePublish(
-                        selectedMaterial,
-                      )
-                    }
-                    disabled={
-                      isSaving
-                    }
-                  >
-                    {isSaving ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Publishing...
-                      </>
-                    ) : (
-                      "Publish Material"
-                    )}
-                  </Button>
-                )}
-
-              </div>
-
-            </div>
-
-          </Modal>
-        )}
-
-
-      {/* ====================================================
-          CREATE MODULE
-      ==================================================== */}
-
-      {showCreateModule &&
-        selectedMaterial && (
-          <Modal
-            title="Create Learning Module"
-            onClose={() =>
-              setShowCreateModule(
-                false,
-              )
-            }
-            above
-          >
-
-            <form
-              onSubmit={
-                handleCreateModule
+            <Select
+              value={typeFilter}
+              onValueChange={
+                setTypeFilter
               }
-              className="space-y-5"
             >
+              <SelectTrigger className="h-10 w-42 rounded-xl border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium text-gray-700">
+                <SelectValue placeholder="All Types" />
+              </SelectTrigger>
 
-              <div className="rounded-xl bg-slate-50 p-3">
+              <SelectContent>
+                <SelectItem value="All Types">
+                  All Types
+                </SelectItem>
 
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                  Learning Material
-                </p>
+                <SelectItem value="PDF">
+                  PDF
+                </SelectItem>
 
-                <p className="mt-1 text-sm font-semibold text-slate-800">
-                  {
-                    selectedMaterial.title
-                  }
-                </p>
+                <SelectItem value="Presentation">
+                  Presentation
+                </SelectItem>
 
-              </div>
+                <SelectItem value="Document">
+                  Document
+                </SelectItem>
 
+                <SelectItem value="Video">
+                  Video
+                </SelectItem>
 
-              {/* MODULE NUMBER */}
+                <SelectItem value="Activity">
+                  Activity
+                </SelectItem>
 
-              <div>
+                <SelectItem value="Other">
+                  Other
+                </SelectItem>
+              </SelectContent>
+            </Select>
 
-                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                  Module Number
-                </label>
+            {/* STATUS */}
 
-                <input
-                  type="text"
-                  readOnly
-                  value={
-                    modules.length ===
-                    0
-                      ? 1
-                      : Math.max(
-                          ...modules.map(
-                            module =>
-                              Number(
-                                module.moduleNumber,
-                              ) || 0,
-                          ),
-                        ) + 1
-                  }
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500"
-                />
+            <Select
+              value={statusFilter}
+              onValueChange={
+                setStatusFilter
+              }
+            >
+              <SelectTrigger className="h-10 w-40 rounded-xl border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium text-gray-700">
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
 
-              </div>
+              <SelectContent>
+                <SelectItem value="All Status">
+                  All Status
+                </SelectItem>
 
+                <SelectItem value="Published">
+                  Published
+                </SelectItem>
 
-              {/* TITLE */}
+                <SelectItem value="Draft">
+                  Draft
+                </SelectItem>
+              </SelectContent>
+            </Select>
 
-              <div>
+            {/* CREATE */}
 
-                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                  Module Title
-                </label>
-
-                <input
-                  type="text"
-                  value={
-                    moduleForm.title
-                  }
-                  onChange={event =>
-                    setModuleForm(
-                      current => ({
-                        ...current,
-                        title:
-                          event.target
-                            .value,
-                      }),
-                    )
-                  }
-                  placeholder="e.g. Skeletal System"
-                  className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-slate-400"
-                />
-
-              </div>
-
-
-              {/* DESCRIPTION */}
-
-              <div>
-
-                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                  Description
-                </label>
-
-                <textarea
-                  value={
-                    moduleForm.description
-                  }
-                  onChange={event =>
-                    setModuleForm(
-                      current => ({
-                        ...current,
-                        description:
-                          event.target
-                            .value,
-                      }),
-                    )
-                  }
-                  rows={4}
-                  placeholder="Describe what this module covers..."
-                  className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-400"
-                />
-
-              </div>
-
-
-              {/* ACTIONS */}
-
-              <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() =>
-                    setShowCreateModule(
-                      false,
-                    )
-                  }
-                >
-                  Cancel
-                </Button>
-
-                <Button
-                  type="submit"
-                  disabled={
-                    isSaving
-                  }
-                >
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Create Module
-                    </>
-                  )}
-                </Button>
-
-              </div>
-
-            </form>
-
-          </Modal>
-        )}
-
-
-      {/* ====================================================
-          DELETE CONFIRM
-      ==================================================== */}
-
-      {showDeleteConfirm &&
-        materialToDelete && (
-          <ConfirmDelete
-            title="Delete Learning Material?"
-            description={`"${materialToDelete.title}" will be permanently deleted.`}
-            onCancel={() => {
-              setShowDeleteConfirm(
-                false,
-              );
-
-              setMaterialToDelete(
-                null,
-              );
-            }}
-            onConfirm={
-              confirmDelete
-            }
-            loading={
-              isSaving
-            }
-          />
-        )}
-
-    </div>
-  );
-}
-
-
-// ============================================================
-// STAT CARD
-// ============================================================
-
-function StatCard({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-
-      <div className="flex items-center justify-between">
-
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-          {icon}
-        </div>
-
-        <span className="text-2xl font-bold text-slate-900">
-          {value}
-        </span>
-
-      </div>
-
-      <p className="mt-3 text-xs font-medium text-slate-500">
-        {label}
-      </p>
-
-    </div>
-  );
-}
-
-
-// ============================================================
-// INFO
-// ============================================================
-
-function Info({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-        {label}
-      </p>
-
-      <p className="mt-1 text-sm font-semibold text-slate-800">
-        {value}
-      </p>
-
-    </div>
-  );
-}
-
-
-// ============================================================
-// MODAL
-// ============================================================
-
-function Modal({
-  title,
-  children,
-  onClose,
-  wide = false,
-  above = false,
-}: {
-  title: string;
-  children: React.ReactNode;
-  onClose: () => void;
-  wide?: boolean;
-  above?: boolean;
-}) {
-  return (
-    <div
-      className={`fixed inset-0 ${
-        above
-          ? "z-[1100]"
-          : "z-[1000]"
-      } flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm`}
-      onMouseDown={event => {
-        if (
-          event.target ===
-          event.currentTarget
-        ) {
-          onClose();
+            <button
+              type="button"
+              onClick={
+                openCreateMaterial
+              }
+              className="h-10 rounded-xl bg-[#191c1e] px-4 text-xs font-semibold text-white transition hover:opacity-90"
+            >
+              Add Material
+            </button>
+          </div>
         }
-      }}
-    >
+      />
 
-      <div
-        className={`max-h-[90vh] w-full overflow-hidden rounded-2xl bg-white shadow-2xl ${
-          wide
-            ? "max-w-4xl"
-            : "max-w-xl"
-        }`}
-      >
+      {/* ======================================================
+          DETAILS MODAL
+      ====================================================== */}
 
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+      <LearningMaterialDetailsModal
+        open={showDetails}
+        material={selected}
+        modules={modules}
+        sections={sections}
+        batchMap={batchMap}
+         generatingModuleId={
+    generatingModuleId
+  }
+  onGenerateModule={(
+    moduleId,
+  ) => {
+    void handleGenerateModule(
+      moduleId,
+    );
+  }}
+        extraction={extraction}
+        onViewModule={openModulePreview}
+        moduleFileExtraction={
+          moduleFileExtraction
+        }
+        isSaving={isSaving}
+        isUploading={
+          isUploading
+        }
+        isGenerating={
+          isGenerating
+        }
+        isExtracting={
+          isExtracting
+        }
+        onClose={() => {
+          setShowDetails(false);
+          setSelected(null);
+        }}
+        onPublish={() => {
+          if (selected) {
+            void publishMaterial(
+              selected,
+            );
+          }
+        }}
+        onOpenMaterial={() => {
+          if (selected) {
+            openMaterial(
+              selected,
+            );
+          }
+        }}
+        onUploadMaterial={
+          handleUpload
+        }
+        onExtractMaterial={() => {
+          void handleExtract();
+        }}
+        onGenerateModules={() => {
+          void handleGenerateModules();
+        }}
+        onUploadModuleFile={(
+          moduleId,
+          file,
+        ) => {
+          void handleUploadModuleFile(
+            moduleId,
+            file,
+          );
+        }}
+        onExtractModuleFile={(
+          moduleId,
+          moduleFileId,
+        ) => {
+          void handleExtractModuleFile(
+            moduleId,
+            moduleFileId,
+          );
+        }}
+        onExtractAllModuleFiles={(
+          moduleId,
+        ) => {
+          void handleExtractAllModuleFiles(
+            moduleId,
+          );
+        }}
+        onLoadSections={(
+          module,
+        ) => {
+          void handleLoadSections(
+            module,
+          );
+        }}
+        onCreateModule={
+          openCreateModule
+        }
+        onEditModule={
+          openEditModule
+        }
+        onCreateSection={
+          openCreateSection
+        }
+        onEditSection={
+          openEditSection
+        }
+        onDeleteModule={
+          openDeleteModule
+        }
+        onDeleteSection={
+          openDeleteSection
+        }
+        onClearModuleFileExtraction={
+          clearModuleFileExtraction
+        }
+      />
 
-          <h2 className="text-base font-semibold text-slate-900">
-            {title}
-          </h2>
+<TrainerModulePreviewModal
+  open={showModulePreview}
+  module={previewModule}
+  sections={sections}
+  onClose={closeModulePreview}
+/>
+      {/* ======================================================
+          MATERIAL FORM
+      ====================================================== */}
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-          >
-            <X className="h-4 w-4" />
-          </button>
+      <LearningMaterialsFormModal
+        open={
+          showMaterialForm
+        }
+        mode={
+          materialFormMode
+        }
+        material={
+          selected
+        }
+        batches={
+          batches
+        }
+        loading={
+          isSaving ||
+          isUploading
+        }
+        onClose={() => {
+          setShowMaterialForm(
+            false,
+          );
+        }}
+        onSubmit={(data) => {
+          void handleMaterialSubmit(
+            data,
+          );
+        }}
+      />
 
-        </div>
+      {/* ======================================================
+          MODULE FORM
+      ====================================================== */}
+<LearningModuleFormModal
+  open={showModuleForm}
+  mode={moduleFormMode}
+  module={selectedModule}
+  learningMaterialId={selected?.id ?? ""}
+  loading={isSaving}
+  onClose={() => {
+    setShowModuleForm(false);
+    setSelectedModule(null);
+  }}
+  onSubmit={(data) => {
+    void handleModuleSubmit(data);
+  }}
+/>
+      {/* ======================================================
+          SECTION FORM
+      ====================================================== */}
 
-        <div className="max-h-[calc(90vh-65px)] overflow-y-auto p-5">
-          {children}
-        </div>
+      <LearningSectionFormModal
+        open={
+          showSectionForm
+        }
+        mode={
+          sectionFormMode
+        }
+        learningModuleId={
+          selectedModule?.id ??
+          selectedSection?.learningModuleId ??
+          ""
+        }
+        section={
+          selectedSection
+        }
+        loading={
+          isSaving
+        }
+        onClose={() => {
+          setShowSectionForm(
+            false,
+          );
 
-      </div>
+          setSelectedSection(
+            null,
+          );
 
+          setSelectedModule(
+            null,
+          );
+        }}
+        onSubmit={(data) => {
+          void handleSectionSubmit(
+            data,
+          );
+        }}
+      />
+
+      {/* ======================================================
+          DELETE
+      ====================================================== */}
+
+      {showDelete && (
+        <ConfirmDeleteModal
+          title={
+            deleteTitle
+          }
+          description={
+            deleteDescription
+          }
+          loading={
+            isSaving
+          }
+          onCancel={() => {
+            setShowDelete(
+              false,
+            );
+          }}
+          onConfirm={() => {
+            void handleDeleteConfirm();
+          }}
+        />
+      )}
     </div>
   );
-}
-
-
-// ============================================================
-// DELETE CONFIRM
-// ============================================================
-
-function ConfirmDelete({
-  title,
-  description,
-  onCancel,
-  onConfirm,
-  loading,
-}: {
-  title: string;
-  description: string;
-  onCancel: () => void;
-  onConfirm: () => void;
-  loading: boolean;
-}) {
-  return (
-    <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-
-      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
-
-        <div className="mb-5">
-
-          <h2 className="text-base font-semibold text-slate-900">
-            {title}
-          </h2>
-
-          <p className="mt-1 text-sm text-slate-500">
-            {description}
-          </p>
-
-        </div>
-
-        <div className="flex justify-end gap-2">
-
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onCancel}
-            disabled={loading}
-          >
-            Cancel
-          </Button>
-
-          <Button
-            type="button"
-            variant="primary"
-            onClick={onConfirm}
-            disabled={loading}
-          >
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
-              </>
-            ) : (
-              "Delete"
-            )}
-          </Button>
-
-        </div>
-
-      </div>
-
-    </div>
-  );
-}
-
-
-// ============================================================
-// FILE SIZE
-// ============================================================
-
-function formatFileSize(
-  value: number | null | undefined,
-) {
-  if (
-    value === null ||
-    value === undefined ||
-    value <= 0
-  ) {
-    return "—";
-  }
-
-  if (value < 1024) {
-    return `${value} B`;
-  }
-
-  if (value < 1024 * 1024) {
-    return `${(
-      value / 1024
-    ).toFixed(1)} KB`;
-  }
-
-  return `${(
-    value /
-    (1024 * 1024)
-  ).toFixed(1)} MB`;
 }

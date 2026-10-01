@@ -29,6 +29,7 @@
     <!-- <PackageReference Include="SixLabors.ImageSharp" Version="4.1.0" /> -->
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
     <PackageReference Include="Tesseract" Version="5.2.0" />
+    <PackageReference Include="UglyToad.PdfPig" Version="1.7.0-custom-5" />
   </ItemGroup>
 
 </Project>

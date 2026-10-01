@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using server.Data;
@@ -11,9 +12,11 @@ using server.Data;
 namespace server.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260926164034_AddLearningModuleFileAndChunks")]
+    partial class AddLearningModuleFileAndChunks
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -674,6 +677,10 @@ namespace server.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ContentType")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -683,6 +690,20 @@ namespace server.Migrations
 
                     b.Property<int>("DisplayOrder")
                         .HasColumnType("integer");
+
+                    b.Property<string>("ExtractedText")
+                        .HasColumnType("text");
+
+                    b.Property<string>("FileName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<long?>("FileSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("FileUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<string>("KeyTakeaways")
                         .HasColumnType("text");
@@ -695,6 +716,10 @@ namespace server.Migrations
 
                     b.Property<int>("ModuleNumber")
                         .HasColumnType("integer");
+
+                    b.Property<string>("PublicId")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<string>("Summary")
                         .HasColumnType("text");
@@ -736,68 +761,14 @@ namespace server.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid>("LearningModuleFileId")
-                        .HasColumnType("uuid");
-
                     b.Property<Guid>("LearningModuleId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("LearningModuleFileId");
-
-                    b.HasIndex("LearningModuleId");
-
-                    b.HasIndex("LearningModuleFileId", "ChunkNumber")
-                        .IsUnique();
+                    b.HasIndex("LearningModuleId", "ChunkNumber");
 
                     b.ToTable("LearningModuleChunks");
-                });
-
-            modelBuilder.Entity("server.Models.Learning.LearningModuleFile", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ContentType")
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ExtractedText")
-                        .HasColumnType("text");
-
-                    b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<long>("FileSize")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("FileUrl")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<Guid>("LearningModuleId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("PublicId")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("LearningModuleId");
-
-                    b.ToTable("LearningModuleFiles");
                 });
 
             modelBuilder.Entity("server.Models.Learning.LearningSection", b =>
@@ -2175,27 +2146,8 @@ namespace server.Migrations
 
             modelBuilder.Entity("server.Models.Learning.LearningModuleChunk", b =>
                 {
-                    b.HasOne("server.Models.Learning.LearningModuleFile", "LearningModuleFile")
-                        .WithMany("Chunks")
-                        .HasForeignKey("LearningModuleFileId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("server.Models.Learning.LearningModule", "LearningModule")
                         .WithMany("Chunks")
-                        .HasForeignKey("LearningModuleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("LearningModule");
-
-                    b.Navigation("LearningModuleFile");
-                });
-
-            modelBuilder.Entity("server.Models.Learning.LearningModuleFile", b =>
-                {
-                    b.HasOne("server.Models.Learning.LearningModule", "LearningModule")
-                        .WithMany("Files")
                         .HasForeignKey("LearningModuleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -2570,14 +2522,7 @@ namespace server.Migrations
                 {
                     b.Navigation("Chunks");
 
-                    b.Navigation("Files");
-
                     b.Navigation("Sections");
-                });
-
-            modelBuilder.Entity("server.Models.Learning.LearningModuleFile", b =>
-                {
-                    b.Navigation("Chunks");
                 });
 
             modelBuilder.Entity("server.Models.Learning.LearningSection", b =>

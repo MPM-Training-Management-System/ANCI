@@ -1,72 +1,80 @@
+using System.Text.Json;
+
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+
 using server.Data;
+using server.DTOs.Trainer.Learning;
 using server.DTOs.Training.LearningMaterials;
 using server.Models.Learning;
 using server.Services.DocumentExtraction;
 using server.Services.Interfaces;
 
-namespace server.Services.Training;
+namespace server.Services;
 
 public class LearningMaterialService
     : ILearningMaterialService
 {
     private readonly ApplicationDbContext _context;
+
     private readonly ICloudinaryService _cloudinary;
+
     private readonly IHttpClientFactory _httpClientFactory;
-    private readonly IDocumentTextExtractionService _documentExtractor;
-    private readonly ILearningMaterialAiService _learningMaterialAiService;
+
+    private readonly IDocumentTextExtractionService
+        _documentExtractor;
+
+    private readonly ILearningMaterialAiService
+        _learningMaterialAiService;
+
+    private readonly ILearningModuleChunkingService
+        _learningModuleChunkingService;
 
     public LearningMaterialService(
         ApplicationDbContext context,
         ICloudinaryService cloudinary,
         IHttpClientFactory httpClientFactory,
         IDocumentTextExtractionService documentExtractor,
-        ILearningMaterialAiService learningMaterialAiService)
+        ILearningMaterialAiService learningMaterialAiService,
+        ILearningModuleChunkingService learningModuleChunkingService)
     {
         _context = context;
+
         _cloudinary = cloudinary;
+
         _httpClientFactory = httpClientFactory;
+
         _documentExtractor = documentExtractor;
-        _learningMaterialAiService = learningMaterialAiService;
+
+        _learningMaterialAiService =
+            learningMaterialAiService;
+
+        _learningModuleChunkingService =
+            learningModuleChunkingService;
     }
 
     // =========================================================
-    // GET BY BATCH
+    // LEARNING MATERIALS
     // =========================================================
 
     public async Task<IReadOnlyList<LearningMaterialDto>>
         GetByBatchIdAsync(
             Guid trainingBatchId)
     {
-        var batchExists =
-            await _context.TrainingBatches
-                .AnyAsync(x =>
-                    x.Id == trainingBatchId);
-
-        if (!batchExists)
-        {
-            throw new KeyNotFoundException(
-                "Training batch not found.");
-        }
-
         var materials =
             await _context.LearningMaterials
-                .AsNoTracking()
-                .Include(x => x.TrainingBatch)
                 .Where(x =>
                     x.TrainingBatchId ==
                     trainingBatchId)
-                .OrderBy(x => x.CreatedAt)
+                .OrderByDescending(x =>
+                    x.CreatedAt)
                 .ToListAsync();
 
         return materials
-            .Select(MapToDto)
+            .Select(
+                MapLearningMaterialToDto)
             .ToList();
     }
-
-    // =========================================================
-    // GET BY ID
-    // =========================================================
 
     public async Task<LearningMaterialDto>
         GetByIdAsync(
@@ -74,10 +82,8 @@ public class LearningMaterialService
     {
         var material =
             await _context.LearningMaterials
-                .AsNoTracking()
-                .Include(x => x.TrainingBatch)
-                .FirstOrDefaultAsync(x =>
-                    x.Id == id);
+                .FirstOrDefaultAsync(
+                    x => x.Id == id);
 
         if (material == null)
         {
@@ -85,122 +91,68 @@ public class LearningMaterialService
                 "Learning material not found.");
         }
 
-        return MapToDto(material);
+        return MapLearningMaterialToDto(
+            material);
     }
-
-    // =========================================================
-    // CREATE
-    // =========================================================
 
     public async Task<LearningMaterialDto>
         CreateAsync(
             Guid trainerUserId,
             CreateLearningMaterialRequest request)
     {
-        if (request is null)
-        {
-            throw new ArgumentNullException(
-                nameof(request));
-        }
-
-        if (string.IsNullOrWhiteSpace(
-                request.Title))
-        {
-            throw new ArgumentException(
-                "Learning material title is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(
-                request.MaterialType))
-        {
-            throw new ArgumentException(
-                "Material type is required.");
-        }
-
-        // ---------------------------------------------------------
-        // FIND TRAINER PROFILE
-        // ---------------------------------------------------------
-
-        var trainerProfile =
-            await _context.TrainerProfiles
-                .FirstOrDefaultAsync(x =>
-                    x.UserId == trainerUserId &&
-                    x.IsActive);
-
-        if (trainerProfile == null)
-        {
-            throw new KeyNotFoundException(
-                "Trainer profile not found.");
-        }
-
-        // ---------------------------------------------------------
-        // FIND ACTIVE TRAINER ASSIGNMENT
-        // ---------------------------------------------------------
-
-        var assignment =
-            await _context.TrainerAssignments
-                .Include(x => x.TrainingBatch)
-                .FirstOrDefaultAsync(x =>
-                    x.TrainerProfileId ==
-                        trainerProfile.Id &&
-                    x.IsActive);
-
-        if (assignment == null)
-        {
-            throw new InvalidOperationException(
-                "You are not assigned to a training batch.");
-        }
-
-        // ---------------------------------------------------------
-        // CREATE LEARNING MATERIAL
-        // ---------------------------------------------------------
-
         var material =
             new LearningMaterial
             {
                 Id = Guid.NewGuid(),
 
                 TrainingBatchId =
-                    assignment.TrainingBatchId,
+                    request.TrainingBatchId,
 
                 Title =
-                    request.Title.Trim(),
+                    request.Title,
 
                 Description =
-                    string.IsNullOrWhiteSpace(
-                        request.Description)
-                        ? null
-                        : request.Description.Trim(),
+                    request.Description,
 
                 MaterialType =
-                    request.MaterialType.Trim(),
+                    request.MaterialType,
 
-                FileUrl = "",
+                FileUrl =
+                    string.Empty,
 
-                IsPublished = false,
+                PublicId =
+                    null,
+
+                FileName =
+                    null,
+
+                ContentType =
+                    null,
+
+                FileSize =
+                    null,
+
+                ExtractedText =
+                    null,
+
+                IsPublished =
+                    false,
 
                 CreatedAt =
                     DateTime.UtcNow,
 
-                UpdatedAt = null
+                UpdatedAt =
+                    null
             };
 
-        await _context.LearningMaterials
-            .AddAsync(material);
+        _context.LearningMaterials.Add(
+            material);
 
         await _context.SaveChangesAsync();
 
-        // TrainingBatch is already loaded through
-        // the assignment.Include(...)
-        material.TrainingBatch =
-            assignment.TrainingBatch;
-
-        return MapToDto(material);
+        return MapLearningMaterialToDto(
+            material);
     }
-
-    // =========================================================
-    // UPDATE
-    // =========================================================
 
     public async Task<LearningMaterialDto>
         UpdateAsync(
@@ -209,9 +161,8 @@ public class LearningMaterialService
     {
         var material =
             await _context.LearningMaterials
-                .Include(x => x.TrainingBatch)
-                .FirstOrDefaultAsync(x =>
-                    x.Id == id);
+                .FirstOrDefaultAsync(
+                    x => x.Id == id);
 
         if (material == null)
         {
@@ -219,51 +170,31 @@ public class LearningMaterialService
                 "Learning material not found.");
         }
 
-        if (string.IsNullOrWhiteSpace(
-                request.Title))
-        {
-            throw new ArgumentException(
-                "Learning material title is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(
-                request.MaterialType))
-        {
-            throw new ArgumentException(
-                "Material type is required.");
-        }
-
         material.Title =
-            request.Title.Trim();
+            request.Title;
 
         material.Description =
-            string.IsNullOrWhiteSpace(
-                request.Description)
-                ? null
-                : request.Description.Trim();
+            request.Description;
 
         material.MaterialType =
-            request.MaterialType.Trim();
+            request.MaterialType;
 
         material.UpdatedAt =
             DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
 
-        return MapToDto(material);
+        return MapLearningMaterialToDto(
+            material);
     }
-
-    // =========================================================
-    // DELETE
-    // =========================================================
 
     public async Task DeleteAsync(
         Guid id)
     {
         var material =
             await _context.LearningMaterials
-                .FirstOrDefaultAsync(x =>
-                    x.Id == id);
+                .FirstOrDefaultAsync(
+                    x => x.Id == id);
 
         if (material == null)
         {
@@ -271,15 +202,11 @@ public class LearningMaterialService
                 "Learning material not found.");
         }
 
-        _context.LearningMaterials
-            .Remove(material);
+        _context.LearningMaterials.Remove(
+            material);
 
         await _context.SaveChangesAsync();
     }
-
-    // =========================================================
-    // PUBLISH
-    // =========================================================
 
     public async Task<LearningMaterialDto>
         PublishAsync(
@@ -287,9 +214,8 @@ public class LearningMaterialService
     {
         var material =
             await _context.LearningMaterials
-                .Include(x => x.TrainingBatch)
-                .FirstOrDefaultAsync(x =>
-                    x.Id == id);
+                .FirstOrDefaultAsync(
+                    x => x.Id == id);
 
         if (material == null)
         {
@@ -301,25 +227,1287 @@ public class LearningMaterialService
                 material.FileUrl))
         {
             throw new InvalidOperationException(
-                "A file must be uploaded before the learning material can be published.");
+                "Learning material must have an uploaded file before publishing.");
         }
 
-        material.IsPublished = true;
+        material.IsPublished =
+            true;
 
         material.UpdatedAt =
             DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
 
-        return MapToDto(material);
+        return MapLearningMaterialToDto(
+            material);
+    }
+
+    public async Task<LearningMaterialDto>
+        UploadFileAsync(
+            Guid id,
+            UploadLearningMaterialRequest request)
+    {
+        var material =
+            await _context.LearningMaterials
+                .FirstOrDefaultAsync(
+                    x => x.Id == id);
+
+        if (material == null)
+        {
+            throw new KeyNotFoundException(
+                "Learning material not found.");
+        }
+
+        if (request.File == null ||
+            request.File.Length == 0)
+        {
+            throw new ArgumentException(
+                "A valid file is required.");
+        }
+
+        await using var stream =
+            request.File.OpenReadStream();
+
+        var uploadResult =
+            await _cloudinary.UploadDocumentAsync(
+                stream,
+                request.File.FileName,
+                "learning-materials");
+
+        material.FileUrl =
+            uploadResult.Url;
+
+        material.PublicId =
+            uploadResult.PublicId;
+
+        material.FileName =
+            request.File.FileName;
+
+        material.ContentType =
+            request.File.ContentType;
+
+        material.FileSize =
+            request.File.Length;
+
+        material.ExtractedText =
+            null;
+
+        material.IsPublished =
+            false;
+
+        material.UpdatedAt =
+            DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return MapLearningMaterialToDto(
+            material);
+    }
+
+    public async Task<LearningMaterialExtractionDto>
+        ExtractTextAsync(
+            Guid id)
+    {
+        var material =
+            await _context.LearningMaterials
+                .FirstOrDefaultAsync(
+                    x => x.Id == id);
+
+        if (material == null)
+        {
+            throw new KeyNotFoundException(
+                "Learning material not found.");
+        }
+
+        if (string.IsNullOrWhiteSpace(
+                material.FileUrl))
+        {
+            throw new InvalidOperationException(
+                "Learning material has no uploaded file.");
+        }
+
+        var httpClient =
+            _httpClientFactory.CreateClient();
+
+        using var response =
+            await httpClient.GetAsync(
+                material.FileUrl,
+                HttpCompletionOption.ResponseHeadersRead);
+
+        response.EnsureSuccessStatusCode();
+
+        await using var stream =
+            await response.Content
+                .ReadAsStreamAsync();
+
+        var extractionResult =
+            await _documentExtractor.ExtractAsync(
+                stream,
+                material.FileName ?? "document",
+                material.ContentType);
+
+        material.ExtractedText =
+            extractionResult.Text;
+
+        material.UpdatedAt =
+            DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return new LearningMaterialExtractionDto
+        {
+            LearningMaterialId =
+                material.Id,
+
+            FileName =
+                material.FileName,
+
+            ContentType =
+                material.ContentType,
+
+            Text =
+                extractionResult.Text,
+
+            CharacterCount =
+                extractionResult.Text.Length,
+
+            PageCount =
+                extractionResult.PageCount
+        };
+    }
+
+
+    // =========================================================
+    // LEARNING MODULES
+    // =========================================================
+
+    public async Task<LearningModuleDto>
+        CreateModuleAsync(
+            CreateLearningModuleRequest request)
+    {
+        var materialExists =
+            await _context.LearningMaterials
+                .AnyAsync(
+                    x =>
+                        x.Id ==
+                        request.LearningMaterialId);
+
+        if (!materialExists)
+        {
+            throw new KeyNotFoundException(
+                "Learning material not found.");
+        }
+
+        var module =
+            new LearningModule
+            {
+                Id =
+                    Guid.NewGuid(),
+
+                LearningMaterialId =
+                    request.LearningMaterialId,
+
+                ModuleNumber =
+                    request.ModuleNumber,
+
+                Title =
+                    request.Title,
+
+                Description =
+                    request.Description,
+
+                WelcomeContent =
+                    null,
+
+                LearningObjectives =
+                    null,
+
+                Summary =
+                    null,
+
+                KeyTakeaways =
+                    null,
+
+                DisplayOrder =
+                    request.DisplayOrder,
+
+                CreatedAt =
+                    DateTime.UtcNow,
+
+                UpdatedAt =
+                    null
+            };
+
+        _context.LearningModules.Add(
+            module);
+
+        await _context.SaveChangesAsync();
+
+        return MapModuleToDto(
+            module);
+    }
+
+    public async Task<LearningModuleDto>
+        UpdateModuleAsync(
+            Guid moduleId,
+            UpdateLearningModuleRequest request)
+    {
+        var module =
+            await _context.LearningModules
+                .Include(x => x.Files)
+                .Include(x => x.Sections)
+                .FirstOrDefaultAsync(
+                    x => x.Id == moduleId);
+
+        if (module == null)
+        {
+            throw new KeyNotFoundException(
+                "Learning module not found.");
+        }
+
+        module.Title =
+            request.Title;
+
+        module.Description =
+            request.Description;
+
+        module.WelcomeContent =
+            request.WelcomeContent;
+
+        module.LearningObjectives =
+            SerializeStringList(
+                request.LearningObjectives);
+
+        module.Summary =
+            request.Summary;
+
+        module.KeyTakeaways =
+            SerializeStringList(
+                request.KeyTakeaways);
+
+        module.DisplayOrder =
+            request.DisplayOrder;
+
+        module.UpdatedAt =
+            DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return MapModuleToDto(
+            module);
+    }
+
+    public async Task<IReadOnlyList<LearningModuleDto>>
+        GetModulesAsync(
+            Guid learningMaterialId)
+    {
+        var modules =
+            await _context.LearningModules
+                .Where(
+                    x =>
+                        x.LearningMaterialId ==
+                        learningMaterialId)
+                .Include(x => x.Files)
+                .Include(x => x.Sections)
+                .OrderBy(
+                    x => x.DisplayOrder)
+                .ThenBy(
+                    x => x.ModuleNumber)
+                .ToListAsync();
+
+        return modules
+            .Select(
+                MapModuleToDto)
+            .ToList();
+    }
+
+    public async Task DeleteModuleAsync(
+        Guid moduleId)
+    {
+        var module =
+            await _context.LearningModules
+                .FirstOrDefaultAsync(
+                    x =>
+                        x.Id ==
+                        moduleId);
+
+        if (module == null)
+        {
+            throw new KeyNotFoundException(
+                "Learning module not found.");
+        }
+
+        _context.LearningModules.Remove(
+            module);
+
+        await _context.SaveChangesAsync();
+    }
+
+
+    // =========================================================
+    // MODULE FILES
+    // =========================================================
+
+    public async Task<LearningModuleFileDto>
+        UploadModuleFileAsync(
+            Guid moduleId,
+            IFormFile file)
+    {
+        var moduleExists =
+            await _context.LearningModules
+                .AnyAsync(
+                    x =>
+                        x.Id ==
+                        moduleId);
+
+        if (!moduleExists)
+        {
+            throw new KeyNotFoundException(
+                "Learning module not found.");
+        }
+
+        if (file == null ||
+            file.Length == 0)
+        {
+            throw new ArgumentException(
+                "A valid file is required.");
+        }
+
+        await using var stream =
+            file.OpenReadStream();
+
+        var uploadResult =
+            await _cloudinary.UploadDocumentAsync(
+                stream,
+                file.FileName,
+                "learning-module-files");
+
+        var moduleFile =
+            new LearningModuleFile
+            {
+                Id =
+                    Guid.NewGuid(),
+
+                LearningModuleId =
+                    moduleId,
+
+                FileUrl =
+                    uploadResult.Url,
+
+                PublicId =
+                    uploadResult.PublicId,
+
+                FileName =
+                    file.FileName,
+
+                ContentType =
+                    file.ContentType,
+
+                FileSize =
+                    file.Length,
+
+                ExtractedText =
+                    null,
+
+                CreatedAt =
+                    DateTime.UtcNow,
+
+                UpdatedAt =
+                    null
+            };
+
+        _context.LearningModuleFiles.Add(
+            moduleFile);
+
+        await _context.SaveChangesAsync();
+
+        return MapModuleFileToDto(
+            moduleFile);
+    }
+
+    public async Task<LearningModuleFileExtractionDto>
+        ExtractModuleFileTextAsync(
+            Guid moduleFileId)
+    {
+        var moduleFile =
+            await _context.LearningModuleFiles
+                .FirstOrDefaultAsync(
+                    x =>
+                        x.Id ==
+                        moduleFileId);
+
+        if (moduleFile == null)
+        {
+            throw new KeyNotFoundException(
+                "Learning module file not found.");
+        }
+
+        if (string.IsNullOrWhiteSpace(
+                moduleFile.FileUrl))
+        {
+            throw new InvalidOperationException(
+                "Module file has no uploaded file URL.");
+        }
+
+        var httpClient =
+            _httpClientFactory.CreateClient();
+
+        using var response =
+            await httpClient.GetAsync(
+                moduleFile.FileUrl,
+                HttpCompletionOption.ResponseHeadersRead);
+
+        response.EnsureSuccessStatusCode();
+
+        await using var stream =
+            await response.Content
+                .ReadAsStreamAsync();
+
+        var extractionResult =
+            await _documentExtractor.ExtractAsync(
+                stream,
+                moduleFile.FileName,
+                moduleFile.ContentType);
+
+        moduleFile.ExtractedText =
+            extractionResult.Text;
+
+        moduleFile.UpdatedAt =
+            DateTime.UtcNow;
+
+        var oldChunks =
+            await _context.LearningModuleChunks
+                .Where(
+                    x =>
+                        x.LearningModuleFileId ==
+                        moduleFileId)
+                .ToListAsync();
+
+        if (oldChunks.Count > 0)
+        {
+            _context.LearningModuleChunks
+                .RemoveRange(
+                    oldChunks);
+        }
+
+        var chunks =
+            await _learningModuleChunkingService
+                .CreateChunksAsync(
+                    moduleFile.LearningModuleId,
+                    moduleFile.Id,
+                    extractionResult.Text);
+
+        _context.LearningModuleChunks
+            .AddRange(
+                chunks);
+
+        await _context.SaveChangesAsync();
+
+        return new LearningModuleFileExtractionDto
+        {
+            LearningModuleFileId =
+                moduleFile.Id,
+
+            LearningModuleId =
+                moduleFile.LearningModuleId,
+
+            FileName =
+                moduleFile.FileName,
+
+            ContentType =
+                moduleFile.ContentType,
+
+            Text =
+                extractionResult.Text,
+
+            CharacterCount =
+                extractionResult.Text.Length,
+
+            PageCount =
+                extractionResult.PageCount
+        };
+    }
+
+    public async Task<bool>
+        ExtractAllModuleFilesAsync(
+            Guid moduleId)
+    {
+        var moduleExists =
+            await _context.LearningModules
+                .AnyAsync(
+                    x =>
+                        x.Id ==
+                        moduleId);
+
+        if (!moduleExists)
+        {
+            throw new KeyNotFoundException(
+                "Learning module not found.");
+        }
+
+        var fileIds =
+            await _context.LearningModuleFiles
+                .Where(
+                    x =>
+                        x.LearningModuleId ==
+                        moduleId)
+                .OrderBy(
+                    x => x.CreatedAt)
+                .Select(
+                    x => x.Id)
+                .ToListAsync();
+
+        if (fileIds.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (var fileId in fileIds)
+        {
+            await ExtractModuleFileTextAsync(
+                fileId);
+        }
+
+        return true;
+    }
+
+
+    // =========================================================
+    // AI MODULE CONTENT
+    // =========================================================
+
+    public async Task<LearningModuleDto>
+        GenerateModuleAiContentAsync(
+            Guid moduleId)
+    {
+        var module =
+            await _context.LearningModules
+                .Include(x => x.Files)
+                .Include(x => x.Sections)
+                .Include(x => x.LearningMaterial)
+                .FirstOrDefaultAsync(
+                    x =>
+                        x.Id ==
+                        moduleId);
+
+        if (module == null)
+        {
+            throw new KeyNotFoundException(
+                "Learning module not found.");
+        }
+
+        if (module.Sections.Count > 0)
+        {
+            throw new InvalidOperationException(
+                "This module already has sections. " +
+                "AI generation cannot replace existing sections.");
+        }
+
+        // =====================================================
+        // COLLECT SOURCE TEXT
+        // =====================================================
+
+        var sources =
+            module.Files
+                .Where(
+                    x =>
+                        !string.IsNullOrWhiteSpace(
+                            x.ExtractedText))
+                .OrderBy(
+                    x => x.CreatedAt)
+                .Select(
+                    x => x.ExtractedText!)
+                .ToList();
+
+        string sourceText;
+
+        if (sources.Count > 0)
+        {
+            sourceText =
+                string.Join(
+                    "\n\n====================\n\n",
+                    sources);
+        }
+        else if (
+            !string.IsNullOrWhiteSpace(
+                module.LearningMaterial.ExtractedText))
+        {
+            sourceText =
+                module.LearningMaterial.ExtractedText;
+        }
+        else
+        {
+            throw new InvalidOperationException(
+                "No extracted source content was found for this module.");
+        }
+
+        // =====================================================
+        // RE-EXTRACT MODULE FILES FOR MEDIA
+        // =====================================================
+
+        var extractedMediaResults =
+            new List<DocumentTextExtractionResult>();
+
+        foreach (
+            var moduleFile in
+            module.Files
+                .OrderBy(x => x.CreatedAt))
+        {
+            if (string.IsNullOrWhiteSpace(
+                    moduleFile.FileUrl))
+            {
+                continue;
+            }
+
+            var httpClient =
+                _httpClientFactory.CreateClient();
+
+            using var response =
+                await httpClient.GetAsync(
+                    moduleFile.FileUrl,
+                    HttpCompletionOption.ResponseHeadersRead);
+
+            response.EnsureSuccessStatusCode();
+
+            await using var stream =
+                await response.Content
+                    .ReadAsStreamAsync();
+
+            var extractionResult =
+                await _documentExtractor.ExtractAsync(
+                    stream,
+                    moduleFile.FileName,
+                    moduleFile.ContentType);
+
+            extractedMediaResults.Add(
+                extractionResult);
+        }
+
+        // =====================================================
+        // COMBINE IMAGES
+        // =====================================================
+
+        var images =
+            extractedMediaResults
+                .SelectMany(
+                    x => x.Images)
+                .Where(
+                    x =>
+                        !string.IsNullOrWhiteSpace(
+                            x.Url))
+                .GroupBy(
+                    x => x.Url,
+                    StringComparer.OrdinalIgnoreCase)
+                .Select(
+                    x => x.First())
+                .ToList();
+
+        // =====================================================
+        // COMBINE MEDIA LINKS
+        // =====================================================
+
+        var mediaLinks =
+            extractedMediaResults
+                .SelectMany(
+                    x => x.MediaLinks)
+                .Where(
+                    x =>
+                        !string.IsNullOrWhiteSpace(
+                            x.Url))
+                .GroupBy(
+                    x => x.Url,
+                    StringComparer.OrdinalIgnoreCase)
+                .Select(
+                    x => x.First())
+                .ToList();
+
+        // =====================================================
+        // DEBUG INFORMATION
+        // =====================================================
+
+        Console.WriteLine(
+            "================ AI MEDIA DEBUG ================");
+
+        Console.WriteLine(
+            $"Module: {module.Title}");
+
+        Console.WriteLine(
+            $"Embedded images found: {images.Count}");
+
+        for (var index = 0; index < images.Count; index++)
+        {
+            var image = images[index];
+
+            Console.WriteLine(
+                $"IMAGE {index + 1}:");
+
+            Console.WriteLine(
+                $"IMAGE URL: {image.Url}");
+
+            Console.WriteLine(
+                $"LOCAL PATH: {image.LocalPath}");
+        }
+
+        Console.WriteLine(
+            $"Media links found: {mediaLinks.Count}");
+
+        foreach (var mediaLink in mediaLinks)
+        {
+            Console.WriteLine(
+                $"MEDIA URL: {mediaLink.Url}");
+        }
+
+        Console.WriteLine(
+            "=================================================");
+
+        // =====================================================
+        // AI GENERATION
+        // =====================================================
+
+        AiModuleContentResult aiResult;
+
+        try
+        {
+            aiResult =
+                await _learningMaterialAiService
+                    .GenerateModuleContentAsync(
+                        sourceText,
+                        module.Title,
+                        module.Description,
+                        images,
+                        mediaLinks);
+        }
+        finally
+        {
+            // =================================================
+            // CLEAN TEMPORARY IMAGE FILES
+            // =================================================
+
+            CleanupTemporaryImages(
+                images);
+        }
+
+        // =====================================================
+        // SAVE MODULE AI CONTENT
+        // =====================================================
+
+        module.WelcomeContent =
+            aiResult.Welcome;
+
+        module.LearningObjectives =
+            SerializeStringList(
+                aiResult.LearningObjectives);
+
+        module.Summary =
+            aiResult.Summary;
+
+        module.KeyTakeaways =
+            SerializeStringList(
+                aiResult.KeyTakeaways);
+
+        // =====================================================
+        // CREATE AI SECTIONS
+        // =====================================================
+
+        foreach (
+            var aiSection in
+            aiResult.Sections)
+        {
+            // -------------------------------------------------
+            // RESOLVE PRIMARY MEDIA
+            // -------------------------------------------------
+            //
+            // AI now returns sourceIndex for embedded images.
+            //
+            // Example:
+            //
+            // sourceIndex = 1
+            //
+            // means:
+            //
+            // images[0].Url
+            //
+            // which is the real Cloudinary URL.
+            // -------------------------------------------------
+
+            var primaryMediaUrl =
+                ResolvePrimaryMediaUrl(
+                    aiSection.Media,
+                    images,
+                    mediaLinks);
+
+            // -------------------------------------------------
+            // CREATE LearningSection MODEL
+            // -------------------------------------------------
+
+            var section =
+                new LearningSection
+                {
+                    Id =
+                        Guid.NewGuid(),
+
+                    LearningModuleId =
+                        module.Id,
+
+                    SectionNumber =
+                        aiSection.SectionNumber,
+
+                    Title =
+                        aiSection.Title,
+
+                    ContentType =
+                        aiSection.ContentType,
+
+                    Content =
+                        aiSection.Content,
+
+                    MediaUrl =
+                        primaryMediaUrl,
+
+                    DisplayOrder =
+                        aiSection.SectionNumber,
+
+                    CreatedAt =
+                        DateTime.UtcNow,
+
+                    UpdatedAt =
+                        null
+                };
+
+            // -------------------------------------------------
+            // ADD MODEL TO EF CORE
+            // -------------------------------------------------
+
+            _context.LearningSections.Add(
+                section);
+
+            // -------------------------------------------------
+            // DEBUG
+            // -------------------------------------------------
+
+            Console.WriteLine(
+                "================ SECTION MEDIA DEBUG ================");
+
+            Console.WriteLine(
+                $"Section: {section.Title}");
+
+            Console.WriteLine(
+                $"Section Number: {section.SectionNumber}");
+
+            Console.WriteLine(
+                $"AI Media Count: {aiSection.Media?.Count ?? 0}");
+
+            if (aiSection.Media != null)
+            {
+                foreach (var media in aiSection.Media)
+                {
+                    Console.WriteLine(
+                        $"AI Media Type: {media.Type}");
+
+                    Console.WriteLine(
+                        $"AI SourceIndex: {media.SourceIndex}");
+
+                    Console.WriteLine(
+                        $"AI URL: {media.Url}");
+                }
+            }
+
+            Console.WriteLine(
+                $"Resolved MediaUrl: {section.MediaUrl ?? "NULL"}");
+
+            Console.WriteLine(
+                "======================================================");
+        }
+
+        // =====================================================
+        // UPDATE MODULE
+        // =====================================================
+
+        module.UpdatedAt =
+            DateTime.UtcNow;
+
+        // =====================================================
+        // SAVE EVERYTHING TO DATABASE
+        // =====================================================
+
+        await _context.SaveChangesAsync();
+
+        // =====================================================
+        // RELOAD SECTIONS
+        // =====================================================
+
+        await _context.Entry(module)
+            .Collection(
+                x => x.Sections)
+            .LoadAsync();
+
+        return MapModuleToDto(
+            module);
+    }
+
+
+    // =========================================================
+    // LEARNING SECTIONS
+    // =========================================================
+
+    public async Task<LearningSectionDto>
+        CreateSectionAsync(
+            CreateLearningSectionRequest request)
+    {
+        var moduleExists =
+            await _context.LearningModules
+                .AnyAsync(
+                    x =>
+                        x.Id ==
+                        request.LearningModuleId);
+
+        if (!moduleExists)
+        {
+            throw new KeyNotFoundException(
+                "Learning module not found.");
+        }
+
+        var section =
+            new LearningSection
+            {
+                Id =
+                    Guid.NewGuid(),
+
+                LearningModuleId =
+                    request.LearningModuleId,
+
+                SectionNumber =
+                    request.SectionNumber,
+
+                Title =
+                    request.Title,
+
+                ContentType =
+                    request.ContentType,
+
+                Content =
+                    request.Content,
+
+                MediaUrl =
+                    request.MediaUrl,
+
+                DisplayOrder =
+                    request.DisplayOrder,
+
+                CreatedAt =
+                    DateTime.UtcNow,
+
+                UpdatedAt =
+                    null
+            };
+
+        _context.LearningSections.Add(
+            section);
+
+        await _context.SaveChangesAsync();
+
+        return MapSectionToDto(
+            section);
+    }
+
+    public async Task<LearningSectionDto>
+        UpdateSectionAsync(
+            Guid sectionId,
+            UpdateLearningSectionRequest request)
+    {
+        var section =
+            await _context.LearningSections
+                .FirstOrDefaultAsync(
+                    x =>
+                        x.Id ==
+                        sectionId);
+
+        if (section == null)
+        {
+            throw new KeyNotFoundException(
+                "Learning section not found.");
+        }
+
+        section.SectionNumber =
+            request.SectionNumber;
+
+        section.Title =
+            request.Title;
+
+        section.ContentType =
+            request.ContentType;
+
+        section.Content =
+            request.Content;
+
+        section.MediaUrl =
+            request.MediaUrl;
+
+        section.DisplayOrder =
+            request.DisplayOrder;
+
+        section.UpdatedAt =
+            DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return MapSectionToDto(
+            section);
+    }
+
+    public async Task<IReadOnlyList<LearningSectionDto>>
+        GetSectionsAsync(
+            Guid moduleId)
+    {
+        var sections =
+            await _context.LearningSections
+                .Where(
+                    x =>
+                        x.LearningModuleId ==
+                        moduleId)
+                .OrderBy(
+                    x => x.DisplayOrder)
+                .ThenBy(
+                    x => x.SectionNumber)
+                .ToListAsync();
+
+        return sections
+            .Select(
+                MapSectionToDto)
+            .ToList();
+    }
+
+    public async Task DeleteSectionAsync(
+        Guid sectionId)
+    {
+        var section =
+            await _context.LearningSections
+                .FirstOrDefaultAsync(
+                    x =>
+                        x.Id ==
+                        sectionId);
+
+        if (section == null)
+        {
+            throw new KeyNotFoundException(
+                "Learning section not found.");
+        }
+
+        _context.LearningSections.Remove(
+            section);
+
+        await _context.SaveChangesAsync();
+    }
+
+
+    // =========================================================
+    // AI MEDIA HELPERS
+    // =========================================================
+
+    private static string?
+        ResolvePrimaryMediaUrl(
+            IReadOnlyList<AiSectionMediaResult>? media,
+            IReadOnlyList<DocumentImage> images,
+            IReadOnlyList<DocumentMediaLink> mediaLinks)
+    {
+        if (media == null ||
+            media.Count == 0)
+        {
+            return null;
+        }
+
+        foreach (var item in media)
+        {
+            // =================================================
+            // IMAGE
+            // =================================================
+
+            if (string.Equals(
+                    item.Type,
+                    "Image",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                // ---------------------------------------------
+                // NEW METHOD:
+                //
+                // AI gives sourceIndex.
+                //
+                // sourceIndex 1 -> images[0]
+                // sourceIndex 2 -> images[1]
+                // ---------------------------------------------
+
+                if (item.SourceIndex > 0)
+                {
+                    var imageIndex =
+                        item.SourceIndex - 1;
+
+                    if (imageIndex >= 0 &&
+                        imageIndex < images.Count)
+                    {
+                        var image =
+                            images[imageIndex];
+
+                        if (!string.IsNullOrWhiteSpace(
+                                image.Url))
+                        {
+                            return image.Url.Trim();
+                        }
+                    }
+                }
+
+                // ---------------------------------------------
+                // FALLBACK:
+                //
+                // If AI returned a URL directly, try to match
+                // it against our extracted images.
+                // ---------------------------------------------
+
+                if (!string.IsNullOrWhiteSpace(
+                        item.Url))
+                {
+                    var matchingImage =
+                        images.FirstOrDefault(
+                            image =>
+                                !string.IsNullOrWhiteSpace(
+                                    image.Url)
+                                &&
+                                string.Equals(
+                                    image.Url.Trim(),
+                                    item.Url.Trim(),
+                                    StringComparison.OrdinalIgnoreCase));
+
+                    if (matchingImage != null)
+                    {
+                        return matchingImage.Url.Trim();
+                    }
+                }
+            }
+
+            // =================================================
+            // VIDEO
+            // =================================================
+
+            if (string.Equals(
+                    item.Type,
+                    "Video",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                if (string.IsNullOrWhiteSpace(
+                        item.Url))
+                {
+                    continue;
+                }
+
+                var matchingVideo =
+                    mediaLinks.FirstOrDefault(
+                        link =>
+                            !string.IsNullOrWhiteSpace(
+                                link.Url)
+                            &&
+                            string.Equals(
+                                link.Url.Trim(),
+                                item.Url.Trim(),
+                                StringComparison.OrdinalIgnoreCase));
+
+                if (matchingVideo != null)
+                {
+                    return matchingVideo.Url.Trim();
+                }
+            }
+        }
+
+        return null;
     }
 
     // =========================================================
-    // MAPPER
+    // VERIFY MEDIA URL
     // =========================================================
 
-    private static LearningMaterialDto
-        MapToDto(
+    private static bool
+        IsAllowedMediaUrl(
+            string mediaUrl,
+            IReadOnlyList<DocumentImage> images,
+            IReadOnlyList<DocumentMediaLink> mediaLinks)
+    {
+        if (string.IsNullOrWhiteSpace(
+                mediaUrl))
+        {
+            return false;
+        }
+
+        var normalizedUrl =
+            mediaUrl.Trim();
+
+        var imageMatch =
+            images.Any(
+                image =>
+                    !string.IsNullOrWhiteSpace(
+                        image.Url)
+                    &&
+                    string.Equals(
+                        image.Url.Trim(),
+                        normalizedUrl,
+                        StringComparison.OrdinalIgnoreCase));
+
+        if (imageMatch)
+        {
+            return true;
+        }
+
+        var mediaLinkMatch =
+            mediaLinks.Any(
+                mediaLink =>
+                    !string.IsNullOrWhiteSpace(
+                        mediaLink.Url)
+                    &&
+                    string.Equals(
+                        mediaLink.Url.Trim(),
+                        normalizedUrl,
+                        StringComparison.OrdinalIgnoreCase));
+
+        return mediaLinkMatch;
+    }
+
+    // =========================================================
+    // CLEAN TEMPORARY IMAGES
+    // =========================================================
+
+    private static void
+        CleanupTemporaryImages(
+            IReadOnlyList<DocumentImage> images)
+    {
+        foreach (var image in images)
+        {
+            if (string.IsNullOrWhiteSpace(
+                    image.LocalPath))
+            {
+                continue;
+            }
+
+            try
+            {
+                if (File.Exists(
+                        image.LocalPath))
+                {
+                    File.Delete(
+                        image.LocalPath);
+                }
+            }
+            catch
+            {
+                // Temporary-file cleanup failure
+                // must not break AI generation.
+            }
+        }
+    }
+
+
+    // =========================================================
+    // MAPPERS
+    // =========================================================
+
+    private LearningMaterialDto
+        MapLearningMaterialToDto(
             LearningMaterial material)
     {
         return new LearningMaterialDto
@@ -329,10 +1517,6 @@ public class LearningMaterialService
 
             TrainingBatchId =
                 material.TrainingBatchId,
-
-            BatchCode =
-                material.TrainingBatch?.BatchCode ??
-                "",
 
             Title =
                 material.Title,
@@ -366,43 +1550,7 @@ public class LearningMaterialService
         };
     }
 
-    // =========================================================
-    // GET MODULES
-    // =========================================================
-
-    public async Task<IReadOnlyList<LearningModuleDto>>
-        GetModulesAsync(
-            Guid learningMaterialId)
-    {
-        var materialExists =
-            await _context.LearningMaterials
-                .AnyAsync(
-                    x => x.Id == learningMaterialId);
-
-        if (!materialExists)
-        {
-            throw new KeyNotFoundException(
-                "Learning material not found.");
-        }
-
-        var modules =
-            await _context.LearningModules
-                .AsNoTracking()
-                .Where(
-                    x =>
-                        x.LearningMaterialId ==
-                        learningMaterialId)
-                .Include(x => x.Sections)
-                .OrderBy(x => x.DisplayOrder)
-                .ThenBy(x => x.ModuleNumber)
-                .ToListAsync();
-
-        return modules
-            .Select(MapModuleToDto)
-            .ToList();
-    }
-
-    private static LearningModuleDto
+    private LearningModuleDto
         MapModuleToDto(
             LearningModule module)
     {
@@ -423,6 +1571,29 @@ public class LearningMaterialService
             Description =
                 module.Description,
 
+            Files =
+                module.Files?
+                    .OrderBy(
+                        x => x.CreatedAt)
+                    .Select(
+                        MapModuleFileToDto)
+                    .ToList()
+                ?? [],
+
+            WelcomeContent =
+                module.WelcomeContent,
+
+            LearningObjectives =
+                DeserializeStringList(
+                    module.LearningObjectives),
+
+            Summary =
+                module.Summary,
+
+            KeyTakeaways =
+                DeserializeStringList(
+                    module.KeyTakeaways),
+
             DisplayOrder =
                 module.DisplayOrder,
 
@@ -437,7 +1608,42 @@ public class LearningMaterialService
         };
     }
 
-    private static LearningSectionDto
+    private LearningModuleFileDto
+        MapModuleFileToDto(
+            LearningModuleFile file)
+    {
+        return new LearningModuleFileDto
+        {
+            Id =
+                file.Id,
+
+            LearningModuleId =
+                file.LearningModuleId,
+
+            FileUrl =
+                file.FileUrl,
+
+            FileName =
+                file.FileName,
+
+            ContentType =
+                file.ContentType,
+
+            FileSize =
+                file.FileSize,
+
+            ExtractedText =
+                file.ExtractedText,
+
+            CreatedAt =
+                file.CreatedAt,
+
+            UpdatedAt =
+                file.UpdatedAt
+        };
+    }
+
+    private LearningSectionDto
         MapSectionToDto(
             LearningSection section)
     {
@@ -475,1358 +1681,45 @@ public class LearningMaterialService
         };
     }
 
-    // =========================================================
-    // UPDATE MODULE
-    // =========================================================
-
-    public async Task<LearningModuleDto>
-        UpdateModuleAsync(
-            Guid moduleId,
-            UpdateLearningModuleRequest request)
-    {
-        var module =
-            await _context.LearningModules
-                .FirstOrDefaultAsync(
-                    x => x.Id == moduleId);
-
-        if (module == null)
-        {
-            throw new KeyNotFoundException(
-                "Learning module not found.");
-        }
-
-        if (request.ModuleNumber <= 0)
-        {
-            throw new ArgumentException(
-                "Module number must be greater than zero.");
-        }
-
-        if (string.IsNullOrWhiteSpace(
-                request.Title))
-        {
-            throw new ArgumentException(
-                "Module title is required.");
-        }
-
-        var duplicate =
-            await _context.LearningModules
-                .AnyAsync(
-                    x =>
-                        x.Id != moduleId &&
-                        x.LearningMaterialId ==
-                            module.LearningMaterialId &&
-                        x.ModuleNumber ==
-                            request.ModuleNumber);
-
-        if (duplicate)
-        {
-            throw new InvalidOperationException(
-                "A module with this module number already exists.");
-        }
-
-        module.ModuleNumber =
-            request.ModuleNumber;
-
-        module.Title =
-            request.Title.Trim();
-
-        module.Description =
-            string.IsNullOrWhiteSpace(
-                request.Description)
-                ? null
-                : request.Description.Trim();
-
-        module.DisplayOrder =
-            request.DisplayOrder;
-
-        module.UpdatedAt =
-            DateTime.UtcNow;
-
-        await _context.SaveChangesAsync();
-
-        return MapModuleToDto(module);
-    }
 
     // =========================================================
-    // DELETE MODULE
+    // JSON HELPERS
     // =========================================================
 
-    public async Task DeleteModuleAsync(
-        Guid moduleId)
-    {
-        var module =
-            await _context.LearningModules
-                .FirstOrDefaultAsync(
-                    x => x.Id == moduleId);
-
-        if (module == null)
-        {
-            throw new KeyNotFoundException(
-                "Learning module not found.");
-        }
-
-        _context.LearningModules
-            .Remove(module);
-
-        await _context.SaveChangesAsync();
-    }
-
-    // =========================================================
-    // CREATE SECTION
-    // =========================================================
-
-    public async Task<LearningSectionDto>
-        CreateSectionAsync(
-            CreateLearningSectionRequest request)
-    {
-        var module =
-            await _context.LearningModules
-                .FirstOrDefaultAsync(
-                    x =>
-                        x.Id ==
-                        request.LearningModuleId);
-
-        if (module == null)
-        {
-            throw new KeyNotFoundException(
-                "Learning module not found.");
-        }
-
-        if (request.SectionNumber <= 0)
-        {
-            throw new ArgumentException(
-                "Section number must be greater than zero.");
-        }
-
-        if (string.IsNullOrWhiteSpace(
-                request.Title))
-        {
-            throw new ArgumentException(
-                "Section title is required.");
-        }
-
-        var duplicate =
-            await _context.LearningSections
-                .AnyAsync(
-                    x =>
-                        x.LearningModuleId ==
-                            request.LearningModuleId &&
-                        x.SectionNumber ==
-                            request.SectionNumber);
-
-        if (duplicate)
-        {
-            throw new InvalidOperationException(
-                "A section with this section number already exists.");
-        }
-
-        var section =
-            new LearningSection
-            {
-                Id = Guid.NewGuid(),
-
-                LearningModuleId =
-                    request.LearningModuleId,
-
-                SectionNumber =
-                    request.SectionNumber,
-
-                Title =
-                    request.Title.Trim(),
-
-                ContentType =
-                    string.IsNullOrWhiteSpace(
-                        request.ContentType)
-                        ? "Text"
-                        : request.ContentType.Trim(),
-
-                Content =
-                    request.Content,
-
-                MediaUrl =
-                    string.IsNullOrWhiteSpace(
-                        request.MediaUrl)
-                        ? null
-                        : request.MediaUrl.Trim(),
-
-                DisplayOrder =
-                    request.DisplayOrder,
-
-                CreatedAt =
-                    DateTime.UtcNow
-            };
-
-        await _context.LearningSections
-            .AddAsync(section);
-
-        await _context.SaveChangesAsync();
-
-        return MapSectionToDto(section);
-    }
-
-    // =========================================================
-    // GET SECTIONS
-    // =========================================================
-
-    public async Task<IReadOnlyList<LearningSectionDto>>
-        GetSectionsAsync(
-            Guid moduleId)
-    {
-        var moduleExists =
-            await _context.LearningModules
-                .AnyAsync(
-                    x => x.Id == moduleId);
-
-        if (!moduleExists)
-        {
-            throw new KeyNotFoundException(
-                "Learning module not found.");
-        }
-
-        var sections =
-            await _context.LearningSections
-                .AsNoTracking()
-                .Where(
-                    x =>
-                        x.LearningModuleId ==
-                        moduleId)
-                .OrderBy(x => x.DisplayOrder)
-                .ThenBy(x => x.SectionNumber)
-                .ToListAsync();
-
-        return sections
-            .Select(MapSectionToDto)
-            .ToList();
-    }
-
-    // =========================================================
-    // UPDATE SECTION
-    // =========================================================
-
-    public async Task<LearningSectionDto>
-        UpdateSectionAsync(
-            Guid sectionId,
-            UpdateLearningSectionRequest request)
-    {
-        var section =
-            await _context.LearningSections
-                .FirstOrDefaultAsync(
-                    x => x.Id == sectionId);
-
-        if (section == null)
-        {
-            throw new KeyNotFoundException(
-                "Learning section not found.");
-        }
-
-        if (request.SectionNumber <= 0)
-        {
-            throw new ArgumentException(
-                "Section number must be greater than zero.");
-        }
-
-        if (string.IsNullOrWhiteSpace(
-                request.Title))
-        {
-            throw new ArgumentException(
-                "Section title is required.");
-        }
-
-        var duplicate =
-            await _context.LearningSections
-                .AnyAsync(
-                    x =>
-                        x.Id != sectionId &&
-                        x.LearningModuleId ==
-                            section.LearningModuleId &&
-                        x.SectionNumber ==
-                            request.SectionNumber);
-
-        if (duplicate)
-        {
-            throw new InvalidOperationException(
-                "A section with this section number already exists.");
-        }
-
-        section.SectionNumber =
-            request.SectionNumber;
-
-        section.Title =
-            request.Title.Trim();
-
-        section.ContentType =
-            string.IsNullOrWhiteSpace(
-                request.ContentType)
-                ? "Text"
-                : request.ContentType.Trim();
-
-        section.Content =
-            request.Content;
-
-        section.MediaUrl =
-            string.IsNullOrWhiteSpace(
-                request.MediaUrl)
-                ? null
-                : request.MediaUrl.Trim();
-
-        section.DisplayOrder =
-            request.DisplayOrder;
-
-        section.UpdatedAt =
-            DateTime.UtcNow;
-
-        await _context.SaveChangesAsync();
-
-        return MapSectionToDto(section);
-    }
-
-    // =========================================================
-    // DELETE SECTION
-    // =========================================================
-
-    public async Task DeleteSectionAsync(
-        Guid sectionId)
-    {
-        var section =
-            await _context.LearningSections
-                .FirstOrDefaultAsync(
-                    x => x.Id == sectionId);
-
-        if (section == null)
-        {
-            throw new KeyNotFoundException(
-                "Learning section not found.");
-        }
-
-        _context.LearningSections
-            .Remove(section);
-
-        await _context.SaveChangesAsync();
-    }
-
-    // =========================================================
-    // CREATE MODULE
-    // =========================================================
-
-    public async Task<LearningModuleDto>
-        CreateModuleAsync(
-            CreateLearningModuleRequest request)
-    {
-        var material =
-            await _context.LearningMaterials
-                .FirstOrDefaultAsync(
-                    x =>
-                        x.Id ==
-                        request.LearningMaterialId);
-
-        if (material == null)
-        {
-            throw new KeyNotFoundException(
-                "Learning material not found.");
-        }
-
-        if (request.ModuleNumber <= 0)
-        {
-            throw new ArgumentException(
-                "Module number must be greater than zero.");
-        }
-
-        if (string.IsNullOrWhiteSpace(
-                request.Title))
-        {
-            throw new ArgumentException(
-                "Module title is required.");
-        }
-
-        var duplicate =
-            await _context.LearningModules
-                .AnyAsync(
-                    x =>
-                        x.LearningMaterialId ==
-                            request.LearningMaterialId &&
-                        x.ModuleNumber ==
-                            request.ModuleNumber);
-
-        if (duplicate)
-        {
-            throw new InvalidOperationException(
-                "A module with this module number already exists.");
-        }
-
-        var module =
-            new LearningModule
-            {
-                Id = Guid.NewGuid(),
-
-                LearningMaterialId =
-                    request.LearningMaterialId,
-
-                ModuleNumber =
-                    request.ModuleNumber,
-
-                Title =
-                    request.Title.Trim(),
-
-                Description =
-                    string.IsNullOrWhiteSpace(
-                        request.Description)
-                        ? null
-                        : request.Description.Trim(),
-
-                DisplayOrder =
-                    request.DisplayOrder,
-
-                CreatedAt =
-                    DateTime.UtcNow,
-
-                UpdatedAt = null
-            };
-
-        await _context.LearningModules
-            .AddAsync(module);
-
-        await _context.SaveChangesAsync();
-
-        module.Sections = [];
-
-        return MapModuleToDto(module);
-    }
-
-    // =========================================================
-    // UPLOAD FILE
-    // =========================================================
-
-    public async Task<LearningMaterialDto>
-        UploadFileAsync(
-            Guid id,
-            UploadLearningMaterialRequest request)
-    {
-        if (request is null)
-        {
-            throw new ArgumentNullException(
-                nameof(request));
-        }
-
-        if (request.File is null)
-        {
-            throw new ArgumentException(
-                "Learning material file is required.");
-        }
-
-        if (request.File.Length == 0)
-        {
-            throw new ArgumentException(
-                "The uploaded file is empty.");
-        }
-
-        var material =
-            await _context.LearningMaterials
-                .Include(x => x.TrainingBatch)
-                .FirstOrDefaultAsync(
-                    x => x.Id == id);
-
-        if (material == null)
-        {
-            throw new KeyNotFoundException(
-                "Learning material not found.");
-        }
-
-        var allowedExtensions =
-            new[]
-            {
-                ".pdf",
-                ".doc",
-                ".docx",
-                ".ppt",
-                ".pptx"
-            };
-
-        var extension =
-            Path.GetExtension(
-                request.File.FileName)
-                .ToLowerInvariant();
-
-        if (!allowedExtensions.Contains(
-                extension))
-        {
-            throw new ArgumentException(
-                "Unsupported file type. " +
-                "Allowed files are PDF, DOC, DOCX, PPT, and PPTX.");
-        }
-
-        const long maxFileSize =
-            50 * 1024 * 1024;
-
-        if (request.File.Length > maxFileSize)
-        {
-            throw new ArgumentException(
-                "The uploaded file must not exceed 50 MB.");
-        }
-
-        await using var uploadStream =
-            request.File.OpenReadStream();
-
-        var uploadResult =
-            await _cloudinary.UploadDocumentAsync(
-                uploadStream,
-                request.File.FileName,
-                $"ace-nextgen/learning-materials/{material.Id}");
-
-        material.FileUrl =
-            uploadResult.Url;
-
-        material.PublicId =
-            uploadResult.PublicId;
-
-        material.FileName =
-            request.File.FileName;
-
-        material.ContentType =
-            request.File.ContentType;
-
-        material.FileSize =
-            request.File.Length;
-
-        material.IsPublished =
-            false;
-
-        material.UpdatedAt =
-            DateTime.UtcNow;
-
-        await _context.SaveChangesAsync();
-
-        return MapToDto(material);
-    }
-
-    // =========================================================
-    // EXTRACT TEXT
-    // =========================================================
-
-    public async Task<LearningMaterialExtractionDto>
-        ExtractTextAsync(
-            Guid id)
-    {
-        var material =
-            await _context.LearningMaterials
-                .FirstOrDefaultAsync(
-                    x => x.Id == id);
-
-        if (material == null)
-        {
-            throw new KeyNotFoundException(
-                "Learning material not found.");
-        }
-
-        if (string.IsNullOrWhiteSpace(
-                material.FileUrl))
-        {
-            throw new InvalidOperationException(
-                "No file has been uploaded for this learning material.");
-        }
-
-        if (string.IsNullOrWhiteSpace(
-                material.FileName))
-        {
-            throw new InvalidOperationException(
-                "Learning material file name is missing.");
-        }
-
-        var extension =
-            Path.GetExtension(
-                material.FileName)
-                .ToLowerInvariant();
-
-        if (extension != ".docx")
-        {
-            throw new ArgumentException(
-                "Text extraction currently supports DOCX files only.");
-        }
-
-        var httpClient =
-            _httpClientFactory.CreateClient();
-
-        using var response =
-            await httpClient.GetAsync(
-                material.FileUrl,
-                HttpCompletionOption.ResponseHeadersRead);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new InvalidOperationException(
-                "Unable to download the learning material file.");
-        }
-
-        const long maxFileSize =
-            50 * 1024 * 1024;
-
-        if (response.Content.Headers.ContentLength
-            is long contentLength &&
-            contentLength > maxFileSize)
-        {
-            throw new InvalidOperationException(
-                "The learning material file exceeds the 50 MB limit.");
-        }
-
-        await using var responseStream =
-            await response.Content.ReadAsStreamAsync();
-
-        await using var memoryStream =
-            new MemoryStream();
-
-        await responseStream.CopyToAsync(
-            memoryStream);
-
-        if (memoryStream.Length > maxFileSize)
-        {
-            throw new InvalidOperationException(
-                "The learning material file exceeds the 50 MB limit.");
-        }
-
-        memoryStream.Position = 0;
-
-        var extraction =
-            await _documentExtractor.ExtractAsync(
-                memoryStream,
-                material.FileName,
-                material.ContentType);
-
-        return new LearningMaterialExtractionDto
-        {
-            LearningMaterialId =
-                material.Id,
-
-            FileName =
-                material.FileName,
-
-            ContentType =
-                material.ContentType,
-
-            Text =
-                extraction.Text,
-
-            CharacterCount =
-                extraction.Text.Length,
-
-            PageCount =
-                extraction.PageCount
-        };
-    }
-
-    // =========================================================
-    // GENERATE MODULES FROM DOCUMENT
-    // =========================================================
-
-    public async Task<IReadOnlyList<LearningModuleDto>>
-        GenerateModulesFromDocumentAsync(
-            Guid learningMaterialId)
-    {
-        var material =
-            await _context.LearningMaterials
-                .Include(x => x.TrainingBatch)
-                .FirstOrDefaultAsync(
-                    x => x.Id == learningMaterialId);
-
-        if (material == null)
-        {
-            throw new KeyNotFoundException(
-                "Learning material not found.");
-        }
-
-        if (string.IsNullOrWhiteSpace(
-                material.FileUrl))
-        {
-            throw new InvalidOperationException(
-                "No file has been uploaded for this learning material.");
-        }
-
-        if (string.IsNullOrWhiteSpace(
-                material.FileName))
-        {
-            throw new InvalidOperationException(
-                "Learning material file name is missing.");
-        }
-
-        var extension =
-            Path.GetExtension(
-                material.FileName)
-                .ToLowerInvariant();
-
-        if (extension != ".docx")
-        {
-            throw new ArgumentException(
-                "AI module generation currently supports DOCX files only.");
-        }
-
-        // =========================================================
-        // DOWNLOAD DOCUMENT
-        // =========================================================
-
-        var httpClient =
-            _httpClientFactory.CreateClient();
-
-        using var response =
-            await httpClient.GetAsync(
-                material.FileUrl,
-                HttpCompletionOption.ResponseHeadersRead);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new InvalidOperationException(
-                "Unable to download the learning material file.");
-        }
-
-        const long maxFileSize =
-            50 * 1024 * 1024;
-
-        if (response.Content.Headers.ContentLength
-            is long contentLength &&
-            contentLength > maxFileSize)
-        {
-            throw new InvalidOperationException(
-                "The learning material file exceeds the 50 MB limit.");
-        }
-
-        await using var responseStream =
-            await response.Content.ReadAsStreamAsync();
-
-        await using var memoryStream =
-            new MemoryStream();
-
-        await responseStream.CopyToAsync(
-            memoryStream);
-
-        if (memoryStream.Length > maxFileSize)
-        {
-            throw new InvalidOperationException(
-                "The learning material file exceeds the 50 MB limit.");
-        }
-
-        memoryStream.Position = 0;
-
-        // =========================================================
-        // EXTRACT DOCUMENT
-        // =========================================================
-
-        var extraction =
-            await _documentExtractor.ExtractAsync(
-                memoryStream,
-                material.FileName,
-                material.ContentType);
-
-        if (string.IsNullOrWhiteSpace(
-                extraction.Text))
-        {
-            throw new InvalidOperationException(
-                "No readable text was found in the document.");
-        }
-
-        // =========================================================
-        // GENERATE MODULES USING TEXT + IMAGES + VIDEO LINKS
-        // =========================================================
-
-        var aiResult =
-            await _learningMaterialAiService
-                .StructureLearningMaterialAsync(
-                    extraction.Text,
-                    material.Title,
-                    extraction.Images,
-                    extraction.MediaLinks);
-
-        if (aiResult.Modules.Count == 0)
-        {
-            throw new InvalidOperationException(
-                "AI did not generate any learning modules.");
-        }
-
-        // =========================================================
-        // DELETE EXISTING MODULES / SECTIONS
-        // =========================================================
-
-        var existingModules =
-            await _context.LearningModules
-                .Where(x =>
-                    x.LearningMaterialId ==
-                    learningMaterialId)
-                .ToListAsync();
-
-        if (existingModules.Count > 0)
-        {
-            var existingModuleIds =
-                existingModules
-                    .Select(x => x.Id)
-                    .ToList();
-
-            var existingSections =
-                await _context.LearningSections
-                    .Where(x =>
-                        existingModuleIds.Contains(
-                            x.LearningModuleId))
-                    .ToListAsync();
-
-            if (existingSections.Count > 0)
-            {
-                _context.LearningSections
-                    .RemoveRange(
-                        existingSections);
-            }
-
-            _context.LearningModules
-                .RemoveRange(
-                    existingModules);
-
-            await _context.SaveChangesAsync();
-        }
-
-        // =========================================================
-        // CONVERT AI RESULT → DATABASE MODELS
-        // =========================================================
-
-        var modules =
-            new List<LearningModule>();
-
-        foreach (var aiModule in aiResult.Modules)
-        {
-            if (string.IsNullOrWhiteSpace(
-                    aiModule.Title))
-            {
-                continue;
-            }
-
-            var module =
-                new LearningModule
-                {
-                    Id = Guid.NewGuid(),
-
-                    LearningMaterialId =
-                        material.Id,
-
-                    ModuleNumber =
-                        aiModule.ModuleNumber > 0
-                            ? aiModule.ModuleNumber
-                            : modules.Count + 1,
-
-                    Title =
-                        aiModule.Title.Trim(),
-
-                    Description =
-                        string.IsNullOrWhiteSpace(
-                            aiModule.Description)
-                            ? null
-                            : aiModule.Description.Trim(),
-
-                    DisplayOrder =
-                        modules.Count + 1,
-
-                    CreatedAt =
-                        DateTime.UtcNow,
-
-                    UpdatedAt = null,
-
-                    Sections = []
-                };
-
-            foreach (var aiSection
-                     in aiModule.Sections)
-            {
-                if (string.IsNullOrWhiteSpace(
-                        aiSection.Title))
-                {
-                    continue;
-                }
-
-                if (string.IsNullOrWhiteSpace(
-                        aiSection.Content))
-                {
-                    continue;
-                }
-
-                var contentType =
-                    NormalizeContentType(
-                        aiSection.ContentType);
-
-                var mediaUrl =
-                    NormalizeMediaUrl(
-                        aiSection.MediaUrl,
-                        BuildMediaManifest(
-                            extraction));
-
-                if (contentType != "Text" &&
-                    string.IsNullOrWhiteSpace(
-                        mediaUrl))
-                {
-                    contentType = "Text";
-                }
-
-                if (contentType == "Text")
-                {
-                    mediaUrl = null;
-                }
-
-                var section =
-                    new LearningSection
-                    {
-                        Id = Guid.NewGuid(),
-
-                        LearningModuleId =
-                            module.Id,
-
-                        SectionNumber =
-                            aiSection.SectionNumber > 0
-                                ? aiSection.SectionNumber
-                                : module.Sections.Count + 1,
-
-                        Title =
-                            aiSection.Title.Trim(),
-
-                        ContentType =
-                            contentType,
-
-                        Content =
-                            aiSection.Content.Trim(),
-
-                        MediaUrl =
-                            mediaUrl,
-
-                        DisplayOrder =
-                            module.Sections.Count + 1,
-
-                        CreatedAt =
-                            DateTime.UtcNow,
-
-                        UpdatedAt = null
-                    };
-
-                module.Sections.Add(
-                    section);
-            }
-
-            if (module.Sections.Count > 0)
-            {
-                modules.Add(module);
-            }
-        }
-
-        // =========================================================
-        // VALIDATE GENERATED MODULES
-        // =========================================================
-
-        if (modules.Count == 0)
-        {
-            throw new InvalidOperationException(
-                "AI generated modules, but no valid sections were produced.");
-        }
-
-        // =========================================================
-        // SAVE MODULES + SECTIONS
-        // =========================================================
-
-        _context.LearningModules
-            .AddRange(modules);
-
-        await _context.SaveChangesAsync();
-
-        // =========================================================
-        // RETURN DTOs
-        // =========================================================
-
-        return modules
-            .OrderBy(x => x.DisplayOrder)
-            .Select(
-                x =>
-                    new LearningModuleDto
-                    {
-                        Id =
-                            x.Id,
-
-                        LearningMaterialId =
-                            x.LearningMaterialId,
-
-                        ModuleNumber =
-                            x.ModuleNumber,
-
-                        Title =
-                            x.Title,
-
-                        Description =
-                            x.Description,
-
-                        DisplayOrder =
-                            x.DisplayOrder,
-
-                        CreatedAt =
-                            x.CreatedAt,
-
-                        UpdatedAt =
-                            x.UpdatedAt,
-
-                        SectionCount =
-                            x.Sections.Count
-                    })
-            .ToList();
-    }
-
-    // =========================================================
-    // MEDIA MANIFEST
-    // =========================================================
-
-    private static List<MediaManifestItem>
-        BuildMediaManifest(
-            DocumentTextExtractionResult extraction)
-    {
-        var manifest =
-            new List<MediaManifestItem>();
-
-        foreach (var image
-                 in extraction.Images)
-        {
-            if (string.IsNullOrWhiteSpace(
-                    image.Url))
-            {
-                continue;
-            }
-
-            manifest.Add(
-                new MediaManifestItem
-                {
-                    Type = "Image",
-                    Url = image.Url,
-                    FileName = image.FileName,
-                    Order = image.Order
-                });
-        }
-
-        foreach (var media
-                 in extraction.MediaLinks)
-        {
-            if (string.IsNullOrWhiteSpace(
-                    media.Url))
-            {
-                continue;
-            }
-
-            manifest.Add(
-                new MediaManifestItem
-                {
-                    Type =
-                        string.IsNullOrWhiteSpace(
-                            media.Type)
-                            ? "Video"
-                            : media.Type,
-
-                    Url =
-                        media.Url,
-
-                    FileName = null,
-
-                    Order =
-                        media.Order
-                });
-        }
-
-        return manifest
-            .GroupBy(
-                x =>
-                    $"{x.Type}|{x.Url}",
-                StringComparer.OrdinalIgnoreCase)
-            .Select(x => x.First())
-            .OrderBy(x => x.Order)
-            .ToList();
-    }
-
-    // =========================================================
-    // BUILD AI SOURCE
-    // =========================================================
-
-    private static string
-        BuildAiSource(
-            string extractedText,
-            IReadOnlyList<MediaManifestItem>
-                mediaManifest)
-    {
-        if (mediaManifest.Count == 0)
-        {
-            return extractedText;
-        }
-
-        var builder =
-            new System.Text.StringBuilder();
-
-        builder.AppendLine(
-            extractedText);
-
-        builder.AppendLine();
-
-        builder.AppendLine(
-            "==================================================");
-
-        builder.AppendLine(
-            "AVAILABLE MEDIA ASSETS");
-
-        builder.AppendLine(
-            "==================================================");
-
-        builder.AppendLine(
-            "IMPORTANT: These are the ONLY media assets that may be used.");
-
-        foreach (var media
-                 in mediaManifest)
-        {
-            builder.AppendLine();
-
-            builder.AppendLine(
-                $"MEDIA TYPE: {media.Type}");
-
-            builder.AppendLine(
-                $"MEDIA ORDER: {media.Order}");
-
-            if (!string.IsNullOrWhiteSpace(
-                    media.FileName))
-            {
-                builder.AppendLine(
-                    $"FILE NAME: {media.FileName}");
-            }
-
-            builder.AppendLine(
-                $"MEDIA URL: {media.Url}");
-
-            builder.AppendLine(
-                "MEDIA URL MUST BE COPIED EXACTLY.");
-        }
-
-        return builder.ToString();
-    }
-
-    // =========================================================
-    // VALIDATE AI MEDIA
-    // =========================================================
-
-    private static void ValidateAiMedia(
-        AiLearningMaterialResult aiResult,
-        IReadOnlyList<MediaManifestItem>
-            mediaManifest)
-    {
-        var allowedUrls =
-            mediaManifest
-                .Select(x => x.Url)
-                .Where(x =>
-                    !string.IsNullOrWhiteSpace(x))
-                .ToHashSet(
-                    StringComparer.OrdinalIgnoreCase);
-
-        foreach (var module
-                 in aiResult.Modules)
-        {
-            foreach (var section
-                     in module.Sections)
-            {
-                var contentType =
-                    NormalizeContentType(
-                        section.ContentType);
-
-                section.ContentType =
-                    contentType;
-
-                if (contentType == "Text")
-                {
-                    section.MediaUrl = null;
-                    continue;
-                }
-
-                if (string.IsNullOrWhiteSpace(
-                        section.MediaUrl))
-                {
-                    section.ContentType = "Text";
-                    section.MediaUrl = null;
-
-                    continue;
-                }
-
-                if (!allowedUrls.Contains(
-                        section.MediaUrl.Trim()))
-                {
-                    section.ContentType = "Text";
-                    section.MediaUrl = null;
-
-                    continue;
-                }
-
-                section.MediaUrl =
-                    section.MediaUrl.Trim();
-            }
-        }
-    }
-
-    // =========================================================
-    // NORMALIZE CONTENT TYPE
-    // =========================================================
-
-    private static string
-        NormalizeContentType(
-            string? contentType)
+    private static List<string>
+        DeserializeStringList(
+            string? json)
     {
         if (string.IsNullOrWhiteSpace(
-                contentType))
+                json))
         {
-            return "Text";
+            return [];
         }
 
-        return contentType.Trim()
-            .ToLowerInvariant() switch
+        try
         {
-            "image" =>
-                "Image",
-
-            "video" =>
-                "Video",
-
-            "text" =>
-                "Text",
-
-            _ =>
-                "Text"
-        };
+            return JsonSerializer
+                .Deserialize<List<string>>(
+                    json)
+                ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
     }
-
-    // =========================================================
-    // NORMALIZE MEDIA URL
-    // =========================================================
 
     private static string?
-        NormalizeMediaUrl(
-            string? mediaUrl,
-            IReadOnlyList<MediaManifestItem>
-                mediaManifest)
+        SerializeStringList(
+            List<string>? values)
     {
-        if (string.IsNullOrWhiteSpace(
-                mediaUrl))
+        if (values == null ||
+            values.Count == 0)
         {
             return null;
         }
 
-        var value =
-            mediaUrl.Trim();
-
-        var match =
-            mediaManifest.FirstOrDefault(
-                x =>
-                    x.Url.Equals(
-                        value,
-                        StringComparison.OrdinalIgnoreCase));
-
-        return match?.Url;
-    }
-
-    // =========================================================
-    // HEADING HELPERS
-    // =========================================================
-
-    private static bool IsHeading1(
-        string style)
-    {
-        return style.Equals(
-                   "Heading1",
-                   StringComparison.OrdinalIgnoreCase)
-            ||
-            style.Equals(
-                "Heading 1",
-                StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsHeading2(
-        string style)
-    {
-        return style.Equals(
-                   "Heading2",
-                   StringComparison.OrdinalIgnoreCase)
-            ||
-            style.Equals(
-                "Heading 2",
-                StringComparison.OrdinalIgnoreCase);
-    }
-
-    // =========================================================
-    // APPEND SECTION CONTENT
-    // =========================================================
-
-    private static void AppendSectionContent(
-        LearningSection section,
-        string content)
-    {
-        if (string.IsNullOrWhiteSpace(
-                content))
-        {
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(
-                section.Content))
-        {
-            section.Content =
-                content.Trim();
-
-            return;
-        }
-
-        section.Content +=
-            Environment.NewLine +
-            Environment.NewLine +
-            content.Trim();
-    }
-
-    // =========================================================
-    // FORMAT TABLE
-    // =========================================================
-
-    private static string FormatTable(
-        DocumentTable table)
-    {
-        if (table.Rows.Count == 0)
-        {
-            return string.Empty;
-        }
-
-        var rows =
-            new List<string>();
-
-        foreach (var row
-                 in table.Rows)
-        {
-            if (row.Cells.Count == 0)
-            {
-                continue;
-            }
-
-            var cells =
-                row.Cells
-                    .Select(
-                        cell =>
-                            cell?.Trim()
-                            ?? string.Empty)
-                    .ToList();
-
-            rows.Add(
-                string.Join(
-                    " | ",
-                    cells));
-        }
-
-        return string.Join(
-            Environment.NewLine,
-            rows);
-    }
-
-    // =========================================================
-    // MEDIA MANIFEST ITEM
-    // =========================================================
-
-    private sealed class MediaManifestItem
-    {
-        public string Type { get; set; } = "Image";
-
-        public string Url { get; set; } = string.Empty;
-
-        public string? FileName { get; set; }
-
-        public int Order { get; set; }
+        return JsonSerializer.Serialize(
+            values);
     }
 }

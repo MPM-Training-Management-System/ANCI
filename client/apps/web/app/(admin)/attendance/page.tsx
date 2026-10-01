@@ -44,9 +44,6 @@ type AttendanceRecordWithProfile =
   };
 
 export default function TrainerAttendancePage() {
-  // =========================================================
-  // ASSIGNED TRAINING BATCH
-  // =========================================================
 
   const [batches, setBatches] = useState<TrainingBatch[]>([]);
 
@@ -2187,10 +2184,7 @@ export default function TrainerAttendancePage() {
               )}
             />
           ) : (
-            <div className="rounded-2xl border border-[#e7e9ec] bg-white shadow-sm">
-
-              <div className="p-4 sm:p-5">
-
+              <div>
                 <DataTable
                   columns={columns}
                   data={filteredRecords}
@@ -2232,7 +2226,7 @@ export default function TrainerAttendancePage() {
 
               </div>
 
-            </div>
+            
           )}
 
         </section>
