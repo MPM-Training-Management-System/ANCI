@@ -45,6 +45,7 @@ public interface ILearningMaterialService
         ExtractTextAsync(
             Guid id);
 
+
     // =========================================================
     // LEARNING MODULES
     // =========================================================
@@ -65,18 +66,29 @@ public interface ILearningMaterialService
     Task DeleteModuleAsync(
         Guid moduleId);
 
+
     // =========================================================
-    // MODULE FILE
+    // MODULE FILES
     // =========================================================
 
-    Task<LearningModuleDto>
+    // Add one or more files to a module.
+    // Call this method multiple times if the module has
+    // multiple source files.
+    Task<LearningModuleFileDto>
         UploadModuleFileAsync(
             Guid moduleId,
             IFormFile file);
 
-    Task<LearningModuleExtractionDto>
-        ExtractModuleTextAsync(
+    // Extract text from ONE specific module file.
+    Task<LearningModuleFileExtractionDto>
+        ExtractModuleFileTextAsync(
+            Guid moduleFileId);
+
+    // Extract text from ALL files belonging to a module.
+    Task<bool>
+        ExtractAllModuleFilesAsync(
             Guid moduleId);
+
 
     // =========================================================
     // AI MODULE CONTENT
@@ -85,6 +97,7 @@ public interface ILearningMaterialService
     Task<LearningModuleDto>
         GenerateModuleAiContentAsync(
             Guid moduleId);
+
 
     // =========================================================
     // LEARNING SECTIONS

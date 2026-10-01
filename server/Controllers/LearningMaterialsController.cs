@@ -2,6 +2,7 @@ using System.Security.Claims;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+
 using server.DTOs.Trainer.Learning;
 using server.DTOs.Training.LearningMaterials;
 using server.Services.Interfaces;
@@ -397,72 +398,40 @@ public class LearningMaterialsController
         }
     }
 
-
-
-        // =========================================================
+    // =========================================================
     // UPLOAD MODULE FILE
-    // POST /api/learning-materials/modules/{moduleId}/upload
-    // =========================================================
-[HttpPost(
-    "modules/{moduleId:guid}/upload")]
-[Authorize(Roles = "Trainer")]
-[Consumes("multipart/form-data")]
-public async Task<
-    ActionResult<LearningModuleDto>>
-    UploadModuleFile(
-        Guid moduleId,
-        [FromForm]
-        UploadLearningModuleRequest request)
-{
-    try
-    {
-        var result =
-            await _service.UploadModuleFileAsync(
-                moduleId,
-                request.File);
-
-        return Ok(result);
-    }
-    catch (KeyNotFoundException ex)
-    {
-        return NotFound(new
-        {
-            message = ex.Message
-        });
-    }
-    catch (ArgumentException ex)
-    {
-        return BadRequest(new
-        {
-            message = ex.Message
-        });
-    }
-    catch (InvalidOperationException ex)
-    {
-        return BadRequest(new
-        {
-            message = ex.Message
-        });
-    }
-}
-    // =========================================================
-    // EXTRACT MODULE TEXT
-    // POST /api/learning-materials/modules/{moduleId}/extract
+    //
+    // POST
+    // /api/learning-materials/modules/{moduleId}/files
     // =========================================================
 
     [HttpPost(
-        "modules/{moduleId:guid}/extract")]
+        "modules/{moduleId:guid}/files")]
     [Authorize(Roles = "Trainer")]
+    [Consumes("multipart/form-data")]
     public async Task<
-        ActionResult<LearningModuleExtractionDto>>
-        ExtractModuleText(
-            Guid moduleId)
+        ActionResult<LearningModuleFileDto>>
+        UploadModuleFile(
+            Guid moduleId,
+            [FromForm]
+            UploadLearningModuleRequest request)
     {
         try
         {
+            if (request.File == null ||
+                request.File.Length == 0)
+            {
+                return BadRequest(new
+                {
+                    message =
+                        "A module file is required."
+                });
+            }
+
             var result =
-                await _service.ExtractModuleTextAsync(
-                    moduleId);
+                await _service.UploadModuleFileAsync(
+                    moduleId,
+                    request.File);
 
             return Ok(result);
         }
@@ -488,9 +457,120 @@ public async Task<
             });
         }
     }
+
+    // =========================================================
+    // EXTRACT SINGLE MODULE FILE
+    //
+    // POST
+    // /api/learning-materials/modules/{moduleId}/files/{fileId}/extract
+    // =========================================================
+
+    [HttpPost(
+        "modules/{moduleId:guid}/files/{fileId:guid}/extract")]
+    [Authorize(Roles = "Trainer")]
+    public async Task<
+        ActionResult<LearningModuleFileExtractionDto>>
+        ExtractModuleFileText(
+            Guid moduleId,
+            Guid fileId)
+    {
+        try
+        {
+            var result =
+                await _service.ExtractModuleFileTextAsync(
+                    fileId);
+
+            if (result.LearningModuleId != moduleId)
+            {
+                return BadRequest(new
+                {
+                    message =
+                        "The module file does not belong to the specified module."
+                });
+            }
+
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+    }
+
+    // =========================================================
+    // EXTRACT ALL MODULE FILES
+    //
+    // POST
+    // /api/learning-materials/modules/{moduleId}/extract
+    // =========================================================
+
+    [HttpPost(
+        "modules/{moduleId:guid}/extract")]
+    [Authorize(Roles = "Trainer")]
+    public async Task<IActionResult>
+        ExtractAllModuleFiles(
+            Guid moduleId)
+    {
+        try
+        {
+            var result =
+                await _service.ExtractAllModuleFilesAsync(
+                    moduleId);
+
+            return Ok(new
+            {
+                success = result,
+
+                message = result
+                    ? "All module files were extracted successfully."
+                    : "Some module files could not be extracted."
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+    }
+
     // =========================================================
     // GENERATE AI MODULE CONTENT
-    // POST /api/learning-materials/modules/{moduleId}/generate-ai
+    //
+    // POST
+    // /api/learning-materials/modules/{moduleId}/generate-ai
     // =========================================================
 
     [HttpPost(
@@ -579,7 +659,9 @@ public async Task<
 
     // =========================================================
     // GET SECTIONS
-    // GET /api/learning-materials/modules/{moduleId}/sections
+    //
+    // GET
+    // /api/learning-materials/modules/{moduleId}/sections
     // =========================================================
 
     [HttpGet(
@@ -609,7 +691,9 @@ public async Task<
 
     // =========================================================
     // UPDATE SECTION
-    // PUT /api/learning-materials/sections/{sectionId}
+    //
+    // PUT
+    // /api/learning-materials/sections/{sectionId}
     // =========================================================
 
     [HttpPut(
@@ -656,7 +740,9 @@ public async Task<
 
     // =========================================================
     // DELETE SECTION
-    // DELETE /api/learning-materials/sections/{sectionId}
+    //
+    // DELETE
+    // /api/learning-materials/sections/{sectionId}
     // =========================================================
 
     [HttpDelete(
@@ -683,8 +769,10 @@ public async Task<
     }
 
     // =========================================================
-    // UPLOAD FILE
-    // POST /api/learning-materials/{id}/upload
+    // UPLOAD LEARNING MATERIAL FILE
+    //
+    // POST
+    // /api/learning-materials/{id}/upload
     // =========================================================
 
     [HttpPost("{id:guid}/upload")]
@@ -699,6 +787,16 @@ public async Task<
     {
         try
         {
+            if (request.File == null ||
+                request.File.Length == 0)
+            {
+                return BadRequest(new
+                {
+                    message =
+                        "A file is required."
+                });
+            }
+
             var result =
                 await _service.UploadFileAsync(
                     id,
@@ -720,11 +818,20 @@ public async Task<
                 message = ex.Message
             });
         }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
     }
 
     // =========================================================
-    // EXTRACT TEXT
-    // POST /api/learning-materials/{id}/extract
+    // EXTRACT LEARNING MATERIAL TEXT
+    //
+    // POST
+    // /api/learning-materials/{id}/extract
     // =========================================================
 
     [HttpPost("{id:guid}/extract")]

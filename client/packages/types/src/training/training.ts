@@ -301,61 +301,53 @@ export interface LearningMaterialExtraction {
   characterCount: number;
   pageCount: number;
 }
+
+// ==========================================
+// LEARNING MODULE FILE
+// ==========================================
+
+export interface LearningModuleFile {
+  id: string;
+  learningModuleId: string;
+
+  fileUrl: string;
+  fileName: string | null;
+  contentType: string | null;
+  fileSize: number;
+
+  extractedText: string | null;
+
+  createdAt: string;
+  updatedAt: string | null;
+}
+
 // ==========================================
 // LEARNING MODULE
 // ==========================================
 
 export interface LearningModule {
   id: string;
-
   learningMaterialId: string;
 
   moduleNumber: number;
-
   title: string;
-
   description: string | null;
 
-  // ==========================================
-  // MODULE-SPECIFIC FILE
-  // ==========================================
+  // Multiple files can belong to one module
+  files: LearningModuleFile[];
 
-  fileUrl: string | null;
-
-  fileName: string | null;
-
-  contentType: string | null;
-
-  fileSize: number | null;
-
-  // Extracted text from the module-specific file
-  extractedText: string | null;
-
-  // ==========================================
-  // AI-GENERATED SUPPORT CONTENT
-  // ==========================================
-
+  // AI-generated support content
   welcomeContent: string | null;
-
   learningObjectives: string[];
-
   summary: string | null;
-
   keyTakeaways: string[];
 
-  // ==========================================
-  // META
-  // ==========================================
-
   displayOrder: number;
-
   createdAt: string;
-
   updatedAt: string | null;
 
   sectionCount: number;
 }
-
 // ==========================================
 // CREATE LEARNING MODULE
 // ==========================================
@@ -398,18 +390,29 @@ export interface UploadLearningModuleRequest {
 // LEARNING MODULE EXTRACTION
 // ==========================================
 
-export interface LearningModuleExtraction {
+// ==========================================
+// LEARNING MODULE FILE EXTRACTION
+// ==========================================
+
+export interface LearningModuleFileExtraction {
+  learningModuleFileId: string;
   learningModuleId: string;
 
   fileName: string | null;
-
   contentType: string | null;
 
   text: string;
-
   characterCount: number;
-
   pageCount: number;
+}
+
+// ==========================================
+// EXTRACT ALL LEARNING MODULE FILES RESPONSE
+// ==========================================
+
+export interface ExtractAllLearningModuleFilesResponse {
+  success: boolean;
+  message: string;
 }
 
 // ==========================================

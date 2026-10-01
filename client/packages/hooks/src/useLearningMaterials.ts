@@ -9,10 +9,12 @@ import type {
   CreateLearningMaterialRequest,
   CreateLearningModuleRequest,
   CreateLearningSectionRequest,
+  ExtractAllLearningModuleFilesResponse,
   LearningMaterial,
   LearningMaterialExtraction,
   LearningModule,
-  LearningModuleExtraction,
+  LearningModuleFile,
+  LearningModuleFileExtraction,
   LearningSection,
   UpdateLearningMaterialRequest,
   UpdateLearningModuleRequest,
@@ -122,17 +124,22 @@ export interface LearningMaterialApi {
   ): Promise<void>;
 
   // ==========================================
-  // MODULE FILE
+  // MODULE FILES
   // ==========================================
 
   uploadModuleFile(
     moduleId: string,
     file: File,
-  ): Promise<LearningModule>;
+  ): Promise<LearningModuleFile>;
 
-  extractModuleText(
+  extractModuleFileText(
     moduleId: string,
-  ): Promise<LearningModuleExtraction>;
+    moduleFileId: string,
+  ): Promise<LearningModuleFileExtraction>;
+
+  extractAllModuleFiles(
+    moduleId: string,
+  ): Promise<ExtractAllLearningModuleFilesResponse>;
 
   // ==========================================
   // AI MODULE CONTENT
@@ -185,7 +192,9 @@ export interface UseLearningMaterialsResult {
 
   modules: LearningModule[];
 
-  moduleExtraction: LearningModuleExtraction | null;
+  moduleFileExtraction:
+    | LearningModuleFileExtraction
+    | null;
 
   // ==========================================
   // SECTION STATE
@@ -287,11 +296,16 @@ export interface UseLearningMaterialsResult {
   uploadLearningModuleFile(
     moduleId: string,
     file: File,
-  ): Promise<LearningModule>;
+  ): Promise<LearningModuleFile>;
 
-  extractLearningModuleText(
+  extractLearningModuleFileText(
     moduleId: string,
-  ): Promise<LearningModuleExtraction>;
+    moduleFileId: string,
+  ): Promise<LearningModuleFileExtraction>;
+
+  extractAllLearningModuleFiles(
+    moduleId: string,
+  ): Promise<ExtractAllLearningModuleFilesResponse>;
 
   // ==========================================
   // AI ACTIONS
@@ -330,7 +344,7 @@ export interface UseLearningMaterialsResult {
 
   clearExtraction(): void;
 
-  clearModuleExtraction(): void;
+  clearModuleFileExtraction(): void;
 }
 
 // ==========================================
@@ -351,7 +365,9 @@ export function useLearningMaterials(
     useState<LearningMaterial | null>(null);
 
   const [extraction, setExtraction] =
-    useState<LearningMaterialExtraction | null>(null);
+    useState<LearningMaterialExtraction | null>(
+      null,
+    );
 
   // ==========================================
   // MODULE STATE
@@ -360,8 +376,10 @@ export function useLearningMaterials(
   const [modules, setModules] =
     useState<LearningModule[]>([]);
 
-  const [moduleExtraction, setModuleExtraction] =
-    useState<LearningModuleExtraction | null>(null);
+  const [moduleFileExtraction, setModuleFileExtraction] =
+    useState<LearningModuleFileExtraction | null>(
+      null,
+    );
 
   // ==========================================
   // SECTION STATE
@@ -532,7 +550,7 @@ export function useLearningMaterials(
           setExtraction(null);
           setModules([]);
           setSections([]);
-          setModuleExtraction(null);
+          setModuleFileExtraction(null);
 
           return result;
         } catch (err) {
@@ -642,7 +660,7 @@ export function useLearningMaterials(
           setModules([]);
           setSections([]);
           setExtraction(null);
-          setModuleExtraction(null);
+          setModuleFileExtraction(null);
         } catch (err) {
           const normalizedError =
             normalizeError(
@@ -750,8 +768,6 @@ export function useLearningMaterials(
                 : previous,
           );
 
-          // A new upload invalidates
-          // previous extraction in the backend.
           setExtraction(null);
 
           return result;
@@ -790,8 +806,6 @@ export function useLearningMaterials(
 
           setExtraction(result);
 
-          // Keep the selected material
-          // synchronized with the extracted text.
           setSelectedMaterial(
             (previous) =>
               previous?.id === id
@@ -803,7 +817,6 @@ export function useLearningMaterials(
                 : previous,
           );
 
-          // Also synchronize material list.
           setLearningMaterials(
             (previous) =>
               previous.map(
@@ -856,12 +869,21 @@ export function useLearningMaterials(
               learningMaterialId,
             );
 
-          setModules(result);
+          const sortedModules =
+            [...result].sort(
+              (a, b) =>
+                a.displayOrder -
+                  b.displayOrder ||
+                a.moduleNumber -
+                  b.moduleNumber,
+            );
+
+          setModules(sortedModules);
 
           setSections([]);
-          setModuleExtraction(null);
+          setModuleFileExtraction(null);
 
-          return result;
+          return sortedModules;
         } catch (err) {
           const normalizedError =
             normalizeError(
@@ -914,7 +936,7 @@ export function useLearningMaterials(
           );
 
           setSections([]);
-          setModuleExtraction(null);
+          setModuleFileExtraction(null);
 
           return result;
         } catch (err) {
@@ -1016,11 +1038,8 @@ export function useLearningMaterials(
               ),
           );
 
-          // The selected module's sections
-          // are no longer valid.
           setSections([]);
-
-          setModuleExtraction(null);
+          setModuleFileExtraction(null);
         } catch (err) {
           const normalizedError =
             normalizeError(
@@ -1049,7 +1068,7 @@ export function useLearningMaterials(
       async (
         moduleId: string,
         file: File,
-      ) => {
+      ): Promise<LearningModuleFile> => {
         try {
           setIsUploadingModule(true);
           setError(null);
@@ -1060,19 +1079,45 @@ export function useLearningMaterials(
               file,
             );
 
+          /*
+           * IMPORTANT:
+           *
+           * Backend now returns LearningModuleFile,
+           * NOT LearningModule.
+           *
+           * Therefore we update only the files[]
+           * inside the matching module.
+           */
+
           setModules(
             (previous) =>
-              previous.map(
-                (module) =>
-                  module.id === moduleId
-                    ? result
-                    : module,
+              previous.map((module) =>
+                module.id === moduleId
+                  ? {
+                      ...module,
+                      files:
+                        module.files.some(
+                          (existingFile) =>
+                            existingFile.id ===
+                            result.id,
+                        )
+                          ? module.files.map(
+                              (existingFile) =>
+                                existingFile.id ===
+                                result.id
+                                  ? result
+                                  : existingFile,
+                            )
+                          : [
+                              ...module.files,
+                              result,
+                            ],
+                    }
+                  : module,
               ),
           );
 
-          // Backend clears module extracted text
-          // and removes old chunks after upload.
-          setModuleExtraction(null);
+          setModuleFileExtraction(null);
 
           return result;
         } catch (err) {
@@ -1095,36 +1140,54 @@ export function useLearningMaterials(
     );
 
   // ==========================================
-  // EXTRACT MODULE TEXT
+  // EXTRACT ONE MODULE FILE
   // ==========================================
 
-  const extractLearningModuleText =
+  const extractLearningModuleFileText =
     useCallback(
-      async (moduleId: string) => {
+      async (
+        moduleId: string,
+        moduleFileId: string,
+      ): Promise<LearningModuleFileExtraction> => {
         try {
           setIsExtractingModule(true);
           setError(null);
 
           const result =
-            await api.extractModuleText(
+            await api.extractModuleFileText(
               moduleId,
+              moduleFileId,
             );
 
-          setModuleExtraction(result);
+          setModuleFileExtraction(
+            result,
+          );
 
-          // Synchronize extracted text
-          // with the module currently in state.
+          /*
+           * Synchronize extracted text
+           * into the correct module file.
+           */
+
           setModules(
             (previous) =>
-              previous.map(
-                (module) =>
-                  module.id === moduleId
-                    ? {
-                        ...module,
-                        extractedText:
-                          result.text,
-                      }
-                    : module,
+              previous.map((module) =>
+                module.id === moduleId
+                  ? {
+                      ...module,
+                      files:
+                        module.files.map(
+                          (file) =>
+                            file.id ===
+                            moduleFileId
+                              ? {
+                                  ...file,
+                                  extractedText:
+                                    result.text,
+                                }
+                              : file,
+                        ),
+                    }
+                  : module,
               ),
           );
 
@@ -1133,7 +1196,61 @@ export function useLearningMaterials(
           const normalizedError =
             normalizeError(
               err,
-              "Failed to extract learning module text.",
+              "Failed to extract learning module file text.",
+            );
+
+          setError(
+            normalizedError.message,
+          );
+
+          throw normalizedError;
+        } finally {
+          setIsExtractingModule(false);
+        }
+      },
+      [api],
+    );
+
+  // ==========================================
+  // EXTRACT ALL MODULE FILES
+  // ==========================================
+
+  const extractAllLearningModuleFiles =
+    useCallback(
+      async (
+        moduleId: string,
+      ): Promise<ExtractAllLearningModuleFilesResponse> => {
+        try {
+          setIsExtractingModule(true);
+          setError(null);
+
+          const result =
+            await api.extractAllModuleFiles(
+              moduleId,
+            );
+
+          /*
+           * Backend returns only:
+           *
+           * {
+           *   success: true,
+           *   message: "..."
+           * }
+           *
+           * So we don't modify files[]
+           * here because the response does not
+           * contain the extracted text.
+           *
+           * The page/modal can reload the module
+           * after this operation.
+           */
+
+          return result;
+        } catch (err) {
+          const normalizedError =
+            normalizeError(
+              err,
+              "Failed to extract all learning module files.",
             );
 
           setError(
@@ -1156,14 +1273,16 @@ export function useLearningMaterials(
     useCallback(
       async (moduleId: string) => {
         if (!moduleId) {
-          const error =
+          const generationError =
             new Error(
               "Cannot generate AI content: module ID is missing.",
             );
 
-          setError(error.message);
+          setError(
+            generationError.message,
+          );
 
-          throw error;
+          throw generationError;
         }
 
         try {
@@ -1174,6 +1293,18 @@ export function useLearningMaterials(
             await api.generateModuleAiContent(
               moduleId,
             );
+
+          /*
+           * Backend returns the complete
+           * LearningModule including:
+           *
+           * - files
+           * - welcomeContent
+           * - learningObjectives
+           * - summary
+           * - keyTakeaways
+           * - sectionCount
+           */
 
           setModules(
             (previous) =>
@@ -1233,17 +1364,20 @@ export function useLearningMaterials(
               moduleId,
             );
 
-          setSections(
-            result.sort(
+          const sortedSections =
+            [...result].sort(
               (a, b) =>
                 a.displayOrder -
                   b.displayOrder ||
                 a.sectionNumber -
                   b.sectionNumber,
-            ),
+            );
+
+          setSections(
+            sortedSections,
           );
 
-          return result;
+          return sortedSections;
         } catch (err) {
           const normalizedError =
             normalizeError(
@@ -1432,12 +1566,12 @@ export function useLearningMaterials(
     }, []);
 
   // ==========================================
-  // CLEAR MODULE EXTRACTION
+  // CLEAR MODULE FILE EXTRACTION
   // ==========================================
 
-  const clearModuleExtraction =
+  const clearModuleFileExtraction =
     useCallback(() => {
-      setModuleExtraction(null);
+      setModuleFileExtraction(null);
     }, []);
 
   // ==========================================
@@ -1458,7 +1592,7 @@ export function useLearningMaterials(
     // ==========================================
 
     modules,
-    moduleExtraction,
+    moduleFileExtraction,
 
     // ==========================================
     // SECTION STATE
@@ -1516,7 +1650,8 @@ export function useLearningMaterials(
     // ==========================================
 
     uploadLearningModuleFile,
-    extractLearningModuleText,
+    extractLearningModuleFileText,
+    extractAllLearningModuleFiles,
 
     // ==========================================
     // AI ACTIONS
@@ -1539,6 +1674,6 @@ export function useLearningMaterials(
 
     clearError,
     clearExtraction,
-    clearModuleExtraction,
+    clearModuleFileExtraction,
   };
 }

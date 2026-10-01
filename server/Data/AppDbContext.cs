@@ -155,6 +155,9 @@ public DbSet<ParticipationRecord>
     public DbSet<LearningModuleChunk> LearningModuleChunks
     => Set<LearningModuleChunk>();
 
+    public DbSet<LearningModuleFile> LearningModuleFiles
+    => Set<LearningModuleFile>();
+
     
     // ==========================================
     // Model Configuration
@@ -1134,6 +1137,10 @@ modelBuilder.Entity<LearningMaterial>(entity =>
     .HasForeignKey(x => x.TrainingBatchId)
     .OnDelete(DeleteBehavior.Cascade);
 });
+// ==========================================
+// LEARNING MODULE
+// ==========================================
+
 modelBuilder.Entity<LearningModule>(entity =>
 {
     entity.HasKey(x => x.Id);
@@ -1144,24 +1151,6 @@ modelBuilder.Entity<LearningModule>(entity =>
 
     entity.Property(x => x.Description)
         .HasMaxLength(2000);
-
-    entity.Property(x => x.FileUrl)
-        .HasMaxLength(1000);
-
-    entity.Property(x => x.PublicId)
-        .HasMaxLength(500);
-
-    entity.Property(x => x.FileName)
-        .HasMaxLength(255);
-
-    entity.Property(x => x.ContentType)
-        .HasMaxLength(150);
-
-    entity.Property(x => x.FileSize)
-        .IsRequired(false);
-
-    entity.Property(x => x.ExtractedText)
-        .HasColumnType("text");
 
     entity.Property(x => x.WelcomeContent)
         .HasColumnType("text");
@@ -1175,13 +1164,91 @@ modelBuilder.Entity<LearningModule>(entity =>
     entity.Property(x => x.KeyTakeaways)
         .HasColumnType("text");
 
+    entity.Property(x => x.DisplayOrder)
+        .IsRequired();
+
+    entity.Property(x => x.CreatedAt)
+        .IsRequired();
+
+    entity.Property(x => x.UpdatedAt)
+        .IsRequired(false);
+
     entity.HasIndex(x => x.LearningMaterialId);
 
+    // LearningMaterial 1 : many LearningModules
     entity.HasOne(x => x.LearningMaterial)
         .WithMany(x => x.Modules)
         .HasForeignKey(x => x.LearningMaterialId)
         .OnDelete(DeleteBehavior.Cascade);
+
+    // LearningModule 1 : many LearningModuleFiles
+    entity.HasMany(x => x.Files)
+        .WithOne(x => x.LearningModule)
+        .HasForeignKey(x => x.LearningModuleId)
+        .OnDelete(DeleteBehavior.Cascade);
+
+    // LearningModule 1 : many LearningModuleChunks
+    entity.HasMany(x => x.Chunks)
+        .WithOne(x => x.LearningModule)
+        .HasForeignKey(x => x.LearningModuleId)
+        .OnDelete(DeleteBehavior.Cascade);
+
+    // LearningModule 1 : many LearningSections
+    entity.HasMany(x => x.Sections)
+        .WithOne(x => x.LearningModule)
+        .HasForeignKey(x => x.LearningModuleId)
+        .OnDelete(DeleteBehavior.Cascade);
 });
+// ==========================================
+// LEARNING MODULE FILE
+// ==========================================
+
+modelBuilder.Entity<LearningModuleFile>(entity =>
+{
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.FileUrl)
+        .IsRequired()
+        .HasMaxLength(1000);
+
+    entity.Property(x => x.PublicId)
+        .HasMaxLength(500);
+
+    entity.Property(x => x.FileName)
+        .IsRequired()
+        .HasMaxLength(255);
+
+    entity.Property(x => x.ContentType)
+        .HasMaxLength(150);
+
+    entity.Property(x => x.FileSize)
+        .IsRequired();
+
+    entity.Property(x => x.ExtractedText)
+        .HasColumnType("text");
+
+    entity.Property(x => x.CreatedAt)
+        .IsRequired();
+
+    entity.Property(x => x.UpdatedAt)
+        .IsRequired(false);
+
+    entity.HasIndex(x => x.LearningModuleId);
+
+    entity.HasOne(x => x.LearningModule)
+        .WithMany(x => x.Files)
+        .HasForeignKey(x => x.LearningModuleId)
+        .OnDelete(DeleteBehavior.Cascade);
+
+    // One file can have many chunks
+    entity.HasMany(x => x.Chunks)
+        .WithOne(x => x.LearningModuleFile)
+        .HasForeignKey(x => x.LearningModuleFileId)
+        .OnDelete(DeleteBehavior.Cascade);
+});
+// ==========================================
+// LEARNING MODULE CHUNK
+// ==========================================
 
 modelBuilder.Entity<LearningModuleChunk>(entity =>
 {
@@ -1200,15 +1267,28 @@ modelBuilder.Entity<LearningModuleChunk>(entity =>
     entity.Property(x => x.CreatedAt)
         .IsRequired();
 
+    // Module + File + Chunk
     entity.HasIndex(x => new
     {
-        x.LearningModuleId,
+        x.LearningModuleFileId,
         x.ChunkNumber
-    });
+    })
+    .IsUnique();
 
+    entity.HasIndex(x => x.LearningModuleId);
+
+    entity.HasIndex(x => x.LearningModuleFileId);
+
+    // LearningModule relationship
     entity.HasOne(x => x.LearningModule)
         .WithMany(x => x.Chunks)
         .HasForeignKey(x => x.LearningModuleId)
+        .OnDelete(DeleteBehavior.Cascade);
+
+    // LearningModuleFile relationship
+    entity.HasOne(x => x.LearningModuleFile)
+        .WithMany(x => x.Chunks)
+        .HasForeignKey(x => x.LearningModuleFileId)
         .OnDelete(DeleteBehavior.Cascade);
 });
 // ==========================================

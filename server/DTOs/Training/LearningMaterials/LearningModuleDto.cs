@@ -1,4 +1,4 @@
-namespace server.DTOs.Training.LearningMaterials;
+namespace server.DTOs.Trainer.Learning;
 
 public class LearningModuleDto
 {
@@ -12,18 +12,7 @@ public class LearningModuleDto
 
     public string? Description { get; set; }
 
-    public string? FileUrl { get; set; }
-
-public string? FileName { get; set; }
-
-public string? ContentType { get; set; }
-
-public long? FileSize { get; set; }
-
-public string? ExtractedText { get; set; }
-    // =========================================================
-    // AI-GENERATED LEARNING CONTENT
-    // =========================================================
+    public List<LearningModuleFileDto> Files { get; set; } = [];
 
     public string? WelcomeContent { get; set; }
 
@@ -32,10 +21,6 @@ public string? ExtractedText { get; set; }
     public string? Summary { get; set; }
 
     public List<string> KeyTakeaways { get; set; } = [];
-
-    // =========================================================
-    // MODULE ORDER
-    // =========================================================
 
     public int DisplayOrder { get; set; }
 

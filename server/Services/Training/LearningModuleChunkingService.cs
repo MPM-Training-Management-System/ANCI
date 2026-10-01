@@ -1,68 +1,97 @@
+using server.Models.Learning;
 using server.Services.Interfaces;
 
-namespace server.Services.Training;
+namespace server.Services;
 
 public class LearningModuleChunkingService
     : ILearningModuleChunkingService
 {
-    public List<string> SplitText(
-        string text,
-        int maxCharacters = 12000,
-        int overlapCharacters = 1000)
+    private const int DefaultChunkSize = 4000;
+
+    private const int DefaultChunkOverlap = 500;
+
+    public Task<List<LearningModuleChunk>> CreateChunksAsync(
+        Guid learningModuleId,
+        Guid learningModuleFileId,
+        string text)
     {
+        var chunks = new List<LearningModuleChunk>();
+
         if (string.IsNullOrWhiteSpace(text))
-            return [];
+        {
+            return Task.FromResult(chunks);
+        }
 
-        if (maxCharacters <= 0)
-            throw new ArgumentOutOfRangeException(nameof(maxCharacters));
-
-        if (overlapCharacters < 0 || overlapCharacters >= maxCharacters)
-            throw new ArgumentOutOfRangeException(
-                nameof(overlapCharacters));
-
-        var chunks = new List<string>();
+        var normalizedText = text.Trim();
 
         var start = 0;
 
-        while (start < text.Length)
-        {
-            var remaining = text.Length - start;
+        var chunkNumber = 1;
 
-            if (remaining <= maxCharacters)
+        while (start < normalizedText.Length)
+        {
+            var remainingLength =
+                normalizedText.Length - start;
+
+            var currentLength =
+                Math.Min(
+                    DefaultChunkSize,
+                    remainingLength);
+
+            var chunkText =
+                normalizedText.Substring(
+                    start,
+                    currentLength);
+
+            chunkText =
+                chunkText.Trim();
+
+            if (!string.IsNullOrWhiteSpace(chunkText))
             {
-                chunks.Add(text[start..]);
+                chunks.Add(
+                    new LearningModuleChunk
+                    {
+                        Id = Guid.NewGuid(),
+
+                        LearningModuleId =
+                            learningModuleId,
+
+                        LearningModuleFileId =
+                            learningModuleFileId,
+
+                        ChunkNumber =
+                            chunkNumber,
+
+                        Content =
+                            chunkText,
+
+                        CharacterCount =
+                            chunkText.Length,
+
+                        CreatedAt =
+                            DateTime.UtcNow
+                    });
+
+                chunkNumber++;
+            }
+
+            if (start + currentLength >=
+                normalizedText.Length)
+            {
                 break;
             }
 
-            var length = maxCharacters;
+            var nextStart =
+                start +
+                currentLength -
+                DefaultChunkOverlap;
 
-            var candidate = text.Substring(start, length);
-
-            var lastParagraph = candidate.LastIndexOf(
-                "\n\n",
-                StringComparison.Ordinal);
-
-            if (lastParagraph > maxCharacters / 2)
-            {
-                length = lastParagraph;
-            }
-            else
-            {
-                var lastSentence = candidate.LastIndexOf(
-                    ". ",
-                    StringComparison.Ordinal);
-
-                if (lastSentence > maxCharacters / 2)
-                    length = lastSentence + 1;
-            }
-
-            chunks.Add(text.Substring(start, length));
-
-            start += Math.Max(
-                1,
-                length - overlapCharacters);
+            start =
+                Math.Max(
+                    nextStart,
+                    start + 1);
         }
 
-        return chunks;
+        return Task.FromResult(chunks);
     }
 }

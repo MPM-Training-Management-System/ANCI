@@ -1,10 +1,12 @@
 namespace server.DTOs.Trainer.Learning;
 
-public class LearningModuleExtractionDto
+public class LearningModuleFileExtractionDto
 {
+    public Guid LearningModuleFileId { get; set; }
+
     public Guid LearningModuleId { get; set; }
 
-    public string FileName { get; set; } = string.Empty;
+    public string? FileName { get; set; }
 
     public string? ContentType { get; set; }
 

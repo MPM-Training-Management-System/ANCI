@@ -12,20 +12,6 @@ public class LearningModule
 
     public string? Description { get; set; }
 
-    // Optional module-specific uploaded file
-    public string? FileUrl { get; set; }
-
-    public string? PublicId { get; set; }
-
-    public string? FileName { get; set; }
-
-    public string? ContentType { get; set; }
-
-    public long? FileSize { get; set; }
-
-    // Extracted text from module-specific file
-    public string? ExtractedText { get; set; }
-
     // AI-generated support content
     public string? WelcomeContent { get; set; }
 
@@ -42,6 +28,8 @@ public class LearningModule
     public DateTime? UpdatedAt { get; set; }
 
     public LearningMaterial LearningMaterial { get; set; } = default!;
+
+    public ICollection<LearningModuleFile> Files { get; set; } = [];
 
     public ICollection<LearningModuleChunk> Chunks { get; set; } = [];
 
