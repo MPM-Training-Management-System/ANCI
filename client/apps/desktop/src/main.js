@@ -20,7 +20,7 @@ function createWindow() {
     },
   });
 
-  mainWindow.loadURL("http://localhost:3001");
+  mainWindow.loadURL("https://anci-admin.vercel.app");
 
   mainWindow.webContents.on("before-input-event", () => {});
 
