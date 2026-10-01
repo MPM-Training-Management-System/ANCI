@@ -13,15 +13,19 @@ namespace server.Controllers;
 [Route("api/auth")]
 public class AuthController : ControllerBase
 {
-    private readonly IAuthService _authService;
+   private readonly IAuthService _authService;
 
+private readonly IGoogleAuthService _googleAuthService;
 
-    public AuthController(
-        IAuthService authService)
-    {
-        _authService =
-            authService;
-    }
+public AuthController(
+    IAuthService authService,
+    IGoogleAuthService googleAuthService)
+{
+    _authService = authService;
+
+    _googleAuthService =
+        googleAuthService;
+}
 
 
     // =========================================================
@@ -70,52 +74,55 @@ public class AuthController : ControllerBase
         }
     }
 
-
-    // =========================================================
-    // REGISTER TRAINER
-    // POST /api/auth/register/trainer
-    // multipart/form-data
-    // =========================================================
-
-    [AllowAnonymous]
-    [HttpPost("register/trainer")]
-    [Consumes("multipart/form-data")]
-    public async Task<IActionResult> RegisterTrainer(
-        [FromForm] RegisterTrainerRequest request)
+[AllowAnonymous]
+[HttpPost("register/trainer")]
+[Consumes("multipart/form-data")]
+public async Task<IActionResult> RegisterTrainer(
+    [FromForm] RegisterTrainerRequest request)
+{
+    try
     {
-        if (!ModelState.IsValid)
-        {
-            return ValidationProblem(
-                ModelState
-            );
-        }
+        Console.WriteLine("=================================================");
+        Console.WriteLine("🔥 TRAINER GOOGLE REGISTRATION");
+        Console.WriteLine(
+            $"GoogleIdToken received: {!string.IsNullOrWhiteSpace(request.GoogleIdToken)}"
+        );
+        Console.WriteLine(
+            $"GoogleIdToken length: {request.GoogleIdToken?.Length ?? 0}"
+        );
+        Console.WriteLine("=================================================");
 
+        var result =
+            await _authService.RegisterTrainerAsync(request);
 
-        try
-        {
-            var result =
-                await _authService
-                    .RegisterTrainerAsync(
-                        request
-                    );
-
-
-            return StatusCode(
-                StatusCodes.Status201Created,
-                result
-            );
-        }
-        catch (
-            InvalidOperationException ex)
-        {
-            return Conflict(
-                new
-                {
-                    message = ex.Message
-                }
-            );
-        }
+        return StatusCode(
+            StatusCodes.Status201Created,
+            result
+        );
     }
+    catch (InvalidOperationException ex)
+    {
+        return BadRequest(new
+        {
+            message = ex.Message
+        });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine(
+            $"TRAINER REGISTRATION ERROR: {ex}"
+        );
+
+        return StatusCode(
+            StatusCodes.Status500InternalServerError,
+            new
+            {
+                message =
+                    "An unexpected error occurred while registering the trainer."
+            }
+        );
+    }
+}
 
 
     // =========================================================
@@ -298,5 +305,58 @@ public async Task<IActionResult> ChangePassword(
             }
         );
     }
+
+    [AllowAnonymous]
+[HttpPost("google")]
+public async Task<IActionResult> GoogleLogin(
+    [FromBody] GoogleLoginRequest request)
+{
+    try
+    {
+        if (string.IsNullOrWhiteSpace(request.IdToken))
+        {
+            return BadRequest(new
+            {
+                message = "Google ID token is required."
+            });
+        }
+
+        var result =
+            await _googleAuthService.AuthenticateAsync(
+                request.IdToken
+            );
+
+        return Ok(result);
+    }
+    catch (UnauthorizedAccessException ex)
+    {
+        return Unauthorized(new
+        {
+            message = ex.Message
+        });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return BadRequest(new
+        {
+            message = ex.Message
+        });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine(
+            $"GOOGLE AUTH ERROR: {ex}"
+        );
+
+        return StatusCode(
+            StatusCodes.Status500InternalServerError,
+            new
+            {
+                message =
+                    "An unexpected error occurred while processing Google authentication."
+            }
+        );
+    }
+}
 
 }

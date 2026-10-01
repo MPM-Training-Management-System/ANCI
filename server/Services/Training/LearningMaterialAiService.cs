@@ -14,7 +14,8 @@ public class LearningMaterialAiService
     public LearningMaterialAiService(
         IOpenCodeService openCodeService)
     {
-        _openCodeService = openCodeService;
+        _openCodeService =
+            openCodeService;
     }
 
     public async Task<AiModuleContentResult>
@@ -26,13 +27,15 @@ public class LearningMaterialAiService
             IReadOnlyList<DocumentMediaLink> mediaLinks,
             CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(sourceText))
+        if (string.IsNullOrWhiteSpace(
+                sourceText))
         {
             throw new InvalidOperationException(
                 "No source material is available for this module.");
         }
 
-        if (string.IsNullOrWhiteSpace(moduleTitle))
+        if (string.IsNullOrWhiteSpace(
+                moduleTitle))
         {
             throw new ArgumentException(
                 "Module title is required.",
@@ -41,27 +44,37 @@ public class LearningMaterialAiService
 
         if (images is null)
         {
-            throw new ArgumentNullException(nameof(images));
+            throw new ArgumentNullException(
+                nameof(images));
         }
 
         if (mediaLinks is null)
         {
-            throw new ArgumentNullException(nameof(mediaLinks));
+            throw new ArgumentNullException(
+                nameof(mediaLinks));
         }
 
         var imagePaths =
             images
-                .Where(image =>
-                    !string.IsNullOrWhiteSpace(image.LocalPath))
-                .Select(image => image.LocalPath)
-                .Where(File.Exists)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Where(
+                    image =>
+                        !string.IsNullOrWhiteSpace(
+                            image.LocalPath))
+                .Select(
+                    image =>
+                        image.LocalPath)
+                .Where(
+                    File.Exists)
+                .Distinct(
+                    StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
         var availableImages =
             images
-                .Where(image =>
-                    !string.IsNullOrWhiteSpace(image.Url))
+                .Where(
+                    image =>
+                        !string.IsNullOrWhiteSpace(
+                            image.Url))
                 .Select(
                     (image, index) =>
                         new SourceImageReference(
@@ -71,10 +84,15 @@ public class LearningMaterialAiService
 
         var availableMediaLinks =
             mediaLinks
-                .Where(link =>
-                    !string.IsNullOrWhiteSpace(link.Url))
-                .Select(link => link.Url)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Where(
+                    link =>
+                        !string.IsNullOrWhiteSpace(
+                            link.Url))
+                .Select(
+                    link =>
+                        link.Url)
+                .Distinct(
+                    StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
         var mediaReferenceText =
@@ -85,99 +103,146 @@ public class LearningMaterialAiService
         var systemPrompt = """
 You are an instructional content assistant.
 
-Your task is to generate learning content for ONE EXISTING TRAINING MODULE.
+You are helping a TRAINER create lesson content for ONE
+EXISTING TRAINING MODULE.
 
-The trainer has already created the module.
+IMPORTANT ARCHITECTURE:
 
-You MUST generate content only for this module.
+TRAINING
+    ↓
+LEARNING MATERIAL
+    ↓
+MODULE
+    ↓
+LESSONS
 
-SOURCE RULES:
+The TRAINING and LEARNING MATERIAL already exist.
 
-- Use ONLY the provided module source material.
-- Do not use outside knowledge.
-- Do not invent facts.
-- Do not invent definitions.
-- Do not invent policies.
-- Do not invent procedures.
-- Do not invent examples that are not supported by the source.
-- Preserve the meaning of the source material.
-- Follow the logical order of the source material.
+The MODULE already exists.
 
-MODULE RULES:
+Your job is ONLY to generate the lessons/content INSIDE
+the existing module.
 
-- Do not create another module.
-- Do not rename the module.
-- Do not create exams.
-- Do not create assessment questions.
-- Do not create information that is not supported by the source.
+NEVER create another module.
 
-GENERATE:
+NEVER create another learning material.
+
+NEVER create a training.
+
+NEVER create an assessment.
+
+NEVER create assessment questions.
+
+=========================================================
+SOURCE RULES
+=========================================================
+
+Use ONLY the provided source material.
+
+Do not use outside knowledge.
+
+Do not invent:
+
+- facts
+- definitions
+- policies
+- procedures
+- examples
+- statistics
+- URLs
+- videos
+- images
+
+Preserve the meaning of the source.
+
+Follow the logical order of the source.
+
+=========================================================
+MODULE RULES
+=========================================================
+
+The trainer already created the module.
+
+Module title:
+
+{{MODULE TITLE}}
+
+Module description:
+
+{{MODULE DESCRIPTION}}
+
+Do not rename the module.
+
+Do not create another module.
+
+Generate lesson content that belongs inside this module.
+
+=========================================================
+GENERATE
+=========================================================
+
+Generate:
 
 1. Welcome / Introduction
 2. Learning Objectives
-3. Learning Sections
+3. Learning Sections / Lessons
 4. Module Summary
 5. Key Takeaways
 
-SECTIONS:
+=========================================================
+LESSON RULES
+=========================================================
 
-Generate logical learning sections based on the actual topics found
+Create logical lessons based on the actual topics found
 in the module source material.
 
-Each section must:
+Each lesson must:
 
 - Have a clear title.
-- Contain educational content based only on the source.
-- Follow the logical order of the source.
-- Avoid duplicate content.
-- Not introduce unsupported information.
-- Use "Text" as the content type.
+- Contain educational content.
+- Be based only on the source.
+- Follow the logical order.
+- Avoid duplicate information.
+- Use "Text" as the content type unless a media item
+  is directly associated with the lesson.
 
-Do not create unnecessary sections.
+Do not create unnecessary lessons.
 
-If the source contains three major topics, create approximately
-three logical sections.
+The number of lessons depends on the actual source.
 
-If the source contains five major topics, create approximately
-five logical sections.
+=========================================================
+MEDIA RULES
+=========================================================
 
-The number of sections must depend on the actual source material.
+The source may contain:
 
-MEDIA RULES:
+- Embedded images
+- Image URLs
+- YouTube URLs
 
-The source material may contain:
+Only use media provided by the system.
 
-- Embedded source images.
-- Image URLs.
-- YouTube video URLs.
+Never invent media.
 
-You MUST only use media that is provided by the system.
+Never search the internet.
 
-DO NOT:
+Never create URLs.
 
-- Invent image URLs.
-- Invent video URLs.
-- Create media URLs.
-- Search for external images.
-- Search for external videos.
-- Use URLs that were not provided.
-- Generate media.
+=========================================================
+SOURCE IMAGES
+=========================================================
 
-SOURCE IMAGES:
-
-The system may provide embedded images separately from the text.
-
-These images are numbered:
+Images are numbered:
 
 IMAGE 1
 IMAGE 2
 IMAGE 3
-...
 
-When an embedded source image is relevant to a section, reference
-that image using its sourceIndex.
+Use sourceIndex when an image belongs to a lesson.
 
-For example:
+sourceIndex is 1-based.
+
+Example:
 
 {
   "type": "Image",
@@ -186,94 +251,72 @@ For example:
   "caption": "..."
 }
 
-IMPORTANT:
+Never invent sourceIndex.
 
-- sourceIndex is 1-based.
-- sourceIndex 1 means IMAGE 1.
-- sourceIndex 2 means IMAGE 2.
-- Do not invent a sourceIndex.
-- Only use sourceIndex values that exist in the provided SOURCE IMAGES.
-- For an embedded image, the "url" field may be an empty string.
-- The backend will resolve the sourceIndex to the actual persistent
-  Cloudinary URL.
-- Do NOT attempt to create or modify a Cloudinary URL.
+=========================================================
+YOUTUBE
+=========================================================
 
-If an embedded image is not relevant to any section, do not attach it.
+YouTube URLs may be associated with a lesson.
 
-IMAGE URLS:
+Supported formats:
 
-If an image URL is explicitly present in the source material or
-provided media references, it may be associated with the relevant
-section.
+https://www.youtube.com/watch?v=VIDEO_ID
 
-Use:
+https://youtu.be/VIDEO_ID
 
-"type": "Image"
+https://www.youtube.com/embed/VIDEO_ID
 
-If the image comes from the numbered SOURCE IMAGES, use sourceIndex.
+Use the exact provided URL.
 
-YOUTUBE VIDEO RULES:
+Do not modify it.
 
-If a YouTube URL is explicitly provided in the source material or
-provided media references and it is clearly related to a specific
-section, include it in that section's media array.
+Do not invent it.
 
-Use:
+Do not search for videos.
+
+For YouTube:
 
 "type": "Video"
 
-Supported YouTube URL formats include:
+=========================================================
+MEDIA ASSOCIATION
+=========================================================
 
-- https://www.youtube.com/watch?v=VIDEO_ID
-- https://youtu.be/VIDEO_ID
-- https://www.youtube.com/embed/VIDEO_ID
+Only associate media with a lesson when the media is
+clearly related to that lesson.
 
-For YouTube videos, return the actual provided YouTube URL in
-the "url" field.
+If there is no relevant media:
 
-Do not invent or modify the YouTube URL.
+"media": []
 
-MEDIA ASSOCIATION:
+=========================================================
+CONTENT TYPE
+=========================================================
 
-Associate media with the section that discusses the topic related
-to that media.
-
-Do not attach unrelated media to a section.
-
-If a media item cannot be confidently associated with a section,
-leave it out.
-
-CAPTIONS:
-
-Create a short caption only when the source material provides enough
-information to describe the media.
-
-Do not invent details about an image or video.
-
-If there is not enough information for a caption, use null.
-
-CONTENT TYPE:
-
-All generated sections must use:
+Text lessons must use:
 
 "Text"
 
-Media is separate from ContentType.
+Video lessons may use:
 
-OUTPUT:
+"Video"
+
+The backend will validate YouTube URLs.
+
+=========================================================
+OUTPUT
+=========================================================
 
 Return ONLY valid JSON.
 
-Do not use Markdown code fences.
+Do not use Markdown.
 
-Do not include explanations outside the JSON.
-
-Use exactly this structure:
+Use exactly:
 
 {
   "welcome": "...",
   "learningObjectives": [
-    "...",
     "..."
   ],
   "sections": [
@@ -282,32 +325,14 @@ Use exactly this structure:
       "title": "...",
       "contentType": "Text",
       "content": "...",
-      "media": [
-        {
-          "type": "Image",
-          "sourceIndex": 1,
-          "url": "",
-          "caption": "..."
-        },
-        {
-          "type": "Video",
-          "sourceIndex": 0,
-          "url": "https://www.youtube.com/watch?v=...",
-          "caption": "..."
-        }
-      ]
+      "media": []
     }
   ],
   "summary": "...",
   "keyTakeaways": [
-    "...",
     "..."
   ]
 }
-
-If a section has no media, use:
-
-"media": []
 """;
 
         var userPrompt = $$"""
@@ -327,29 +352,24 @@ MODULE SOURCE MATERIAL:
 
 {{mediaReferenceText}}
 
-Generate the complete learning content for this existing module.
+Generate the learning lessons for this existing module.
 
 Remember:
 
-- Use only the provided module source.
-- Generate logical sections based on the source.
+- The module already exists.
 - Do not create another module.
-- Do not create exams.
-- Do not create questions.
+- Do not create another learning material.
+- Generate lessons only.
+- Use only the provided source.
 - Do not invent information.
 - Do not invent URLs.
-- Do not search for external media.
-- Only use the provided source images and media links.
-- Use sourceIndex for embedded source images.
-- sourceIndex starts at 1.
-- Do not invent sourceIndex values.
-- For embedded images, the url can be an empty string.
-- For videos, use the provided YouTube URL.
-- Associate media only with the relevant section.
-- Use "Image" for images.
-- Use "Video" for YouTube videos.
-- Use an empty media array when no relevant media exists.
-- Return only valid JSON.
+- Do not search external websites.
+- Do not create assessments.
+- Do not create assessment questions.
+- Use provided images only.
+- Use provided YouTube URLs only.
+- Associate media only with relevant lessons.
+- Return valid JSON only.
 """;
 
         string content;
@@ -357,38 +377,45 @@ Remember:
         if (imagePaths.Count > 0)
         {
             content =
-                await _openCodeService.RunWithImagesAsync(
-                    userPrompt,
-                    imagePaths,
-                    cancellationToken);
+                await _openCodeService
+                    .RunWithImagesAsync(
+                        userPrompt,
+                        imagePaths,
+                        cancellationToken);
         }
         else
         {
             content =
-                await _openCodeService.RunAsync(
-                    userPrompt,
-                    cancellationToken);
+                await _openCodeService
+                    .RunAsync(
+                        userPrompt,
+                        cancellationToken);
         }
 
-        if (string.IsNullOrWhiteSpace(content))
+        if (string.IsNullOrWhiteSpace(
+                content))
         {
             throw new InvalidOperationException(
                 "OpenCode returned an empty response.");
         }
 
-        content = CleanJsonResponse(content);
+        content =
+            CleanJsonResponse(
+                content);
 
         AiModuleContentResult? result;
 
         try
         {
             result =
-                JsonSerializer.Deserialize<AiModuleContentResult>(
-                    content,
-                    new JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true
-                    });
+                JsonSerializer.Deserialize<
+                    AiModuleContentResult>(
+                        content,
+                        new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive =
+                                true
+                        });
         }
         catch (JsonException ex)
         {
@@ -414,15 +441,18 @@ Remember:
         int Index,
         string Url);
 
-    private static string BuildMediaReferenceText(
-        IReadOnlyList<SourceImageReference> images,
-        IReadOnlyList<string> mediaLinks)
+    private static string
+        BuildMediaReferenceText(
+            IReadOnlyList<SourceImageReference> images,
+            IReadOnlyList<string> mediaLinks)
     {
-        var lines = new List<string>();
+        var lines =
+            new List<string>();
 
         if (images.Count > 0)
         {
-            lines.Add("SOURCE IMAGES:");
+            lines.Add(
+                "SOURCE IMAGES:");
 
             foreach (var image in images)
             {
@@ -433,24 +463,31 @@ Remember:
 
         var youtubeLinks =
             mediaLinks
-                .Where(IsYouTubeUrl)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Where(
+                    IsYouTubeUrl)
+                .Distinct(
+                    StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
         if (youtubeLinks.Count > 0)
         {
-            lines.Add(string.Empty);
-            lines.Add("YOUTUBE VIDEO URLS:");
+            lines.Add(
+                string.Empty);
+
+            lines.Add(
+                "YOUTUBE VIDEO URLS:");
 
             foreach (var youtubeUrl in youtubeLinks)
             {
-                lines.Add(youtubeUrl);
+                lines.Add(
+                    youtubeUrl);
             }
         }
 
         if (lines.Count == 0)
         {
-            return "MEDIA REFERENCES:\nNo media was detected.";
+            return
+                "MEDIA REFERENCES:\nNo media was detected.";
         }
 
         return string.Join(
@@ -458,7 +495,9 @@ Remember:
             lines);
     }
 
-    private static bool IsYouTubeUrl(string url)
+    private static bool
+        IsYouTubeUrl(
+            string url)
     {
         if (!Uri.TryCreate(
                 url,
@@ -478,10 +517,12 @@ Remember:
             || host == "www.youtu.be";
     }
 
-    private static string CleanJsonResponse(
-        string content)
+    private static string
+        CleanJsonResponse(
+            string content)
     {
-        content = content.Trim();
+        content =
+            content.Trim();
 
         if (content.StartsWith("```"))
         {
@@ -503,7 +544,8 @@ Remember:
             }
         }
 
-        content = content.Trim();
+        content =
+            content.Trim();
 
         var jsonStart =
             content.IndexOf('{');
@@ -522,11 +564,13 @@ Remember:
         return content.Trim();
     }
 
-    private static void ValidateResult(
-        AiModuleContentResult result,
-        int sourceImageCount)
+    private static void
+        ValidateResult(
+            AiModuleContentResult result,
+            int sourceImageCount)
     {
-        if (string.IsNullOrWhiteSpace(result.Welcome))
+        if (string.IsNullOrWhiteSpace(
+                result.Welcome))
         {
             throw new InvalidOperationException(
                 "AI generated content is missing the welcome message.");
@@ -543,10 +587,11 @@ Remember:
             result.Sections.Count == 0)
         {
             throw new InvalidOperationException(
-                "AI generated content contains no learning sections.");
+                "AI generated content contains no learning lessons.");
         }
 
-        if (string.IsNullOrWhiteSpace(result.Summary))
+        if (string.IsNullOrWhiteSpace(
+                result.Summary))
         {
             throw new InvalidOperationException(
                 "AI generated content is missing the summary.");
@@ -561,16 +606,18 @@ Remember:
 
         foreach (var section in result.Sections)
         {
-            if (string.IsNullOrWhiteSpace(section.Title))
+            if (string.IsNullOrWhiteSpace(
+                    section.Title))
             {
                 throw new InvalidOperationException(
-                    $"Section {section.SectionNumber} is missing a title.");
+                    $"Lesson {section.SectionNumber} is missing a title.");
             }
 
-            if (string.IsNullOrWhiteSpace(section.Content))
+            if (string.IsNullOrWhiteSpace(
+                    section.Content))
             {
                 throw new InvalidOperationException(
-                    $"Section '{section.Title}' is missing content.");
+                    $"Lesson '{section.Title}' is missing content.");
             }
 
             if (!string.Equals(
@@ -579,7 +626,7 @@ Remember:
                     StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidOperationException(
-                    $"Section '{section.Title}' must use ContentType 'Text'.");
+                    $"Lesson '{section.Title}' must use ContentType 'Text'.");
             }
 
             if (section.Media is null)
@@ -597,15 +644,17 @@ Remember:
         }
     }
 
-    private static void ValidateMedia(
-        AiSectionMediaResult media,
-        string sectionTitle,
-        int sourceImageCount)
+    private static void
+        ValidateMedia(
+            AiSectionMediaResult media,
+            string sectionTitle,
+            int sourceImageCount)
     {
-        if (string.IsNullOrWhiteSpace(media.Type))
+        if (string.IsNullOrWhiteSpace(
+                media.Type))
         {
             throw new InvalidOperationException(
-                $"Section '{sectionTitle}' contains media without a type.");
+                $"Lesson '{sectionTitle}' contains media without a type.");
         }
 
         if (string.Equals(
@@ -615,17 +664,20 @@ Remember:
         {
             if (media.SourceIndex <= 0)
             {
-                if (string.IsNullOrWhiteSpace(media.Url))
+                if (string.IsNullOrWhiteSpace(
+                        media.Url))
                 {
                     throw new InvalidOperationException(
-                        $"Image media in section '{sectionTitle}' " +
-                        "must contain either a valid sourceIndex or a URL.");
+                        $"Image media in lesson '{sectionTitle}' " +
+                        "must contain either a valid sourceIndex or URL.");
                 }
             }
-            else if (media.SourceIndex > sourceImageCount)
+            else if (
+                media.SourceIndex >
+                sourceImageCount)
             {
                 throw new InvalidOperationException(
-                    $"Image media in section '{sectionTitle}' " +
+                    $"Image media in lesson '{sectionTitle}' " +
                     $"references sourceIndex {media.SourceIndex}, " +
                     $"but only {sourceImageCount} source image(s) exist.");
             }
@@ -638,17 +690,19 @@ Remember:
                 "Video",
                 StringComparison.OrdinalIgnoreCase))
         {
-            if (string.IsNullOrWhiteSpace(media.Url))
+            if (string.IsNullOrWhiteSpace(
+                    media.Url))
             {
                 throw new InvalidOperationException(
-                    $"Video media in section '{sectionTitle}' " +
+                    $"Video media in lesson '{sectionTitle}' " +
                     "must contain a URL.");
             }
 
-            if (!IsYouTubeUrl(media.Url))
+            if (!IsYouTubeUrl(
+                    media.Url))
             {
                 throw new InvalidOperationException(
-                    $"Video media in section '{sectionTitle}' " +
+                    $"Video media in lesson '{sectionTitle}' " +
                     "must use a valid YouTube URL.");
             }
 
@@ -657,6 +711,6 @@ Remember:
 
         throw new InvalidOperationException(
             $"Unsupported media type '{media.Type}' " +
-            $"in section '{sectionTitle}'.");
+            $"in lesson '{sectionTitle}'.");
     }
 }

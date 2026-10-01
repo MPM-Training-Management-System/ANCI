@@ -9,6 +9,20 @@ public interface ILearningMaterialService
 {
     // =========================================================
     // LEARNING MATERIALS
+    //
+    // ADMIN:
+    // - Create
+    // - Update
+    // - Delete
+    // - Upload main source file
+    // - Extract source file
+    // - Publish
+    //
+    // TRAINER:
+    // - View assigned learning material
+    //
+    // PARTICIPANT:
+    // - View published learning material
     // =========================================================
 
     Task<IReadOnlyList<LearningMaterialDto>>
@@ -21,7 +35,6 @@ public interface ILearningMaterialService
 
     Task<LearningMaterialDto>
         CreateAsync(
-            Guid trainerUserId,
             CreateLearningMaterialRequest request);
 
     Task<LearningMaterialDto>
@@ -48,6 +61,9 @@ public interface ILearningMaterialService
 
     // =========================================================
     // LEARNING MODULES
+    //
+    // TRAINER CREATES MODULES
+    // INSIDE THE ADMIN-CREATED LEARNING MATERIAL
     // =========================================================
 
     Task<LearningModuleDto>
@@ -69,22 +85,20 @@ public interface ILearningMaterialService
 
     // =========================================================
     // MODULE FILES
+    //
+    // TRAINER CAN ADD SUPPORTING FILES
+    // TO A SPECIFIC MODULE
     // =========================================================
 
-    // Add one or more files to a module.
-    // Call this method multiple times if the module has
-    // multiple source files.
     Task<LearningModuleFileDto>
         UploadModuleFileAsync(
             Guid moduleId,
             IFormFile file);
 
-    // Extract text from ONE specific module file.
     Task<LearningModuleFileExtractionDto>
         ExtractModuleFileTextAsync(
             Guid moduleFileId);
 
-    // Extract text from ALL files belonging to a module.
     Task<bool>
         ExtractAllModuleFilesAsync(
             Guid moduleId);
@@ -92,6 +106,9 @@ public interface ILearningMaterialService
 
     // =========================================================
     // AI MODULE CONTENT
+    //
+    // TRAINER USES AI TO GENERATE LESSON CONTENT
+    // INSIDE AN EXISTING MODULE
     // =========================================================
 
     Task<LearningModuleDto>
@@ -100,7 +117,10 @@ public interface ILearningMaterialService
 
 
     // =========================================================
-    // LEARNING SECTIONS
+    // LEARNING SECTIONS / LESSONS
+    //
+    // TRAINER CREATES LESSONS
+    // INSIDE A MODULE
     // =========================================================
 
     Task<LearningSectionDto>

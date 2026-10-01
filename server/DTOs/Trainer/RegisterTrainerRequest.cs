@@ -34,6 +34,8 @@ public class RegisterTrainerRequest
     public string Email { get; set; }
         = string.Empty;
 
+        public string? GoogleIdToken { get; set; }
+
     public string? MobileNumber { get; set; }
 
     public string Password { get; set; }

@@ -21,6 +21,8 @@ public class RegisterParticipantRequest
     [StringLength(255)]
     public string Email { get; set; } = string.Empty;
 
+    public string? GoogleIdToken { get; set; }
+
     [Phone]
     [StringLength(30)]
     public string? MobileNumber { get; set; }
