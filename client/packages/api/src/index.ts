@@ -12,3 +12,4 @@ export * from "./attendance";
 export * from "./assessment";
 export * from "./Service";
 export * from "./auth";
+export * from "./Report";

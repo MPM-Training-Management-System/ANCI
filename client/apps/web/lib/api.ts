@@ -12,7 +12,8 @@ import {
   AuthAPIs,
   PracticalAssessmentApi,
   ParticipantApi,
-  LearningMaterialApi
+  LearningMaterialApi,
+  TrainerReportRequestApi
 } from "@repo/api";
 import { auth } from "./auth";
 
@@ -27,6 +28,8 @@ export const apiClient = new ApiClient({
 
 export const trainerApi =
   new TrainerApi(apiClient);
+  export const trainerReportRequestApi =
+  new TrainerReportRequestApi(apiClient);
   export const learningMaterialApi =
   new LearningMaterialApi(apiClient);
 export const practicalAssessmentApi =

@@ -1,203 +1,138 @@
 "use client";
 
-import {
-    SetStateAction,
+import React, {
+  useEffect,
   useMemo,
   useState,
 } from "react";
 
 import {
-  DataTable,
+  PageSection,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   StatCard,
   StatGrid,
 } from "@repo/ui/index";
 
-import { columns } from "./columns";
-
 import type {
-  ReportRecord,
+  ReportFilter,
   ReportType,
-} from "./type";
+  TrainingCompletionReportItem,
+  EnrollmentReportItem,
+  AttendanceReportItem,
+  AssessmentResultsReportItem,
+  CertificateReportItem,
+  TrainerReportItem,
+  ServiceRequestReportItem,
+} from "@repo/types";
 
-/* =========================================================
-   MOCK DATA
-========================================================= */
+import { useReports } from "@repo/hooks";
+import { reportApi } from "@/lib/api";
 
-const mockReports: ReportRecord[] = [
+import ReportExportButton from "@/components/reports/ReportExportButton";
+
+// =========================================================
+// REPORT TABS
+// =========================================================
+
+const reportTabs: {
+  id: ReportType;
+  label: string;
+  description: string;
+}[] = [
   {
-    id: "RPT-001",
-    participantId: "PT-001",
-    participantName: "Juan Dela Cruz",
-    email: "juan.delacruz@email.com",
-    training:
-      "Computer Systems Servicing NC II",
-    batch: "CSS-NCII-2026-01",
-    trainer: "Maria Santos",
-    enrollmentDate: "August 10, 2026",
-    attendance: 18,
-    sessions: 20,
-    score: 88,
-    status: "Passed",
+    id: "overview",
+    label: "Overview",
+    description:
+      "Overall system performance and activity summary.",
   },
-
   {
-    id: "RPT-002",
-    participantId: "PT-002",
-    participantName: "Maria Garcia",
-    email: "maria.garcia@email.com",
-    training:
-      "Computer Systems Servicing NC II",
-    batch: "CSS-NCII-2026-01",
-    trainer: "Maria Santos",
-    enrollmentDate: "August 11, 2026",
-    attendance: 19,
-    sessions: 20,
-    score: 92,
-    status: "Completed",
+    id: "training-completion",
+    label: "Training Completion",
+    description:
+      "Monitor participant training completion and certification.",
   },
-
   {
-    id: "RPT-003",
-    participantId: "PT-003",
-    participantName: "Pedro Reyes",
-    email: "pedro.reyes@email.com",
-    training:
-      "Web Development Fundamentals",
-    batch: "WEB-DEV-2026-01",
-    trainer: "John Cruz",
-    enrollmentDate: "August 12, 2026",
-    attendance: 15,
-    sessions: 20,
-    score: 68,
-    status: "Failed",
+    id: "enrollments",
+    label: "Enrollments",
+    description:
+      "Review enrollment activity and participant admissions.",
   },
-
   {
-    id: "RPT-004",
-    participantId: "PT-004",
-    participantName: "Ana Mendoza",
-    email: "ana.mendoza@email.com",
-    training:
-      "Electrical Installation NC II",
-    batch: "EIM-NCII-2026-01",
-    trainer: "Robert Flores",
-    enrollmentDate: "August 13, 2026",
-    attendance: 17,
-    sessions: 20,
-    score: 81,
-    status: "Active",
+    id: "attendance",
+    label: "Attendance",
+    description:
+      "Monitor participant attendance and attendance rates.",
   },
-
   {
-    id: "RPT-005",
-    participantId: "PT-005",
-    participantName: "Mark Villanueva",
-    email: "mark.villanueva@email.com",
-    training:
-      "Web Development Fundamentals",
-    batch: "WEB-DEV-2026-01",
-    trainer: "John Cruz",
-    enrollmentDate: "August 13, 2026",
-    attendance: 20,
-    sessions: 20,
-    score: 95,
-    status: "Passed",
+    id: "assessment-results",
+    label: "Assessment Results",
+    description:
+      "Review written assessment performance and results.",
   },
-
   {
-    id: "RPT-006",
-    participantId: "PT-006",
-    participantName: "Sofia Ramos",
-    email: "sofia.ramos@email.com",
-    training:
-      "Electrical Installation NC II",
-    batch: "EIM-NCII-2026-01",
-    trainer: "Robert Flores",
-    enrollmentDate: "August 14, 2026",
-    attendance: 14,
-    sessions: 20,
-    score: 76,
-    status: "Active",
+    id: "certificates",
+    label: "Certificates",
+    description:
+      "Monitor issued, active, and revoked certificates.",
   },
-
   {
-    id: "RPT-007",
-    participantId: "PT-007",
-    participantName: "Daniel Flores",
-    email: "daniel.flores@email.com",
-    training:
-      "Computer Systems Servicing NC II",
-    batch: "CSS-NCII-2026-02",
-    trainer: "Maria Santos",
-    enrollmentDate: "August 14, 2026",
-    attendance: 16,
-    sessions: 20,
-    score: 84,
-    status: "Active",
+    id: "trainers",
+    label: "Trainer Reports",
+    description:
+      "Review trainer assignments and training performance.",
   },
-
   {
-    id: "RPT-008",
-    participantId: "PT-008",
-    participantName: "Rachel Cruz",
-    email: "rachel.cruz@email.com",
-    training:
-      "Web Development Fundamentals",
-    batch: "WEB-DEV-2026-02",
-    trainer: "John Cruz",
-    enrollmentDate: "August 15, 2026",
-    attendance: 19,
-    sessions: 20,
-    score: 90,
-    status: "Completed",
-  },
-
-  {
-    id: "RPT-009",
-    participantId: "PT-009",
-    participantName: "Kevin Santos",
-    email: "kevin.santos@email.com",
-    training:
-      "Computer Systems Servicing NC II",
-    batch: "CSS-NCII-2026-02",
-    trainer: "Maria Santos",
-    enrollmentDate: "August 15, 2026",
-    attendance: 10,
-    sessions: 20,
-    score: 65,
-    status: "Failed",
-  },
-
-  {
-    id: "RPT-010",
-    participantId: "PT-010",
-    participantName: "Angela Bautista",
-    email: "angela.bautista@email.com",
-    training:
-      "Electrical Installation NC II",
-    batch: "EIM-NCII-2026-01",
-    trainer: "Robert Flores",
-    enrollmentDate: "August 16, 2026",
-    attendance: 18,
-    sessions: 20,
-    score: 87,
-    status: "Completed",
+    id: "service-requests",
+    label: "Service Requests",
+    description:
+      "Monitor requests submitted for ACE NextGen services.",
   },
 ];
 
-/* =========================================================
-   PAGE
-========================================================= */
+// =========================================================
+// PAGE
+// =========================================================
 
 export default function ReportsPage() {
-  const [reportType, setReportType] =
-    useState<ReportType>("Enrollment");
+  const {
+    overview,
+    trainingCompletion,
+    enrollments,
+    attendance,
+    assessmentResults,
+    certificates,
+    trainers,
+    serviceRequests,
 
-  const [trainingFilter, setTrainingFilter] =
-    useState("All Trainings");
+    loading,
+    error,
 
-  const [statusFilter, setStatusFilter] =
-    useState("All Status");
+    getOverview,
+    getTrainingCompletion,
+    getEnrollments,
+    getAttendance,
+    getAssessmentResults,
+    getCertificates,
+    getTrainers,
+    getServiceRequests,
+  } = useReports(reportApi);
+
+  // =======================================================
+  // STATE
+  // =======================================================
+
+  const [activeReport, setActiveReport] =
+    useState<ReportType>("overview");
+
+  const [search, setSearch] =
+    useState("");
+
+  const [status, setStatus] =
+    useState("All");
 
   const [dateFrom, setDateFrom] =
     useState("");
@@ -205,707 +140,2353 @@ export default function ReportsPage() {
   const [dateTo, setDateTo] =
     useState("");
 
-  const [selected, setSelected] =
-    useState<ReportRecord | null>(null);
+  const [page, setPage] =
+    useState(1);
 
-  const trainings = useMemo(
-    () => [
-      "All Trainings",
-      ...Array.from(
-        new Set(
-          mockReports.map(
-            (item) => item.training,
-          ),
-        ),
-      ),
-    ],
-    [],
-  );
+  const pageSize = 10;
 
-  /* =========================================================
-     FILTER DATA
-  ========================================================= */
+  // =======================================================
+  // INITIAL OVERVIEW
+  // =======================================================
 
-  const filteredReports = useMemo(() => {
-    return mockReports.filter(
-      (record) => {
-        const matchesTraining =
-          trainingFilter ===
-            "All Trainings" ||
-          record.training ===
-            trainingFilter;
+  useEffect(() => {
+    getOverview().catch(() => {
+      // handled by hook
+    });
+  }, [getOverview]);
 
-        const matchesStatus =
-          statusFilter ===
-            "All Status" ||
-          record.status ===
-            statusFilter;
+  // =======================================================
+  // LOAD ACTIVE REPORT
+  // =======================================================
 
-        return (
-          matchesTraining &&
-          matchesStatus
-        );
-      },
-    );
+  useEffect(() => {
+    setPage(1);
+    setSearch("");
+    setStatus("All");
+    setDateFrom("");
+    setDateTo("");
+
+    if (activeReport === "overview") {
+      getOverview().catch(() => {});
+      return;
+    }
+
+    const filter: ReportFilter = {
+      page: 1,
+      pageSize,
+    };
+
+    if (activeReport === "training-completion") {
+      getTrainingCompletion(filter).catch(() => {});
+      return;
+    }
+
+    if (activeReport === "enrollments") {
+      getEnrollments(filter).catch(() => {});
+      return;
+    }
+
+    if (activeReport === "attendance") {
+      getAttendance(filter).catch(() => {});
+      return;
+    }
+
+    if (activeReport === "assessment-results") {
+      getAssessmentResults(filter).catch(() => {});
+      return;
+    }
+
+    if (activeReport === "certificates") {
+      getCertificates(filter).catch(() => {});
+      return;
+    }
+
+    if (activeReport === "trainers") {
+      getTrainers(filter).catch(() => {});
+      return;
+    }
+
+    if (activeReport === "service-requests") {
+      getServiceRequests(filter).catch(() => {});
+    }
   }, [
-    trainingFilter,
-    statusFilter,
+    activeReport,
+    getOverview,
+    getTrainingCompletion,
+    getEnrollments,
+    getAttendance,
+    getAssessmentResults,
+    getCertificates,
+    getTrainers,
+    getServiceRequests,
   ]);
 
-  /* =========================================================
-     STATISTICS
-  ========================================================= */
+  // =======================================================
+  // ACTIVE TAB
+  // =======================================================
 
-  const totalParticipants =
-    filteredReports.length;
+  const activeTab = reportTabs.find(
+    tab => tab.id === activeReport
+  );
 
-  const activeParticipants =
-    filteredReports.filter(
-      (item) =>
-        item.status === "Active",
-    ).length;
+  // =======================================================
+  // FILTER OPTIONS
+  // =======================================================
 
-  const completedParticipants =
-    filteredReports.filter(
-      (item) =>
-        item.status ===
-          "Completed" ||
-        item.status === "Passed",
-    ).length;
+  const statusOptions = useMemo(() => {
+    switch (activeReport) {
+      case "training-completion":
+        return [
+          "All",
+          "Completed",
+          "Incomplete",
+        ];
 
-  const averageAttendance =
-    filteredReports.length > 0
-      ? Math.round(
-          filteredReports.reduce(
-            (total, item) =>
-              total +
-              (item.attendance /
-                item.sessions) *
-                100,
-            0,
-          ) /
-            filteredReports.length,
-        )
-      : 0;
+      case "enrollments":
+        return [
+          "All",
+          "Approved",
+          "Pending",
+          "Rejected",
+        ];
 
-  const averageScore =
-    filteredReports.filter(
-      (item) =>
-        item.score !== null,
-    ).length > 0
-      ? Math.round(
-          filteredReports
-            .filter(
-              (item) =>
-                item.score !== null,
-            )
-            .reduce(
-              (total, item) =>
-                total +
-                (item.score ?? 0),
-              0,
-            ) /
-              filteredReports.filter(
-                (item) =>
-                  item.score !==
-                  null,
-              ).length,
-        )
-      : 0;
+      case "attendance":
+        return [
+          "All",
+          "Present",
+          "Absent",
+          "Late",
+        ];
 
-  /* =========================================================
-     CSV EXPORT
-  ========================================================= */
+      case "assessment-results":
+        return [
+          "All",
+          "Passed",
+          "Failed",
+          "Pending",
+        ];
 
-  function exportCSV() {
-    const headers = [
-      "Participant ID",
-      "Participant",
-      "Email",
-      "Training",
-      "Batch",
-      "Trainer",
-      "Enrollment Date",
-      "Attendance",
-      "Sessions",
-      "Attendance Rate",
-      "Assessment Score",
-      "Status",
-    ];
+      case "certificates":
+        return [
+          "All",
+          "Completion",
+          "Participation",
+          "Revoked",
+        ];
 
-    const rows =
-      filteredReports.map(
-        (record) => {
-          const attendanceRate =
-            record.sessions > 0
-              ? Math.round(
-                  (record.attendance /
-                    record.sessions) *
-                    100,
-                )
-              : 0;
+      case "trainers":
+        return [
+          "All",
+          "Active",
+          "Inactive",
+        ];
 
-          return [
-            record.participantId,
-            record.participantName,
-            record.email,
-            record.training,
-            record.batch,
-            record.trainer,
-            record.enrollmentDate,
-            record.attendance,
-            record.sessions,
-            `${attendanceRate}%`,
-            record.score === null
-              ? "N/A"
-              : `${record.score}%`,
-            record.status,
-          ];
-        },
-      );
+      case "service-requests":
+        return [
+          "All",
+          "Pending",
+          "Approved",
+          "Rejected",
+        ];
 
-    const csv = [
-      headers,
-      ...rows,
-    ]
-      .map((row) =>
-        row
-          .map((value) => {
-            const text =
-              String(value);
+      default:
+        return ["All"];
+    }
+  }, [activeReport]);
 
-            return `"${text.replace(
-              /"/g,
-              '""',
-            )}"`;
-          })
-          .join(","),
-      )
-      .join("\n");
+  // =======================================================
+  // CURRENT FILTER
+  // =======================================================
 
-    const blob = new Blob(
-      [csv],
-      {
-        type: "text/csv;charset=utf-8;",
-      },
-    );
+  const currentFilter = useMemo<ReportFilter>(() => {
+    const filter: ReportFilter = {
+      page,
+      pageSize,
+    };
 
-    const url =
-      URL.createObjectURL(blob);
+    if (search.trim()) {
+      filter.search =
+        search.trim();
+    }
 
-    const link =
-      document.createElement(
-        "a",
-      );
+    if (status !== "All") {
+      filter.status =
+        status;
+    }
 
-    link.href = url;
+    if (dateFrom) {
+      filter.dateFrom =
+        dateFrom;
+    }
 
-    link.download =
-      `anci-${reportType.toLowerCase()}-report.csv`;
+    if (dateTo) {
+      filter.dateTo =
+        dateTo;
+    }
 
-    document.body.appendChild(
-      link,
-    );
+    return filter;
+  }, [
+    page,
+    pageSize,
+    search,
+    status,
+    dateFrom,
+    dateTo,
+  ]);
 
-    link.click();
+  // =======================================================
+  // CURRENT REPORT DATA FOR PDF
+  // =======================================================
 
-    document.body.removeChild(
-      link,
-    );
+  const currentReportData = useMemo(() => {
+    switch (activeReport) {
+      case "overview":
+        return overview;
 
-    URL.revokeObjectURL(url);
+      case "training-completion":
+        return trainingCompletion;
+
+      case "enrollments":
+        return enrollments;
+
+      case "attendance":
+        return attendance;
+
+      case "assessment-results":
+        return assessmentResults;
+
+      case "certificates":
+        return certificates;
+
+      case "trainers":
+        return trainers;
+
+      case "service-requests":
+        return serviceRequests;
+
+      default:
+        return null;
+    }
+  }, [
+    activeReport,
+    overview,
+    trainingCompletion,
+    enrollments,
+    attendance,
+    assessmentResults,
+    certificates,
+    trainers,
+    serviceRequests,
+  ]);
+
+  // =======================================================
+  // CURRENT REPORT TITLE
+  // =======================================================
+
+  const currentReportTitle =
+    activeTab?.label ??
+    "Report";
+
+  // =======================================================
+  // APPLY FILTER
+  // =======================================================
+
+  function applyFilters() {
+    const filter: ReportFilter = {
+      ...currentFilter,
+      page: 1,
+      pageSize,
+    };
+
+    setPage(1);
+
+    if (activeReport === "training-completion") {
+      getTrainingCompletion(filter).catch(() => {});
+      return;
+    }
+
+    if (activeReport === "enrollments") {
+      getEnrollments(filter).catch(() => {});
+      return;
+    }
+
+    if (activeReport === "attendance") {
+      getAttendance(filter).catch(() => {});
+      return;
+    }
+
+    if (activeReport === "assessment-results") {
+      getAssessmentResults(filter).catch(() => {});
+      return;
+    }
+
+    if (activeReport === "certificates") {
+      getCertificates(filter).catch(() => {});
+      return;
+    }
+
+    if (activeReport === "trainers") {
+      getTrainers(filter).catch(() => {});
+      return;
+    }
+
+    if (activeReport === "service-requests") {
+      getServiceRequests(filter).catch(() => {});
+    }
   }
+
+  // =======================================================
+  // CLEAR FILTERS
+  // =======================================================
+
+  function clearFilters() {
+    setSearch("");
+    setStatus("All");
+    setDateFrom("");
+    setDateTo("");
+    setPage(1);
+
+    const filter: ReportFilter = {
+      page: 1,
+      pageSize,
+    };
+
+    if (activeReport === "training-completion") {
+      getTrainingCompletion(filter).catch(() => {});
+      return;
+    }
+
+    if (activeReport === "enrollments") {
+      getEnrollments(filter).catch(() => {});
+      return;
+    }
+
+    if (activeReport === "attendance") {
+      getAttendance(filter).catch(() => {});
+      return;
+    }
+
+    if (activeReport === "assessment-results") {
+      getAssessmentResults(filter).catch(() => {});
+      return;
+    }
+
+    if (activeReport === "certificates") {
+      getCertificates(filter).catch(() => {});
+      return;
+    }
+
+    if (activeReport === "trainers") {
+      getTrainers(filter).catch(() => {});
+      return;
+    }
+
+    if (activeReport === "service-requests") {
+      getServiceRequests(filter).catch(() => {});
+    }
+  }
+
+  // =======================================================
+  // PAGINATION
+  // =======================================================
+
+  function goToPage(
+    nextPage: number
+  ) {
+    const filter: ReportFilter = {
+      ...currentFilter,
+      page: nextPage,
+      pageSize,
+    };
+
+    setPage(nextPage);
+
+    if (activeReport === "training-completion") {
+      getTrainingCompletion(filter).catch(() => {});
+      return;
+    }
+
+    if (activeReport === "enrollments") {
+      getEnrollments(filter).catch(() => {});
+      return;
+    }
+
+    if (activeReport === "attendance") {
+      getAttendance(filter).catch(() => {});
+      return;
+    }
+
+    if (activeReport === "assessment-results") {
+      getAssessmentResults(filter).catch(() => {});
+      return;
+    }
+
+    if (activeReport === "certificates") {
+      getCertificates(filter).catch(() => {});
+      return;
+    }
+
+    if (activeReport === "trainers") {
+      getTrainers(filter).catch(() => {});
+      return;
+    }
+
+    if (activeReport === "service-requests") {
+      getServiceRequests(filter).catch(() => {});
+    }
+  }
+
+  // =======================================================
+  // CURRENT PAGINATION
+  // =======================================================
+
+  const currentPagination =
+    activeReport === "training-completion"
+      ? trainingCompletion?.results
+      : activeReport === "enrollments"
+        ? enrollments?.results
+        : activeReport === "attendance"
+          ? attendance?.results
+          : activeReport === "assessment-results"
+            ? assessmentResults?.results
+            : activeReport === "certificates"
+              ? certificates?.results
+              : activeReport === "trainers"
+                ? trainers?.results
+                : activeReport === "service-requests"
+                  ? serviceRequests?.results
+                  : null;
+
+  // =======================================================
+  // PAGE
+  // =======================================================
 
   return (
     <div className="space-y-6">
 
-      {/* =====================================================
+      {/* =================================================
           HEADER
-      ===================================================== */}
+      ================================================= */}
 
-      <div>
-        <div className="mb-2 flex items-center gap-2 text-xs text-gray-400">
-          <span>Administration</span>
-          <span>/</span>
-          <span className="font-medium text-gray-600">
-            Reports
-          </span>
+      <PageSection
+        title="Reports & Analytics"
+        description="View training, enrollment, attendance, assessment, certificate, trainer, and service request reports across the ACE NextGen platform."
+      />
+
+      {/* =================================================
+          ERROR
+      ================================================= */}
+
+      {error && (
+        <div className="rounded-2xl bg-red-50 p-4">
+          <p className="text-sm font-semibold text-red-800">
+            Unable to load report
+          </p>
+
+          <p className="mt-1 text-xs text-red-600">
+            {error}
+          </p>
         </div>
+      )}
 
-        <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+      {/* =================================================
+          REPORT NAVIGATION
+      ================================================= */}
 
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-[#17191c] sm:text-3xl">
-              Reports
-            </h1>
+      <div className="rounded-2xl bg-white p-2 shadow-sm">
+        <div className="flex gap-1 overflow-x-auto">
+          {reportTabs.map(tab => {
+            const active =
+              activeReport === tab.id;
 
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
-              Generate and review training
-              management reports for
-              participants, attendance,
-              assessments, and training
-              operations.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={exportCSV}
-            className="inline-flex h-11 items-center justify-center rounded-xl bg-[#191c1e] px-5 text-sm font-semibold text-white transition hover:opacity-90"
-          >
-            Export CSV
-          </button>
-
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() =>
+                  setActiveReport(tab.id)
+                }
+                className={
+                  active
+                    ? "whitespace-nowrap rounded-xl bg-[#002b5c] px-4 py-2.5 text-xs font-semibold text-white transition"
+                    : "whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-semibold text-gray-500 transition hover:bg-[#eef4f8] hover:text-[#002b5c]"
+                }
+              >
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* =====================================================
-          STATISTICS
-      ===================================================== */}
+      {/* =================================================
+          ACTIVE REPORT DESCRIPTION + EXPORT
+      ================================================= */}
 
-      <StatGrid>
-
-        <StatCard
-          title="Total Participants"
-          value={totalParticipants}
-          description="Participants in current report"
-        />
-
-        <StatCard
-          title="Active Participants"
-          value={activeParticipants}
-          description="Currently undergoing training"
-        />
-
-        <StatCard
-          title="Completed"
-          value={completedParticipants}
-          description="Completed or passed"
-        />
-
-        <StatCard
-          title="Attendance Rate"
-          value={`${averageAttendance}%`}
-          description="Average attendance"
-        />
-
-        <StatCard
-          title="Average Score"
-          value={`${averageScore}%`}
-          description="Average assessment score"
-        />
-
-      </StatGrid>
-
-      {/* =====================================================
-          REPORT FILTERS
-      ===================================================== */}
-
-      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-
-        <div className="mb-5">
-          <h2 className="text-base font-bold text-gray-900">
-            Report Filters
-          </h2>
-
-          <p className="mt-1 text-xs text-gray-500">
-            Filter the report data before
-            exporting.
-          </p>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-
-          {/* REPORT TYPE */}
+      {activeTab && (
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
 
           <div>
-            <label className="mb-2 block text-xs font-semibold text-gray-600">
-              Report Type
-            </label>
+            <h2 className="text-lg font-bold text-gray-900">
+              {activeTab.label}
+            </h2>
 
-            <select
-              value={reportType}
-              onChange={(event) =>
-                setReportType(
-                  event.target.value as ReportType,
-                )
-              }
-              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm outline-none transition focus:border-gray-400"
-            >
-              <option value="Enrollment">
-                Enrollment
-              </option>
-
-              <option value="Training">
-                Training
-              </option>
-
-              <option value="Attendance">
-                Attendance
-              </option>
-
-              <option value="Assessment">
-                Assessment
-              </option>
-
-              <option value="Trainer">
-                Trainer
-              </option>
-            </select>
+            <p className="mt-1 text-sm text-gray-500">
+              {activeTab.description}
+            </p>
           </div>
 
-          {/* TRAINING */}
+          {/* =============================================
+              EXPORT PDF
+          ============================================= */}
 
-          <div>
-            <label className="mb-2 block text-xs font-semibold text-gray-600">
-              Training
-            </label>
-
-            <select
-              value={trainingFilter}
-              onChange={(event) =>
-                setTrainingFilter(
-                  event.target.value,
-                )
-              }
-              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm outline-none transition focus:border-gray-400"
-            >
-              {trainings.map(
-                (training) => (
-                  <option
-                    key={training}
-                    value={training}
-                  >
-                    {training}
-                  </option>
-                ),
-              )}
-            </select>
-          </div>
-
-          {/* STATUS */}
-
-          <div>
-            <label className="mb-2 block text-xs font-semibold text-gray-600">
-              Status
-            </label>
-
-            <select
-              value={statusFilter}
-              onChange={(event) =>
-                setStatusFilter(
-                  event.target.value,
-                )
-              }
-              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm outline-none transition focus:border-gray-400"
-            >
-              <option value="All Status">
-                All Status
-              </option>
-
-              <option value="Active">
-                Active
-              </option>
-
-              <option value="Completed">
-                Completed
-              </option>
-
-              <option value="Passed">
-                Passed
-              </option>
-
-              <option value="Failed">
-                Failed
-              </option>
-
-              <option value="Pending">
-                Pending
-              </option>
-            </select>
-          </div>
-
-          {/* DATE FROM */}
-
-          <div>
-            <label className="mb-2 block text-xs font-semibold text-gray-600">
-              Date From
-            </label>
-
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(event) =>
-                setDateFrom(
-                  event.target.value,
-                )
-              }
-              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm outline-none transition focus:border-gray-400"
-            />
-          </div>
-
-          {/* DATE TO */}
-
-          <div>
-            <label className="mb-2 block text-xs font-semibold text-gray-600">
-              Date To
-            </label>
-
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(event) =>
-                setDateTo(
-                  event.target.value,
-                )
-              }
-              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm outline-none transition focus:border-gray-400"
-            />
-          </div>
+          <ReportExportButton
+            reportType={activeReport}
+            label={currentReportTitle}
+            report={currentReportData}
+            filter={currentFilter}
+          />
 
         </div>
+      )}
 
-      </section>
+      {/* =================================================
+          OVERVIEW
+      ================================================= */}
 
-      {/* =====================================================
-          REPORT TABLE
-      ===================================================== */}
-
-      <DataTable
-        title={`${reportType} Report`}
-        description={`Showing ${filteredReports.length} records based on the selected filters.`}
-        columns={columns}
-        data={filteredReports}
-        searchable
-        searchPlaceholder="Search participant, training, or trainer..."
-        meta={{
-          onView: (record: SetStateAction<ReportRecord | null>) =>
-            setSelected(record),
-        }}
-      />
-
-      {/* =====================================================
-          VIEW REPORT MODAL
-      ===================================================== */}
-
-      {selected && (
-        <ReportDetailsModal
-          record={selected}
-          onClose={() =>
-            setSelected(null)
-          }
+      {activeReport === "overview" && (
+        <OverviewReport
+          overview={overview}
+          loading={loading}
         />
       )}
+
+      {/* =================================================
+          FILTERS
+      ================================================= */}
+
+      {activeReport !== "overview" && (
+        <div className="rounded-2xl bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4">
+
+            <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto]">
+
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                  Search
+                </label>
+
+                <input
+                  value={search}
+                  onChange={event =>
+                    setSearch(
+                      event.target.value
+                    )
+                  }
+                  onKeyDown={event => {
+                    if (
+                      event.key ===
+                      "Enter"
+                    ) {
+                      applyFilters();
+                    }
+                  }}
+                  placeholder={
+                    activeReport ===
+                    "trainers"
+                      ? "Search trainer..."
+                      : activeReport ===
+                          "service-requests"
+                        ? "Search applicant or service..."
+                        : "Search participant, training, or batch..."
+                  }
+                  className="mt-2 h-10 w-full rounded-xl bg-gray-50 px-3 text-xs text-gray-700 outline-none transition focus:bg-white focus:ring-2 focus:ring-[#6FD1D7]/40"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                  Status
+                </label>
+
+                <Select
+                  value={status}
+                  onValueChange={
+                    setStatus
+                  }
+                >
+                  <SelectTrigger className="mt-2 h-10 w-full min-w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {statusOptions.map(
+                      option => (
+                        <SelectItem
+                          key={
+                            option
+                          }
+                          value={
+                            option
+                          }
+                        >
+                          {option}
+                        </SelectItem>
+                      )
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-end gap-2">
+                <button
+                  type="button"
+                  onClick={
+                    applyFilters
+                  }
+                  className="h-10 rounded-xl bg-[#002b5c] px-5 text-xs font-semibold text-white transition hover:bg-[#0d2142]"
+                >
+                  Apply
+                </button>
+
+                <button
+                  type="button"
+                  onClick={
+                    clearFilters
+                  }
+                  className="h-10 rounded-xl bg-gray-100 px-5 text-xs font-semibold text-gray-600 transition hover:bg-gray-200"
+                >
+                  Clear
+                </button>
+              </div>
+
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:max-w-md">
+
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                  Date From
+                </label>
+
+                <input
+                  type="date"
+                  value={
+                    dateFrom
+                  }
+                  onChange={event =>
+                    setDateFrom(
+                      event.target.value
+                    )
+                  }
+                  className="mt-2 h-10 w-full rounded-xl bg-gray-50 px-3 text-xs text-gray-700 outline-none focus:bg-white focus:ring-2 focus:ring-[#6FD1D7]/40"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                  Date To
+                </label>
+
+                <input
+                  type="date"
+                  value={
+                    dateTo
+                  }
+                  onChange={event =>
+                    setDateTo(
+                      event.target.value
+                    )
+                  }
+                  className="mt-2 h-10 w-full rounded-xl bg-gray-50 px-3 text-xs text-gray-700 outline-none focus:bg-white focus:ring-2 focus:ring-[#6FD1D7]/40"
+                />
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* =================================================
+          REPORT CONTENT
+      ================================================= */}
+
+      {activeReport ===
+        "training-completion" && (
+        <TrainingCompletionReport
+          data={
+            trainingCompletion
+          }
+          loading={loading}
+        />
+      )}
+
+      {activeReport ===
+        "enrollments" && (
+        <EnrollmentReport
+          data={
+            enrollments
+          }
+          loading={loading}
+        />
+      )}
+
+      {activeReport ===
+        "attendance" && (
+        <AttendanceReport
+          data={
+            attendance
+          }
+          loading={loading}
+        />
+      )}
+
+      {activeReport ===
+        "assessment-results" && (
+        <AssessmentResultsReport
+          data={
+            assessmentResults
+          }
+          loading={loading}
+        />
+      )}
+
+      {activeReport ===
+        "certificates" && (
+        <CertificateReport
+          data={
+            certificates
+          }
+          loading={loading}
+        />
+      )}
+
+      {activeReport ===
+        "trainers" && (
+        <TrainerReport
+          data={trainers}
+          loading={loading}
+        />
+      )}
+
+      {activeReport ===
+        "service-requests" && (
+        <ServiceRequestReport
+          data={
+            serviceRequests
+          }
+          loading={loading}
+        />
+      )}
+
+      {/* =================================================
+          PAGINATION
+      ================================================= */}
+
+      {activeReport !==
+        "overview" &&
+        currentPagination &&
+        currentPagination.totalPages >
+          1 && (
+          <Pagination
+            page={
+              currentPagination.page
+            }
+            totalPages={
+              currentPagination.totalPages
+            }
+            totalCount={
+              currentPagination.totalCount
+            }
+            pageSize={
+              currentPagination.pageSize
+            }
+            onPageChange={
+              goToPage
+            }
+          />
+        )}
 
     </div>
   );
 }
 
-/* =========================================================
-   REPORT DETAILS MODAL
-========================================================= */
+// =========================================================
+// OVERVIEW REPORT
+// =========================================================
 
-function ReportDetailsModal({
-  record,
-  onClose,
+function OverviewReport({
+  overview,
+  loading,
 }: {
-  record: ReportRecord;
-  onClose: () => void;
+  overview: any;
+  loading: boolean;
 }) {
-  const attendanceRate =
-    record.sessions > 0
-      ? Math.round(
-          (record.attendance /
-            record.sessions) *
-            100,
-        )
-      : 0;
+  if (loading && !overview) {
+    return (
+      <LoadingState text="Loading report overview..." />
+    );
+  }
+
+  if (!overview) {
+    return (
+      <EmptyState
+        title="No overview data"
+        description="Report overview data is currently unavailable."
+      />
+    );
+  }
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-3 backdrop-blur-sm sm:p-6">
+    <div className="space-y-6">
 
-      <div className="flex max-h-[calc(100dvh-24px)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-h-[90dvh]">
+      <StatGrid>
 
-        {/* HEADER */}
+        <StatCard
+          variant="primary"
+          title="Training Programs"
+          value={
+            overview.totalTrainingPrograms
+          }
+          description={`${overview.activeTrainingPrograms} active programs`}
+        />
 
-        <div className="flex shrink-0 items-start justify-between border-b border-gray-200 px-5 py-4 sm:px-6">
+        <StatCard
+          variant="primary"
+          title="Training Batches"
+          value={
+            overview.totalTrainingBatches
+          }
+          description="Total training batches"
+        />
 
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-              Report Record
-            </p>
+        <StatCard
+          variant="success"
+          title="Participants"
+          value={
+            overview.totalParticipants
+          }
+          description={`${overview.totalEnrollments} total enrollments`}
+        />
 
-            <h2 className="mt-1 text-xl font-bold text-gray-900">
-              Participant Details
-            </h2>
+        <StatCard
+          variant="warning"
+          title="Attendance Rate"
+          value={`${overview.attendanceRate.toFixed(1)}%`}
+          description={`${overview.presentAttendance} present records`}
+        />
 
-            <p className="mt-1 font-mono text-[10px] text-gray-400">
-              {record.id}
-            </p>
+      </StatGrid>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+
+        <ReportCard
+          title="Attendance Summary"
+          description="Overall attendance distribution."
+        >
+          <DistributionBars
+            items={[
+              {
+                label: "Present",
+                value:
+                  overview.presentAttendance,
+                total:
+                  overview.totalAttendanceRecords,
+                variant:
+                  "success",
+              },
+              {
+                label: "Late",
+                value:
+                  overview.lateAttendance,
+                total:
+                  overview.totalAttendanceRecords,
+                variant:
+                  "warning",
+              },
+              {
+                label: "Absent",
+                value:
+                  overview.absentAttendance,
+                total:
+                  overview.totalAttendanceRecords,
+                variant:
+                  "danger",
+              },
+            ]}
+          />
+        </ReportCard>
+
+        <ReportCard
+          title="Certificates"
+          description="Certificate issuance summary."
+        >
+          <DistributionBars
+            items={[
+              {
+                label: "Completion",
+                value:
+                  overview.completionCertificates,
+                total:
+                  overview.totalCertificates,
+                variant:
+                  "success",
+              },
+              {
+                label: "Participation",
+                value:
+                  overview.participationCertificates,
+                total:
+                  overview.totalCertificates,
+                variant:
+                  "primary",
+              },
+              {
+                label: "Revoked",
+                value:
+                  overview.revokedCertificates,
+                total:
+                  overview.totalCertificates,
+                variant:
+                  "danger",
+              },
+            ]}
+          />
+        </ReportCard>
+
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+
+        <ReportCard
+          title="Assessment Activity"
+          description="Written assessment activity across training batches."
+        >
+          <div className="grid grid-cols-2 gap-3">
+
+            <MiniMetric
+              label="Assessments"
+              value={
+                overview.totalWrittenAssessments
+              }
+            />
+
+            <MiniMetric
+              label="Published"
+              value={
+                overview.publishedWrittenAssessments
+              }
+            />
+
+            <MiniMetric
+              label="Attempts"
+              value={
+                overview.totalAssessmentAttempts
+              }
+            />
+
+            <MiniMetric
+              label="Trainers"
+              value={
+                overview.totalTrainers
+              }
+            />
+
           </div>
+        </ReportCard>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-xl text-gray-500 transition hover:bg-gray-200"
-          >
-            ×
-          </button>
+        <ReportCard
+          title="Services"
+          description="Service and service request activity."
+        >
+          <div className="grid grid-cols-2 gap-3">
 
-        </div>
+            <MiniMetric
+              label="Total Services"
+              value={
+                overview.totalServices
+              }
+            />
 
-        {/* SCROLLABLE CONTENT */}
+            <MiniMetric
+              label="Active Services"
+              value={
+                overview.activeServices
+              }
+            />
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
+            <MiniMetric
+              label="Service Requests"
+              value={
+                overview.totalServiceRequests
+              }
+            />
 
-          {/* PARTICIPANT */}
-
-          <div className="rounded-2xl bg-gray-50 p-4">
-
-            <p className="text-lg font-bold text-gray-900">
-              {record.participantName}
-            </p>
-
-            <p className="mt-1 text-xs text-gray-500">
-              {record.participantId}
-            </p>
-
-            <p className="mt-1 text-xs text-gray-500">
-              {record.email}
-            </p>
-
-          </div>
-
-          {/* TRAINING */}
-
-          <div className="mt-6">
-
-            <h3 className="text-sm font-bold text-gray-900">
-              Training Information
-            </h3>
-
-            <div className="mt-4 grid gap-5 sm:grid-cols-2">
-
-              <ReportInfo
-                label="Training"
-                value={record.training}
-              />
-
-              <ReportInfo
-                label="Batch"
-                value={record.batch}
-              />
-
-              <ReportInfo
-                label="Trainer"
-                value={record.trainer}
-              />
-
-              <ReportInfo
-                label="Enrollment Date"
-                value={record.enrollmentDate}
-              />
-
-            </div>
+            <MiniMetric
+              label="Active Enrollments"
+              value={
+                overview.activeEnrollments
+              }
+            />
 
           </div>
+        </ReportCard>
 
-          {/* ATTENDANCE */}
+      </div>
 
-          <div className="mt-6 rounded-2xl border border-gray-200 p-4">
+    </div>
+  );
+}
+
+// =========================================================
+// TRAINING COMPLETION
+// =========================================================
+
+function TrainingCompletionReport({
+  data,
+  loading,
+}: {
+  data: any;
+  loading: boolean;
+}) {
+  if (loading && !data) {
+    return (
+      <LoadingState text="Loading training completion report..." />
+    );
+  }
+
+  if (!data) {
+    return (
+      <EmptyState
+        title="No training completion data"
+        description="There is currently no training completion data available."
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+
+      <StatGrid>
+
+        <StatCard
+          variant="primary"
+          title="Total Participants"
+          value={
+            data.totalParticipants
+          }
+          description="Participants included in report"
+        />
+
+        <StatCard
+          variant="success"
+          title="Completed"
+          value={
+            data.completedParticipants
+          }
+          description="Completed training"
+        />
+
+        <StatCard
+          variant="warning"
+          title="Incomplete"
+          value={
+            data.incompleteParticipants
+          }
+          description="Training still incomplete"
+        />
+
+        <StatCard
+          variant="primary"
+          title="Completion Rate"
+          value={`${data.completionRate.toFixed(1)}%`}
+          description="Overall completion rate"
+        />
+
+      </StatGrid>
+
+      <ReportTable
+        headers={[
+          "Participant",
+          "Training",
+          "Batch",
+          "Trainer",
+          "Attendance",
+          "Assessment",
+          "Completion",
+          "Certificate",
+        ]}
+        rows={
+          data.results.items.map(
+            (
+              item: TrainingCompletionReportItem
+            ) => [
+              <div key="participant">
+                <p className="font-semibold text-gray-900">
+                  {
+                    item.participantName
+                  }
+                </p>
+                <p className="mt-1 font-mono text-[10px] text-gray-400">
+                  {
+                    item.participantCode ??
+                    "—"
+                  }
+                </p>
+              </div>,
+
+              <span key="training">
+                {
+                  item.trainingProgramName
+                }
+              </span>,
+
+              <span
+                key="batch"
+                className="font-mono text-xs"
+              >
+                {item.batchCode}
+              </span>,
+
+              <span key="trainer">
+                {
+                  item.trainerName ??
+                  "Unassigned"
+                }
+              </span>,
+
+              <StatusBadge
+                key="attendance"
+                label={`${item.attendanceRate.toFixed(1)}%`}
+                variant={
+                  item.attendanceRate >=
+                  80
+                    ? "success"
+                    : "warning"
+                }
+              />,
+
+              <StatusBadge
+                key="assessment"
+                label={
+                  item.assessmentStatus
+                }
+                variant={
+                  item.assessmentStatus ===
+                  "Passed"
+                    ? "success"
+                    : item.assessmentStatus ===
+                        "Failed"
+                      ? "danger"
+                      : "neutral"
+                }
+              />,
+
+              <StatusBadge
+                key="completion"
+                label={
+                  item.completionStatus
+                }
+                variant={
+                  item.completionStatus ===
+                  "Completed"
+                    ? "success"
+                    : "warning"
+                }
+              />,
+
+              <span key="certificate">
+                {item.hasCertificate
+                  ? item.certificateNumber ??
+                    "Issued"
+                  : "Not issued"}
+              </span>,
+            ]
+          )
+        }
+      />
+
+    </div>
+  );
+}
+
+// =========================================================
+// ENROLLMENT REPORT
+// =========================================================
+
+function EnrollmentReport({
+  data,
+  loading,
+}: {
+  data: any;
+  loading: boolean;
+}) {
+  if (loading && !data) {
+    return (
+      <LoadingState text="Loading enrollment report..." />
+    );
+  }
+
+  if (!data) {
+    return (
+      <EmptyState
+        title="No enrollment data"
+        description="There is currently no enrollment data available."
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+
+      <StatGrid>
+
+        <StatCard
+          variant="primary"
+          title="Total Enrollments"
+          value={
+            data.totalEnrollments
+          }
+          description="Enrollment records"
+        />
+
+        <StatCard
+          variant="success"
+          title="Approved"
+          value={
+            data.approvedEnrollments
+          }
+          description="Approved enrollments"
+        />
+
+        <StatCard
+          variant="warning"
+          title="Pending"
+          value={
+            data.pendingEnrollments
+          }
+          description="Waiting for review"
+        />
+
+        <StatCard
+          variant="danger"
+          title="Rejected"
+          value={
+            data.rejectedEnrollments
+          }
+          description="Rejected enrollments"
+        />
+
+      </StatGrid>
+
+      <ReportTable
+        headers={[
+          "Participant",
+          "Training",
+          "Batch",
+          "Trainer",
+          "Status",
+          "Enrolled",
+          "Approved",
+        ]}
+        rows={
+          data.results.items.map(
+            (
+              item: EnrollmentReportItem
+            ) => [
+              <div key="participant">
+                <p className="font-semibold text-gray-900">
+                  {
+                    item.participantName
+                  }
+                </p>
+                <p className="mt-1 text-[10px] text-gray-400">
+                  {
+                    item.participantEmail
+                  }
+                </p>
+              </div>,
+
+              item.trainingProgramName,
+
+              <span
+                key="batch"
+                className="font-mono text-xs"
+              >
+                {item.batchCode}
+              </span>,
+
+              item.trainerName ??
+                "Unassigned",
+
+              <StatusBadge
+                key="status"
+                label={
+                  item.enrollmentStatus
+                }
+                variant={
+                  item.enrollmentStatus ===
+                  "Approved"
+                    ? "success"
+                    : item.enrollmentStatus ===
+                        "Rejected"
+                      ? "danger"
+                      : "warning"
+                }
+              />,
+
+              formatDate(
+                item.enrolledAt
+              ),
+
+              item.approvedAt
+                ? formatDate(
+                    item.approvedAt
+                  )
+                : "—",
+            ]
+          )
+        }
+      />
+
+    </div>
+  );
+}
+
+// =========================================================
+// ATTENDANCE REPORT
+// =========================================================
+
+function AttendanceReport({
+  data,
+  loading,
+}: {
+  data: any;
+  loading: boolean;
+}) {
+  if (loading && !data) {
+    return (
+      <LoadingState text="Loading attendance report..." />
+    );
+  }
+
+  if (!data) {
+    return (
+      <EmptyState
+        title="No attendance data"
+        description="There is currently no attendance data available."
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+
+      <StatGrid>
+
+        <StatCard
+          variant="primary"
+          title="Total Records"
+          value={
+            data.totalRecords
+          }
+          description="Attendance records"
+        />
+
+        <StatCard
+          variant="success"
+          title="Present"
+          value={
+            data.presentRecords
+          }
+          description="Present records"
+        />
+
+        <StatCard
+          variant="warning"
+          title="Late"
+          value={
+            data.lateRecords
+          }
+          description="Late records"
+        />
+
+        <StatCard
+          variant="danger"
+          title="Absent"
+          value={
+            data.absentRecords
+          }
+          description={`${data.attendanceRate.toFixed(1)}% attendance rate`}
+        />
+
+      </StatGrid>
+
+      <ReportCard
+        title="Attendance Distribution"
+        description="Attendance status distribution across all records."
+      >
+        <DistributionBars
+          items={[
+            {
+              label: "Present",
+              value:
+                data.presentRecords,
+              total:
+                data.totalRecords,
+              variant:
+                "success",
+            },
+            {
+              label: "Late",
+              value:
+                data.lateRecords,
+              total:
+                data.totalRecords,
+              variant:
+                "warning",
+            },
+            {
+              label: "Absent",
+              value:
+                data.absentRecords,
+              total:
+                data.totalRecords,
+              variant:
+                "danger",
+            },
+          ]}
+        />
+      </ReportCard>
+
+      <ReportTable
+        headers={[
+          "Participant",
+          "Training",
+          "Batch",
+          "Trainer",
+          "Date",
+          "Time In",
+          "Time Out",
+          "Status",
+          "Method",
+        ]}
+        rows={
+          data.results.items.map(
+            (
+              item: AttendanceReportItem
+            ) => [
+              <div key="participant">
+                <p className="font-semibold text-gray-900">
+                  {
+                    item.participantName
+                  }
+                </p>
+                <p className="mt-1 font-mono text-[10px] text-gray-400">
+                  {
+                    item.participantCode
+                  }
+                </p>
+              </div>,
+
+              item.trainingProgramName,
+
+              <span
+                key="batch"
+                className="font-mono text-xs"
+              >
+                {item.batchCode}
+              </span>,
+
+              item.trainerName ??
+                "Unassigned",
+
+              formatDateOnly(
+                item.attendanceDate
+              ),
+
+              formatTime(
+                item.timeIn
+              ),
+
+              formatTime(
+                item.timeOut
+              ),
+
+              <StatusBadge
+                key="status"
+                label={
+                  item.attendanceStatus
+                }
+                variant={
+                  item.attendanceStatus ===
+                  "Present"
+                    ? "success"
+                    : item.attendanceStatus ===
+                        "Late"
+                      ? "warning"
+                      : "danger"
+                }
+              />,
+
+              item.attendanceMethod ||
+                "—",
+            ]
+          )
+        }
+      />
+
+    </div>
+  );
+}
+
+// =========================================================
+// ASSESSMENT REPORT
+// =========================================================
+
+function AssessmentResultsReport({
+  data,
+  loading,
+}: {
+  data: any;
+  loading: boolean;
+}) {
+  if (loading && !data) {
+    return (
+      <LoadingState text="Loading assessment results..." />
+    );
+  }
+
+  if (!data) {
+    return (
+      <EmptyState
+        title="No assessment results"
+        description="There is currently no assessment result data available."
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+
+      <StatGrid>
+
+        <StatCard
+          variant="primary"
+          title="Total Attempts"
+          value={
+            data.totalAttempts
+          }
+          description="Assessment attempts"
+        />
+
+        <StatCard
+          variant="success"
+          title="Passed"
+          value={
+            data.passedAttempts
+          }
+          description="Passed attempts"
+        />
+
+        <StatCard
+          variant="danger"
+          title="Failed"
+          value={
+            data.failedAttempts
+          }
+          description="Failed attempts"
+        />
+
+        <StatCard
+          variant="primary"
+          title="Average Score"
+          value={`${data.averageScore.toFixed(1)}%`}
+          description={`${data.passRate.toFixed(1)}% pass rate`}
+        />
+
+      </StatGrid>
+
+      <ReportTable
+        headers={[
+          "Participant",
+          "Assessment",
+          "Training",
+          "Batch",
+          "Attempt",
+          "Score",
+          "Result",
+          "Started",
+          "Submitted",
+        ]}
+        rows={
+          data.results.items.map(
+            (
+              item: AssessmentResultsReportItem
+            ) => [
+              <div key="participant">
+                <p className="font-semibold text-gray-900">
+                  {
+                    item.participantName
+                  }
+                </p>
+                <p className="mt-1 text-[10px] text-gray-400">
+                  {
+                    item.participantCode
+                  }
+                </p>
+              </div>,
+
+              item.assessmentTitle,
+
+              item.trainingProgramName,
+
+              <span
+                key="batch"
+                className="font-mono text-xs"
+              >
+                {item.batchCode}
+              </span>,
+
+              `Attempt ${item.attemptNumber}`,
+
+              <span
+                key="score"
+                className="font-semibold"
+              >
+                {item.percentage.toFixed(
+                  1
+                )}
+                %
+              </span>,
+
+              <StatusBadge
+                key="result"
+                label={
+                  item.assessmentStatus
+                }
+                variant={
+                  item.isPassed
+                    ? "success"
+                    : item.assessmentStatus ===
+                        "Failed"
+                      ? "danger"
+                      : "warning"
+                }
+              />,
+
+              formatDate(
+                item.startedAt
+              ),
+
+              item.submittedAt
+                ? formatDate(
+                    item.submittedAt
+                  )
+                : "Not submitted",
+            ]
+          )
+        }
+      />
+
+    </div>
+  );
+}
+
+// =========================================================
+// CERTIFICATE REPORT
+// =========================================================
+
+function CertificateReport({
+  data,
+  loading,
+}: {
+  data: any;
+  loading: boolean;
+}) {
+  if (loading && !data) {
+    return (
+      <LoadingState text="Loading certificate report..." />
+    );
+  }
+
+  if (!data) {
+    return (
+      <EmptyState
+        title="No certificate data"
+        description="There is currently no certificate data available."
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+
+      <StatGrid>
+
+        <StatCard
+          variant="primary"
+          title="Total Certificates"
+          value={
+            data.totalCertificates
+          }
+          description="All generated certificates"
+        />
+
+        <StatCard
+          variant="success"
+          title="Completion"
+          value={
+            data.completionCertificates
+          }
+          description="Completion certificates"
+        />
+
+        <StatCard
+          variant="primary"
+          title="Participation"
+          value={
+            data.participationCertificates
+          }
+          description="Participation certificates"
+        />
+
+        <StatCard
+          variant="danger"
+          title="Revoked"
+          value={
+            data.revokedCertificates
+          }
+          description={`${data.activeCertificates} active certificates`}
+        />
+
+      </StatGrid>
+
+      <ReportTable
+        headers={[
+          "Participant",
+          "Certificate",
+          "Training",
+          "Batch",
+          "Type",
+          "Issued",
+          "Status",
+          "Verification",
+        ]}
+        rows={
+          data.results.items.map(
+            (
+              item: CertificateReportItem
+            ) => [
+              <div key="participant">
+                <p className="font-semibold text-gray-900">
+                  {
+                    item.participantName
+                  }
+                </p>
+                <p className="mt-1 text-[10px] text-gray-400">
+                  {
+                    item.participantCode
+                  }
+                </p>
+              </div>,
+
+              <span
+                key="certificate"
+                className="font-mono text-xs"
+              >
+                {
+                  item.certificateNumber
+                }
+              </span>,
+
+              item.trainingProgramName,
+
+              <span
+                key="batch"
+                className="font-mono text-xs"
+              >
+                {item.batchCode}
+              </span>,
+
+              <StatusBadge
+                key="type"
+                label={
+                  item.certificateType
+                }
+                variant="primary"
+              />,
+
+              formatDate(
+                item.issuedAt
+              ),
+
+              <StatusBadge
+                key="status"
+                label={
+                  item.isRevoked
+                    ? "Revoked"
+                    : "Active"
+                }
+                variant={
+                  item.isRevoked
+                    ? "danger"
+                    : "success"
+                }
+              />,
+
+              <span
+                key="verification"
+                className="font-mono text-[10px]"
+              >
+                {
+                  item.verificationCode
+                }
+              </span>,
+            ]
+          )
+        }
+      />
+
+    </div>
+  );
+}
+
+// =========================================================
+// TRAINER REPORT
+// =========================================================
+
+function TrainerReport({
+  data,
+  loading,
+}: {
+  data: any;
+  loading: boolean;
+}) {
+  if (loading && !data) {
+    return (
+      <LoadingState text="Loading trainer report..." />
+    );
+  }
+
+  if (!data) {
+    return (
+      <EmptyState
+        title="No trainer data"
+        description="There is currently no trainer report data available."
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+
+      <StatGrid>
+
+        <StatCard
+          variant="primary"
+          title="Total Trainers"
+          value={
+            data.totalTrainers
+          }
+          description="Registered trainers"
+        />
+
+        <StatCard
+          variant="success"
+          title="Active Trainers"
+          value={
+            data.activeTrainers
+          }
+          description="Currently active"
+        />
+
+        <StatCard
+          variant="primary"
+          title="Assignments"
+          value={
+            data.totalAssignments
+          }
+          description="Trainer batch assignments"
+        />
+
+        <StatCard
+          variant="warning"
+          title="Participants"
+          value={
+            data.totalParticipants
+          }
+          description="Participants under trainers"
+        />
+
+      </StatGrid>
+
+      <ReportTable
+        headers={[
+          "Trainer",
+          "Assignments",
+          "Participants",
+          "Attendance",
+          "Attendance Rate",
+          "Assessments",
+          "Pass Rate",
+          "Certificates",
+          "Status",
+        ]}
+        rows={
+          data.results.items.map(
+            (
+              item: TrainerReportItem
+            ) => [
+              <div key="trainer">
+                <p className="font-semibold text-gray-900">
+                  {
+                    item.trainerName
+                  }
+                </p>
+                <p className="mt-1 font-mono text-[10px] text-gray-400">
+                  {
+                    item.trainerCode
+                  }
+                </p>
+                <p className="mt-1 text-[10px] text-gray-400">
+                  {
+                    item.trainerEmail
+                  }
+                </p>
+              </div>,
+
+              item.assignedBatches,
+
+              item.totalParticipants,
+
+              <span key="attendance">
+                {item.presentAttendance}
+                {" / "}
+                {item.totalAttendanceRecords}
+              </span>,
+
+              <StatusBadge
+                key="attendanceRate"
+                label={`${item.attendanceRate.toFixed(1)}%`}
+                variant={
+                  item.attendanceRate >=
+                  80
+                    ? "success"
+                    : "warning"
+                }
+              />,
+
+              item.totalAssessmentAttempts,
+
+              <StatusBadge
+                key="passRate"
+                label={`${item.assessmentPassRate.toFixed(1)}%`}
+                variant={
+                  item.assessmentPassRate >=
+                  75
+                    ? "success"
+                    : "warning"
+                }
+              />,
+
+              item.totalCertificates,
+
+              <StatusBadge
+                key="status"
+                label={
+                  item.isActive
+                    ? "Active"
+                    : "Inactive"
+                }
+                variant={
+                  item.isActive
+                    ? "success"
+                    : "neutral"
+                }
+              />,
+            ]
+          )
+        }
+      />
+
+    </div>
+  );
+}
+
+// =========================================================
+// SERVICE REQUEST REPORT
+// =========================================================
+
+function ServiceRequestReport({
+  data,
+  loading,
+}: {
+  data: any;
+  loading: boolean;
+}) {
+  if (loading && !data) {
+    return (
+      <LoadingState text="Loading service request report..." />
+    );
+  }
+
+  if (!data) {
+    return (
+      <EmptyState
+        title="No service request data"
+        description="There is currently no service request data available."
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+
+      <StatGrid>
+
+        <StatCard
+          variant="primary"
+          title="Total Requests"
+          value={
+            data.totalRequests
+          }
+          description="All service requests"
+        />
+
+        <StatCard
+          variant="warning"
+          title="Pending"
+          value={
+            data.pendingRequests
+          }
+          description="Waiting for review"
+        />
+
+        <StatCard
+          variant="success"
+          title="Approved"
+          value={
+            data.approvedRequests
+          }
+          description="Approved requests"
+        />
+
+        <StatCard
+          variant="danger"
+          title="Rejected"
+          value={
+            data.rejectedRequests
+          }
+          description={`${data.reviewedRequests} reviewed requests`}
+        />
+
+      </StatGrid>
+
+      <ReportTable
+        headers={[
+          "Applicant",
+          "Service",
+          "Category",
+          "Training",
+          "Status",
+          "Requested",
+          "Reviewed",
+          "Reviewer",
+        ]}
+        rows={
+          data.results.items.map(
+            (
+              item: ServiceRequestReportItem
+            ) => [
+              <div key="applicant">
+                <p className="font-semibold text-gray-900">
+                  {
+                    item.applicantName
+                  }
+                </p>
+                <p className="mt-1 text-[10px] text-gray-400">
+                  {
+                    item.applicantEmail
+                  }
+                </p>
+              </div>,
+
+              <div key="service">
+                <p className="font-semibold text-gray-800">
+                  {
+                    item.serviceName
+                  }
+                </p>
+                <p className="mt-1 font-mono text-[10px] text-gray-400">
+                  {
+                    item.serviceCode
+                  }
+                </p>
+              </div>,
+
+              item.serviceCategory,
+
+              <StatusBadge
+                key="training"
+                label={
+                  item.requiresTraining
+                    ? "Required"
+                    : "Not Required"
+                }
+                variant={
+                  item.requiresTraining
+                    ? "primary"
+                    : "neutral"
+                }
+              />,
+
+              <StatusBadge
+                key="status"
+                label={
+                  item.requestStatus
+                }
+                variant={
+                  item.requestStatus ===
+                  "Approved"
+                    ? "success"
+                    : item.requestStatus ===
+                        "Rejected"
+                      ? "danger"
+                      : "warning"
+                }
+              />,
+
+              formatDate(
+                item.requestedAt
+              ),
+
+              item.reviewedAt
+                ? formatDate(
+                    item.reviewedAt
+                  )
+                : "Not reviewed",
+
+              item.reviewerName ??
+                "—",
+            ]
+          )
+        }
+      />
+
+    </div>
+  );
+}
+
+// =========================================================
+// REPORT CARD
+// =========================================================
+
+function ReportCard({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl bg-white p-5 shadow-sm">
+
+      <div>
+        <h3 className="text-sm font-bold text-gray-900">
+          {title}
+        </h3>
+
+        <p className="mt-1 text-xs text-gray-400">
+          {description}
+        </p>
+      </div>
+
+      <div className="mt-5">
+        {children}
+      </div>
+
+    </div>
+  );
+}
+
+// =========================================================
+// DISTRIBUTION BARS
+// =========================================================
+
+function DistributionBars({
+  items,
+}: {
+  items: {
+    label: string;
+    value: number;
+    total: number;
+    variant:
+      | "primary"
+      | "success"
+      | "warning"
+      | "danger";
+  }[];
+}) {
+  return (
+    <div className="space-y-5">
+
+      {items.map(item => {
+        const percentage =
+          item.total > 0
+            ? Math.round(
+                (item.value /
+                  item.total) *
+                  100
+              )
+            : 0;
+
+        return (
+          <div key={item.label}>
 
             <div className="flex items-center justify-between">
 
-              <div>
-                <p className="text-sm font-bold">
-                  Attendance
-                </p>
+              <span className="text-xs font-semibold text-gray-600">
+                {item.label}
+              </span>
 
-                <p className="mt-1 text-xs text-gray-500">
-                  {record.attendance} of{" "}
-                  {record.sessions} sessions
-                </p>
-              </div>
+              <span className="text-xs font-bold text-gray-900">
+                {item.value}
 
-              <span className="text-xl font-bold">
-                {attendanceRate}%
+                <span className="ml-1 font-normal text-gray-400">
+                  ({percentage}%)
+                </span>
               </span>
 
             </div>
 
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-gray-100">
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-gray-100">
 
               <div
-                className="h-full rounded-full bg-[#191c1e]"
+                className={
+                  `h-full rounded-full transition-all ` +
+                  getBarClass(
+                    item.variant
+                  )
+                }
                 style={{
-                  width: `${attendanceRate}%`,
+                  width: `${percentage}%`,
                 }}
               />
 
             </div>
 
           </div>
+        );
+      })}
 
-          {/* ASSESSMENT */}
+    </div>
+  );
+}
 
-          <div className="mt-4 rounded-2xl border border-gray-200 p-4">
+// =========================================================
+// MINI METRIC
+// =========================================================
 
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-              Assessment
-            </p>
+function MiniMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="rounded-xl bg-gray-50 p-4">
 
-            <div className="mt-3 flex items-center justify-between">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+        {label}
+      </p>
 
-              <span className="text-sm font-semibold">
-                Final Score
-              </span>
+      <p className="mt-2 text-2xl font-bold text-gray-900">
+        {value}
+      </p>
 
-              <span
-                className={`text-xl font-bold ${
-                  record.score !== null &&
-                  record.score >= 75
-                    ? "text-emerald-600"
-                    : "text-red-600"
-                }`}
-              >
-                {record.score === null
-                  ? "Not Taken"
-                  : `${record.score}%`}
-              </span>
+    </div>
+  );
+}
 
-            </div>
+// =========================================================
+// REPORT TABLE
+// =========================================================
 
-          </div>
+function ReportTable({
+  headers,
+  rows,
+}: {
+  headers: string[];
+  rows: React.ReactNode[][];
+}) {
+  if (rows.length === 0) {
+    return (
+      <EmptyState
+        title="No records found"
+        description="There are no records matching the current filters."
+      />
+    );
+  }
 
-          {/* STATUS */}
+  return (
+    <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
 
-          <div className="mt-4 rounded-2xl border border-gray-200 p-4">
+      <div className="overflow-x-auto">
 
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-              Current Status
-            </p>
+        <table className="w-full min-w-[900px] text-left">
 
-            <p className="mt-2 text-sm font-bold text-gray-900">
-              {record.status}
-            </p>
+          <thead>
+            <tr className="bg-gray-50">
 
-          </div>
+              {headers.map(
+                header => (
+                  <th
+                    key={header}
+                    className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-gray-400"
+                  >
+                    {header}
+                  </th>
+                )
+              )}
 
-        </div>
+            </tr>
+          </thead>
 
-        {/* FOOTER */}
+          <tbody className="divide-y divide-gray-100">
 
-        <div className="shrink-0 border-t border-gray-200 px-5 py-4">
+            {rows.map(
+              (row, rowIndex) => (
+                <tr
+                  key={rowIndex}
+                  className="transition hover:bg-gray-50/70"
+                >
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full rounded-xl border border-gray-200 py-3 text-xs font-semibold text-gray-700 transition hover:bg-gray-50"
-          >
-            Close
-          </button>
+                  {row.map(
+                    (
+                      cell,
+                      cellIndex
+                    ) => (
+                      <td
+                        key={cellIndex}
+                        className="px-4 py-4 text-xs text-gray-600"
+                      >
+                        {cell}
+                      </td>
+                    )
+                  )}
 
-        </div>
+                </tr>
+              )
+            )}
+
+          </tbody>
+
+        </table>
 
       </div>
 
@@ -913,26 +2494,337 @@ function ReportDetailsModal({
   );
 }
 
-/* =========================================================
-   INFO COMPONENT
-========================================================= */
+// =========================================================
+// STATUS BADGE
+// =========================================================
 
-function ReportInfo({
+function StatusBadge({
   label,
-  value,
+  variant,
 }: {
   label: string;
-  value: string;
+  variant:
+    | "primary"
+    | "success"
+    | "warning"
+    | "danger"
+    | "neutral";
 }) {
   return (
-    <div>
-      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-        {label}
+    <span
+      className={
+        `inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ` +
+        getBadgeClass(
+          variant
+        )
+      }
+    >
+      {label}
+    </span>
+  );
+}
+
+// =========================================================
+// PAGINATION
+// =========================================================
+
+function Pagination({
+  page,
+  totalPages,
+  totalCount,
+  pageSize,
+  onPageChange,
+}: {
+  page: number;
+  totalPages: number;
+  totalCount: number;
+  pageSize: number;
+  onPageChange: (
+    page: number
+  ) => void;
+}) {
+  const start =
+    totalCount === 0
+      ? 0
+      : (page - 1) *
+          pageSize +
+        1;
+
+  const end =
+    Math.min(
+      page * pageSize,
+      totalCount
+    );
+
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl bg-white px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+
+      <p className="text-xs text-gray-400">
+        Showing{" "}
+        <span className="font-semibold text-gray-700">
+          {start}
+        </span>
+
+        {" – "}
+
+        <span className="font-semibold text-gray-700">
+          {end}
+        </span>
+
+        {" of "}
+
+        <span className="font-semibold text-gray-700">
+          {totalCount}
+        </span>
+
+        {" records"}
       </p>
 
-      <p className="mt-1 text-sm font-semibold leading-5 text-gray-900">
-        {value}
-      </p>
+      <div className="flex items-center gap-2">
+
+        <button
+          type="button"
+          disabled={page <= 1}
+          onClick={() =>
+            onPageChange(
+              page - 1
+            )
+          }
+          className="rounded-xl bg-gray-100 px-4 py-2 text-xs font-semibold text-gray-600 transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Previous
+        </button>
+
+        <div className="rounded-xl bg-[#eef4f8] px-4 py-2 text-xs font-bold text-[#002b5c]">
+          {page} /{" "}
+          {totalPages}
+        </div>
+
+        <button
+          type="button"
+          disabled={
+            page >=
+            totalPages
+          }
+          onClick={() =>
+            onPageChange(
+              page + 1
+            )
+          }
+          className="rounded-xl bg-[#002b5c] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#0d2142] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Next
+        </button>
+
+      </div>
+
     </div>
+  );
+}
+
+// =========================================================
+// LOADING
+// =========================================================
+
+function LoadingState({
+  text,
+}: {
+  text: string;
+}) {
+  return (
+    <div className="rounded-2xl bg-white p-10 text-center shadow-sm">
+
+      <div className="mx-auto h-7 w-7 animate-spin rounded-full border-2 border-gray-200 border-t-[#002b5c]" />
+
+      <p className="mt-4 text-sm text-gray-500">
+        {text}
+      </p>
+
+    </div>
+  );
+}
+
+// =========================================================
+// EMPTY
+// =========================================================
+
+function EmptyState({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="rounded-2xl bg-white p-10 text-center shadow-sm">
+
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#eef4f8] text-lg font-bold text-[#002b5c]">
+        —
+      </div>
+
+      <p className="mt-4 text-sm font-semibold text-gray-700">
+        {title}
+      </p>
+
+      <p className="mt-1 text-xs text-gray-400">
+        {description}
+      </p>
+
+    </div>
+  );
+}
+
+// =========================================================
+// BAR CLASS
+// =========================================================
+
+function getBarClass(
+  variant:
+    | "primary"
+    | "success"
+    | "warning"
+    | "danger"
+) {
+  switch (variant) {
+    case "success":
+      return "bg-emerald-500";
+
+    case "warning":
+      return "bg-amber-500";
+
+    case "danger":
+      return "bg-red-500";
+
+    case "primary":
+    default:
+      return "bg-[#002b5c]";
+  }
+}
+
+// =========================================================
+// BADGE CLASS
+// =========================================================
+
+function getBadgeClass(
+  variant:
+    | "primary"
+    | "success"
+    | "warning"
+    | "danger"
+    | "neutral"
+) {
+  switch (variant) {
+    case "success":
+      return "bg-emerald-50 text-emerald-700";
+
+    case "warning":
+      return "bg-amber-50 text-amber-700";
+
+    case "danger":
+      return "bg-red-50 text-red-700";
+
+    case "primary":
+      return "bg-[#eef4f8] text-[#002b5c]";
+
+    case "neutral":
+    default:
+      return "bg-gray-100 text-gray-600";
+  }
+}
+
+// =========================================================
+// DATE
+// =========================================================
+
+function formatDate(
+  value?: string | null
+) {
+  if (!value) {
+    return "—";
+  }
+
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return value;
+  }
+
+  return date.toLocaleDateString(
+    "en-US",
+    {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }
+  );
+}
+
+// =========================================================
+// DATE ONLY
+// =========================================================
+
+function formatDateOnly(
+  value?: string | null
+) {
+  if (!value) {
+    return "—";
+  }
+
+  const date =
+    new Date(
+      `${value}T00:00:00`
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return value;
+  }
+
+  return date.toLocaleDateString(
+    "en-US",
+    {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }
+  );
+}
+
+// =========================================================
+// TIME
+// =========================================================
+
+function formatTime(
+  value?: string | null
+) {
+  if (!value) {
+    return "—";
+  }
+
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return value;
+  }
+
+  return date.toLocaleTimeString(
+    "en-US",
+    {
+      hour: "numeric",
+      minute: "2-digit",
+    }
   );
 }
