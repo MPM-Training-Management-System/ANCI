@@ -1,8 +1,6 @@
 "use client";
 
 import {
-  useCallback,
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -14,11 +12,9 @@ import {
   CheckCircle2,
   CircleAlert,
   ClipboardCheck,
-  Eye,
   FileText,
   MessageCircle,
   RefreshCw,
-  Search,
   Users,
   X,
 } from "lucide-react";
@@ -29,13 +25,30 @@ import type {
   PracticalAssessmentResult,
   ParticipationParticipant,
   ParticipationSetting,
-  RecordParticipationRequest,
   TrainerAssessmentSubmission,
   WrittenAssessment,
 } from "@repo/types";
 
-
 import { useTrainerAssessmentsPage } from "@/hooks/useTrainerAssessmentsPage";
+
+import {
+  Button,
+  DataTable,
+  PageSection,
+} from "@repo/ui/index";
+
+import {
+  
+  
+  writtenColumns,
+} from "./written-columns";
+
+import {participationColumns} from "./participation-columns";
+import {practicalColumns} from "./practical-columns";
+
+/* =========================================================
+   HELPERS
+========================================================= */
 
 function formatDate(value?: string | null) {
   if (!value) {
@@ -95,132 +108,324 @@ function getInitials(name?: string | null) {
   ).toUpperCase();
 }
 
-function getPercentage(
-  value: number | null | undefined,
-) {
-  if (value === null || value === undefined) {
-    return 0;
-  }
-
-  return Number(value);
-}
-
 /* =========================================================
    PAGE
 ========================================================= */
 
 export default function TrainerAssessmentsPage() {
-
   const {
-  assessmentType,
-  setAssessmentType,
+    assessmentType,
+    setAssessmentType,
 
-  search,
-  setSearch,
+    activeLoading,
+    activeError,
 
-  activeLoading,
-  activeError,
+    /* =====================================================
+       WRITTEN
+    ===================================================== */
 
-  // Written
-  currentWrittenAssessment,
-  filteredWrittenParticipants,
-  writtenTotal,
-  writtenPassed,
-  writtenFailed,
-  writtenAverage,
-  writtenIsLoading,
+    currentWrittenAssessment,
+    filteredWrittenParticipants,
 
-  // Written modal
-  selectedSubmission,
-  isLoadingSubmission,
-  submissionError,
-  handleViewWrittenParticipant,
-  closeWrittenModal,
+    writtenTotal,
+    writtenPassed,
+    writtenFailed,
+    writtenAverage,
 
-  // Practical
-  currentPracticalAssessment,
-  filteredPracticalParticipants,
-  practicalResults,
-  practicalEvaluatedCount,
-  practicalPassedCount,
-  practicalFailedCount,
-  practicalAverage,
-  practicalIsLoading,
-  enrollmentIsLoading,
-  getPracticalResult,
+    writtenIsLoading,
 
-  // Practical evaluation
-  selectedPracticalAssessment,
-  selectedEnrollment,
-  isEvaluationModalOpen,
-  isSubmittingEvaluation,
-  practicalActionError,
-  handleEvaluatePractical,
-  handleSubmitPractical,
-  closePracticalEvaluation,
+    selectedSubmission,
+    isLoadingSubmission,
+    submissionError,
 
-  // Practical result
-  selectedPracticalResult,
-  isResultModalOpen,
-  handleViewPracticalResult,
-  closePracticalResult,
+    handleViewWrittenParticipant,
+    closeWrittenModal,
 
-  // Participation
-  trainingSessions,
-  selectedParticipationBatch,
-  selectedParticipationSession,
-  participationSetting,
-  participationParticipants,
-  filteredParticipationParticipants,
-  participationRecordedCount,
-  participationCompletedCount,
-  selectedParticipationSessionId,
-  setSelectedParticipationSessionId,
-  participationIsLoading,
-  participationActionError,
-  handleRecordParticipation,
-  handleRemoveParticipation,
-  getParticipationName,
-  getParticipationEmail,
-  getParticipationCode,
-} = useTrainerAssessmentsPage();
- 
+    /* =====================================================
+       PRACTICAL
+    ===================================================== */
 
-  function loadPage() {
-    throw new Error("Function not implemented.");
-  }
+    currentPracticalAssessment,
+    filteredPracticalParticipants,
+
+    practicalResults,
+    practicalEvaluatedCount,
+    practicalPassedCount,
+    practicalFailedCount,
+    practicalAverage,
+
+    practicalIsLoading,
+    enrollmentIsLoading,
+
+    getPracticalResult,
+
+    selectedPracticalAssessment,
+    selectedEnrollment,
+
+    isEvaluationModalOpen,
+    isSubmittingEvaluation,
+    practicalActionError,
+
+    handleEvaluatePractical,
+    handleSubmitPractical,
+    closePracticalEvaluation,
+
+    selectedPracticalResult,
+    isResultModalOpen,
+
+    handleViewPracticalResult,
+    closePracticalResult,
+
+    /* =====================================================
+       PARTICIPATION
+    ===================================================== */
+
+    trainingSessions,
+    selectedParticipationBatch,
+    selectedParticipationSession,
+
+    participationSetting,
+    participationParticipants,
+    filteredParticipationParticipants,
+
+    participationRecordedCount,
+    participationCompletedCount,
+
+    selectedParticipationSessionId,
+    setSelectedParticipationSessionId,
+
+    participationIsLoading,
+    participationActionError,
+
+    handleRecordParticipation,
+    handleRemoveParticipation,
+
+    getParticipationName,
+    getParticipationEmail,
+    getParticipationCode,
+  } = useTrainerAssessmentsPage();
+
+  /* =========================================================
+     REFRESH
+  ========================================================= */
+
+  const loadPage = () => {
+    window.location.reload();
+  };
+
+  /* =========================================================
+     WRITTEN TABLE DATA
+  ========================================================= */
+
+  const writtenTableData = useMemo(() => {
+    return filteredWrittenParticipants.map(
+      (participant) => ({
+        id: participant.participantId,
+
+        participantName:
+          participant.participantName,
+
+        participantCode:
+          participant.participantId ?? null,
+
+        participantEmail:
+          participant.participantEmail ?? null,
+
+        submittedAt:
+          participant.submittedAt ?? null,
+
+        attemptNumber:
+          participant.attemptNumber ?? null,
+
+        score:
+          participant.earnedPoints ?? null,
+
+        totalItems:
+          participant.totalPoints ?? null,
+
+        percentage:
+          participant.percentage ?? null,
+
+        result:
+          participant.isPassed
+            ? "Passed"
+            : "Failed",
+
+        onView: () =>
+          handleViewWrittenParticipant(
+            participant,
+          ),
+      }),
+    );
+  }, [
+    filteredWrittenParticipants,
+    handleViewWrittenParticipant,
+  ]);
+
+  /* =========================================================
+     PRACTICAL TABLE DATA
+  ========================================================= */
+
+  const practicalTableData = useMemo(() => {
+    return filteredPracticalParticipants.map(
+      (enrollment) => {
+        const result =
+          getPracticalResult(
+            enrollment.id,
+          );
+
+        return {
+          id: enrollment.id,
+
+          participantName:
+            enrollment.participant.fullName,
+
+          participantCode:
+            enrollment.participant.userCode ??
+            null,
+
+          participantEmail:
+            enrollment.participant.email ??
+            null,
+
+          batchCode:
+            enrollment.batchCode ?? null,
+
+          isEvaluated:
+            Boolean(result),
+
+          score:
+            result?.totalScore ??
+            result?.percentage ??
+            null,
+
+          percentage:
+            result?.percentage ?? null,
+
+          result: result
+            ? result.isPassed
+              ? "Passed"
+              : "Failed"
+            : "Pending",
+
+          onEvaluate: () =>
+            handleEvaluatePractical(
+              enrollment,
+            ),
+
+          onViewResult: result
+            ? () =>
+                handleViewPracticalResult(
+                  result,
+                )
+            : undefined,
+        };
+      },
+    );
+  }, [
+    filteredPracticalParticipants,
+    getPracticalResult,
+    handleEvaluatePractical,
+    handleViewPracticalResult,
+  ]);
+
+  /* =========================================================
+     PARTICIPATION TABLE DATA
+  ========================================================= */
+
+  const participationTableData = useMemo(() => {
+    return filteredParticipationParticipants.map(
+      (participant) => {
+        const required = Number(
+          participant.requiredRecitations ??
+            participationSetting
+              ?.requiredRecitations ??
+            0,
+        );
+
+        const actual = Number(
+          participant.actualRecitations ?? 0,
+        );
+
+        const percentage = Math.min(
+          Number(
+            participant.participationPercentage ??
+              (required > 0
+                ? (actual / required) * 100
+                : 0),
+          ),
+          100,
+        );
+
+        return {
+          id: participant.enrollmentId,
+
+          participantName:
+            getParticipationName(
+              participant,
+            ),
+
+          participantCode:
+            getParticipationCode(
+              participant,
+            ),
+
+          participantEmail:
+            getParticipationEmail(
+              participant,
+            ),
+
+          recitationCount:
+            actual,
+
+          requiredRecitations:
+            required,
+
+          participationCount:
+            actual,
+
+          participationPercentage:
+            percentage,
+
+          isRecorded:
+            Boolean(
+              participant.hasRecited,
+            ),
+
+          onRecord: () =>
+            void handleRecordParticipation(
+              participant,
+            ),
+
+          onRemove: () =>
+            void handleRemoveParticipation(
+              participant,
+            ),
+        };
+      },
+    );
+  }, [
+    filteredParticipationParticipants,
+    participationSetting,
+    getParticipationName,
+    getParticipationCode,
+    getParticipationEmail,
+    handleRecordParticipation,
+    handleRemoveParticipation,
+  ]);
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl space-y-6">
+
       
-      
 
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
-          <div>
-            <div className="mb-2 flex items-center gap-2 text-sm text-slate-500">
-              <BookOpen className="h-4 w-4" />
-
-              Trainer Portal
-            </div>
-
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-              Assessments
-            </h1>
-
-            <p className="mt-1 max-w-2xl text-sm text-slate-500 sm:text-base">
-              Manage participant written and
-              practical assessments for your
-              assigned training.
-            </p>
-          </div>
-
-          <button
+        <PageSection
+          title="Assessments"
+          description="Manage participant written and practical assessments for your assigned training."
+        actions={  <button
             type="button"
-            onClick={() =>
-              void loadPage()
-            }
+            onClick={loadPage}
             disabled={activeLoading}
             className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
@@ -233,7 +438,12 @@ export default function TrainerAssessmentsPage() {
             />
 
             Refresh
-          </button>
+          </button>}
+        />
+
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
+        
 
         </div>
 
@@ -245,65 +455,42 @@ export default function TrainerAssessmentsPage() {
 
           <div className="grid grid-cols-1 gap-1 sm:grid-cols-3">
 
-            <button
-              type="button"
-              onClick={() => {
-                setAssessmentType(
-                  "written",
-                );
-                setSearch("");
-              }}
-              className={
-                assessmentType ===
-                "written"
-                  ? "rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition"
-                  : "rounded-xl px-4 py-3 text-sm font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
-              }
-            >
-              <span className="inline-flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Written Assessment
-              </span>
-            </button>
+  <Button
+    type="button"
+    onClick={() => setAssessmentType("written")}
+    className={
+      assessmentType === "written"
+        ? "rounded-xl !bg-[#002b5c] px-4 py-3 text-sm font-semibold !text-white shadow-sm transition hover:!bg-[#0d2142]"
+        : "rounded-xl !bg-white px-4 py-3 text-sm font-semibold !text-black shadow-sm transition hover:!bg-[#eef4f8] hover:!text-black"
+    }
+  >
+    Written Assessment
+  </Button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setAssessmentType(
-                  "practical",
-                );
-                setSearch("");
-              }}
-              className={
-                assessmentType ===
-                "practical"
-                  ? "rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition"
-                  : "rounded-xl px-4 py-3 text-sm font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
-              }
-            >
-              <span className="inline-flex items-center gap-2">
-                <ClipboardCheck className="h-4 w-4" />
-                Practical Assessment
-              </span>
-            </button>
+  <Button
+    type="button"
+    onClick={() => setAssessmentType("practical")}
+    className={
+      assessmentType === "practical"
+        ? "rounded-xl !bg-[#002b5c] px-4 py-3 text-sm font-semibold !text-white shadow-sm transition hover:!bg-[#0d2142]"
+        : "rounded-xl !bg-white px-4 py-3 text-sm font-semibold !text-black shadow-sm transition hover:!bg-[#eef4f8] hover:!text-black"
+    }
+  >
+    Practical Assessment
+  </Button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setAssessmentType("participation");
-                setSearch("");
-              }}
-              className={
-                assessmentType === "participation"
-                  ? "rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition"
-                  : "rounded-xl px-4 py-3 text-sm font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
-              }
-            >
-              <span className="inline-flex items-center gap-2">
-                <MessageCircle className="h-4 w-4" />
-                Active Participation
-              </span>
-            </button>
+  <Button
+    type="button"
+    onClick={() => setAssessmentType("participation")}
+    className={
+      assessmentType === "participation"
+        ? "rounded-xl !bg-[#002b5c] px-4 py-3 text-sm font-semibold !text-white shadow-sm transition hover:!bg-[#0d2142]"
+        : "rounded-xl !bg-white px-4 py-3 text-sm font-semibold !text-black shadow-sm transition hover:!bg-[#eef4f8] hover:!text-black"
+    }
+  >
+    Active Participation
+  </Button>
+
 
           </div>
 
@@ -344,6 +531,9 @@ export default function TrainerAssessmentsPage() {
             participants={
               filteredWrittenParticipants
             }
+            tableData={
+              writtenTableData
+            }
             totalParticipants={
               writtenTotal
             }
@@ -356,11 +546,8 @@ export default function TrainerAssessmentsPage() {
             averageScore={
               writtenAverage
             }
-            search={search}
-            onSearchChange={setSearch}
-            isLoading={writtenIsLoading}
-            onViewParticipant={
-              handleViewWrittenParticipant
+            isLoading={
+              writtenIsLoading
             }
           />
         )}
@@ -378,8 +565,8 @@ export default function TrainerAssessmentsPage() {
             participants={
               filteredPracticalParticipants
             }
-            results={
-              practicalResults
+            tableData={
+              practicalTableData
             }
             evaluatedCount={
               practicalEvaluatedCount
@@ -393,45 +580,59 @@ export default function TrainerAssessmentsPage() {
             averageScore={
               practicalAverage
             }
-            search={search}
-            onSearchChange={setSearch}
             isLoading={
               practicalIsLoading ||
               enrollmentIsLoading
             }
-            onEvaluate={
-              handleEvaluatePractical
-            }
-            onViewResult={
-              handleViewPracticalResult
-            }
-            getResult={
-              getPracticalResult
-            }
           />
         )}
 
-        {assessmentType === "participation" && (
+        {/* =================================================
+            PARTICIPATION
+        ================================================= */}
+
+        {assessmentType ===
+          "participation" && (
           <ActiveParticipationSection
-            sessions={trainingSessions}
-            batch={selectedParticipationBatch}
-            session={selectedParticipationSession}
-            setting={participationSetting}
-            participants={filteredParticipationParticipants}
-            totalParticipants={participationParticipants.length}
-            recordedCount={participationRecordedCount}
-            completedCount={participationCompletedCount}
-            search={search}
-            onSearchChange={setSearch}
-            selectedSessionId={selectedParticipationSessionId}
-            onSessionChange={setSelectedParticipationSessionId}
-            isLoading={participationIsLoading}
-            actionError={participationActionError}
-            onRecord={handleRecordParticipation}
-            onRemove={handleRemoveParticipation}
-            getName={getParticipationName}
-            getEmail={getParticipationEmail}
-            getCode={getParticipationCode}
+            sessions={
+              trainingSessions
+            }
+            batch={
+              selectedParticipationBatch
+            }
+            session={
+              selectedParticipationSession
+            }
+            setting={
+              participationSetting
+            }
+            participants={
+              filteredParticipationParticipants
+            }
+            tableData={
+              participationTableData
+            }
+            totalParticipants={
+              participationParticipants.length
+            }
+            recordedCount={
+              participationRecordedCount
+            }
+            completedCount={
+              participationCompletedCount
+            }
+            selectedSessionId={
+              selectedParticipationSessionId
+            }
+            onSessionChange={
+              setSelectedParticipationSessionId
+            }
+            isLoading={
+              participationIsLoading
+            }
+            actionError={
+              participationActionError
+            }
           />
         )}
 
@@ -520,14 +721,12 @@ export default function TrainerAssessmentsPage() {
 function WrittenAssessmentSection({
   assessment,
   participants,
+  tableData,
   totalParticipants,
   passedParticipants,
   failedParticipants,
   averageScore,
-  search,
-  onSearchChange,
   isLoading,
-  onViewParticipant,
 }: {
   assessment:
     | WrittenAssessment
@@ -536,25 +735,25 @@ function WrittenAssessmentSection({
   participants:
     TrainerAssessmentSubmission[];
 
+  tableData: Array<{
+    id: string;
+    participantName: string;
+    participantCode?: string | null;
+    participantEmail?: string | null;
+    submittedAt?: string | Date | null;
+    attemptNumber?: number | null;
+    score?: number | null;
+    totalItems?: number | null;
+    percentage?: number | null;
+    result?: string | null;
+    onView?: () => void;
+  }>;
+
   totalParticipants: number;
-
   passedParticipants: number;
-
   failedParticipants: number;
-
   averageScore: number;
-
-  search: string;
-
-  onSearchChange: (
-    value: string,
-  ) => void;
-
   isLoading: boolean;
-
-  onViewParticipant: (
-    submission: TrainerAssessmentSubmission,
-  ) => void;
 }) {
   return (
     <div className="space-y-6">
@@ -563,7 +762,9 @@ function WrittenAssessmentSection({
 
       {assessment && (
         <AssessmentInfoCard
-          title={assessment.title}
+          title={
+            assessment.title
+          }
           batchCode={
             assessment.batchCode
           }
@@ -605,7 +806,9 @@ function WrittenAssessmentSection({
             <Users className="h-5 w-5" />
           }
           label="Participants"
-          value={totalParticipants}
+          value={
+            totalParticipants
+          }
         />
 
         <StatCard
@@ -613,7 +816,9 @@ function WrittenAssessmentSection({
             <CheckCircle2 className="h-5 w-5" />
           }
           label="Passed"
-          value={passedParticipants}
+          value={
+            passedParticipants
+          }
         />
 
         <StatCard
@@ -621,7 +826,9 @@ function WrittenAssessmentSection({
             <CircleAlert className="h-5 w-5" />
           }
           label="Failed"
-          value={failedParticipants}
+          value={
+            failedParticipants
+          }
         />
 
         <StatCard
@@ -629,23 +836,26 @@ function WrittenAssessmentSection({
             <FileText className="h-5 w-5" />
           }
           label="Average Score"
-          value={`${averageScore.toFixed(1)}%`}
+          value={`${averageScore.toFixed(
+            1,
+          )}%`}
         />
 
       </div>
 
-      {/* PARTICIPANTS */}
+      {/* TABLE */}
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 
-        <SectionHeader
-          title="Participant Submissions"
-          description="Review participant written assessment submissions."
-          search={search}
-          onSearchChange={
-            onSearchChange
-          }
-        />
+        <div className="border-b border-slate-200 px-5 py-4">
+          <h2 className="text-base font-bold text-slate-900">
+            Participant Submissions
+          </h2>
+
+          <p className="mt-1 text-sm text-slate-500">
+            Review participant written assessment submissions.
+          </p>
+        </div>
 
         {isLoading ? (
           <LoadingRows />
@@ -655,137 +865,16 @@ function WrittenAssessmentSection({
             icon={
               <Users className="h-7 w-7 text-slate-400" />
             }
-            title={
-              search
-                ? "No participants found"
-                : "No submissions yet"
-            }
-            description={
-              search
-                ? "Try a different participant name or email."
-                : "Participants will appear here after submitting the written assessment."
-            }
+            title="No submissions yet"
+            description="Participants will appear here after submitting the written assessment."
           />
         ) : (
-          <div className="overflow-x-auto">
-
-            <table className="w-full min-w-[850px]">
-
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
-
-                  <TableHead>
-                    Participant
-                  </TableHead>
-
-                  <TableHead>
-                    Submitted
-                  </TableHead>
-
-                  <TableHead>
-                    Score
-                  </TableHead>
-
-                  <TableHead>
-                    Result
-                  </TableHead>
-
-                  <TableHead align="right">
-                    Action
-                  </TableHead>
-
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-slate-100">
-
-                {participants.map(
-                  (participant) => (
-                    <tr
-                      key={
-                        participant.participantId
-                      }
-                      className="transition hover:bg-slate-50"
-                    >
-
-                      <td className="px-5 py-4">
-                        <ParticipantIdentity
-                          name={
-                            participant.participantName
-                          }
-                          email={
-                            participant.participantEmail
-                          }
-                        />
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <p className="text-sm text-slate-600">
-                          {formatDateTime(
-                            participant.submittedAt,
-                          )}
-                        </p>
-
-                        <p className="mt-0.5 text-xs text-slate-400">
-                          Attempt #
-                          {
-                            participant.attemptNumber
-                          }
-                        </p>
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <p className="text-sm font-bold text-slate-900">
-                          {
-                            participant.earnedPoints
-                          }
-                          /
-                          {
-                            participant.totalPoints
-                          }
-                        </p>
-
-                        <p className="mt-0.5 text-xs text-slate-500">
-                          {
-                            participant.percentage
-                          }
-                          %
-                        </p>
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <ResultBadge
-                          passed={
-                            participant.isPassed
-                          }
-                        />
-                      </td>
-
-                      <td className="px-5 py-4 text-right">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            onViewParticipant(
-                              participant,
-                            )
-                          }
-                          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
-                        >
-                          <Eye className="h-4 w-4" />
-
-                          View
-                        </button>
-                      </td>
-
-                    </tr>
-                  ),
-                )}
-
-              </tbody>
-
-            </table>
-
-          </div>
+          <DataTable
+            columns={
+              writtenColumns
+            }
+            data={tableData}
+          />
         )}
 
       </div>
@@ -801,17 +890,12 @@ function WrittenAssessmentSection({
 function PracticalAssessmentSection({
   assessment,
   participants,
-  results,
+  tableData,
   evaluatedCount,
   passedCount,
   failedCount,
   averageScore,
-  search,
-  onSearchChange,
   isLoading,
-  onEvaluate,
-  onViewResult,
-  getResult,
 }: {
   assessment:
     | PracticalAssessment
@@ -819,37 +903,25 @@ function PracticalAssessmentSection({
 
   participants: Enrollment[];
 
-  results: PracticalAssessmentResult[];
+  tableData: Array<{
+    id: string;
+    participantName: string;
+    participantCode?: string | null;
+    participantEmail?: string | null;
+    batchCode?: string | null;
+    isEvaluated?: boolean;
+    score?: number | null;
+    percentage?: number | null;
+    result?: string | null;
+    onEvaluate?: () => void;
+    onViewResult?: () => void;
+  }>;
 
   evaluatedCount: number;
-
   passedCount: number;
-
   failedCount: number;
-
   averageScore: number;
-
-  search: string;
-
-  onSearchChange: (
-    value: string,
-  ) => void;
-
   isLoading: boolean;
-
-  onEvaluate: (
-    enrollment: Enrollment,
-  ) => void;
-
-  onViewResult: (
-    result: PracticalAssessmentResult,
-  ) => void;
-
-  getResult: (
-    enrollmentId: string,
-  ) =>
-    | PracticalAssessmentResult
-    | null;
 }) {
   return (
     <div className="space-y-6">
@@ -858,9 +930,12 @@ function PracticalAssessmentSection({
 
       {assessment && (
         <AssessmentInfoCard
-          title={assessment.title}
+          title={
+            assessment.title
+          }
           batchCode={
-            participants[0]?.batchCode
+            participants[0]
+              ?.batchCode
           }
           published={
             assessment.isPublished
@@ -873,13 +948,19 @@ function PracticalAssessmentSection({
               <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
                 <ClipboardCheck className="h-3.5 w-3.5" />
 
-                {assessment.criteria.length}{" "}
+                {
+                  assessment.criteria
+                    .length
+                }{" "}
                 criteria
               </span>
 
               <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
                 Passing{" "}
-                {assessment.passingPercentage}%
+                {
+                  assessment.passingPercentage
+                }
+                %
               </span>
 
               <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
@@ -895,25 +976,24 @@ function PracticalAssessmentSection({
         />
       )}
 
-      {/* NO ASSESSMENT */}
+      {!assessment &&
+        !isLoading && (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
 
-      {!assessment && !isLoading && (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
+            <ClipboardCheck className="mx-auto h-9 w-9 text-slate-300" />
 
-          <ClipboardCheck className="mx-auto h-9 w-9 text-slate-300" />
+            <h3 className="mt-4 text-lg font-bold text-slate-900">
+              No practical assessment assigned
+            </h3>
 
-          <h3 className="mt-4 text-lg font-bold text-slate-900">
-            No practical assessment assigned
-          </h3>
+            <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
+              You currently don't have a published
+              practical assessment assigned to your
+              training.
+            </p>
 
-          <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
-            You currently don't have a published
-            practical assessment assigned to your
-            training.
-          </p>
-
-        </div>
-      )}
+          </div>
+        )}
 
       {assessment && (
         <>
@@ -936,7 +1016,9 @@ function PracticalAssessmentSection({
                 <ClipboardCheck className="h-5 w-5" />
               }
               label="Evaluated"
-              value={evaluatedCount}
+              value={
+                evaluatedCount
+              }
             />
 
             <StatCard
@@ -944,7 +1026,9 @@ function PracticalAssessmentSection({
                 <CheckCircle2 className="h-5 w-5" />
               }
               label="Passed"
-              value={passedCount}
+              value={
+                passedCount
+              }
             />
 
             <StatCard
@@ -952,23 +1036,14 @@ function PracticalAssessmentSection({
                 <FileText className="h-5 w-5" />
               }
               label="Average Score"
-              value={`${averageScore.toFixed(1)}%`}
+              value={`${averageScore.toFixed(
+                1,
+              )}%`}
             />
 
           </div>
 
-          {/* PARTICIPANTS */}
-
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-
-            <SectionHeader
-              title="Practical Evaluation"
-              description="Evaluate participants using the practical assessment criteria."
-              search={search}
-              onSearchChange={
-                onSearchChange
-              }
-            />
+       
 
             {isLoading ? (
               <LoadingRows />
@@ -978,201 +1053,18 @@ function PracticalAssessmentSection({
                 icon={
                   <Users className="h-7 w-7 text-slate-400" />
                 }
-                title={
-                  search
-                    ? "No participants found"
-                    : "No approved participants"
-                }
-                description={
-                  search
-                    ? "Try a different participant name, email, or user code."
-                    : "Approved participants for this training batch will appear here."
-                }
+                title="No approved participants"
+                description="Approved participants for this training batch will appear here."
               />
             ) : (
-              <div className="overflow-x-auto">
-
-                <table className="w-full min-w-[900px]">
-
-                  <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50">
-
-                      <TableHead>
-                        Participant
-                      </TableHead>
-
-                      <TableHead>
-                        Batch
-                      </TableHead>
-
-                      <TableHead>
-                        Evaluation
-                      </TableHead>
-
-                      <TableHead>
-                        Score
-                      </TableHead>
-
-                      <TableHead align="right">
-                        Action
-                      </TableHead>
-
-                    </tr>
-                  </thead>
-
-                  <tbody className="divide-y divide-slate-100">
-
-                    {participants.map(
-                      (enrollment) => {
-                        const result =
-                          getResult(
-                            enrollment.id,
-                          );
-
-                        return (
-                          <tr
-                            key={
-                              enrollment.id
-                            }
-                            className="transition hover:bg-slate-50"
-                          >
-
-                            <td className="px-5 py-4">
-                              <ParticipantIdentity
-                                name={
-                                  enrollment
-                                    .participant
-                                    .fullName
-                                }
-                                email={
-                                  enrollment
-                                    .participant
-                                    .email
-                                }
-                                code={
-                                  enrollment
-                                    .participant
-                                    .userCode
-                                }
-                              />
-                            </td>
-
-                            <td className="px-5 py-4">
-                              <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                                {
-                                  enrollment.batchCode
-                                }
-                              </span>
-                            </td>
-
-                            <td className="px-5 py-4">
-
-                              {result ? (
-                                <ResultBadge
-                                  passed={
-                                    result.isPassed
-                                  }
-                                />
-                              ) : (
-                                <span className="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-                                  Not Evaluated
-                                </span>
-                              )}
-
-                            </td>
-
-                            <td className="px-5 py-4">
-
-                              {result ? (
-                                <>
-                                  <p className="text-sm font-bold text-slate-900">
-                                    {
-                                      result.percentage
-                                    }
-                                    %
-                                  </p>
-
-                                  <p className="mt-0.5 text-xs text-slate-500">
-                                    Passing{" "}
-                                    {
-                                      assessment.passingPercentage
-                                    }
-                                    %
-                                  </p>
-                                </>
-                              ) : (
-                                <span className="text-sm text-slate-400">
-                                  —
-                                </span>
-                              )}
-
-                            </td>
-
-                            <td className="px-5 py-4 text-right">
-
-                              {result ? (
-                                <div className="inline-flex items-center gap-2">
-
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      onViewResult(
-                                        result,
-                                      )
-                                    }
-                                    className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
-                                  >
-                                    <Eye className="h-4 w-4" />
-
-                                    View
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      onEvaluate(
-                                        enrollment,
-                                      )
-                                    }
-                                    className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-                                  >
-                                    <ClipboardCheck className="h-4 w-4" />
-
-                                    Edit
-                                  </button>
-
-                                </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    onEvaluate(
-                                      enrollment,
-                                    )
-                                  }
-                                  className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-                                >
-                                  <ClipboardCheck className="h-4 w-4" />
-
-                                  Evaluate
-                                </button>
-                              )}
-
-                            </td>
-
-                          </tr>
-                        );
-                      },
-                    )}
-
-                  </tbody>
-
-                </table>
-
-              </div>
+              <DataTable
+                columns={
+                  practicalColumns
+                }
+                data={tableData}
+              />
             )}
 
-          </div>
         </>
       )}
 
@@ -1190,20 +1082,14 @@ function ActiveParticipationSection({
   session,
   setting,
   participants,
+  tableData,
   totalParticipants,
   recordedCount,
   completedCount,
-  search,
-  onSearchChange,
   selectedSessionId,
   onSessionChange,
   isLoading,
   actionError,
-  onRecord,
-  onRemove,
-  getName,
-  getEmail,
-  getCode,
 }: {
   sessions: Array<{
     id: string;
@@ -1212,6 +1098,7 @@ function ActiveParticipationSection({
     startTime?: string | null;
     endTime?: string | null;
   }>;
+
   batch: {
     id: string;
     batchCode?: string | null;
@@ -1219,6 +1106,7 @@ function ActiveParticipationSection({
     startDate?: string | null;
     endDate?: string | null;
   } | null;
+
   session: {
     id: string;
     sessionNumber?: number;
@@ -1226,317 +1114,355 @@ function ActiveParticipationSection({
     startTime?: string | null;
     endTime?: string | null;
   } | null;
-  setting: ParticipationSetting | null;
-  participants: ParticipationParticipant[];
+
+  setting:
+    ParticipationSetting | null;
+
+  participants:
+    ParticipationParticipant[];
+
+  tableData: Array<{
+    id: string;
+    participantName: string;
+    participantCode?: string | null;
+    participantEmail?: string | null;
+    recitationCount?: number;
+    requiredRecitations?: number;
+    participationCount?: number;
+    participationPercentage?: number;
+    isRecorded?: boolean;
+    onRecord?: () => void;
+    onRemove?: () => void;
+  }>;
+
   totalParticipants: number;
   recordedCount: number;
   completedCount: number;
-  search: string;
-  onSearchChange: (value: string) => void;
+
   selectedSessionId: string;
-  onSessionChange: (value: string) => void;
+
+  onSessionChange: (
+    value: string,
+  ) => void;
+
   isLoading: boolean;
   actionError: string | null;
-  onRecord: (participant: ParticipationParticipant) => void;
-  onRemove: (participant: ParticipationParticipant) => void;
-  getName: (participant: ParticipationParticipant) => string;
-  getEmail: (participant: ParticipationParticipant) => string;
-  getCode: (participant: ParticipationParticipant) => string | null | undefined;
 }) {
-  const required = Number(setting?.requiredRecitations ?? 0);
+  const required = Number(
+    setting?.requiredRecitations ??
+      0,
+  );
 
   return (
     <div className="space-y-6">
+
+      {/* =================================================
+          PARTICIPATION HEADER
+      ================================================= */}
+
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+
         <div className="flex flex-col gap-5">
+
           <div className="flex items-start gap-4">
+
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-100">
               <MessageCircle className="h-6 w-6 text-slate-700" />
             </div>
+
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                 Active Participation
               </p>
+
               <h2 className="mt-1 text-xl font-bold text-slate-900">
                 Recitation Records
               </h2>
+
               <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
                 Record one recitation per participant for each training session.
                 Recitations are accumulated throughout the training.
               </p>
             </div>
+
           </div>
 
           <div>
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Training Session
-              </label>
-              <select
-                value={selectedSessionId}
-                onChange={(event) => onSessionChange(event.target.value)}
-                disabled={isLoading || sessions.length === 0}
-                className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none focus:border-slate-400 disabled:bg-slate-50"
-              >
-                <option value="">Select training session</option>
-                {sessions.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    Session {item.sessionNumber ?? "—"} • {formatDate(item.sessionDate)}
+            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Training Session
+            </label>
+
+            <select
+              value={
+                selectedSessionId
+              }
+              onChange={(event) =>
+                onSessionChange(
+                  event.target.value,
+                )
+              }
+              disabled={
+                isLoading ||
+                sessions.length ===
+                  0
+              }
+              className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none focus:border-slate-400 disabled:bg-slate-50"
+            >
+              <option value="">
+                Select training session
+              </option>
+
+              {sessions.map(
+                (item) => (
+                  <option
+                    key={item.id}
+                    value={item.id}
+                  >
+                    Session{" "}
+                    {item.sessionNumber ??
+                      "—"}{" "}
+                    •{" "}
+                    {formatDate(
+                      item.sessionDate,
+                    )}
                   </option>
-                ))}
-              </select>
-            </div>
+                ),
+              )}
+            </select>
           </div>
+
         </div>
+
       </div>
+
+      {/* =================================================
+          SELECTED TRAINING
+      ================================================= */}
 
       {batch && (
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+
             <div>
+
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                 Selected Training
               </p>
+
               <h2 className="mt-1 text-lg font-bold text-slate-900">
-                {batch.batchCode || "Training Batch"}
+                {batch.batchCode ||
+                  "Training Batch"}
               </h2>
+
               <div className="mt-2 flex flex-wrap items-center gap-2">
+
                 {batch.location && (
                   <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                    {batch.location}
+                    {
+                      batch.location
+                    }
                   </span>
                 )}
+
                 {batch.startDate && (
                   <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
                     <CalendarDays className="h-3.5 w-3.5" />
-                    {formatDate(batch.startDate)}
-                    {batch.endDate ? ` – ${formatDate(batch.endDate)}` : ""}
+
+                    {formatDate(
+                      batch.startDate,
+                    )}
+
+                    {batch.endDate
+                      ? ` – ${formatDate(
+                          batch.endDate,
+                        )}`
+                      : ""}
                   </span>
                 )}
+
               </div>
+
             </div>
 
             <div className="rounded-xl bg-slate-50 px-5 py-4 text-right">
-              <p className="text-xs text-slate-400">Required Recitations</p>
-              <p className="mt-1 text-2xl font-bold text-slate-900">
-                {required || "—"}
+
+              <p className="text-xs text-slate-400">
+                Required Recitations
               </p>
+
+              <p className="mt-1 text-2xl font-bold text-slate-900">
+                {required ||
+                  "—"}
+              </p>
+
               <p className="mt-0.5 text-xs text-slate-500">
                 For the entire training
               </p>
+
             </div>
+
           </div>
 
           {session && (
             <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+
               <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                Session {session.sessionNumber ?? "—"}
+                Session{" "}
+                {session.sessionNumber ??
+                  "—"}
               </span>
+
               <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
                 <CalendarDays className="h-3.5 w-3.5" />
-                {formatDate(session.sessionDate)}
+
+                {formatDate(
+                  session.sessionDate,
+                )}
               </span>
-              {(session.startTime || session.endTime) && (
+
+              {(session.startTime ||
+                session.endTime) && (
                 <span className="text-xs text-slate-500">
-                  {session.startTime || "—"} {session.endTime ? `– ${session.endTime}` : ""}
+                  {session.startTime ||
+                    "—"}{" "}
+                  {session.endTime
+                    ? `– ${session.endTime}`
+                    : ""}
                 </span>
               )}
+
             </div>
           )}
+
         </div>
       )}
+
+      {/* =================================================
+          STATS + TABLE
+      ================================================= */}
 
       {batch && (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+
             <StatCard
-              icon={<Users className="h-5 w-5" />}
+              icon={
+                <Users className="h-5 w-5" />
+              }
               label="Participants"
-              value={totalParticipants}
+              value={
+                totalParticipants
+              }
             />
+
             <StatCard
-              icon={<MessageCircle className="h-5 w-5" />}
+              icon={
+                <MessageCircle className="h-5 w-5" />
+              }
               label="Recited This Session"
-              value={recordedCount}
+              value={
+                recordedCount
+              }
             />
+
             <StatCard
-              icon={<CheckCircle2 className="h-5 w-5" />}
+              icon={
+                <CheckCircle2 className="h-5 w-5" />
+              }
               label="Requirement Completed"
-              value={completedCount}
+              value={
+                completedCount
+              }
             />
+
             <StatCard
-              icon={<ClipboardCheck className="h-5 w-5" />}
+              icon={
+                <ClipboardCheck className="h-5 w-5" />
+              }
               label="Required Recitations"
-              value={required || "—"}
+              value={
+                required || "—"
+              }
             />
+
           </div>
 
           {actionError && (
             <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
+
               <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+
               <div>
                 <p className="text-sm font-semibold text-red-800">
                   Participation action failed
                 </p>
-                <p className="mt-1 text-sm text-red-700">{actionError}</p>
+
+                <p className="mt-1 text-sm text-red-700">
+                  {actionError}
+                </p>
               </div>
+
             </div>
           )}
 
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <SectionHeader
-              title="Participant Participation"
-              description="Record recitation for the selected session and monitor cumulative progress."
-              search={search}
-              onSearchChange={onSearchChange}
-            />
+
+            <div className="border-b border-slate-200 px-5 py-4">
+              <h2 className="text-base font-bold text-slate-900">
+                Participant Participation
+              </h2>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Record recitation for the selected session and monitor cumulative progress.
+              </p>
+            </div>
 
             {isLoading ? (
               <LoadingRows />
-            ) : participants.length === 0 ? (
+            ) : participants.length ===
+              0 ? (
               <EmptyState
-                icon={<Users className="h-7 w-7 text-slate-400" />}
-                title={search ? "No participants found" : session ? "No approved participants" : "Select a training session"}
+                icon={
+                  <Users className="h-7 w-7 text-slate-400" />
+                }
+                title={
+                  session
+                    ? "No approved participants"
+                    : "Select a training session"
+                }
                 description={
-                  search
-                    ? "Try a different participant name, email, or user code."
-                    : session
-                      ? "Approved participants for this training session will appear here."
-                      : "Select a training session to load participants."
+                  session
+                    ? "Approved participants for this training session will appear here."
+                    : "Select a training session to load participants."
                 }
               />
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[1050px]">
-                  <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50">
-                      <TableHead>Participant</TableHead>
-                      <TableHead>Recitation Progress</TableHead>
-                      <TableHead>Participation</TableHead>
-                      <TableHead>Session Record</TableHead>
-                      <TableHead align="right">Action</TableHead>
-                    </tr>
-                  </thead>
-
-                  <tbody className="divide-y divide-slate-100">
-                    {participants.map((participant) => {
-                      const participantRequired = Number(
-                        participant.requiredRecitations ?? required,
-                      );
-                      const actual = Number(
-                        participant.actualRecitations ?? 0,
-                      );
-                      const percentage = Math.min(
-                        Number(
-                          participant.participationPercentage ??
-                            (participantRequired > 0
-                              ? (actual / participantRequired) * 100
-                              : 0),
-                        ),
-                        100,
-                      );
-
-                      return (
-                        <tr
-                          key={participant.enrollmentId}
-                          className="transition hover:bg-slate-50"
-                        >
-                          <td className="px-5 py-4">
-                            <ParticipantIdentity
-                              name={getName(participant)}
-                              email={getEmail(participant)}
-                              code={getCode(participant)}
-                            />
-                          </td>
-
-                          <td className="px-5 py-4">
-                            <div className="min-w-[220px]">
-                              <div className="flex items-center justify-between gap-3">
-                                <span className="text-sm font-bold text-slate-900">
-                                  {actual} / {participantRequired || "—"}
-                                </span>
-                                <span className="text-xs font-semibold text-slate-500">
-                                  {percentage.toFixed(0)}%
-                                </span>
-                              </div>
-                              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
-                                <div
-                                  className="h-full rounded-full bg-slate-900 transition-all"
-                                  style={{ width: `${percentage}%` }}
-                                />
-                              </div>
-                            </div>
-                          </td>
-
-                          <td className="px-5 py-4">
-                            <span
-                              className={
-                                percentage >= 100
-                                  ? "inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700"
-                                  : "inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700"
-                              }
-                            >
-                              {percentage >= 100
-                                ? "Complete"
-                                : `${percentage.toFixed(0)}%`}
-                            </span>
-                          </td>
-
-                          <td className="px-5 py-4">
-                            {participant.hasRecited ? (
-                              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                                <CheckCircle2 className="h-3.5 w-3.5" />
-                                Recorded
-                              </span>
-                            ) : (
-                              <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
-                                Not Recorded
-                              </span>
-                            )}
-                          </td>
-
-                          <td className="px-5 py-4 text-right">
-                            {participant.hasRecited &&
-                            participant.participationRecordId ? (
-                              <button
-                                type="button"
-                                onClick={() => void onRemove(participant)}
-                                disabled={isLoading}
-                                className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                <X className="h-4 w-4" />
-                                Remove
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => void onRecord(participant)}
-                                disabled={isLoading || !selectedSessionId}
-                                className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                <MessageCircle className="h-4 w-4" />
-                                Record Recitation
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <DataTable
+                columns={
+                  participationColumns
+                }
+                data={
+                  tableData
+                }
+              />
             )}
+
           </div>
         </>
       )}
 
-      {!batch && !isLoading && (
-        <EmptyState
-          icon={<Users className="h-7 w-7 text-slate-400" />}
-          title="No training batch available"
-          description="No training batch is currently available for participation recording."
-        />
-      )}
+      {!batch &&
+        !isLoading && (
+          <EmptyState
+            icon={
+              <Users className="h-7 w-7 text-slate-400" />
+            }
+            title="No training batch available"
+            description="No training batch is currently available for participation recording."
+          />
+        )}
+
     </div>
   );
 }
@@ -1597,7 +1523,9 @@ function PracticalEvaluationModal({
 
           initial[criterion.id] =
             existing
-              ? String(existing.score)
+              ? String(
+                  existing.score,
+                )
               : "";
         },
       );
@@ -1758,8 +1686,6 @@ function PracticalEvaluationModal({
 
         <div className="flex max-h-[95vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
 
-          {/* HEADER */}
-
           <div className="flex shrink-0 items-start justify-between border-b border-slate-200 p-5 sm:p-6">
 
             <div className="min-w-0 pr-4">
@@ -1795,11 +1721,7 @@ function PracticalEvaluationModal({
 
           </div>
 
-          {/* BODY */}
-
           <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
-
-            {/* ASSESSMENT INFO */}
 
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
 
@@ -1843,8 +1765,6 @@ function PracticalEvaluationModal({
               </div>
 
             </div>
-
-            {/* CRITERIA */}
 
             <div className="mt-6">
 
@@ -2014,8 +1934,6 @@ function PracticalEvaluationModal({
 
             </div>
 
-            {/* REMARKS */}
-
             <div className="mt-6">
 
               <label className="block text-sm font-semibold text-slate-900">
@@ -2046,8 +1964,6 @@ function PracticalEvaluationModal({
 
             </div>
 
-            {/* ERROR */}
-
             {(localError ||
               error) && (
               <div className="mt-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
@@ -2063,8 +1979,6 @@ function PracticalEvaluationModal({
             )}
 
           </div>
-
-          {/* FOOTER */}
 
           <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-200 px-5 py-4 sm:px-6">
 
@@ -2109,13 +2023,11 @@ function PracticalEvaluationModal({
                 {isSubmitting ? (
                   <>
                     <Spinner />
-
                     Saving...
                   </>
                 ) : (
                   <>
                     <CheckCircle2 className="h-4 w-4" />
-
                     Submit Evaluation
                   </>
                 )}
@@ -2142,7 +2054,6 @@ function PracticalResultModal({
   onClose,
 }: {
   result: PracticalAssessmentResult;
-
   onClose: () => void;
 }) {
   return (
@@ -2151,8 +2062,6 @@ function PracticalResultModal({
       <div className="flex min-h-full items-center justify-center">
 
         <div className="flex max-h-[95vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-
-          {/* HEADER */}
 
           <div className="flex shrink-0 items-start justify-between border-b border-slate-200 p-5 sm:p-6">
 
@@ -2182,11 +2091,7 @@ function PracticalResultModal({
 
           </div>
 
-          {/* BODY */}
-
           <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
-
-            {/* RESULT SUMMARY */}
 
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
 
@@ -2241,8 +2146,6 @@ function PracticalResultModal({
               </div>
 
             </div>
-
-            {/* CRITERIA */}
 
             <div className="mt-6">
 
@@ -2309,8 +2212,6 @@ function PracticalResultModal({
 
             </div>
 
-            {/* REMARKS */}
-
             {result.trainerRemarks && (
               <div className="mt-6">
 
@@ -2332,8 +2233,6 @@ function PracticalResultModal({
             )}
 
           </div>
-
-          {/* FOOTER */}
 
           <div className="flex shrink-0 justify-end border-t border-slate-200 px-5 py-4 sm:px-6">
 
@@ -2367,13 +2266,9 @@ function AssessmentInfoCard({
   meta,
 }: {
   title: string;
-
   batchCode?: string | null;
-
   published: boolean;
-
   icon: ReactNode;
-
   meta: ReactNode;
 }) {
   return (
@@ -2432,111 +2327,6 @@ function AssessmentInfoCard({
 }
 
 /* =========================================================
-   SECTION HEADER
-========================================================= */
-
-function SectionHeader({
-  title,
-  description,
-  search,
-  onSearchChange,
-}: {
-  title: string;
-
-  description: string;
-
-  search: string;
-
-  onSearchChange: (
-    value: string,
-  ) => void;
-}) {
-  return (
-    <div className="border-b border-slate-200 p-5">
-
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-
-        <div>
-
-          <h2 className="text-lg font-bold text-slate-900">
-            {title}
-          </h2>
-
-          <p className="mt-1 text-sm text-slate-500">
-            {description}
-          </p>
-
-        </div>
-
-        <div className="relative w-full lg:w-80">
-
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-
-          <input
-            type="text"
-            value={search}
-            onChange={(event) =>
-              onSearchChange(
-                event.target.value,
-              )
-            }
-            placeholder="Search participant..."
-            className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-slate-400"
-          />
-
-        </div>
-
-      </div>
-
-    </div>
-  );
-}
-
-/* =========================================================
-   PARTICIPANT IDENTITY
-========================================================= */
-
-function ParticipantIdentity({
-  name,
-  email,
-  code,
-}: {
-  name?: string | null;
-
-  email?: string | null;
-
-  code?: string | null;
-}) {
-  return (
-    <div className="flex items-center gap-3">
-
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-700">
-        {getInitials(name)}
-      </div>
-
-      <div className="min-w-0">
-
-        <p className="truncate text-sm font-semibold text-slate-900">
-          {name || "Participant"}
-        </p>
-
-        <p className="mt-0.5 truncate text-xs text-slate-500">
-          {email || "—"}
-        </p>
-
-        {code && (
-          <p className="mt-0.5 text-xs text-slate-400">
-            {code}
-          </p>
-        )}
-
-      </div>
-
-    </div>
-  );
-}
-
-/* =========================================================
    STAT CARD
 ========================================================= */
 
@@ -2546,9 +2336,7 @@ function StatCard({
   value,
 }: {
   icon: ReactNode;
-
   label: string;
-
   value: string | number;
 }) {
   return (
@@ -2575,27 +2363,6 @@ function StatCard({
       </div>
 
     </div>
-  );
-}
-
-/* =========================================================
-   TABLE HEAD
-========================================================= */
-
-function TableHead({
-  children,
-  align = "left",
-}: {
-  children: ReactNode;
-
-  align?: "left" | "right";
-}) {
-  return (
-    <th
-      className={`px-5 py-3 text-${align} text-xs font-semibold uppercase tracking-wide text-slate-500`}
-    >
-      {children}
-    </th>
   );
 }
 
@@ -2633,9 +2400,7 @@ function EmptyState({
   description,
 }: {
   icon: ReactNode;
-
   title: string;
-
   description: string;
 }) {
   return (
@@ -2705,8 +2470,6 @@ function SubmissionDetailsModal({
 
         <div className="flex max-h-[94vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
 
-          {/* HEADER */}
-
           <div className="flex shrink-0 items-start justify-between border-b border-slate-200 p-5 sm:p-6">
 
             <div className="min-w-0 pr-4">
@@ -2743,8 +2506,6 @@ function SubmissionDetailsModal({
 
           </div>
 
-          {/* LOADING */}
-
           {isLoading && (
             <div className="flex min-h-[300px] items-center justify-center p-8">
 
@@ -2760,8 +2521,6 @@ function SubmissionDetailsModal({
 
             </div>
           )}
-
-          {/* ERROR */}
 
           {!isLoading &&
             error && (
@@ -2788,14 +2547,10 @@ function SubmissionDetailsModal({
               </div>
             )}
 
-          {/* BODY */}
-
           {!isLoading &&
             !error &&
             submission && (
               <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
-
-                {/* RESULT */}
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
 
@@ -2856,8 +2611,6 @@ function SubmissionDetailsModal({
 
                 </div>
 
-                {/* DETAILS */}
-
                 <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
 
                   <DetailCard
@@ -2883,8 +2636,6 @@ function SubmissionDetailsModal({
                   />
 
                 </div>
-
-                {/* ANSWERS */}
 
                 <div className="mt-7">
 
@@ -2932,8 +2683,6 @@ function SubmissionDetailsModal({
 
               </div>
             )}
-
-          {/* FOOTER */}
 
           <div className="flex shrink-0 justify-end border-t border-slate-200 px-5 py-4 sm:px-6">
 
@@ -3101,7 +2850,6 @@ function DetailCard({
   value,
 }: {
   label: string;
-
   value: string;
 }) {
   return (
@@ -3128,7 +2876,6 @@ function ScoreItem({
   value,
 }: {
   label: string;
-
   value: string;
 }) {
   return (

@@ -3,19 +3,23 @@
 import type { ColumnDef } from "@tanstack/react-table";
 
 import {
-  Award,
   CheckCircle2,
   Users,
 } from "lucide-react";
 
 import type { TrainingGrade } from "@repo/types";
 
+/* =========================================================
+   HELPERS
+========================================================= */
 
 function formatPercentage(value: number) {
   return `${value.toFixed(2)}%`;
 }
 
-
+/* =========================================================
+   PROGRESS CELL
+========================================================= */
 
 function ProgressCell({
   percentage,
@@ -59,7 +63,9 @@ function ProgressCell({
   );
 }
 
-
+/* =========================================================
+   GRADE STATUS
+========================================================= */
 
 function GradeStatus({
   grade,
@@ -70,6 +76,7 @@ function GradeStatus({
     return (
       <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
         <CheckCircle2 className="h-3.5 w-3.5" />
+
         Passed
       </span>
     );
@@ -78,17 +85,55 @@ function GradeStatus({
   return (
     <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700">
       <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+
       Failed
     </span>
   );
 }
 
+/* =========================================================
+   PARTICIPANT AVATAR
+========================================================= */
+
+function ParticipantAvatar({
+  name,
+  imageUrl,
+}: {
+  name: string;
+  imageUrl?: string | null;
+}) {
+  if (imageUrl) {
+    return (
+      <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-gray-100">
+        <img
+          src={imageUrl}
+          alt={`${name} profile`}
+          className="h-full w-full object-cover"
+          loading="lazy"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100">
+      <Users className="h-4 w-4 text-gray-500" />
+    </div>
+  );
+}
+
+/* =========================================================
+   COLUMNS
+========================================================= */
 
 export const columns: ColumnDef<TrainingGrade>[] = [
-
+  /* =======================================================
+     PARTICIPANT
+  ======================================================= */
 
   {
     accessorKey: "participantName",
+
     header: "Participant",
 
     cell: ({ row }) => {
@@ -96,9 +141,10 @@ export const columns: ColumnDef<TrainingGrade>[] = [
 
       return (
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100">
-            <Users className="h-4 w-4 text-gray-500" />
-          </div>
+          <ParticipantAvatar
+            name={grade.participantName}
+            imageUrl={grade.profileImageUrl}
+          />
 
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-gray-900">
@@ -114,14 +160,17 @@ export const columns: ColumnDef<TrainingGrade>[] = [
     },
   },
 
+  /* =======================================================
+     ATTENDANCE
+  ======================================================= */
 
   {
     accessorKey: "attendancePercentage",
 
     header: () => (
       <span>
-        Attendance
-        <span className="ml-1 font-normal">
+        Attendance{" "}
+        <span className="font-normal">
           20%
         </span>
       </span>
@@ -132,23 +181,31 @@ export const columns: ColumnDef<TrainingGrade>[] = [
 
       return (
         <ProgressCell
-          percentage={grade.attendancePercentage}
-          weight={grade.attendanceWeight}
-          weightedScore={grade.attendanceWeightedScore}
+          percentage={
+            grade.attendancePercentage
+          }
+          weight={
+            grade.attendanceWeight
+          }
+          weightedScore={
+            grade.attendanceWeightedScore
+          }
         />
       );
     },
   },
 
-
+  /* =======================================================
+     PARTICIPATION
+  ======================================================= */
 
   {
     accessorKey: "participationPercentage",
 
     header: () => (
       <span>
-        Participation
-        <span className="ml-1 font-normal">
+        Participation{" "}
+        <span className="font-normal">
           20%
         </span>
       </span>
@@ -159,21 +216,31 @@ export const columns: ColumnDef<TrainingGrade>[] = [
 
       return (
         <ProgressCell
-          percentage={grade.participationPercentage}
-          weight={grade.participationWeight}
-          weightedScore={grade.participationWeightedScore}
+          percentage={
+            grade.participationPercentage
+          }
+          weight={
+            grade.participationWeight
+          }
+          weightedScore={
+            grade.participationWeightedScore
+          }
         />
       );
     },
   },
+
+  /* =======================================================
+     EXAM
+  ======================================================= */
 
   {
     accessorKey: "examPercentage",
 
     header: () => (
       <span>
-        Exam
-        <span className="ml-1 font-normal">
+        Exam{" "}
+        <span className="font-normal">
           30%
         </span>
       </span>
@@ -184,22 +251,31 @@ export const columns: ColumnDef<TrainingGrade>[] = [
 
       return (
         <ProgressCell
-          percentage={grade.examPercentage}
-          weight={grade.examWeight}
-          weightedScore={grade.examWeightedScore}
+          percentage={
+            grade.examPercentage
+          }
+          weight={
+            grade.examWeight
+          }
+          weightedScore={
+            grade.examWeightedScore
+          }
         />
       );
     },
   },
 
+  /* =======================================================
+     PRACTICAL
+  ======================================================= */
 
   {
     accessorKey: "practicalPercentage",
 
     header: () => (
       <span>
-        Practical
-        <span className="ml-1 font-normal">
+        Practical{" "}
+        <span className="font-normal">
           30%
         </span>
       </span>
@@ -210,14 +286,23 @@ export const columns: ColumnDef<TrainingGrade>[] = [
 
       return (
         <ProgressCell
-          percentage={grade.practicalPercentage}
-          weight={grade.practicalWeight}
-          weightedScore={grade.practicalWeightedScore}
+          percentage={
+            grade.practicalPercentage
+          }
+          weight={
+            grade.practicalWeight
+          }
+          weightedScore={
+            grade.practicalWeightedScore
+          }
         />
       );
     },
   },
 
+  /* =======================================================
+     OVERALL
+  ======================================================= */
 
   {
     accessorKey: "overallGrade",
@@ -245,7 +330,9 @@ export const columns: ColumnDef<TrainingGrade>[] = [
     },
   },
 
-
+  /* =======================================================
+     STATUS
+  ======================================================= */
 
   {
     id: "status",
@@ -255,7 +342,9 @@ export const columns: ColumnDef<TrainingGrade>[] = [
     accessorFn: (row) => row.isPassed,
 
     cell: ({ row }) => (
-      <GradeStatus grade={row.original} />
+      <GradeStatus
+        grade={row.original}
+      />
     ),
   },
 ];

@@ -5,3 +5,4 @@ export * from "./LearningMaterialEndpoints";
 export * from "./learning-material.api";
 export * from "./LearningProgressEndpoints";
 export * from "./LearningProgressApi";
+export * from "./trainerDashboardApi";
