@@ -6,7 +6,7 @@ export default function Certificate() {
       <div className="mx-auto max-w-7xl px-6 lg:px-12">
         <div className="overflow-hidden rounded-3xl bg-[#002b5c] shadow-2xl">
           <div className="grid grid-cols-1 lg:grid-cols-2">
-            {/* Text */}
+            {/* Text */}002b5c
             <div className="p-8 sm:p-12 lg:p-16">
               <span className="text-xs font-bold uppercase tracking-[0.18em] text-[#6fd1d7]">
                 Digital Certification
