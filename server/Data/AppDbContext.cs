@@ -59,9 +59,8 @@ public DbSet<LearningSection> LearningSections
     public DbSet<ParticipantProfile> ParticipantProfiles
         => Set<ParticipantProfile>();
 
-   // ==========================================
-// TRAINER
-// ==========================================
+   public DbSet<TrainerReportRequest> TrainerReportRequests
+    => Set<TrainerReportRequest>();
 
 public DbSet<TrainerApplication> TrainerApplications
     => Set<TrainerApplication>();
@@ -901,6 +900,56 @@ modelBuilder.Entity<TrainerCertification>(entity =>
 // ==========================================
 // TRAINER EDUCATION
 // ==========================================
+
+modelBuilder.Entity<TrainerReportRequest>(
+    entity =>
+    {
+        entity.HasKey(
+            x => x.Id);
+
+        entity.Property(
+            x => x.ReportType)
+            .IsRequired()
+            .HasMaxLength(50);
+
+        entity.Property(
+            x => x.Reason)
+            .HasMaxLength(1000);
+
+        entity.Property(
+            x => x.AdminRemarks)
+            .HasMaxLength(1000);
+
+        entity.Property(
+            x => x.ReportFileUrl)
+            .HasMaxLength(500);
+
+        entity.HasOne(
+            x => x.TrainerProfile)
+            .WithMany(
+                x => x.ReportRequests)
+            .HasForeignKey(
+                x => x.TrainerProfileId)
+            .OnDelete(
+                DeleteBehavior.Restrict);
+
+        entity.HasOne(
+            x => x.TrainingBatch)
+            .WithMany(
+                x => x.TrainerReportRequests)
+            .HasForeignKey(
+                x => x.TrainingBatchId)
+            .OnDelete(
+                DeleteBehavior.Restrict);
+
+        entity.HasOne(
+            x => x.ReviewedByUser)
+            .WithMany()
+            .HasForeignKey(
+                x => x.ReviewedByUserId)
+            .OnDelete(
+                DeleteBehavior.SetNull);
+    });
 
 modelBuilder.Entity<TrainerEducation>(entity =>
 {

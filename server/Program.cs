@@ -21,6 +21,10 @@ using System.Text.Json.Serialization;
 using server.Services.Email;
 using QuestPDF.Infrastructure;
 using server.Services.Dashboard;
+using server.Interfaces.Reports;
+using server.Services.Reports;
+using server.Interfaces.Trainer;
+using server.Services.Trainer;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(options =>
@@ -45,14 +49,14 @@ builder.Services.AddScoped<
     LearningMaterialService
 >();
 builder.Services.AddScoped<
-    ITrainerDashboardService,
-    TrainerDashboardService
->();
+    ITrainerReportRequestService,
+    TrainerReportRequestService>();
 builder.Services.AddScoped<IGoogleAuthService, GoogleAuthService>();
 builder.Services.AddScoped<
     ILearningMaterialAiService,
     LearningMaterialAiService
 >();
+builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<
     IPracticalAssessmentService,
     PracticalAssessmentService>();

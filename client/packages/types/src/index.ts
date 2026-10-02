@@ -9,3 +9,4 @@ export * from "./Admin";
 export * from "./Attendance";
 export * from "./Assessment";
 export * from "./Service";
+export * from "./Report";
