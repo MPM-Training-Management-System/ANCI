@@ -21,7 +21,7 @@ export * from "./useAdminUsers";
 export * from "./useForgotPassword";
 export * from "./usePracticalAssessment";
 export * from "./useParticipation";
-
+export * from "./useTrainerDasboard.ts";
 export * from "./useTrainingGrade";
 export * from "./useCertificates";
 export * from "./AdminDashboard";
