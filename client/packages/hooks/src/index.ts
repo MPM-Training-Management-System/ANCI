@@ -25,4 +25,5 @@ export * from "./useParticipation";
 export * from "./useTrainingGrade";
 export * from "./useCertificates";
 export * from "./AdminDashboard";
+export * from "./useTrainerDashboard";
 export * from "./useGoogleAuth";

@@ -359,657 +359,764 @@ if (googleUser is not null)
         };
     }
 
+public async Task<UserRegistrationResponse>
+    RegisterTrainerAsync(
+        RegisterTrainerRequest request)
+{
+    GoogleLoginResponse? googleUser = null;
+
     // =========================================================
-    // TRAINER REGISTRATION
-    // POST /api/auth/register/trainer
-    // multipart/form-data
+    // GOOGLE REGISTRATION
     // =========================================================
 
-    public async Task<UserRegistrationResponse>
-        RegisterTrainerAsync(
-            RegisterTrainerRequest request)
+    Console.WriteLine(
+        "================================================="
+    );
+
+    Console.WriteLine(
+        "🔥 TRAINER GOOGLE REGISTRATION"
+    );
+
+    Console.WriteLine(
+        $"GoogleIdToken received: {!string.IsNullOrWhiteSpace(request.GoogleIdToken)}"
+    );
+
+    Console.WriteLine(
+        $"GoogleIdToken length: {request.GoogleIdToken?.Length ?? 0}"
+    );
+
+    Console.WriteLine(
+        "================================================="
+    );
+
+    if (!string.IsNullOrWhiteSpace(
+        request.GoogleIdToken))
     {
-        GoogleLoginResponse? googleUser = null;
-
-        // =====================================================
-        // GOOGLE REGISTRATION
-        // =====================================================
+        googleUser =
+            await _googleAuthService
+                .ValidateTokenAsync(
+                    request.GoogleIdToken
+                );
 
         Console.WriteLine(
             "================================================="
         );
 
         Console.WriteLine(
-            "🔥 TRAINER GOOGLE REGISTRATION"
+            "🔥 GOOGLE TOKEN VALIDATED FOR TRAINER"
         );
 
         Console.WriteLine(
-            $"GoogleIdToken received: {!string.IsNullOrWhiteSpace(request.GoogleIdToken)}"
+            $"Google Subject: {googleUser?.GoogleSubjectId}"
         );
 
         Console.WriteLine(
-            $"GoogleIdToken length: {request.GoogleIdToken?.Length ?? 0}"
+            $"Google Email: {googleUser?.Email}"
         );
 
         Console.WriteLine(
-            "================================================="
-        );
-
-        if (!string.IsNullOrWhiteSpace(
-            request.GoogleIdToken))
-        {
-            googleUser =
-                await _googleAuthService
-                    .ValidateTokenAsync(
-                        request.GoogleIdToken
-                    );
-
-            Console.WriteLine(
-                "================================================="
-            );
-
-            Console.WriteLine(
-                "🔥 GOOGLE TOKEN VALIDATED FOR TRAINER"
-            );
-
-            Console.WriteLine(
-                $"Google Subject: {googleUser?.GoogleSubjectId}"
-            );
-
-            Console.WriteLine(
-                $"Google Email: {googleUser?.Email}"
-            );
-
-            Console.WriteLine(
-                $"Google ProfileImageUrl: {googleUser?.ProfileImageUrl}"
-            );
-
-            Console.WriteLine(
-                "================================================="
-            );
-        }
-
-        // =====================================================
-        // NORMALIZE EMAIL
-        // =====================================================
-
-        var email =
-            request.Email
-                .Trim()
-                .ToLowerInvariant();
-
-        // =====================================================
-        // GOOGLE EMAIL MUST MATCH REGISTRATION EMAIL
-        // =====================================================
-
-        if (googleUser is not null)
-        {
-            if (!string.Equals(
-                email,
-                googleUser.Email,
-                StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidOperationException(
-                    "The registration email does not match the Google account."
-                );
-            }
-        }
-
-        // =====================================================
-        // VALIDATE EMAIL
-        // =====================================================
-
-        if (string.IsNullOrWhiteSpace(email))
-        {
-            throw new InvalidOperationException(
-                "Email is required."
-            );
-        }
-
-        // =====================================================
-        // CHECK EXISTING EMAIL
-        // =====================================================
-
-        var existingUser =
-            await _db.Users
-                .FirstOrDefaultAsync(
-                    x =>
-                        x.Email == email
-                );
-
-        if (existingUser is not null)
-        {
-            throw new InvalidOperationException(
-                "An account with this email already exists."
-            );
-        }
-
-        // =====================================================
-        // VALIDATE FIRST NAME
-        // =====================================================
-
-        if (string.IsNullOrWhiteSpace(
-            request.FirstName))
-        {
-            throw new InvalidOperationException(
-                "First name is required."
-            );
-        }
-
-        // =====================================================
-        // VALIDATE LAST NAME
-        // =====================================================
-
-        if (string.IsNullOrWhiteSpace(
-            request.LastName))
-        {
-            throw new InvalidOperationException(
-                "Last name is required."
-            );
-        }
-
-        // =====================================================
-        // VALIDATE PASSWORD
-        // =====================================================
-
-        if (string.IsNullOrWhiteSpace(
-            request.Password))
-        {
-            throw new InvalidOperationException(
-                "Password is required."
-            );
-        }
-
-        // =====================================================
-        // VALIDATE SPECIALIZATION
-        // =====================================================
-
-        if (string.IsNullOrWhiteSpace(
-            request.Specialization))
-        {
-            throw new InvalidOperationException(
-                "Specialization is required."
-            );
-        }
-
-        // =====================================================
-        // VALIDATE ADDRESS
-        // =====================================================
-
-        if (string.IsNullOrWhiteSpace(
-            request.Address))
-        {
-            throw new InvalidOperationException(
-                "Address is required."
-            );
-        }
-
-        // =====================================================
-        // VALIDATE GENDER
-        // =====================================================
-
-        if (string.IsNullOrWhiteSpace(
-            request.Gender))
-        {
-            throw new InvalidOperationException(
-                "Gender is required."
-            );
-        }
-
-        // =====================================================
-        // VALIDATE YEARS OF EXPERIENCE
-        // =====================================================
-
-        if (
-            request.YearsOfExperience.HasValue
-            &&
-            (
-                request.YearsOfExperience.Value < 0
-                ||
-                request.YearsOfExperience.Value > 100
-            )
-        )
-        {
-            throw new InvalidOperationException(
-                "Years of experience must be between 0 and 100."
-            );
-        }
-
-        // =====================================================
-        // PROFILE IMAGE
-        // =====================================================
-
-        string? profileImageUrl = null;
-
-        // -----------------------------------------------------
-        // GOOGLE PROFILE IMAGE
-        // -----------------------------------------------------
-
-        if (googleUser is not null)
-        {
-            profileImageUrl =
-                CleanString(
-                    googleUser.ProfileImageUrl
-                );
-
-            Console.WriteLine(
-                $"GOOGLE IMAGE FROM RESPONSE: {profileImageUrl}"
-            );
-
-            // -------------------------------------------------
-            // FALLBACK:
-            // Read picture directly from validated ID token.
-            // -------------------------------------------------
-
-            if (string.IsNullOrWhiteSpace(
-                profileImageUrl))
-            {
-                profileImageUrl =
-                    ExtractGoogleProfileImage(
-                        request.GoogleIdToken
-                    );
-
-                Console.WriteLine(
-                    $"GOOGLE IMAGE FROM TOKEN: {profileImageUrl}"
-                );
-            }
-        }
-
-        // -----------------------------------------------------
-        // LOCAL IMAGE
-        // -----------------------------------------------------
-        // Local uploaded image has priority over Google image.
-        // -----------------------------------------------------
-
-        if (request.ProfileImage is not null)
-        {
-            ValidateProfileImage(
-                request.ProfileImage
-            );
-
-            await using var stream =
-                request.ProfileImage.OpenReadStream();
-
-            profileImageUrl =
-                await _cloudinaryService
-                    .UploadImageAsync(
-                        stream,
-                        request.ProfileImage.FileName,
-                        "ace-nextgen/trainers"
-                    );
-
-            Console.WriteLine(
-                $"CLOUDINARY TRAINER PROFILE IMAGE: {profileImageUrl}"
-            );
-        }
-
-        Console.WriteLine(
-            "================================================="
-        );
-
-        Console.WriteLine(
-            "TRAINER PROFILE IMAGE RESULT"
-        );
-
-        Console.WriteLine(
-            $"GOOGLE IMAGE: {googleUser?.ProfileImageUrl}"
-        );
-
-        Console.WriteLine(
-            $"FINAL IMAGE: {profileImageUrl}"
-        );
-
-        Console.WriteLine(
-            $"LOCAL IMAGE: {request.ProfileImage?.FileName ?? "NONE"}"
+            $"Google ProfileImageUrl: {googleUser?.ProfileImageUrl}"
         );
 
         Console.WriteLine(
             "================================================="
         );
-
-        // =====================================================
-        // GENERATE TRAINER USER CODE
-        // =====================================================
-
-        var userCode =
-            await GenerateTrainerUserCodeAsync();
-
-        // =====================================================
-        // BUILD FULL NAME
-        // =====================================================
-
-        var fullName =
-            BuildFullName(
-                request.FirstName,
-                request.MiddleName,
-                request.LastName
-            );
-
-        // =====================================================
-        // CREATE USER
-        // =====================================================
-
-        var user =
-            new User
-            {
-                Id =
-                    Guid.NewGuid(),
-
-                UserCode =
-                    userCode,
-
-                FullName =
-                    fullName,
-
-                Email =
-                    email,
-
-                MobileNumber =
-                    CleanString(
-                        request.MobileNumber
-                    ),
-
-                PasswordHash =
-                    _passwordService
-                        .HashPassword(
-                            request.Password
-                        ),
-
-                Role =
-                    UserRole.Trainer,
-
-                Status =
-                    UserStatus.Pending,
-
-                IsEmailVerified =
-                    googleUser is not null,
-
-                GoogleSubjectId =
-                    googleUser?.GoogleSubjectId,
-
-                CreatedAt =
-                    DateTime.UtcNow,
-
-                UpdatedAt =
-                    DateTime.UtcNow
-            };
-
-        // =====================================================
-        // CREATE TRAINER APPLICATION
-        // =====================================================
-
-        var trainerApplication =
-            new TrainerApplication
-            {
-                Id =
-                    Guid.NewGuid(),
-
-                UserId =
-                    user.Id,
-
-                Status =
-                    TrainerApplicationStatus.Pending,
-
-                FirstName =
-                    request.FirstName.Trim(),
-
-                MiddleName =
-                    CleanString(
-                        request.MiddleName
-                    ),
-
-                LastName =
-                    request.LastName.Trim(),
-
-                Suffix =
-                    CleanString(
-                        request.Suffix
-                    ),
-
-                BirthDate =
-                    request.BirthDate,
-
-                Gender =
-                    CleanString(
-                        request.Gender
-                    ),
-
-                Address =
-                    CleanString(
-                        request.Address
-                    ),
-
-                Specialization =
-                    request.Specialization.Trim(),
-
-                ProfessionalTitle =
-                    CleanString(
-                        request.ProfessionalTitle
-                    ),
-
-                CurrentOrganization =
-                    CleanString(
-                        request.CurrentOrganization
-                    ),
-
-                Bio =
-                    CleanString(
-                        request.Bio
-                    ),
-
-                YearsOfExperience =
-                    request.YearsOfExperience,
-
-                ProfessionalLicenseNumber =
-                    CleanString(
-                        request.ProfessionalLicenseNumber
-                    ),
-
-                ProfessionalLicenseType =
-                    CleanString(
-                        request.ProfessionalLicenseType
-                    ),
-
-                ProfessionalLicenseExpirationDate =
-                    request.ProfessionalLicenseExpirationDate,
-
-                // =================================================
-                // IMPORTANT
-                // =================================================
-
-                ProfileImageUrl =
-                    profileImageUrl,
-
-                AdminRemarks =
-                    null,
-
-                ReviewedByUserId =
-                    null,
-
-                ReviewedAt =
-                    null,
-
-                CreatedAt =
-                    DateTime.UtcNow,
-
-                SubmittedAt =
-                    DateTime.UtcNow,
-
-                User =
-                    user
-            };
-
-        // =====================================================
-        // DEBUG BEFORE DATABASE SAVE
-        // =====================================================
-
-        Console.WriteLine(
-            "================================================="
-        );
-
-        Console.WriteLine(
-            "🔥 TRAINER REGISTRATION DATABASE IMAGE"
-        );
-
-        Console.WriteLine(
-            $"Google Response Image: {googleUser?.ProfileImageUrl}"
-        );
-
-        Console.WriteLine(
-            $"Final Profile Image: {profileImageUrl}"
-        );
-
-        Console.WriteLine(
-            $"Application Profile Image: {trainerApplication.ProfileImageUrl}"
-        );
-
-        Console.WriteLine(
-            "================================================="
-        );
-
-        // =====================================================
-        // CREATE EDUCATION RECORDS
-        // =====================================================
-
-        if (request.Educations is not null)
-        {
-            foreach (
-                var education
-                in request.Educations)
-            {
-                trainerApplication.Educations.Add(
-                    new TrainerApplicationEducation
-                    {
-                        Id =
-                            Guid.NewGuid(),
-
-                        TrainerApplicationId =
-                            trainerApplication.Id,
-
-                        Degree =
-                            education.Degree.Trim(),
-
-                        FieldOfStudy =
-                            CleanString(
-                                education.FieldOfStudy
-                            ),
-
-                        Institution =
-                            education.Institution.Trim(),
-
-                        YearGraduated =
-                            education.YearGraduated
-                    }
-                );
-            }
-        }
-
-        // =====================================================
-        // CREATE CERTIFICATION RECORDS
-        // =====================================================
-
-        if (request.Certifications is not null)
-        {
-            foreach (
-                var certification
-                in request.Certifications)
-            {
-                trainerApplication.Certifications.Add(
-                    new TrainerApplicationCertification
-                    {
-                        Id =
-                            Guid.NewGuid(),
-
-                        TrainerApplicationId =
-                            trainerApplication.Id,
-
-                        Name =
-                            certification.Name.Trim(),
-
-                        IssuingOrganization =
-                            CleanString(
-                                certification.IssuingOrganization
-                            ),
-
-                        IssuedDate =
-                            certification.IssuedDate,
-
-                        ExpirationDate =
-                            certification.ExpirationDate,
-
-                        CertificateUrl =
-                            CleanString(
-                                certification.CertificateUrl
-                            )
-                    }
-                );
-            }
-        }
-
-        // =====================================================
-        // ADD USER
-        // =====================================================
-
-        _db.Users.Add(
-            user
-        );
-
-        // =====================================================
-        // ADD TRAINER APPLICATION
-        // =====================================================
-
-        _db.TrainerApplications.Add(
-            trainerApplication
-        );
-
-        // =====================================================
-        // SAVE DATABASE
-        // =====================================================
-
-        await _db.SaveChangesAsync();
-
-        // =====================================================
-        // RESPONSE
-        // =====================================================
-
-        return new UserRegistrationResponse
-        {
-            Id =
-                user.Id,
-
-            UserCode =
-                user.UserCode,
-
-            FullName =
-                user.FullName,
-
-            Email =
-                user.Email,
-
-            Role =
-                user.Role.ToString(),
-
-            Status =
-                user.Status.ToString(),
-
-            Message =
-                googleUser is not null
-                    ? "Trainer registration submitted successfully."
-                    : "Trainer registration submitted successfully. Please verify your email using the OTP.",
-
-            TrainerApplicationId =
-                trainerApplication.Id,
-
-            ProfileImageUrl =
-                profileImageUrl
-        };
     }
 
     // =========================================================
-    // LOGIN
-    // POST /api/auth/login
+    // NORMALIZE EMAIL
     // =========================================================
 
+    var email =
+        request.Email
+            .Trim()
+            .ToLowerInvariant();
+
+    // =========================================================
+    // GOOGLE EMAIL MUST MATCH REGISTRATION EMAIL
+    // =========================================================
+
+    if (googleUser is not null)
+    {
+        if (!string.Equals(
+            email,
+            googleUser.Email,
+            StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "The registration email does not match the Google account."
+            );
+        }
+    }
+
+    // =========================================================
+    // VALIDATE EMAIL
+    // =========================================================
+
+    if (string.IsNullOrWhiteSpace(email))
+    {
+        throw new InvalidOperationException(
+            "Email is required."
+        );
+    }
+
+    // =========================================================
+    // CHECK EXISTING EMAIL
+    // =========================================================
+
+    var existingUser =
+        await _db.Users
+            .FirstOrDefaultAsync(
+                x =>
+                    x.Email == email
+            );
+
+    if (existingUser is not null)
+    {
+        throw new InvalidOperationException(
+            "An account with this email already exists."
+        );
+    }
+
+    // =========================================================
+    // VALIDATE FIRST NAME
+    // =========================================================
+
+    if (string.IsNullOrWhiteSpace(
+        request.FirstName))
+    {
+        throw new InvalidOperationException(
+            "First name is required."
+        );
+    }
+
+    // =========================================================
+    // VALIDATE LAST NAME
+    // =========================================================
+
+    if (string.IsNullOrWhiteSpace(
+        request.LastName))
+    {
+        throw new InvalidOperationException(
+            "Last name is required."
+        );
+    }
+
+    // =========================================================
+    // VALIDATE PASSWORD
+    // =========================================================
+
+    if (string.IsNullOrWhiteSpace(
+        request.Password))
+    {
+        throw new InvalidOperationException(
+            "Password is required."
+        );
+    }
+
+    // =========================================================
+    // VALIDATE SPECIALIZATION
+    // =========================================================
+
+    if (string.IsNullOrWhiteSpace(
+        request.Specialization))
+    {
+        throw new InvalidOperationException(
+            "Specialization is required."
+        );
+    }
+
+    // =========================================================
+    // VALIDATE ADDRESS
+    // =========================================================
+
+    if (string.IsNullOrWhiteSpace(
+        request.Address))
+    {
+        throw new InvalidOperationException(
+            "Address is required."
+        );
+    }
+
+    // =========================================================
+    // VALIDATE GENDER
+    // =========================================================
+
+    if (string.IsNullOrWhiteSpace(
+        request.Gender))
+    {
+        throw new InvalidOperationException(
+            "Gender is required."
+        );
+    }
+
+    // =========================================================
+    // VALIDATE YEARS OF EXPERIENCE
+    // =========================================================
+
+    if (
+        request.YearsOfExperience.HasValue
+        &&
+        (
+            request.YearsOfExperience.Value < 0
+            ||
+            request.YearsOfExperience.Value > 100
+        )
+    )
+    {
+        throw new InvalidOperationException(
+            "Years of experience must be between 0 and 100."
+        );
+    }
+
+    // =========================================================
+    // PROFILE IMAGE
+    // =========================================================
+
+    string? profileImageUrl = null;
+
+    // ---------------------------------------------------------
+    // GOOGLE PROFILE IMAGE
+    // ---------------------------------------------------------
+
+    if (googleUser is not null)
+    {
+        profileImageUrl =
+            CleanString(
+                googleUser.ProfileImageUrl
+            );
+
+        Console.WriteLine(
+            $"GOOGLE IMAGE FROM RESPONSE: {profileImageUrl}"
+        );
+
+        // -----------------------------------------------------
+        // FALLBACK:
+        // Read picture directly from validated ID token.
+        // -----------------------------------------------------
+
+        if (string.IsNullOrWhiteSpace(
+            profileImageUrl))
+        {
+            profileImageUrl =
+                ExtractGoogleProfileImage(
+                    request.GoogleIdToken
+                );
+
+            Console.WriteLine(
+                $"GOOGLE IMAGE FROM TOKEN: {profileImageUrl}"
+            );
+        }
+    }
+
+    // ---------------------------------------------------------
+    // LOCAL IMAGE
+    // ---------------------------------------------------------
+    // Local uploaded image has priority over Google image.
+    // ---------------------------------------------------------
+
+    if (request.ProfileImage is not null)
+    {
+        ValidateProfileImage(
+            request.ProfileImage
+        );
+
+        await using var stream =
+            request.ProfileImage.OpenReadStream();
+
+        profileImageUrl =
+            await _cloudinaryService
+                .UploadImageAsync(
+                    stream,
+                    request.ProfileImage.FileName,
+                    "ace-nextgen/trainers"
+                );
+
+        Console.WriteLine(
+            $"CLOUDINARY TRAINER PROFILE IMAGE: {profileImageUrl}"
+        );
+    }
+
+    Console.WriteLine(
+        "================================================="
+    );
+
+    Console.WriteLine(
+        "TRAINER PROFILE IMAGE RESULT"
+    );
+
+    Console.WriteLine(
+        $"GOOGLE IMAGE: {googleUser?.ProfileImageUrl}"
+    );
+
+    Console.WriteLine(
+        $"FINAL IMAGE: {profileImageUrl}"
+    );
+
+    Console.WriteLine(
+        $"LOCAL IMAGE: {request.ProfileImage?.FileName ?? "NONE"}"
+    );
+
+    Console.WriteLine(
+        "================================================="
+    );
+
+    // =========================================================
+    // GENERATE TRAINER USER CODE
+    // =========================================================
+
+    var userCode =
+        await GenerateTrainerUserCodeAsync();
+
+    // =========================================================
+    // BUILD FULL NAME
+    // =========================================================
+
+    var fullName =
+        BuildFullName(
+            request.FirstName,
+            request.MiddleName,
+            request.LastName
+        );
+
+    // =========================================================
+    // CREATE USER
+    // =========================================================
+
+    var user =
+        new User
+        {
+            Id =
+                Guid.NewGuid(),
+
+            UserCode =
+                userCode,
+
+            FullName =
+                fullName,
+
+            Email =
+                email,
+
+            MobileNumber =
+                CleanString(
+                    request.MobileNumber
+                ),
+
+            PasswordHash =
+                _passwordService
+                    .HashPassword(
+                        request.Password
+                    ),
+
+            Role =
+                UserRole.Trainer,
+
+            Status =
+                UserStatus.Pending,
+
+            IsEmailVerified =
+                googleUser is not null,
+
+            GoogleSubjectId =
+                googleUser?.GoogleSubjectId,
+
+            CreatedAt =
+                DateTime.UtcNow,
+
+            UpdatedAt =
+                DateTime.UtcNow
+        };
+
+    // =========================================================
+    // CREATE TRAINER APPLICATION
+    // =========================================================
+
+    var trainerApplication =
+        new TrainerApplication
+        {
+            Id =
+                Guid.NewGuid(),
+
+            UserId =
+                user.Id,
+
+            Status =
+                TrainerApplicationStatus.Pending,
+
+            FirstName =
+                request.FirstName.Trim(),
+
+            MiddleName =
+                CleanString(
+                    request.MiddleName
+                ),
+
+            LastName =
+                request.LastName.Trim(),
+
+            Suffix =
+                CleanString(
+                    request.Suffix
+                ),
+
+            BirthDate =
+                request.BirthDate,
+
+            Gender =
+                CleanString(
+                    request.Gender
+                ),
+
+            Address =
+                CleanString(
+                    request.Address
+                ),
+
+            Specialization =
+                request.Specialization.Trim(),
+
+            ProfessionalTitle =
+                CleanString(
+                    request.ProfessionalTitle
+                ),
+
+            CurrentOrganization =
+                CleanString(
+                    request.CurrentOrganization
+                ),
+
+            Bio =
+                CleanString(
+                    request.Bio
+                ),
+
+            YearsOfExperience =
+                request.YearsOfExperience,
+
+            ProfessionalLicenseNumber =
+                CleanString(
+                    request.ProfessionalLicenseNumber
+                ),
+
+            ProfessionalLicenseType =
+                CleanString(
+                    request.ProfessionalLicenseType
+                ),
+
+            ProfessionalLicenseExpirationDate =
+                request.ProfessionalLicenseExpirationDate,
+
+            // =================================================
+            // PROFILE IMAGE
+            // =================================================
+
+            ProfileImageUrl =
+                profileImageUrl,
+
+            AdminRemarks =
+                null,
+
+            ReviewedByUserId =
+                null,
+
+            ReviewedAt =
+                null,
+
+            CreatedAt =
+                DateTime.UtcNow,
+
+            SubmittedAt =
+                DateTime.UtcNow,
+
+            User =
+                user
+        };
+
+    // =========================================================
+    // CREATE TRAINER PROFILE
+    //
+    // IMPORTANT:
+    // TrainerProfile is created immediately during registration.
+    // The trainer is still Pending and the profile is inactive.
+    // =========================================================
+
+    var trainerProfile =
+        new TrainerProfile
+        {
+            Id =
+                Guid.NewGuid(),
+
+            UserId =
+                user.Id,
+
+            FirstName =
+                request.FirstName.Trim(),
+
+            MiddleName =
+                CleanString(
+                    request.MiddleName
+                ),
+
+            LastName =
+                request.LastName.Trim(),
+
+            Suffix =
+                CleanString(
+                    request.Suffix
+                ),
+
+            BirthDate =
+                request.BirthDate,
+
+            Gender =
+                CleanString(
+                    request.Gender
+                ),
+
+            MobileNumber =
+                CleanString(
+                    request.MobileNumber
+                ),
+
+            Address =
+                CleanString(
+                    request.Address
+                ),
+
+            Specialization =
+                request.Specialization.Trim(),
+
+            ProfessionalTitle =
+                CleanString(
+                    request.ProfessionalTitle
+                ),
+
+            CurrentOrganization =
+                CleanString(
+                    request.CurrentOrganization
+                ),
+
+            Bio =
+                CleanString(
+                    request.Bio
+                ),
+
+            YearsOfExperience =
+                request.YearsOfExperience,
+
+            ProfessionalLicenseNumber =
+                CleanString(
+                    request.ProfessionalLicenseNumber
+                ),
+
+            ProfessionalLicenseType =
+                CleanString(
+                    request.ProfessionalLicenseType
+                ),
+
+            ProfessionalLicenseExpirationDate =
+                request.ProfessionalLicenseExpirationDate,
+
+            ProfileImageUrl =
+                profileImageUrl,
+
+            // Trainer is still waiting for admin approval.
+            IsActive =
+                false,
+
+            ActivatedAt =
+                null,
+
+            User =
+                user
+        };
+
+    // =========================================================
+    // DEBUG BEFORE DATABASE SAVE
+    // =========================================================
+
+    Console.WriteLine(
+        "================================================="
+    );
+
+    Console.WriteLine(
+        "🔥 TRAINER REGISTRATION DATABASE IMAGE"
+    );
+
+    Console.WriteLine(
+        $"Google Response Image: {googleUser?.ProfileImageUrl}"
+    );
+
+    Console.WriteLine(
+        $"Final Profile Image: {profileImageUrl}"
+    );
+
+    Console.WriteLine(
+        $"Application Profile Image: {trainerApplication.ProfileImageUrl}"
+    );
+
+    Console.WriteLine(
+        $"Trainer Profile Image: {trainerProfile.ProfileImageUrl}"
+    );
+
+    Console.WriteLine(
+        $"Trainer Profile IsActive: {trainerProfile.IsActive}"
+    );
+
+    Console.WriteLine(
+        "================================================="
+    );
+
+    // =========================================================
+    // CREATE EDUCATION RECORDS
+    // =========================================================
+
+    if (request.Educations is not null)
+    {
+        foreach (
+            var education
+            in request.Educations)
+        {
+            trainerApplication.Educations.Add(
+                new TrainerApplicationEducation
+                {
+                    Id =
+                        Guid.NewGuid(),
+
+                    TrainerApplicationId =
+                        trainerApplication.Id,
+
+                    Degree =
+                        education.Degree.Trim(),
+
+                    FieldOfStudy =
+                        CleanString(
+                            education.FieldOfStudy
+                        ),
+
+                    Institution =
+                        education.Institution.Trim(),
+
+                    YearGraduated =
+                        education.YearGraduated
+                }
+            );
+        }
+    }
+
+    // =========================================================
+    // CREATE CERTIFICATION RECORDS
+    // =========================================================
+
+    if (request.Certifications is not null)
+    {
+        foreach (
+            var certification
+            in request.Certifications)
+        {
+            trainerApplication.Certifications.Add(
+                new TrainerApplicationCertification
+                {
+                    Id =
+                        Guid.NewGuid(),
+
+                    TrainerApplicationId =
+                        trainerApplication.Id,
+
+                    Name =
+                        certification.Name.Trim(),
+
+                    IssuingOrganization =
+                        CleanString(
+                            certification.IssuingOrganization
+                        ),
+
+                    IssuedDate =
+                        certification.IssuedDate,
+
+                    ExpirationDate =
+                        certification.ExpirationDate,
+
+                    CertificateUrl =
+                        CleanString(
+                            certification.CertificateUrl
+                        )
+                }
+            );
+        }
+    }
+
+    // =========================================================
+    // ADD USER
+    // =========================================================
+
+    _db.Users.Add(
+        user
+    );
+
+    // =========================================================
+    // ADD TRAINER APPLICATION
+    // =========================================================
+
+    _db.TrainerApplications.Add(
+        trainerApplication
+    );
+
+    // =========================================================
+    // ADD TRAINER PROFILE
+    //
+    // IMPORTANT:
+    // Profile exists even while Pending.
+    // It is inactive until Admin approves.
+    // =========================================================
+
+    _db.TrainerProfiles.Add(
+        trainerProfile
+    );
+
+    // =========================================================
+    // SAVE DATABASE
+    // =========================================================
+
+    await _db.SaveChangesAsync();
+
+    // =========================================================
+    // RESPONSE
+    // =========================================================
+
+    return new UserRegistrationResponse
+    {
+        Id =
+            user.Id,
+
+        UserCode =
+            user.UserCode,
+
+        FullName =
+            user.FullName,
+
+        Email =
+            user.Email,
+
+        Role =
+            user.Role.ToString(),
+
+        Status =
+            user.Status.ToString(),
+
+        Message =
+            googleUser is not null
+                ? "Trainer registration submitted successfully."
+                : "Trainer registration submitted successfully. Please verify your email using the OTP.",
+
+        TrainerApplicationId =
+            trainerApplication.Id,
+
+        ProfileImageUrl =
+            profileImageUrl
+    };
+}
     public async Task<LoginResponse>
         LoginAsync(
             LoginRequest request)
@@ -1327,115 +1434,74 @@ if (googleUser is not null)
         };
     }
 
-    // =========================================================
-    // GENERATE PARTICIPANT USER CODE
-    // =========================================================
 
-    private async Task<string>
-        GenerateParticipantUserCodeAsync()
+private async Task<string> GenerateParticipantUserCodeAsync()
+{
+    var currentYear = DateTime.UtcNow.Year;
+
+    var yearCode = (currentYear % 100).ToString("D2");
+
+    var prefix = $"PTC-{yearCode}-";
+
+    var lastUserCode = await _db.Users
+        .Where(x =>
+            x.UserCode.StartsWith(prefix))
+        .OrderByDescending(x => x.UserCode)
+        .Select(x => x.UserCode)
+        .FirstOrDefaultAsync();
+
+    var nextNumber = 1;
+
+    if (!string.IsNullOrWhiteSpace(lastUserCode))
     {
-        var lastUserCode =
-            await _db.Users
-                .Where(
-                    x =>
-                        x.UserCode
-                            .StartsWith("PAR-")
-                )
-                .OrderByDescending(
-                    x =>
-                        x.UserCode
-                )
-                .Select(
-                    x =>
-                        x.UserCode
-                )
-                .FirstOrDefaultAsync();
+        var numberPart = lastUserCode
+            .Replace(prefix, "");
 
-        var nextNumber = 1;
-
-        if (
-            !string.IsNullOrWhiteSpace(
-                lastUserCode
-            )
-        )
+        if (int.TryParse(
+            numberPart,
+            out var currentNumber))
         {
-            var numberPart =
-                lastUserCode.Replace(
-                    "PAR-",
-                    ""
-                );
-
-            if (
-                int.TryParse(
-                    numberPart,
-                    out var currentNumber
-                )
-            )
-            {
-                nextNumber =
-                    currentNumber + 1;
-            }
+            nextNumber = currentNumber + 1;
         }
-
-        return $"PAR-{nextNumber:D6}";
     }
 
-    // =========================================================
-    // GENERATE TRAINER USER CODE
-    // =========================================================
+    return $"{prefix}{nextNumber:D4}";
+}
 
-    private async Task<string>
-        GenerateTrainerUserCodeAsync()
+
+
+private async Task<string> GenerateTrainerUserCodeAsync()
+{
+    var currentYear = DateTime.UtcNow.Year;
+
+    var yearCode = (currentYear % 100).ToString("D2");
+
+    var prefix = $"TRN-{yearCode}-";
+
+    var lastUserCode = await _db.Users
+        .Where(x =>
+            x.UserCode.StartsWith(prefix))
+        .OrderByDescending(x => x.UserCode)
+        .Select(x => x.UserCode)
+        .FirstOrDefaultAsync();
+
+    var nextNumber = 1;
+
+    if (!string.IsNullOrWhiteSpace(lastUserCode))
     {
-        var lastUserCode =
-            await _db.Users
-                .Where(
-                    x =>
-                        x.UserCode
-                            .StartsWith("TRN-")
-                )
-                .OrderByDescending(
-                    x =>
-                        x.UserCode
-                )
-                .Select(
-                    x =>
-                        x.UserCode
-                )
-                .FirstOrDefaultAsync();
+        var numberPart = lastUserCode
+            .Replace(prefix, "");
 
-        var nextNumber = 1;
-
-        if (
-            !string.IsNullOrWhiteSpace(
-                lastUserCode
-            )
-        )
+        if (int.TryParse(
+            numberPart,
+            out var currentNumber))
         {
-            var numberPart =
-                lastUserCode.Replace(
-                    "TRN-",
-                    ""
-                );
-
-            if (
-                int.TryParse(
-                    numberPart,
-                    out var currentNumber
-                )
-            )
-            {
-                nextNumber =
-                    currentNumber + 1;
-            }
+            nextNumber = currentNumber + 1;
         }
-
-        return $"TRN-{nextNumber:D6}";
     }
 
-    // =========================================================
-    // BUILD FULL NAME
-    // =========================================================
+    return $"{prefix}{nextNumber:D4}";
+}
 
     private static string BuildFullName(
         string firstName,
@@ -1464,10 +1530,6 @@ if (googleUser is not null)
         );
     }
 
-    // =========================================================
-    // CLEAN OPTIONAL STRING
-    // =========================================================
-
     private static string? CleanString(
         string? value)
     {
@@ -1483,15 +1545,6 @@ if (googleUser is not null)
         return value.Trim();
     }
 
-    // =========================================================
-    // EXTRACT GOOGLE PROFILE IMAGE
-    //
-    // IMPORTANT:
-    // The Google ID token has already been validated by
-    // GoogleAuthService before this method is called.
-    //
-    // We only read the "picture" claim here.
-    // =========================================================
 
     private static string? ExtractGoogleProfileImage(
         string? idToken)

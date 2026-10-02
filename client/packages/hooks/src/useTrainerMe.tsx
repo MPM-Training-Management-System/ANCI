@@ -56,16 +56,42 @@ export function useTrainerMe(
         setProfile(data);
 
         return data;
-      } catch (error) {
-        console.error(
-          "GET TRAINER PROFILE ERROR:",
-          error
-        );
+      } catch (err: unknown) {
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : typeof err === "string"
+            ? err
+            : "";
+
+        const status =
+          (err as { status?: number; statusCode?: number })?.status ||
+          (err as { status?: number; statusCode?: number })?.statusCode;
+
+        /*
+         * A TrainerApplication can exist before a TrainerProfile is created.
+         *
+         * Therefore, a 404 from /trainer-profiles/me is expected while the
+         * application is still pending / under review.
+         */
+        const isProfileNotFound =
+          status === 404 ||
+          errorMessage.toLowerCase().includes("trainer profile not found") ||
+          errorMessage.toLowerCase().includes("profile not found") ||
+          errorMessage.includes("404");
+
+        if (isProfileNotFound) {
+          // Expected state for pending application / non-trainer user.
+          setProfile(null);
+          setError(null);
+          return null;
+        }
+
+        // Log only unexpected failures
+        console.error("GET TRAINER PROFILE ERROR:", err);
 
         setError(
-          error instanceof Error
-            ? error.message
-            : "Unable to load trainer profile."
+          errorMessage || "Unable to load trainer profile."
         );
 
         setProfile(null);
@@ -100,15 +126,15 @@ export function useTrainerMe(
           setUpdateSuccess(true);
 
           return updatedProfile;
-        } catch (error) {
+        } catch (err: unknown) {
           console.error(
             "UPDATE TRAINER PROFILE ERROR:",
-            error
+            err
           );
 
           setUpdateError(
-            error instanceof Error
-              ? error.message
+            err instanceof Error
+              ? err.message
               : "Unable to update trainer profile."
           );
 
