@@ -22,115 +22,158 @@ public class AttendanceService : IAttendanceService
     // OPEN / START ATTENDANCE SESSION
     // Trainer
     //
-    // Meaning:
-    // - Class/session starts
-    // - QR scanning becomes available
-    // - Manual attendance remains CLOSED
+    // IMPORTANT RULE:
+    // - ONE TrainingSession = ONE AttendanceSession ONLY
+    // - Once an AttendanceSession has been created,
+    //   the same TrainingSession can NEVER create another one.
+    //
+    // Flow:
+    //
+    // TrainingSession
+    //       ↓
+    // Open Attendance
+    //       ↓
+    // AttendanceSession CREATED
+    //       ↓
+    // Close Attendance
+    //       ↓
+    // AttendanceSession = Closed
+    //       ↓
+    // Open again
+    //       ↓
+    // ERROR
     // =========================================================
-public async Task<Guid> OpenSessionAsync(
-    Guid trainerUserId,
-    OpenAttendanceRequest request)
-{
-    if (request is null)
+
+    public async Task<Guid> OpenSessionAsync(
+        Guid trainerUserId,
+        OpenAttendanceRequest request)
     {
-        throw new ArgumentException(
-            "Attendance request is required.");
+        if (request is null)
+        {
+            throw new ArgumentException(
+                "Attendance request is required.");
+        }
+
+        // =====================================================
+        // TRAINING SESSION
+        // =====================================================
+
+        var trainingSession =
+            await _context.TrainingSessions
+                .Include(x => x.TrainingBatch)
+                    .ThenInclude(x =>
+                        x.TrainerAssignments)
+                    .ThenInclude(x =>
+                        x.TrainerProfile)
+                .FirstOrDefaultAsync(x =>
+                    x.Id == request.TrainingSessionId &&
+                    x.TrainingBatchId ==
+                        request.TrainingBatchId);
+
+        if (trainingSession is null)
+        {
+            throw new KeyNotFoundException(
+                "Training session not found for this training batch.");
+        }
+
+        var batch =
+            trainingSession.TrainingBatch;
+
+        // =====================================================
+        // TRAINER AUTHORIZATION
+        // =====================================================
+
+        var isAssignedTrainer =
+            batch.TrainerAssignments.Any(x =>
+                x.IsActive &&
+                x.TrainerProfile.UserId ==
+                    trainerUserId);
+
+        if (!isAssignedTrainer)
+        {
+            throw new UnauthorizedAccessException(
+                "You are not the assigned trainer for this training batch.");
+        }
+
+        // =====================================================
+        // IMPORTANT:
+        // ONE ATTENDANCE SESSION PER TRAINING SESSION
+        //
+        // DO NOT CHECK ONLY Status == Open.
+        //
+        // Even if the previous AttendanceSession is CLOSED,
+        // it still means that this TrainingSession already
+        // has its AttendanceSession.
+        // =====================================================
+
+        var existingAttendanceSession =
+            await _context.AttendanceSessions
+                .AnyAsync(x =>
+                    x.TrainingBatchId ==
+                        request.TrainingBatchId &&
+                    x.TrainingSessionId ==
+                        request.TrainingSessionId);
+
+        if (existingAttendanceSession)
+        {
+            throw new InvalidOperationException(
+                "An attendance session has already been created for this training session. It cannot be opened again.");
+        }
+
+        // =====================================================
+        // CREATE ATTENDANCE SESSION
+        // =====================================================
+
+        var session =
+            new AttendanceSession
+            {
+                Id = Guid.NewGuid(),
+
+                TrainingBatchId =
+                    request.TrainingBatchId,
+
+                TrainingSessionId =
+                    request.TrainingSessionId,
+
+                OpenedAt =
+                    DateTime.UtcNow,
+
+                ClosedAt =
+                    null,
+
+                Status =
+                    AttendanceSessionStatus.Open,
+
+                // Starting the class does NOT automatically
+                // open participant manual attendance.
+                ManualAttendanceStatus =
+                    ManualAttendanceStatus.Closed,
+
+                OpenedByUserId =
+                    trainerUserId
+            };
+
+        _context.AttendanceSessions.Add(session);
+
+        await _context.SaveChangesAsync();
+
+        return session.Id;
     }
 
-    // =====================================================
-    // TRAINING SESSION
-    // =====================================================
-
-   var trainingSession =
-    await _context.TrainingSessions
-        .Include(x => x.TrainingBatch)
-            .ThenInclude(x =>
-                x.TrainerAssignments)
-            .ThenInclude(x =>
-                x.TrainerProfile)
-        .FirstOrDefaultAsync(x =>
-            x.Id == request.TrainingSessionId &&
-            x.TrainingBatchId ==
-                request.TrainingBatchId);
-
-if (trainingSession is null)
-{
-    throw new KeyNotFoundException(
-        "Training session not found for this training batch.");
-}
-    var batch = trainingSession.TrainingBatch;
-
-    // =====================================================
-    // TRAINER AUTHORIZATION
-    // =====================================================
-
-    var isAssignedTrainer =
-        batch.TrainerAssignments.Any(x =>
-            x.IsActive &&
-            x.TrainerProfile.UserId == trainerUserId);
-
-    if (!isAssignedTrainer)
-    {
-        throw new UnauthorizedAccessException(
-            "You are not the assigned trainer for this training batch.");
-    }
-
-    // =====================================================
-    // PREVENT MULTIPLE OPEN ATTENDANCE SESSIONS
-    // FOR THE SAME TRAINING SESSION
-    // =====================================================
-
-    var existingOpenSession =
-    await _context.AttendanceSessions
-        .AnyAsync(x =>
-            x.TrainingBatchId == request.TrainingBatchId &&
-            x.TrainingSessionId == request.TrainingSessionId &&
-            x.Status == AttendanceSessionStatus.Open);
-
-if (existingOpenSession)
-{
-    throw new InvalidOperationException(
-        "Attendance session is already open for this training session.");
-}
-
-    // =====================================================
-    // CREATE ATTENDANCE SESSION
-    // =====================================================
-
-    var session = new AttendanceSession
-    {
-        Id = Guid.NewGuid(),
-
-        TrainingBatchId =
-            request.TrainingBatchId,
-
-        TrainingSessionId =
-            request.TrainingSessionId,
-
-        OpenedAt =
-            DateTime.UtcNow,
-
-        ClosedAt =
-            null,
-
-        Status =
-            AttendanceSessionStatus.Open,
-
-        // Starting the class does NOT automatically
-        // open participant manual attendance.
-        ManualAttendanceStatus =
-            ManualAttendanceStatus.Closed,
-
-        OpenedByUserId =
-            trainerUserId
-    };
-
-    _context.AttendanceSessions.Add(session);
-
-    await _context.SaveChangesAsync();
-
-    return session.Id;
-}
+    // =========================================================
+    // CLOSE ATTENDANCE SESSION
+    // Trainer
+    //
+    // IMPORTANT:
+    // Closing does NOT delete the AttendanceSession.
+    //
+    // The AttendanceSession remains in the database with:
+    //
+    // Status = Closed
+    //
+    // Therefore OpenSessionAsync() will reject another
+    // attempt to create a second session.
+    // =========================================================
 
     public async Task CloseSessionAsync(
         Guid sessionId,
@@ -139,8 +182,10 @@ if (existingOpenSession)
         var session =
             await _context.AttendanceSessions
                 .Include(x => x.TrainingBatch)
-                    .ThenInclude(x => x.TrainerAssignments)
-                        .ThenInclude(x => x.TrainerProfile)
+                    .ThenInclude(x =>
+                        x.TrainerAssignments)
+                    .ThenInclude(x =>
+                        x.TrainerProfile)
                 .FirstOrDefaultAsync(
                     x => x.Id == sessionId);
 
@@ -189,7 +234,6 @@ if (existingOpenSession)
         session.ClosedAt =
             DateTime.UtcNow;
 
-        // IMPORTANT:
         // Ending the class automatically closes
         // manual participant attendance.
         session.ManualAttendanceStatus =
@@ -205,7 +249,7 @@ if (existingOpenSession)
     // This is SEPARATE from opening the session.
     //
     // Requirements:
-    // - Session must be OPEN
+    // - AttendanceSession must be OPEN
     // =========================================================
 
     public async Task OpenManualAttendanceAsync(
@@ -303,8 +347,10 @@ if (existingOpenSession)
         var session =
             await _context.AttendanceSessions
                 .Include(x => x.TrainingBatch)
-                    .ThenInclude(x => x.TrainerAssignments)
-                        .ThenInclude(x => x.TrainerProfile)
+                    .ThenInclude(x =>
+                        x.TrainerAssignments)
+                    .ThenInclude(x =>
+                        x.TrainerProfile)
                 .FirstOrDefaultAsync(
                     x => x.Id == sessionId);
 
@@ -368,7 +414,8 @@ if (existingOpenSession)
             .Include(x => x.Enrollment)
                 .ThenInclude(x =>
                     x.ParticipantProfile)
-                    .ThenInclude(x => x.User)
+                    .ThenInclude(x =>
+                        x.User)
             .Select(x =>
                 new AttendanceRecordDto(
                     x.Id,
@@ -390,7 +437,6 @@ if (existingOpenSession)
     //
     // QR does NOT expire.
     //
-    // NOTE:
     // The QR can be displayed even when session is CLOSED.
     // Actual scanning is controlled by Session.Status.
     // =========================================================
@@ -512,13 +558,14 @@ if (existingOpenSession)
     //             ↓
     // Find enrollment using permanent token
     //             ↓
-    // Find TODAY's attendance record
-    //             ↓
     // No record       = Time In
     // Time In only    = Time Out
     // Time In + Out   = Error
     //
     // ManualAttendanceStatus is NOT checked here.
+    //
+    // LATE RULE:
+    // Actual TrainingSession scheduled start + 15 minutes
     // =========================================================
 
     public async Task ScanAttendanceAsync(
@@ -535,19 +582,19 @@ if (existingOpenSession)
         // SESSION
         // =====================================================
 
-      var session =
-    await _context.AttendanceSessions
-        .Include(x => x.TrainingSession)
-        .Include(x =>
-            x.TrainingBatch)
-            .ThenInclude(x =>
-                x.TrainerAssignments)
-                .ThenInclude(x =>
-                    x.TrainerProfile)
-        .FirstOrDefaultAsync(
-            x =>
-                x.Id ==
-                request.AttendanceSessionId);
+        var session =
+            await _context.AttendanceSessions
+                .Include(x => x.TrainingSession)
+                .Include(x =>
+                    x.TrainingBatch)
+                    .ThenInclude(x =>
+                        x.TrainerAssignments)
+                        .ThenInclude(x =>
+                            x.TrainerProfile)
+                .FirstOrDefaultAsync(
+                    x =>
+                        x.Id ==
+                        request.AttendanceSessionId);
 
         if (session is null)
         {
@@ -629,43 +676,69 @@ if (existingOpenSession)
         }
 
         // =====================================================
-        // TODAY
+        // TRAINING SESSION
         // =====================================================
 
-        var now = DateTime.Now;
+        var trainingSession =
+            session.TrainingSession;
 
-var today =
-    DateOnly.FromDateTime(now);
+        if (trainingSession is null)
+        {
+            throw new KeyNotFoundException(
+                "Training session not found.");
+        }
 
-// Scheduled training start
-var scheduledStart =
-    session.TrainingSession.SessionDate.Date
-        .Add(session.TrainingSession.StartTime.ToTimeSpan());
-
-// 15-minute grace period
-var lateThreshold =
-    scheduledStart.AddMinutes(15);
-
-var attendanceStatus =
-    now > lateThreshold
-        ? AttendanceStatus.Late
-        : AttendanceStatus.Present;
         // =====================================================
-        // FIND TODAY'S RECORD
+        // ATTENDANCE TIME
+        // =====================================================
+
+        var now =
+            DateTime.Now;
+
+        var today =
+            DateOnly.FromDateTime(now);
+
+        // =====================================================
+        // SCHEDULED START
         //
-        // IMPORTANT:
-        // Enrollment + AttendanceDate
-        // is the duplicate basis.
+        // Late is based on the actual scheduled class time,
+        // NOT the time the trainer clicked Open Attendance.
+        //
+        // Example:
+        //
+        // Scheduled Start: 9:00 AM
+        // Grace Period:    15 minutes
+        //
+        // 9:00 - 9:15  = Present
+        // After 9:15    = Late
+        // =====================================================
+
+        var scheduledStart =
+            trainingSession.SessionDate.Date
+                .Add(
+                    trainingSession.StartTime
+                        .ToTimeSpan());
+
+        var lateThreshold =
+            scheduledStart.AddMinutes(15);
+
+        var attendanceStatus =
+            now > lateThreshold
+                ? AttendanceStatus.Late
+                : AttendanceStatus.Present;
+
+        // =====================================================
+        // FIND EXISTING RECORD
         // =====================================================
 
         var existingRecord =
-    await _context.AttendanceRecords
-        .FirstOrDefaultAsync(
-            x =>
-                x.EnrollmentId ==
-                    enrollment.Id &&
-                x.AttendanceSessionId ==
-                    session.Id);
+            await _context.AttendanceRecords
+                .FirstOrDefaultAsync(
+                    x =>
+                        x.EnrollmentId ==
+                            enrollment.Id &&
+                        x.AttendanceSessionId ==
+                            session.Id);
 
         // =====================================================
         // FIRST SCAN = TIME IN
@@ -718,13 +791,16 @@ var attendanceStatus =
             existingRecord.TimeOut =
                 DateTime.UtcNow;
 
-            if (existingRecord.Status != AttendanceStatus.Late)
-{
-    existingRecord.Status =
-        AttendanceStatus.Present;
-}
+            // Preserve Late status.
+            // If participant was Present during Time In,
+            // keep Present.
+            if (existingRecord.Status !=
+                AttendanceStatus.Late)
+            {
+                existingRecord.Status =
+                    AttendanceStatus.Present;
+            }
 
-            // Preserve QR as latest method.
             existingRecord.Method =
                 "QR";
 
@@ -740,7 +816,7 @@ var attendanceStatus =
         if (existingRecord.TimeOut.HasValue)
         {
             throw new InvalidOperationException(
-               "Participant has already completed attendance for this training session.");
+                "Participant has already completed attendance for this training session.");
         }
     }
 
@@ -754,8 +830,8 @@ var attendanceStatus =
     // 3. Participant enrolled
     // 4. Enrollment approved
     //
-    // Duplicate rule is the SAME as QR:
-    // EnrollmentId + AttendanceDate
+    // One AttendanceRecord per:
+    // Enrollment + AttendanceSession
     // =========================================================
 
     public async Task ManualAttendanceAsync(
@@ -856,54 +932,64 @@ var attendanceStatus =
         }
 
         // =====================================================
-        // TODAY
+        // CURRENT TIME
         // =====================================================
 
-       var now = DateTime.Now;
+        var now =
+            DateTime.Now;
 
-var today =
-    DateOnly.FromDateTime(now);
-
-var trainingSession =
-    await _context.TrainingSessions
-        .FirstOrDefaultAsync(
-            x =>
-                x.Id ==
-                session.TrainingSessionId);
-
-if (trainingSession is null)
-{
-    throw new KeyNotFoundException(
-        "Training session not found.");
-}
-
-var scheduledStart =
-    trainingSession.SessionDate.Date
-        .Add(trainingSession.StartTime.ToTimeSpan());
-
-var lateThreshold =
-    scheduledStart.AddMinutes(15);
-
-var attendanceStatus =
-    now > lateThreshold
-        ? AttendanceStatus.Late
-        : AttendanceStatus.Present;
+        var today =
+            DateOnly.FromDateTime(now);
 
         // =====================================================
-        // FIND TODAY'S RECORD
+        // TRAINING SESSION
+        // =====================================================
+
+        var trainingSession =
+            await _context.TrainingSessions
+                .FirstOrDefaultAsync(
+                    x =>
+                        x.Id ==
+                        session.TrainingSessionId);
+
+        if (trainingSession is null)
+        {
+            throw new KeyNotFoundException(
+                "Training session not found.");
+        }
+
+        // =====================================================
+        // SCHEDULED START
+        // =====================================================
+
+        var scheduledStart =
+            trainingSession.SessionDate.Date
+                .Add(
+                    trainingSession.StartTime
+                        .ToTimeSpan());
+
+        var lateThreshold =
+            scheduledStart.AddMinutes(15);
+
+        var attendanceStatus =
+            now > lateThreshold
+                ? AttendanceStatus.Late
+                : AttendanceStatus.Present;
+
+        // =====================================================
+        // FIND EXISTING RECORD
         //
-        // IMPORTANT:
         // Same record can be created by QR or Manual.
         // =====================================================
 
         var record =
-    await _context.AttendanceRecords
-        .FirstOrDefaultAsync(
-            x =>
-                x.EnrollmentId ==
-                    enrollment.Id &&
-                x.AttendanceSessionId ==
-                    session.Id);
+            await _context.AttendanceRecords
+                .FirstOrDefaultAsync(
+                    x =>
+                        x.EnrollmentId ==
+                            enrollment.Id &&
+                        x.AttendanceSessionId ==
+                            session.Id);
 
         // =====================================================
         // TIME IN
@@ -918,7 +1004,7 @@ var attendanceStatus =
                 if (record.TimeOut.HasValue)
                 {
                     throw new InvalidOperationException(
-                        "You have already completed attendance for today.");
+                        "You have already completed attendance for this training session.");
                 }
 
                 throw new InvalidOperationException(
@@ -949,7 +1035,7 @@ var attendanceStatus =
                             null,
 
                         Status =
-    attendanceStatus,
+                            attendanceStatus,
 
                         Method =
                             "Manual"
@@ -965,12 +1051,11 @@ var attendanceStatus =
                     DateTime.UtcNow;
 
                 record.Status =
-    attendanceStatus;
+                    attendanceStatus;
 
                 record.Method =
                     "Manual";
 
-                // Make sure current session is recorded.
                 record.AttendanceSessionId =
                     session.Id;
             }
@@ -994,17 +1079,20 @@ var attendanceStatus =
             if (record.TimeOut.HasValue)
             {
                 throw new InvalidOperationException(
-                   "You have already completed attendance for this training session.");
+                    "You have already completed attendance for this training session.");
             }
 
             record.TimeOut =
                 DateTime.UtcNow;
 
-            if (record.Status != AttendanceStatus.Late)
-{
-    record.Status =
-        AttendanceStatus.Present;
-}
+            // Preserve Late status.
+            if (record.Status !=
+                AttendanceStatus.Late)
+            {
+                record.Status =
+                    AttendanceStatus.Present;
+            }
+
             record.Method =
                 "Manual";
 
@@ -1114,92 +1202,97 @@ var attendanceStatus =
     // =========================================================
     // GET OPEN SESSION ID
     //
-    // Kept for compatibility with existing frontend/service
-    // code that only needs the active session ID.
+    // Returns ONLY the OPEN AttendanceSession.
+    //
+    // IMPORTANT:
+    // If a session already exists but is CLOSED,
+    // this returns null.
+    //
+    // This does NOT create another AttendanceSession.
     // =========================================================
-public async Task<Guid?> GetOpenSessionIdAsync(
-    Guid batchId,
-    Guid trainingSessionId,
-    Guid userId)
-{
-    var batch =
-        await _context.TrainingBatches
-            .Include(x =>
-                x.TrainerAssignments)
-            .ThenInclude(x =>
-                x.TrainerProfile)
-            .FirstOrDefaultAsync(
-                x => x.Id == batchId);
 
-    if (batch is null)
+    public async Task<Guid?> GetOpenSessionIdAsync(
+        Guid batchId,
+        Guid trainingSessionId,
+        Guid userId)
     {
-        return null;
-    }
+        var batch =
+            await _context.TrainingBatches
+                .Include(x =>
+                    x.TrainerAssignments)
+                    .ThenInclude(x =>
+                        x.TrainerProfile)
+                .FirstOrDefaultAsync(
+                    x => x.Id == batchId);
 
-    // =====================================================
-    // TRAINER / PARTICIPANT / ADMIN AUTHORIZATION
-    // =====================================================
+        if (batch is null)
+        {
+            return null;
+        }
 
-    var isTrainer =
-        batch.TrainerAssignments.Any(x =>
-            x.IsActive &&
-            x.TrainerProfile.UserId ==
-                userId);
+        // =====================================================
+        // TRAINER / PARTICIPANT / ADMIN AUTHORIZATION
+        // =====================================================
 
-    var isAdmin =
-        await _context.Users
-            .AnyAsync(x =>
-                x.Id == userId &&
-                x.Role == UserRole.Admin);
-
-    var isParticipant =
-        await _context.Enrollments
-            .AnyAsync(x =>
-                x.TrainingBatchId ==
-                    batchId &&
-                x.ParticipantProfile.UserId ==
+        var isTrainer =
+            batch.TrainerAssignments.Any(x =>
+                x.IsActive &&
+                x.TrainerProfile.UserId ==
                     userId);
 
-    if (!isTrainer &&
-        !isAdmin &&
-        !isParticipant)
-    {
-        return null;
+        var isAdmin =
+            await _context.Users
+                .AnyAsync(x =>
+                    x.Id == userId &&
+                    x.Role == UserRole.Admin);
+
+        var isParticipant =
+            await _context.Enrollments
+                .AnyAsync(x =>
+                    x.TrainingBatchId ==
+                        batchId &&
+                    x.ParticipantProfile.UserId ==
+                        userId);
+
+        if (!isTrainer &&
+            !isAdmin &&
+            !isParticipant)
+        {
+            return null;
+        }
+
+        // =====================================================
+        // VERIFY TRAINING SESSION
+        // =====================================================
+
+        var trainingSessionExists =
+            await _context.TrainingSessions
+                .AnyAsync(x =>
+                    x.Id == trainingSessionId &&
+                    x.TrainingBatchId == batchId);
+
+        if (!trainingSessionExists)
+        {
+            return null;
+        }
+
+        // =====================================================
+        // FIND OPEN ATTENDANCE
+        // =====================================================
+
+        var session =
+            await _context.AttendanceSessions
+                .Where(x =>
+                    x.TrainingBatchId == batchId &&
+                    x.TrainingSessionId ==
+                        trainingSessionId &&
+                    x.Status ==
+                        AttendanceSessionStatus.Open)
+                .FirstOrDefaultAsync();
+
+        return session?.Id;
     }
 
-    // =====================================================
-    // VERIFY TRAINING SESSION BELONGS TO BATCH
-    // =====================================================
-
-    var trainingSessionExists =
-        await _context.TrainingSessions
-            .AnyAsync(x =>
-                x.Id == trainingSessionId &&
-                x.TrainingBatchId == batchId);
-
-    if (!trainingSessionExists)
-    {
-        return null;
-    }
-
-    // =====================================================
-    // FIND OPEN ATTENDANCE FOR THIS TRAINING SESSION
-    // =====================================================
-
-    var session =
-        await _context.AttendanceSessions
-            .Where(x =>
-                x.TrainingBatchId == batchId &&
-                x.TrainingSessionId ==
-                    trainingSessionId &&
-                x.Status ==
-                    AttendanceSessionStatus.Open)
-            .OrderByDescending(
-                x => x.OpenedAt)
-            .FirstOrDefaultAsync();
-
-    return session?.Id;
-}
     // =========================================================
     // GET OPEN SESSION
     //
@@ -1209,116 +1302,120 @@ public async Task<Guid?> GetOpenSessionIdAsync(
     // AttendanceSessionId
     // ManualAttendanceOpen
     //
-    // IMPORTANT:
-    // Even when there is NO open session, return 200-style
-    // data instead of throwing.
-   public async Task<OpenAttendanceSessionDto>
-    GetOpenSessionAsync(
-        Guid batchId,
-        Guid trainingSessionId,
-        Guid userId)
-{
-    var batch =
-        await _context.TrainingBatches
-            .Include(x =>
-                x.TrainerAssignments)
-            .ThenInclude(x =>
-                x.TrainerProfile)
-            .FirstOrDefaultAsync(
-                x => x.Id == batchId);
+    // If the session was already CLOSED:
+    //
+    // IsOpen = false
+    // AttendanceSessionId = null
+    //
+    // The frontend can then know that the session is finished.
+    // =========================================================
 
-    if (batch is null)
+    public async Task<OpenAttendanceSessionDto>
+        GetOpenSessionAsync(
+            Guid batchId,
+            Guid trainingSessionId,
+            Guid userId)
     {
-        throw new KeyNotFoundException(
-            "Training batch not found.");
-    }
+        var batch =
+            await _context.TrainingBatches
+                .Include(x =>
+                    x.TrainerAssignments)
+                    .ThenInclude(x =>
+                        x.TrainerProfile)
+                .FirstOrDefaultAsync(
+                    x => x.Id == batchId);
 
-    // =====================================================
-    // AUTHORIZATION
-    // =====================================================
+        if (batch is null)
+        {
+            throw new KeyNotFoundException(
+                "Training batch not found.");
+        }
 
-    var isTrainer =
-        batch.TrainerAssignments.Any(x =>
-            x.IsActive &&
-            x.TrainerProfile.UserId ==
-                userId);
+        // =====================================================
+        // AUTHORIZATION
+        // =====================================================
 
-    var isAdmin =
-        await _context.Users
-            .AnyAsync(x =>
-                x.Id == userId &&
-                x.Role == UserRole.Admin);
-
-    var isParticipant =
-        await _context.Enrollments
-            .AnyAsync(x =>
-                x.TrainingBatchId ==
-                    batchId &&
-                x.ParticipantProfile.UserId ==
+        var isTrainer =
+            batch.TrainerAssignments.Any(x =>
+                x.IsActive &&
+                x.TrainerProfile.UserId ==
                     userId);
 
-    if (!isTrainer &&
-        !isAdmin &&
-        !isParticipant)
-    {
-        throw new UnauthorizedAccessException(
-            "You are not authorized to view attendance for this training batch.");
-    }
+        var isAdmin =
+            await _context.Users
+                .AnyAsync(x =>
+                    x.Id == userId &&
+                    x.Role == UserRole.Admin);
 
-    // =====================================================
-    // VERIFY TRAINING SESSION
-    // =====================================================
+        var isParticipant =
+            await _context.Enrollments
+                .AnyAsync(x =>
+                    x.TrainingBatchId ==
+                        batchId &&
+                    x.ParticipantProfile.UserId ==
+                        userId);
 
-    var trainingSessionExists =
-        await _context.TrainingSessions
-            .AnyAsync(x =>
-                x.Id == trainingSessionId &&
-                x.TrainingBatchId == batchId);
+        if (!isTrainer &&
+            !isAdmin &&
+            !isParticipant)
+        {
+            throw new UnauthorizedAccessException(
+                "You are not authorized to view attendance for this training batch.");
+        }
 
-    if (!trainingSessionExists)
-    {
-        throw new KeyNotFoundException(
-            "Training session not found for this training batch.");
-    }
+        // =====================================================
+        // VERIFY TRAINING SESSION
+        // =====================================================
 
-    // =====================================================
-    // FIND OPEN ATTENDANCE FOR SELECTED TRAINING SESSION
-    // =====================================================
+        var trainingSessionExists =
+            await _context.TrainingSessions
+                .AnyAsync(x =>
+                    x.Id == trainingSessionId &&
+                    x.TrainingBatchId == batchId);
 
-    var session =
-        await _context.AttendanceSessions
-            .Where(x =>
-                x.TrainingBatchId == batchId &&
-                x.TrainingSessionId ==
-                    trainingSessionId &&
-                x.Status ==
-                    AttendanceSessionStatus.Open)
-            .OrderByDescending(
-                x => x.OpenedAt)
-            .FirstOrDefaultAsync();
+        if (!trainingSessionExists)
+        {
+            throw new KeyNotFoundException(
+                "Training session not found for this training batch.");
+        }
 
-    // =====================================================
-    // NO OPEN SESSION
-    // =====================================================
+        // =====================================================
+        // FIND OPEN ATTENDANCE
+        // =====================================================
 
-    if (session is null)
-    {
+        var session =
+            await _context.AttendanceSessions
+                .Where(x =>
+                    x.TrainingBatchId == batchId &&
+                    x.TrainingSessionId ==
+                        trainingSessionId &&
+                    x.Status ==
+                        AttendanceSessionStatus.Open)
+                .FirstOrDefaultAsync();
+
+        // =====================================================
+        // NO OPEN SESSION
+        // =====================================================
+
+        if (session is null)
+        {
+            return new OpenAttendanceSessionDto(
+                false,
+                null,
+                false);
+        }
+
+        // =====================================================
+        // OPEN SESSION
+        // =====================================================
+
         return new OpenAttendanceSessionDto(
-            false,
-            null,
-            false);
+            true,
+            session.Id,
+            session.ManualAttendanceStatus ==
+                ManualAttendanceStatus.Open);
     }
 
-    // =====================================================
-    // OPEN SESSION
-    // =====================================================
-
-    return new OpenAttendanceSessionDto(
-        true,
-        session.Id,
-        session.ManualAttendanceStatus ==
-            ManualAttendanceStatus.Open);
-}
     // =========================================================
     // PRIVATE HELPER
     // Get session and verify assigned trainer.
@@ -1364,205 +1461,202 @@ public async Task<Guid?> GetOpenSessionIdAsync(
     }
 
     // =========================================================
-// GET TRAINER ATTENDANCE PROGRESS
-//
-// Returns attendance progress for participants enrolled
-// in training batches assigned to the logged-in trainer.
-//
-// Trainer scope:
-// TrainerAssignments.IsActive == true
-//
-// Attendance:
-// Present / Late = Attended
-// Absent         = Absent
-// =========================================================
+    // GET TRAINER ATTENDANCE PROGRESS
+    //
+    // Returns attendance progress for participants enrolled
+    // in training batches assigned to the logged-in trainer.
+    //
+    // Trainer scope:
+    // TrainerAssignments.IsActive == true
+    //
+    // Attendance:
+    // Present / Late = Attended
+    // Absent         = Absent
+    // =========================================================
 
-public async Task<IEnumerable<AttendanceProgressDto>>
-    GetTrainerAttendanceProgressAsync(
-        Guid trainerUserId)
-{
-    // =====================================================
-    // GET TRAINING BATCHES ASSIGNED TO THIS TRAINER
-    // =====================================================
-
-    var trainerBatchIds =
-        await _context.TrainingBatches
-            .AsNoTracking()
-            .Where(batch =>
-                batch.TrainerAssignments.Any(assignment =>
-                    assignment.IsActive &&
-                    assignment.TrainerProfile.UserId ==
-                        trainerUserId))
-            .Select(batch => batch.Id)
-            .ToListAsync();
-
-    if (trainerBatchIds.Count == 0)
+    public async Task<IEnumerable<AttendanceProgressDto>>
+        GetTrainerAttendanceProgressAsync(
+            Guid trainerUserId)
     {
-        return [];
-    }
+        // =====================================================
+        // GET TRAINING BATCHES ASSIGNED TO THIS TRAINER
+        // =====================================================
 
-    // =====================================================
-    // GET APPROVED ENROLLMENTS
-    // =====================================================
+        var trainerBatchIds =
+            await _context.TrainingBatches
+                .AsNoTracking()
+                .Where(batch =>
+                    batch.TrainerAssignments.Any(assignment =>
+                        assignment.IsActive &&
+                        assignment.TrainerProfile.UserId ==
+                            trainerUserId))
+                .Select(batch => batch.Id)
+                .ToListAsync();
 
-    var enrollments =
-        await _context.Enrollments
-            .AsNoTracking()
-            .Where(enrollment =>
-                trainerBatchIds.Contains(
-                    enrollment.TrainingBatchId) &&
-                enrollment.Status ==
-                    EnrollmentStatus.Approved)
-            .Include(enrollment =>
-                enrollment.ParticipantProfile)
+        if (trainerBatchIds.Count == 0)
+        {
+            return [];
+        }
+
+        // =====================================================
+        // GET APPROVED ENROLLMENTS
+        // =====================================================
+
+        var enrollments =
+            await _context.Enrollments
+                .AsNoTracking()
+                .Where(enrollment =>
+                    trainerBatchIds.Contains(
+                        enrollment.TrainingBatchId) &&
+                    enrollment.Status ==
+                        EnrollmentStatus.Approved)
+                .Include(enrollment =>
+                    enrollment.ParticipantProfile)
                 .ThenInclude(profile =>
                     profile.User)
-            .ToListAsync();
+                .ToListAsync();
 
-    if (enrollments.Count == 0)
-    {
-        return [];
-    }
+        if (enrollments.Count == 0)
+        {
+            return [];
+        }
 
-    // =====================================================
-    // GET TOTAL SCHEDULED SESSIONS PER BATCH
-    //
-    // Training sessions are the actual approved schedule.
-    // =====================================================
+        // =====================================================
+        // GET TOTAL SCHEDULED SESSIONS PER BATCH
+        //
+        // Training sessions are the actual approved schedule.
+        // =====================================================
 
-    var sessionCounts =
-        await _context.TrainingSessions
-            .AsNoTracking()
-            .Where(session =>
-                trainerBatchIds.Contains(
-                    session.TrainingBatchId))
-            .GroupBy(session =>
-                session.TrainingBatchId)
-            .Select(group => new
-            {
-                TrainingBatchId =
-                    group.Key,
+        var sessionCounts =
+            await _context.TrainingSessions
+                .AsNoTracking()
+                .Where(session =>
+                    trainerBatchIds.Contains(
+                        session.TrainingBatchId))
+                .GroupBy(session =>
+                    session.TrainingBatchId)
+                .Select(group => new
+                {
+                    TrainingBatchId =
+                        group.Key,
 
-                TotalSessions =
-                    group.Count()
-            })
-            .ToDictionaryAsync(
-                x => x.TrainingBatchId,
-                x => x.TotalSessions);
+                    TotalSessions =
+                        group.Count()
+                })
+                .ToDictionaryAsync(
+                    x => x.TrainingBatchId,
+                    x => x.TotalSessions);
 
-    // =====================================================
-    // GET ATTENDANCE RECORDS
-    //
-    // We query by EnrollmentId directly here.
-    // This is more reliable than matching ParticipantName.
-    // =====================================================
+        // =====================================================
+        // GET ATTENDANCE RECORDS
+        // =====================================================
 
-    var enrollmentIds =
-        enrollments
-            .Select(x => x.Id)
-            .ToList();
-
-    var attendanceRecords =
-        await _context.AttendanceRecords
-            .AsNoTracking()
-            .Where(record =>
-                enrollmentIds.Contains(
-                    record.EnrollmentId))
-            .Select(record => new
-            {
-                record.EnrollmentId,
-                record.Status
-            })
-            .ToListAsync();
-
-    // =====================================================
-    // BUILD PROGRESS
-    // =====================================================
-
-    var result =
-        new List<AttendanceProgressDto>();
-
-    foreach (var enrollment in enrollments)
-    {
-        var records =
-            attendanceRecords
-                .Where(record =>
-                    record.EnrollmentId ==
-                        enrollment.Id)
+        var enrollmentIds =
+            enrollments
+                .Select(x => x.Id)
                 .ToList();
 
-        var totalSessions =
-            sessionCounts.TryGetValue(
-                enrollment.TrainingBatchId,
-                out var count)
-                ? count
-                : 0;
+        var attendanceRecords =
+            await _context.AttendanceRecords
+                .AsNoTracking()
+                .Where(record =>
+                    enrollmentIds.Contains(
+                        record.EnrollmentId))
+                .Select(record => new
+                {
+                    record.EnrollmentId,
+                    record.Status
+                })
+                .ToListAsync();
 
-        var attendedSessions =
-            records.Count(record =>
-                record.Status ==
-                    AttendanceStatus.Present ||
-                record.Status ==
-                    AttendanceStatus.Late ||
-                record.Status ==
-                    AttendanceStatus.TimeInOnly ||
-                record.Status ==
-                    AttendanceStatus.TimeOutOnly);
+        // =====================================================
+        // BUILD PROGRESS
+        // =====================================================
 
-        var lateSessions =
-            records.Count(record =>
-                record.Status ==
-                    AttendanceStatus.Late);
+        var result =
+            new List<AttendanceProgressDto>();
 
-        var absentSessions =
-            records.Count(record =>
-                record.Status ==
-                    AttendanceStatus.Absent);
+        foreach (var enrollment in enrollments)
+        {
+            var records =
+                attendanceRecords
+                    .Where(record =>
+                        record.EnrollmentId ==
+                            enrollment.Id)
+                    .ToList();
 
-        var attendancePercentage =
-            totalSessions > 0
-                ? decimal.Round(
-                    (decimal)attendedSessions /
-                    totalSessions *
-                    100m,
-                    2,
-                    MidpointRounding.AwayFromZero)
-                : 0m;
-
-        result.Add(
-            new AttendanceProgressDto(
-                EnrollmentId:
-                    enrollment.Id,
-
-                TrainingBatchId:
+            var totalSessions =
+                sessionCounts.TryGetValue(
                     enrollment.TrainingBatchId,
+                    out var count)
+                    ? count
+                    : 0;
 
-                ParticipantName:
-                    enrollment
-                        .ParticipantProfile
-                        .User
-                        .FullName,
+            var attendedSessions =
+                records.Count(record =>
+                    record.Status ==
+                        AttendanceStatus.Present ||
+                    record.Status ==
+                        AttendanceStatus.Late ||
+                    record.Status ==
+                        AttendanceStatus.TimeInOnly ||
+                    record.Status ==
+                        AttendanceStatus.TimeOutOnly);
 
-                TotalSessions:
-                    totalSessions,
+            var lateSessions =
+                records.Count(record =>
+                    record.Status ==
+                        AttendanceStatus.Late);
 
-                AttendedSessions:
-                    attendedSessions,
+            var absentSessions =
+                records.Count(record =>
+                    record.Status ==
+                        AttendanceStatus.Absent);
 
-                LateSessions:
-                    lateSessions,
+            var attendancePercentage =
+                totalSessions > 0
+                    ? decimal.Round(
+                        (decimal)attendedSessions /
+                        totalSessions *
+                        100m,
+                        2,
+                        MidpointRounding.AwayFromZero)
+                    : 0m;
 
-                AbsentSessions:
-                    absentSessions,
+            result.Add(
+                new AttendanceProgressDto(
+                    EnrollmentId:
+                        enrollment.Id,
 
-                AttendancePercentage:
-                    attendancePercentage
-            )
-        );
+                    TrainingBatchId:
+                        enrollment.TrainingBatchId,
+
+                    ParticipantName:
+                        enrollment
+                            .ParticipantProfile
+                            .User
+                            .FullName,
+
+                    TotalSessions:
+                        totalSessions,
+
+                    AttendedSessions:
+                        attendedSessions,
+
+                    LateSessions:
+                        lateSessions,
+
+                    AbsentSessions:
+                        absentSessions,
+
+                    AttendancePercentage:
+                        attendancePercentage
+                )
+            );
+        }
+
+        return result
+            .OrderBy(x => x.ParticipantName)
+            .ToList();
     }
-
-    return result
-        .OrderBy(x => x.ParticipantName)
-        .ToList();
-}
 }

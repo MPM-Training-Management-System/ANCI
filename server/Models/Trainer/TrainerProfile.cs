@@ -98,4 +98,6 @@ public class TrainerProfile
 
     public ICollection<TrainerAssignment> Assignments { get; set; }
         = [];
+
+        public ICollection<TrainerReportRequest> ReportRequests { get; set; } = [];
 }

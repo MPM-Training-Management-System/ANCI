@@ -923,392 +923,457 @@ if (application is null)
     // =========================================================
     // ADMIN - REVIEW APPLICATION
     // =========================================================
+// =========================================================
+// ADMIN - REVIEW APPLICATION
+// =========================================================
 
-    public async Task ReviewAsync(
-        Guid applicationId,
-        Guid adminId,
-        ReviewTrainerApplicationRequest request)
+public async Task ReviewAsync(
+    Guid applicationId,
+    Guid adminId,
+    ReviewTrainerApplicationRequest request)
+{
+    // =========================================================
+    // FIND APPLICATION
+    // =========================================================
+
+    var application =
+        await _db.TrainerApplications
+            .Include(x => x.User)
+            .Include(x => x.Educations)
+            .Include(x => x.Certifications)
+            .FirstOrDefaultAsync(
+                x => x.Id == applicationId
+            );
+
+    if (application is null)
     {
-        var application =
-            await _db.TrainerApplications
-                .Include(
-                    x =>
-                        x.User
-                )
-                .Include(
-                    x =>
-                        x.Educations
-                )
-                .Include(
-                    x =>
-                        x.Certifications
-                )
-                .FirstOrDefaultAsync(
-                    x =>
-                        x.Id == applicationId
-                );
-
-
-        if (application is null)
-        {
-            throw new KeyNotFoundException(
-                "Trainer application was not found."
-            );
-        }
-
-
-        var decision =
-            request.Decision.Trim();
-
-
-        // =====================================================
-        // APPROVED
-        // =====================================================
-
-        if (
-            string.Equals(
-                decision,
-                "Approved",
-                StringComparison.OrdinalIgnoreCase
-            )
-        )
-        {
-            application.Status =
-                TrainerApplicationStatus.Approved;
-
-
-            // =================================================
-            // ACTIVATE USER
-            // =================================================
-
-            application.User.Status =
-                UserStatus.Active;
-
-            application.User.UpdatedAt =
-                DateTime.UtcNow;
-
-
-            // =================================================
-            // FIND TRAINER PROFILE
-            // =================================================
-
-            var trainerProfile =
-                await _db.TrainerProfiles
-                    .Include(
-                        x =>
-                            x.Educations
-                    )
-                    .Include(
-                        x =>
-                            x.Certifications
-                    )
-                    .FirstOrDefaultAsync(
-                        x =>
-                            x.UserId ==
-                            application.UserId
-                    );
-
-
-            if (trainerProfile is null)
-            {
-                throw new InvalidOperationException(
-                    "Trainer profile was not found for this application."
-                );
-            }
-
-
-            // =================================================
-            // COPY PERSONAL INFORMATION
-            // =================================================
-
-            trainerProfile.FirstName =
-                application.FirstName;
-
-            trainerProfile.MiddleName =
-                application.MiddleName;
-
-            trainerProfile.LastName =
-                application.LastName;
-
-            trainerProfile.Suffix =
-                application.Suffix;
-
-            trainerProfile.BirthDate =
-                application.BirthDate;
-
-            trainerProfile.Gender =
-                application.Gender;
-
-            trainerProfile.Address =
-                application.Address;
-
-
-            // =================================================
-            // COPY PROFESSIONAL INFORMATION
-            // =================================================
-
-            trainerProfile.Specialization =
-                application.Specialization;
-
-            trainerProfile.ProfessionalTitle =
-                application.ProfessionalTitle;
-
-            trainerProfile.CurrentOrganization =
-                application.CurrentOrganization;
-
-            trainerProfile.Bio =
-                application.Bio;
-
-            trainerProfile.YearsOfExperience =
-                application.YearsOfExperience;
-
-
-            // =================================================
-            // COPY LICENSE
-            // =================================================
-
-            trainerProfile.ProfessionalLicenseNumber =
-                application.ProfessionalLicenseNumber;
-
-            trainerProfile.ProfessionalLicenseType =
-                application.ProfessionalLicenseType;
-
-            trainerProfile.ProfessionalLicenseExpirationDate =
-                application.ProfessionalLicenseExpirationDate;
-
-
-            // =================================================
-            // COPY PROFILE IMAGE
-            // =================================================
-
-            trainerProfile.ProfileImageUrl =
-                application.ProfileImageUrl;
-
-
-            // =================================================
-            // REMOVE EXISTING EDUCATION
-            // =================================================
-
-            _db.TrainerEducations.RemoveRange(
-                trainerProfile.Educations
-            );
-
-
-            // =================================================
-            // COPY EDUCATION
-            // =================================================
-
-            foreach (
-                var education
-                in application.Educations
-            )
-            {
-                trainerProfile.Educations.Add(
-                    new TrainerEducation
-                    {
-                        Id =
-                            Guid.NewGuid(),
-
-                        TrainerProfileId =
-                            trainerProfile.Id,
-
-                        Degree =
-                            education.Degree,
-
-                        FieldOfStudy =
-                            education.FieldOfStudy,
-
-                        Institution =
-                            education.Institution,
-
-                        YearGraduated =
-                            education.YearGraduated
-                    }
-                );
-            }
-
-
-            // =================================================
-            // REMOVE EXISTING CERTIFICATIONS
-            // =================================================
-
-            _db.TrainerCertifications.RemoveRange(
-                trainerProfile.Certifications
-            );
-
-
-            // =================================================
-            // COPY CERTIFICATIONS
-            // =================================================
-
-            foreach (
-                var certification
-                in application.Certifications
-            )
-            {
-                trainerProfile.Certifications.Add(
-                    new TrainerCertification
-                    {
-                        Id =
-                            Guid.NewGuid(),
-
-                        TrainerProfileId =
-                            trainerProfile.Id,
-
-                        Name =
-                            certification.Name,
-
-                        IssuingOrganization =
-                            certification.IssuingOrganization,
-
-                        IssuedDate =
-                            certification.IssuedDate,
-
-                        ExpirationDate =
-                            certification.ExpirationDate,
-
-                        CertificateUrl =
-                            certification.CertificateUrl
-                    }
-                );
-            }
-
-
-            // =================================================
-            // ACTIVATE TRAINER PROFILE
-            // =================================================
-
-            trainerProfile.IsActive =
-                true;
-
-            trainerProfile.ActivatedAt =
-                DateTime.UtcNow;
-        }
-
-
-        // =====================================================
-        // REJECTED
-        // =====================================================
-
-        else if (
-            string.Equals(
-                decision,
-                "Rejected",
-                StringComparison.OrdinalIgnoreCase
-            )
-        )
-        {
-            application.Status =
-                TrainerApplicationStatus.Rejected;
-
-            application.User.Status =
-                UserStatus.Rejected;
-
-            application.User.UpdatedAt =
-                DateTime.UtcNow;
-
-
-            var trainerProfile =
-                await _db.TrainerProfiles
-                    .FirstOrDefaultAsync(
-                        x =>
-                            x.UserId ==
-                            application.UserId
-                    );
-
-
-            if (trainerProfile is not null)
-            {
-                trainerProfile.IsActive =
-                    false;
-
-                trainerProfile.ActivatedAt =
-                    null;
-            }
-        }
-
-
-        // =====================================================
-        // NEEDS CORRECTION
-        // =====================================================
-
-        else if (
-            string.Equals(
-                decision,
-                "NeedsCorrection",
-                StringComparison.OrdinalIgnoreCase
-            )
-        )
-        {
-            application.Status =
-                TrainerApplicationStatus.NeedsCorrection;
-
-            application.User.Status =
-                UserStatus.Pending;
-
-            application.User.UpdatedAt =
-                DateTime.UtcNow;
-
-
-            var trainerProfile =
-                await _db.TrainerProfiles
-                    .FirstOrDefaultAsync(
-                        x =>
-                            x.UserId ==
-                            application.UserId
-                    );
-
-
-            if (trainerProfile is not null)
-            {
-                trainerProfile.IsActive =
-                    false;
-
-                trainerProfile.ActivatedAt =
-                    null;
-            }
-        }
-
-
-        // =====================================================
-        // INVALID DECISION
-        // =====================================================
-
-        else
-        {
-            throw new InvalidOperationException(
-                "Invalid review decision."
-            );
-        }
-
-
-        // =====================================================
-        // ADMIN REVIEW INFORMATION
-        // =====================================================
-
-        application.AdminRemarks =
-            CleanString(
-                request.Remarks
-            );
-
-        application.ReviewedByUserId =
-            adminId;
-
-        application.ReviewedAt =
-            DateTime.UtcNow;
-
-
-        // =====================================================
-        // SAVE
-        // =====================================================
-
-        await _db.SaveChangesAsync();
+        throw new KeyNotFoundException(
+            "Trainer application was not found."
+        );
     }
 
 
     // =========================================================
-    // ADMIN - REVIEW DOCUMENT
+    // DECISION
     // =========================================================
+
+    var decision =
+        request.Decision.Trim();
+
+
+    // =========================================================
+    // APPROVED
+    // =========================================================
+
+    if (
+        string.Equals(
+            decision,
+            "Approved",
+            StringComparison.OrdinalIgnoreCase
+        )
+    )
+    {
+        // =====================================================
+        // FIND EXISTING TRAINER PROFILE
+        //
+        // TrainerProfile must already exist because it is
+        // created during trainer registration.
+        // =====================================================
+
+        var trainerProfile =
+            await _db.TrainerProfiles
+                .FirstOrDefaultAsync(
+                    x =>
+                        x.UserId ==
+                        application.UserId
+                );
+
+        if (trainerProfile is null)
+        {
+            throw new InvalidOperationException(
+                "Trainer profile was not found for this application."
+            );
+        }
+
+
+        // =====================================================
+        // COPY PERSONAL INFORMATION
+        // =====================================================
+
+        trainerProfile.FirstName =
+            application.FirstName;
+
+        trainerProfile.MiddleName =
+            application.MiddleName;
+
+        trainerProfile.LastName =
+            application.LastName;
+
+        trainerProfile.Suffix =
+            application.Suffix;
+
+        trainerProfile.BirthDate =
+            application.BirthDate;
+
+        trainerProfile.Gender =
+            application.Gender;
+
+        trainerProfile.Address =
+            application.Address;
+
+
+        // =====================================================
+        // COPY MOBILE NUMBER
+        // =====================================================
+
+        trainerProfile.MobileNumber =
+            application.User.MobileNumber;
+
+
+        // =====================================================
+        // COPY PROFESSIONAL INFORMATION
+        // =====================================================
+
+        trainerProfile.Specialization =
+            application.Specialization;
+
+        trainerProfile.ProfessionalTitle =
+            application.ProfessionalTitle;
+
+        trainerProfile.CurrentOrganization =
+            application.CurrentOrganization;
+
+        trainerProfile.Bio =
+            application.Bio;
+
+        trainerProfile.YearsOfExperience =
+            application.YearsOfExperience;
+
+
+        // =====================================================
+        // COPY LICENSE INFORMATION
+        // =====================================================
+
+        trainerProfile.ProfessionalLicenseNumber =
+            application.ProfessionalLicenseNumber;
+
+        trainerProfile.ProfessionalLicenseType =
+            application.ProfessionalLicenseType;
+
+        trainerProfile.ProfessionalLicenseExpirationDate =
+            application.ProfessionalLicenseExpirationDate;
+
+
+        // =====================================================
+        // COPY PROFILE IMAGE
+        // =====================================================
+
+        trainerProfile.ProfileImageUrl =
+            application.ProfileImageUrl;
+
+
+        // =====================================================
+        // REMOVE EXISTING EDUCATION
+        // =====================================================
+
+        var existingEducations =
+            await _db.TrainerEducations
+                .Where(
+                    x =>
+                        x.TrainerProfileId ==
+                        trainerProfile.Id
+                )
+                .ToListAsync();
+
+        if (existingEducations.Count > 0)
+        {
+            _db.TrainerEducations.RemoveRange(
+                existingEducations
+            );
+        }
+
+
+        // =====================================================
+        // ADD EDUCATION FROM APPLICATION
+        // =====================================================
+
+        foreach (
+            var education
+            in application.Educations
+        )
+        {
+            var trainerEducation =
+                new TrainerEducation
+                {
+                    Id =
+                        Guid.NewGuid(),
+
+                    TrainerProfileId =
+                        trainerProfile.Id,
+
+                    Degree =
+                        education.Degree,
+
+                    FieldOfStudy =
+                        education.FieldOfStudy,
+
+                    Institution =
+                        education.Institution,
+
+                    YearGraduated =
+                        education.YearGraduated
+                };
+
+            _db.TrainerEducations.Add(
+                trainerEducation
+            );
+        }
+
+
+        // =====================================================
+        // REMOVE EXISTING CERTIFICATIONS
+        // =====================================================
+
+        var existingCertifications =
+            await _db.TrainerCertifications
+                .Where(
+                    x =>
+                        x.TrainerProfileId ==
+                        trainerProfile.Id
+                )
+                .ToListAsync();
+
+        if (existingCertifications.Count > 0)
+        {
+            _db.TrainerCertifications.RemoveRange(
+                existingCertifications
+            );
+        }
+
+
+        // =====================================================
+        // ADD CERTIFICATIONS FROM APPLICATION
+        // =====================================================
+
+        foreach (
+            var certification
+            in application.Certifications
+        )
+        {
+            var trainerCertification =
+                new TrainerCertification
+                {
+                    Id =
+                        Guid.NewGuid(),
+
+                    TrainerProfileId =
+                        trainerProfile.Id,
+
+                    Name =
+                        certification.Name,
+
+                    IssuingOrganization =
+                        certification.IssuingOrganization,
+
+                    IssuedDate =
+                        certification.IssuedDate,
+
+                    ExpirationDate =
+                        certification.ExpirationDate,
+
+                    CertificateUrl =
+                        certification.CertificateUrl
+                };
+
+            _db.TrainerCertifications.Add(
+                trainerCertification
+            );
+        }
+
+
+        // =====================================================
+        // ACTIVATE TRAINER PROFILE
+        // =====================================================
+
+        trainerProfile.IsActive =
+            true;
+
+        trainerProfile.ActivatedAt =
+            DateTime.UtcNow;
+
+
+        // =====================================================
+        // ACTIVATE USER
+        // =====================================================
+
+        application.User.Status =
+            UserStatus.Active;
+
+        application.User.UpdatedAt =
+            DateTime.UtcNow;
+
+
+        // =====================================================
+        // APPROVE APPLICATION
+        // =====================================================
+
+        application.Status =
+            TrainerApplicationStatus.Approved;
+    }
+
+
+    // =========================================================
+    // REJECTED
+    // =========================================================
+
+    else if (
+        string.Equals(
+            decision,
+            "Rejected",
+            StringComparison.OrdinalIgnoreCase
+        )
+    )
+    {
+        // =====================================================
+        // UPDATE APPLICATION
+        // =====================================================
+
+        application.Status =
+            TrainerApplicationStatus.Rejected;
+
+
+        // =====================================================
+        // UPDATE USER
+        // =====================================================
+
+        application.User.Status =
+            UserStatus.Rejected;
+
+        application.User.UpdatedAt =
+            DateTime.UtcNow;
+
+
+        // =====================================================
+        // FIND EXISTING TRAINER PROFILE
+        // =====================================================
+
+        var trainerProfile =
+            await _db.TrainerProfiles
+                .FirstOrDefaultAsync(
+                    x =>
+                        x.UserId ==
+                        application.UserId
+                );
+
+
+        // =====================================================
+        // KEEP PROFILE INACTIVE
+        // =====================================================
+
+        if (trainerProfile is not null)
+        {
+            trainerProfile.IsActive =
+                false;
+
+            trainerProfile.ActivatedAt =
+                null;
+        }
+    }
+
+
+    // =========================================================
+    // NEEDS CORRECTION
+    // =========================================================
+
+    else if (
+        string.Equals(
+            decision,
+            "NeedsCorrection",
+            StringComparison.OrdinalIgnoreCase
+        )
+    )
+    {
+        // =====================================================
+        // UPDATE APPLICATION
+        // =====================================================
+
+        application.Status =
+            TrainerApplicationStatus.NeedsCorrection;
+
+
+        // =====================================================
+        // KEEP USER PENDING
+        // =====================================================
+
+        application.User.Status =
+            UserStatus.Pending;
+
+        application.User.UpdatedAt =
+            DateTime.UtcNow;
+
+
+        // =====================================================
+        // FIND EXISTING TRAINER PROFILE
+        // =====================================================
+
+        var trainerProfile =
+            await _db.TrainerProfiles
+                .FirstOrDefaultAsync(
+                    x =>
+                        x.UserId ==
+                        application.UserId
+                );
+
+
+        // =====================================================
+        // KEEP PROFILE INACTIVE
+        // =====================================================
+
+        if (trainerProfile is not null)
+        {
+            trainerProfile.IsActive =
+                false;
+
+            trainerProfile.ActivatedAt =
+                null;
+        }
+    }
+
+
+    // =========================================================
+    // INVALID DECISION
+    // =========================================================
+
+    else
+    {
+        throw new InvalidOperationException(
+            "Invalid review decision."
+        );
+    }
+
+
+    // =========================================================
+    // ADMIN REVIEW INFORMATION
+    // =========================================================
+
+    application.AdminRemarks =
+        CleanString(
+            request.Remarks
+        );
+
+    application.ReviewedByUserId =
+        adminId;
+
+    application.ReviewedAt =
+        DateTime.UtcNow;
+
+
+    // =========================================================
+    // SAVE ALL CHANGES
+    // =========================================================
+
+    await _db.SaveChangesAsync();
+}
 
     public async Task ReviewDocumentAsync(
         Guid applicationId,

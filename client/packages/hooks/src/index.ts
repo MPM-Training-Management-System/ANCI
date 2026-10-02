@@ -26,3 +26,5 @@ export * from "./useTrainingGrade";
 export * from "./useCertificates";
 export * from "./AdminDashboard";
 export * from "./useGoogleAuth";
+export * from "./useReport";
+export * from "./useTrainerReportRequests";
