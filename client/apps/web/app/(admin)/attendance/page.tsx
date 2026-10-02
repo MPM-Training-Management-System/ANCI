@@ -44,10 +44,12 @@ type AttendanceRecordWithProfile =
   };
 
 export default function TrainerAttendancePage() {
+  // =========================================================
+  // BATCH
+  // =========================================================
 
   const [batches, setBatches] = useState<TrainingBatch[]>([]);
 
-  // The trainer has only one assigned batch.
   const selectedBatch = useMemo(
     () => batches[0] ?? null,
     [batches],
@@ -63,8 +65,10 @@ export default function TrainerAttendancePage() {
   const [trainingSessions, setTrainingSessions] =
     useState<TrainingSession[]>([]);
 
-  const [selectedTrainingSessionId, setSelectedTrainingSessionId] =
-    useState<string>("");
+  const [
+    selectedTrainingSessionId,
+    setSelectedTrainingSessionId,
+  ] = useState<string>("");
 
   // =========================================================
   // ATTENDANCE
@@ -81,6 +85,13 @@ export default function TrainerAttendancePage() {
     useState<string | null>(null);
 
   const [manualAttendanceOpen, setManualAttendanceOpen] =
+    useState(false);
+
+  // =========================================================
+  // CLOSE SESSION CONFIRMATION
+  // =========================================================
+
+  const [isCloseSessionModalOpen, setIsCloseSessionModalOpen] =
     useState(false);
 
   // =========================================================
@@ -133,10 +144,6 @@ export default function TrainerAttendancePage() {
   const [scannedToken, setScannedToken] =
     useState("");
 
-  // =========================================================
-  // QR SCANNER REFS
-  // =========================================================
-
   const scannerRef =
     useRef<Html5Qrcode | null>(null);
 
@@ -144,7 +151,7 @@ export default function TrainerAttendancePage() {
     useRef(false);
 
   // =========================================================
-  // LOAD ASSIGNED TRAINING BATCH
+  // LOAD ASSIGNED BATCH
   // =========================================================
 
   const loadBatches = useCallback(async () => {
@@ -347,7 +354,7 @@ export default function TrainerAttendancePage() {
   ]);
 
   // =========================================================
-  // LOAD DATA WHEN ASSIGNED BATCH CHANGES
+  // LOAD DATA WHEN BATCH CHANGES
   // =========================================================
 
   useEffect(() => {
@@ -605,10 +612,6 @@ export default function TrainerAttendancePage() {
           );
         }
 
-        // =====================================================
-        // REMOVE VIRTUAL CAMERAS
-        // =====================================================
-
         const realCameras =
           cameras.filter(camera => {
             const label =
@@ -632,10 +635,6 @@ export default function TrainerAttendancePage() {
             "No physical camera was found. Please connect or enable your laptop/USB camera.",
           );
         }
-
-        // =====================================================
-        // PREFER REAR CAMERA
-        // =====================================================
 
         const environmentCamera =
           realCameras.find(
@@ -667,10 +666,6 @@ export default function TrainerAttendancePage() {
         };
 
         let started = false;
-
-        // =====================================================
-        // TRY AVAILABLE PHYSICAL CAMERAS
-        // =====================================================
 
         for (const camera of orderedCameras) {
           if (started) {
@@ -893,7 +888,7 @@ export default function TrainerAttendancePage() {
   ]);
 
   // =========================================================
-  // MANUAL TOKEN SUBMIT
+  // MANUAL TOKEN
   // =========================================================
 
   const handleManualToken =
@@ -983,10 +978,25 @@ export default function TrainerAttendancePage() {
     ]);
 
   // =========================================================
-  // END ATTENDANCE SESSION
+  // OPEN CLOSE SESSION CONFIRMATION
   // =========================================================
 
-  const handleCloseAttendance =
+  const handleRequestCloseAttendance =
+    useCallback(() => {
+      if (!openSessionId) {
+        return;
+      }
+
+      setIsCloseSessionModalOpen(true);
+    }, [
+      openSessionId,
+    ]);
+
+  // =========================================================
+  // ACTUALLY CLOSE ATTENDANCE SESSION
+  // =========================================================
+
+  const handleConfirmCloseAttendance =
     useCallback(async () => {
       if (!openSessionId) {
         return;
@@ -1006,6 +1016,10 @@ export default function TrainerAttendancePage() {
 
         setOpenSessionId(null);
         setManualAttendanceOpen(false);
+
+        setIsCloseSessionModalOpen(
+          false,
+        );
 
         if (assignedBatchId) {
           await loadAttendance(
@@ -1320,7 +1334,7 @@ export default function TrainerAttendancePage() {
     return (
       <div className="flex min-h-[500px] items-center justify-center">
         <div className="text-center">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-gray-900" />
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-[#002b5c]" />
 
           <p className="mt-4 text-sm text-gray-500">
             Loading attendance...
@@ -1335,11 +1349,15 @@ export default function TrainerAttendancePage() {
   // =========================================================
 
   return (
-    <div className="min-h-full space-y-6 p-6">
+    <div className="min-h-full space-y-6 bg-[#f7f9fb] p-6">
+
+      {/* =====================================================
+          PAGE HEADER
+      ===================================================== */}
 
       <PageSection
         title="Attendance Management"
-        description="Manage your training sessions, monitor participant attendance, and record attendance using permanent participant QR codes."
+        description="Monitor participant attendance, manage active training sessions, and record attendance through QR scanning."
         actions={
           <Button
             type="button"
@@ -1356,6 +1374,10 @@ export default function TrainerAttendancePage() {
           </Button>
         }
       />
+
+      {/* =====================================================
+          ALERTS
+      ===================================================== */}
 
       {error && (
         <Alert
@@ -1380,496 +1402,504 @@ export default function TrainerAttendancePage() {
       )}
 
       {/* =====================================================
-          ASSIGNED BATCH + SESSION
+          ASSIGNED BATCH
       ===================================================== */}
 
       {selectedBatch && (
-        <section
-          className={`relative overflow-hidden rounded-2xl border p-5 shadow-sm ${
-            openSessionId
-              ? "border-emerald-200 bg-emerald-50/40"
-              : "border-[#e7e9ec] bg-white"
-          }`}
-        >
-          <div className="flex flex-col gap-6">
+        <>
+          <section className="overflow-hidden rounded-3xl border border-[#e5e9ee] bg-white shadow-sm">
 
-            {/* BATCH INFORMATION */}
+            {/* TOP BATCH HEADER */}
 
-            <div className="flex flex-col gap-4 rounded-2xl bg-[#f8f9fa] p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="border-b border-[#edf0f2] px-6 py-5">
 
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
 
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-gray-700">
-                  <BatchIcon />
-                </div>
+                <div className="flex items-start gap-4">
 
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400">
-                    Assigned training batch
-                  </p>
-
-                  <h2 className="mt-1 text-sm font-bold text-gray-900">
-                    {selectedBatch.batchCode}
-                  </h2>
-
-                  <p className="mt-1 text-xs text-gray-500">
-                    {selectedBatch.programName}
-                  </p>
-                </div>
-
-              </div>
-
-              <div className="flex flex-wrap gap-2 sm:justify-end">
-
-                <InfoPill>
-                  {selectedBatch.enrolledCount} Enrolled
-                </InfoPill>
-
-                <InfoPill>
-                  {selectedBatch.status}
-                </InfoPill>
-
-                {selectedBatch.location && (
-                  <InfoPill>
-                    {selectedBatch.location}
-                  </InfoPill>
-                )}
-
-              </div>
-
-            </div>
-
-            {/* TRAINING SESSION */}
-
-            <div>
-
-              <label className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                Training Session
-              </label>
-
-              <select
-                value={
-                  selectedTrainingSessionId
-                }
-                onChange={event =>
-                  setSelectedTrainingSessionId(
-                    event.target.value,
-                  )
-                }
-                disabled={
-                  Boolean(openSessionId)
-                }
-                className="h-11 w-full rounded-xl border border-[#e5e7eb] bg-[#f8f9fa] px-4 text-xs font-medium text-gray-700 outline-none transition focus:border-gray-400 focus:bg-white disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <option value="">
-                  Select training session
-                </option>
-
-                {trainingSessions.map(
-                  session => (
-                    <option
-                      key={session.id}
-                      value={session.id}
-                    >
-                      Session{" "}
-                      {session.sessionNumber}
-                      {" — "}
-                      {new Date(
-                        session.sessionDate,
-                      ).toLocaleDateString()}
-                      {" — "}
-                      {session.startTime}
-                      {" - "}
-                      {session.endTime}
-                    </option>
-                  ),
-                )}
-              </select>
-
-              {trainingSessions.length ===
-                0 && (
-                <p className="mt-2 text-[10px] text-gray-400">
-                  No approved training sessions are available for this batch.
-                </p>
-              )}
-
-            </div>
-
-            {/* SESSION HEADER */}
-
-            <div className="flex items-start justify-between gap-5">
-
-              <div className="flex items-start gap-4">
-
-                <div
-                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
-                    openSessionId
-                      ? "bg-emerald-600 text-white"
-                      : "bg-gray-900 text-white"
-                  }`}
-                >
-                  {openSessionId ? (
-                    <UnlockIcon />
-                  ) : (
-                    <LockIcon />
-                  )}
-                </div>
-
-                <div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-
-                    <h2 className="text-sm font-bold text-gray-900">
-                      Attendance Session
-                    </h2>
-
-                    <StatusPill
-                      open={Boolean(
-                        openSessionId,
-                      )}
-                    />
-
-                  </div>
-
-                  <p className="mt-1 text-xs text-gray-500">
-                    {selectedBatch.batchCode}
-                    {" · "}
-                    {selectedBatch.programName}
-                  </p>
-
-                </div>
-
-              </div>
-
-              <div className="hidden sm:block">
-
-                <p className="text-right text-[9px] font-bold uppercase tracking-wider text-gray-400">
-                  Session
-                </p>
-
-                <p className="mt-1 font-mono text-[9px] text-gray-400">
-                  {openSessionId
-                    ? openSessionId.slice(
-                        0,
-                        8,
-                      )
-                    : "—"}
-                </p>
-
-              </div>
-
-            </div>
-
-            {/* SESSION CONTROL */}
-
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
-              <div>
-
-                <p className="max-w-lg text-xs leading-5 text-gray-500">
-                  {isCheckingSession
-                    ? "Checking attendance session..."
-                    : openSessionId
-                      ? "Training session is active. Participant QR scanning is available."
-                      : "Training session is currently closed. Start the session before recording attendance."}
-                </p>
-
-                {!isCheckingSession && (
-                  <p className="mt-2 text-[9px] text-gray-400">
-                    Session status is synchronized with the server.
-                  </p>
-                )}
-
-              </div>
-
-              {!openSessionId ? (
-                <button
-                  type="button"
-                  onClick={() =>
-                    void handleOpenAttendance()
-                  }
-                  disabled={
-                    isOpening ||
-                    isCheckingSession ||
-                    !selectedTrainingSessionId
-                  }
-                  className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <PlayIcon />
-
-                  {isOpening
-                    ? "Starting..."
-                    : "Start Session"}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() =>
-                    void handleCloseAttendance()
-                  }
-                  disabled={
-                    isClosing ||
-                    isCheckingSession
-                  }
-                  className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-gray-900 px-5 text-xs font-bold text-white shadow-sm transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <StopIcon />
-
-                  {isClosing
-                    ? "Ending..."
-                    : "End Session"}
-                </button>
-              )}
-
-            </div>
-
-            {/* MANUAL ATTENDANCE */}
-
-            <div className="rounded-2xl border border-gray-200 bg-white p-4">
-
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-
-                <div className="flex items-start gap-3">
-
-                  <div
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                      manualAttendanceOpen
-                        ? "bg-emerald-50 text-emerald-600"
-                        : "bg-gray-100 text-gray-500"
-                    }`}
-                  >
-                    <ManualIcon />
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#002b5c] text-white shadow-sm">
+                    <BatchIcon />
                   </div>
 
                   <div>
 
-                    <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#3B7597]">
+                      Assigned Training Batch
+                    </p>
 
-                      <p className="text-xs font-bold text-gray-800">
-                        Manual Attendance
-                      </p>
+                    <h2 className="mt-1 text-xl font-bold tracking-tight text-[#0d2142]">
+                      {selectedBatch.batchCode}
+                    </h2>
 
-                      <span
-                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[8px] font-bold ${
-                          manualAttendanceOpen
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : "border-gray-200 bg-gray-50 text-gray-500"
-                        }`}
-                      >
-                        <span
-                          className={`h-1.5 w-1.5 rounded-full ${
-                            manualAttendanceOpen
-                              ? "bg-emerald-500"
-                              : "bg-gray-400"
-                          }`}
-                        />
-
-                        {manualAttendanceOpen
-                          ? "OPEN"
-                          : "CLOSED"}
-                      </span>
-
-                    </div>
-
-                    <p className="mt-1 max-w-xl text-[10px] leading-5 text-gray-400">
-                      {manualAttendanceOpen
-                        ? "Participants can now use Time In and Time Out from the mobile app."
-                        : "Participants cannot manually record attendance. QR scanning remains available while the session is open."}
+                    <p className="mt-1 text-xs text-gray-500">
+                      {selectedBatch.programName}
                     </p>
 
                   </div>
 
                 </div>
 
-                {!openSessionId ? (
-                  <button
-                    type="button"
-                    disabled
-                    className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 text-[10px] font-bold text-gray-400 disabled:cursor-not-allowed"
-                  >
-                    <LockIcon />
-                    Start Session First
-                  </button>
-                ) : manualAttendanceOpen ? (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void handleCloseManualAttendance()
+                <div className="flex flex-wrap gap-2">
+
+                  <InfoPill>
+                    {selectedBatch.enrolledCount} Participants
+                  </InfoPill>
+
+                  <InfoPill>
+                    {selectedBatch.status}
+                  </InfoPill>
+
+                  {selectedBatch.location && (
+                    <InfoPill>
+                      {selectedBatch.location}
+                    </InfoPill>
+                  )}
+
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* SESSION MANAGEMENT */}
+
+            <div className="p-6">
+
+              <div className="grid gap-6 lg:grid-cols-[1fr_1.3fr]">
+
+                {/* LEFT */}
+
+                <div className="rounded-2xl border border-[#e8edf1] bg-[#f8fafc] p-5">
+
+                  <div className="flex items-center justify-between">
+
+                    <div>
+
+                      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400">
+                        Training Session
+                      </p>
+
+                      <p className="mt-1 text-sm font-bold text-[#0d2142]">
+                        Select attendance session
+                      </p>
+
+                    </div>
+
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-[#3B7597] shadow-sm">
+                      <CalendarIcon />
+                    </div>
+
+                  </div>
+
+                  <select
+                    value={
+                      selectedTrainingSessionId
+                    }
+                    onChange={event =>
+                      setSelectedTrainingSessionId(
+                        event.target.value,
+                      )
                     }
                     disabled={
-                      isClosingManual ||
-                      isCheckingSession
+                      Boolean(openSessionId)
                     }
-                    className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-[10px] font-bold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="mt-4 h-11 w-full rounded-xl border border-[#e1e6ea] bg-white px-4 text-xs font-medium text-gray-700 outline-none transition focus:border-[#3B7597] focus:ring-2 focus:ring-[#3B7597]/10 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-60"
                   >
-                    <StopIcon />
+                    <option value="">
+                      Select training session
+                    </option>
 
-                    {isClosingManual
-                      ? "Closing..."
-                      : "Close Manual Attendance"}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void handleOpenManualAttendance()
-                    }
-                    disabled={
-                      isOpeningManual ||
-                      isCheckingSession
-                    }
-                    className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-[10px] font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <PlayIcon />
+                    {trainingSessions.map(
+                      session => (
+                        <option
+                          key={session.id}
+                          value={session.id}
+                        >
+                          Session{" "}
+                          {session.sessionNumber}
+                          {" — "}
+                          {new Date(
+                            session.sessionDate,
+                          ).toLocaleDateString()}
+                          {" — "}
+                          {session.startTime}
+                          {" - "}
+                          {session.endTime}
+                        </option>
+                      ),
+                    )}
+                  </select>
 
-                    {isOpeningManual
-                      ? "Opening..."
-                      : "Open Manual Attendance"}
-                  </button>
-                )}
+                  {trainingSessions.length ===
+                    0 && (
+                    <p className="mt-3 text-[10px] text-gray-400">
+                      No approved training sessions are available for this batch.
+                    </p>
+                  )}
+
+                </div>
+
+                {/* RIGHT SESSION STATUS */}
+
+                <div
+                  className={`rounded-2xl border p-5 ${
+                    openSessionId
+                      ? "border-emerald-200 bg-emerald-50/60"
+                      : "border-[#e8edf1] bg-white"
+                  }`}
+                >
+
+                  <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+
+                    <div className="flex items-start gap-4">
+
+                      <div
+                        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
+                          openSessionId
+                            ? "bg-emerald-600 text-white"
+                            : "bg-[#0d2142] text-white"
+                        }`}
+                      >
+                        {openSessionId ? (
+                          <UnlockIcon />
+                        ) : (
+                          <LockIcon />
+                        )}
+                      </div>
+
+                      <div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+
+                          <h3 className="text-sm font-bold text-[#0d2142]">
+                            Attendance Session
+                          </h3>
+
+                          <StatusPill
+                            open={Boolean(
+                              openSessionId,
+                            )}
+                          />
+
+                        </div>
+
+                        <p className="mt-1 text-xs text-gray-500">
+                          {selectedBatch.batchCode}
+                          {" · "}
+                          {selectedBatch.programName}
+                        </p>
+
+                        <p className="mt-3 max-w-lg text-[10px] leading-5 text-gray-400">
+                          {isCheckingSession
+                            ? "Checking the current session status..."
+                            : openSessionId
+                              ? "The session is active. QR attendance and manual attendance can be managed below."
+                              : "The session is currently closed. Start the session to begin recording attendance."}
+                        </p>
+
+                      </div>
+
+                    </div>
+
+                    <div className="shrink-0">
+
+                      {!openSessionId ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void handleOpenAttendance()
+                          }
+                          disabled={
+                            isOpening ||
+                            isCheckingSession ||
+                            !selectedTrainingSessionId
+                          }
+                          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                        >
+                          <PlayIcon />
+
+                          {isOpening
+                            ? "Starting..."
+                            : "Start Session"}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={
+                            handleRequestCloseAttendance
+                          }
+                          disabled={
+                            isClosing ||
+                            isCheckingSession
+                          }
+                          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#0d2142] px-5 text-xs font-bold text-white shadow-sm transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                        >
+                          <StopIcon />
+
+                          End Session
+                        </button>
+                      )}
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* =================================================
+                  MANUAL ATTENDANCE
+              ================================================= */}
+
+              <div className="mt-6 rounded-2xl border border-[#e8edf1] bg-white">
+
+                <div className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
+
+                  <div className="flex items-start gap-4">
+
+                    <div
+                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${
+                        manualAttendanceOpen
+                          ? "bg-emerald-50 text-emerald-600"
+                          : "bg-gray-100 text-gray-500"
+                      }`}
+                    >
+                      <ManualIcon />
+                    </div>
+
+                    <div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+
+                        <h3 className="text-xs font-bold text-[#0d2142]">
+                          Manual Attendance
+                        </h3>
+
+                        <span
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[8px] font-bold ${
+                            manualAttendanceOpen
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-gray-200 bg-gray-50 text-gray-500"
+                          }`}
+                        >
+                          <span
+                            className={`h-1.5 w-1.5 rounded-full ${
+                              manualAttendanceOpen
+                                ? "bg-emerald-500"
+                                : "bg-gray-400"
+                            }`}
+                          />
+
+                          {manualAttendanceOpen
+                            ? "OPEN"
+                            : "CLOSED"}
+                        </span>
+
+                      </div>
+
+                      <p className="mt-1 max-w-xl text-[10px] leading-5 text-gray-400">
+                        {manualAttendanceOpen
+                          ? "Participants can use Time In and Time Out from the mobile application."
+                          : "Manual Time In and Time Out are disabled. QR scanning remains available while the session is open."}
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                  <div className="shrink-0">
+
+                    {!openSessionId ? (
+                      <button
+                        type="button"
+                        disabled
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 text-[10px] font-bold text-gray-400"
+                      >
+                        <LockIcon />
+                        Start Session First
+                      </button>
+                    ) : manualAttendanceOpen ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void handleCloseManualAttendance()
+                        }
+                        disabled={
+                          isClosingManual ||
+                          isCheckingSession
+                        }
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-[10px] font-bold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <StopIcon />
+
+                        {isClosingManual
+                          ? "Closing..."
+                          : "Close Manual Attendance"}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void handleOpenManualAttendance()
+                        }
+                        disabled={
+                          isOpeningManual ||
+                          isCheckingSession
+                        }
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-[10px] font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <PlayIcon />
+
+                        {isOpeningManual
+                          ? "Opening..."
+                          : "Open Manual Attendance"}
+                      </button>
+                    )}
+
+                  </div>
+
+                </div>
 
               </div>
 
             </div>
 
-          </div>
-        </section>
-      )}
+          </section>
 
-      {/* =====================================================
-          QR SCANNER
-      ===================================================== */}
+          {/* =====================================================
+              QR SCANNER CARD
+          ===================================================== */}
 
-      {selectedBatch && (
-        <section className="overflow-hidden rounded-2xl border border-[#e7e9ec] bg-white shadow-sm">
+          <section className="overflow-hidden rounded-3xl border border-[#e5e9ee] bg-white shadow-sm">
 
-          <div className="p-5">
+            <div className="border-b border-[#edf0f2] px-6 py-5">
 
-            <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
-              <div className="flex items-start gap-3">
+                <div className="flex items-start gap-4">
 
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-900 text-white">
-                  <QrIcon />
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#0d2142] text-white">
+                    <QrIcon />
+                  </div>
+
+                  <div>
+
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-600">
+                      QR Attendance
+                    </p>
+
+                    <h2 className="mt-1 text-base font-bold text-[#0d2142]">
+                      Participant QR Scanner
+                    </h2>
+
+                    <p className="mt-1 text-xs text-gray-500">
+                      Use the participant's permanent QR code for Time In and Time Out.
+                    </p>
+
+                  </div>
+
                 </div>
 
-                <div>
+                <StatusPill
+                  open={Boolean(
+                    openSessionId,
+                  )}
+                />
 
-                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-600">
-                    QR attendance
+              </div>
+
+            </div>
+
+            <div className="p-6">
+
+              <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+
+                {/* SCANNER ACTION */}
+
+                <div className="rounded-2xl bg-[#f8fafc] p-6">
+
+                  <div className="flex flex-col items-center justify-center text-center">
+
+                    <div className="relative flex h-32 w-32 items-center justify-center rounded-3xl border border-gray-200 bg-white shadow-sm">
+
+                      <div className="absolute inset-4 rounded-2xl border-2 border-dashed border-[#3B7597]/40" />
+
+                      <QrIcon className="!h-12 !w-12 text-[#0d2142]" />
+
+                    </div>
+
+                    <h3 className="mt-5 text-sm font-bold text-[#0d2142]">
+                      Ready to scan?
+                    </h3>
+
+                    <p className="mt-2 max-w-sm text-[10px] leading-5 text-gray-400">
+                      Open the camera and point it toward the participant's permanent QR code.
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={
+                        openCameraModal
+                      }
+                      disabled={
+                        !openSessionId ||
+                        isCheckingSession
+                      }
+                      className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#0d2142] px-6 text-xs font-bold text-white shadow-sm transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <CameraIcon />
+                      Open Camera
+                    </button>
+
+                  </div>
+
+                </div>
+
+                {/* HOW IT WORKS */}
+
+                <div className="rounded-2xl border border-[#e8edf1] bg-white p-6">
+
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400">
+                    How it works
                   </p>
 
-                  <h2 className="mt-1 text-base font-bold text-gray-900">
-                    Scan Participant QR
-                  </h2>
-
-                  <p className="mt-1 max-w-xl text-xs leading-5 text-gray-500">
-                    Scan the participant's permanent QR code to record attendance.
-                  </p>
-
-                </div>
-
-              </div>
-
-              <button
-                type="button"
-                onClick={
-                  openCameraModal
-                }
-                disabled={
-                  !openSessionId ||
-                  isCheckingSession
-                }
-                className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-gray-900 px-5 text-xs font-bold text-white shadow-sm transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <CameraIcon />
-                Open Camera
-              </button>
-
-            </div>
-
-            {/* SCANNER STATUS */}
-
-            <div className="mt-5 flex items-center justify-between rounded-xl border border-gray-100 bg-[#fafbfc] px-4 py-3">
-
-              <div>
-
-                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                  Scanner status
-                </p>
-
-                <p className="mt-1 text-xs font-semibold text-gray-700">
-                  {isCheckingSession
-                    ? "Checking attendance session..."
-                    : openSessionId
-                      ? "Ready to scan participant QR"
-                      : "Open attendance session first"}
-                </p>
-
-              </div>
-
-              <StatusPill
-                open={Boolean(
-                  openSessionId,
-                )}
-              />
-
-            </div>
-
-            {/* SCAN INSTRUCTIONS */}
-
-            <div className="mt-5 rounded-2xl border border-gray-200 bg-white p-5">
-
-              <div className="flex items-start gap-3">
-
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                  <ScanIcon />
-                </div>
-
-                <div>
-
-                  <h3 className="text-sm font-bold text-gray-800">
+                  <h3 className="mt-1 text-sm font-bold text-[#0d2142]">
                     Automatic Time In / Time Out
                   </h3>
 
-                  <p className="mt-1 text-xs leading-5 text-gray-500">
-                    The same permanent participant QR is used for both actions.
-                  </p>
+                  <div className="mt-5 space-y-5">
+
+                    <StepItem
+                      number="1"
+                      title="First scan"
+                      description="Creates the participant's Time In record."
+                    />
+
+                    <StepItem
+                      number="2"
+                      title="Second scan"
+                      description="Records Time Out for the same attendance day."
+                    />
+
+                    <StepItem
+                      number="3"
+                      title="Attendance complete"
+                      description="A third scan is rejected once attendance is complete."
+                    />
+
+                  </div>
 
                 </div>
 
               </div>
 
-              <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+              {/* =================================================
+                  SCAN RESULT
+              ================================================= */}
 
-                <StepItem
-                  number="1"
-                  title="First scan"
-                  description="Creates the participant's Time In record."
-                />
-
-                <StepItem
-                  number="2"
-                  title="Second scan"
-                  description="Records Time Out for the same attendance day."
-                />
-
-                <StepItem
-                  number="3"
-                  title="Complete"
-                  description="A third scan is rejected once attendance is complete."
-                />
-
-              </div>
-
-            </div>
-
-            {/* SCAN RESULT */}
-
-            {scanResult && (
-              <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-
-                <div className="flex items-start gap-3">
+              {scanResult && (
+                <div className="mt-6 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
 
                   <div className="mt-0.5 text-emerald-600">
                     <CheckIcon />
@@ -1888,79 +1918,421 @@ export default function TrainerAttendancePage() {
                   </div>
 
                 </div>
+              )}
+
+              {/* =================================================
+                  FALLBACK TOKEN
+              ================================================= */}
+
+              <div className="mt-6 rounded-2xl border border-[#e8edf1] bg-white p-5">
+
+                <div className="flex items-center gap-3">
+
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 text-gray-500">
+                    <CodeIcon />
+                  </div>
+
+                  <div>
+
+                    <p className="text-xs font-bold text-[#0d2142]">
+                      QR Token Fallback
+                    </p>
+
+                    <p className="mt-0.5 text-[10px] text-gray-400">
+                      Use this only when the camera scanner is unavailable.
+                    </p>
+
+                  </div>
+
+                </div>
+
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+
+                  <input
+                    value={scannedToken}
+                    onChange={event =>
+                      setScannedToken(
+                        event.target.value,
+                      )
+                    }
+                    disabled={
+                      !openSessionId
+                    }
+                    placeholder="Paste decoded QR token..."
+                    className="h-11 min-w-0 flex-1 rounded-xl border border-[#e1e6ea] bg-[#f8fafc] px-4 text-xs outline-none transition focus:border-[#3B7597] focus:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void handleManualToken()
+                    }
+                    disabled={
+                      !openSessionId ||
+                      !scannedToken.trim()
+                    }
+                    className="h-11 rounded-xl bg-[#0d2142] px-5 text-xs font-bold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Submit
+                  </button>
+
+                </div>
 
               </div>
-            )}
 
-            {/* TOKEN FALLBACK */}
+              {/* =================================================
+                  SCAN ERROR
+              ================================================= */}
 
-            <div className="mt-5">
+              {scanError && (
+                <div className="mt-5 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
 
-              <label className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                QR Token fallback
-              </label>
+                  <div className="mt-0.5 text-red-600">
+                    <ErrorIcon />
+                  </div>
 
-              <div className="flex flex-col gap-2 sm:flex-row">
+                  <div>
 
-                <input
-                  value={scannedToken}
-                  onChange={event =>
-                    setScannedToken(
-                      event.target.value,
-                    )
-                  }
-                  disabled={
-                    !openSessionId
-                  }
-                  placeholder="Paste decoded QR token..."
-                  className="h-11 min-w-0 flex-1 rounded-xl border border-[#e5e7eb] bg-[#f8f9fa] px-4 text-xs outline-none transition focus:border-gray-400 focus:bg-white disabled:cursor-not-allowed disabled:opacity-50"
-                />
+                    <p className="text-xs font-bold text-red-700">
+                      Scan failed
+                    </p>
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    void handleManualToken()
-                  }
-                  disabled={
-                    !openSessionId ||
-                    !scannedToken.trim()
-                  }
-                  className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-xs font-bold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Submit
-                </button>
+                    <p className="mt-1 text-[10px] leading-5 text-red-600">
+                      {scanError}
+                    </p>
+
+                  </div>
+
+                </div>
+              )}
+
+            </div>
+
+          </section>
+        </>
+      )}
+
+      {/* =====================================================
+          SUMMARY
+      ===================================================== */}
+
+      {selectedBatch && (
+        <div>
+
+          <div className="mb-4">
+
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#3B7597]">
+              Attendance Overview
+            </p>
+
+            <h2 className="mt-1 text-base font-bold text-[#0d2142]">
+              Attendance Summary
+            </h2>
+
+          </div>
+
+          <StatGrid>
+
+            <StatCard
+              title="Showing"
+              variant="primary"
+              icon={User2}
+              value={
+                filteredRecords.length
+              }
+            />
+
+            <StatCard
+              title="Present"
+              variant="success"
+              icon={CheckCircle}
+              value={presentCount}
+            />
+
+            <StatCard
+              title="Late"
+              variant="warning"
+              icon={Clock1}
+              value={lateCount}
+            />
+
+            <StatCard
+              title="Incomplete"
+              variant="danger"
+              icon={BookA}
+              value={incompleteCount}
+            />
+
+          </StatGrid>
+
+        </div>
+      )}
+
+      {/* =====================================================
+          ATTENDANCE TABLE
+      ===================================================== */}
+
+      {selectedBatch && (
+        <section>
+
+          <div className="mb-4 flex flex-col gap-1">
+
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#3B7597]">
+              Attendance Records
+            </p>
+
+            <h2 className="text-base font-bold text-[#0d2142]">
+              Participant Attendance
+            </h2>
+
+          </div>
+
+          {isLoadingAttendance ? (
+            <div className="flex min-h-[280px] items-center justify-center rounded-3xl border border-[#e5e9ee] bg-white">
+
+              <div className="text-center">
+
+                <div className="mx-auto h-7 w-7 animate-spin rounded-full border-2 border-gray-200 border-t-[#002b5c]" />
+
+                <p className="mt-3 text-xs text-gray-400">
+                  Loading attendance records...
+                </p>
+
+              </div>
+
+            </div>
+          ) : filteredRecords.length ===
+            0 ? (
+            <EmptyState
+              search={Boolean(
+                search.trim() ||
+                selectedDate,
+              )}
+            />
+          ) : (
+            <div className="overflow-hidden rounded-3xl border border-[#e5e9ee] bg-white shadow-sm">
+
+              <DataTable
+                columns={columns}
+                data={filteredRecords}
+                searchable
+                showPagination
+                toolbar={
+                  <div className="flex w-full items-center gap-2 sm:w-auto">
+
+                    <input
+                      type="date"
+                      value={
+                        selectedDate
+                      }
+                      onChange={event =>
+                        setSelectedDate(
+                          event.target.value,
+                        )
+                      }
+                      className="h-10 w-full rounded-xl border border-[#e1e6ea] bg-[#f8fafc] px-3 text-xs font-medium text-gray-600 outline-none transition focus:border-[#3B7597] focus:bg-white sm:w-44"
+                    />
+
+                    {selectedDate && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedDate(
+                            "",
+                          )
+                        }
+                        className="h-10 shrink-0 rounded-xl border border-gray-200 bg-white px-3 text-[10px] font-bold text-gray-500 transition hover:bg-gray-50 hover:text-gray-700"
+                      >
+                        Clear
+                      </button>
+                    )}
+
+                  </div>
+                }
+              />
+
+            </div>
+          )}
+
+        </section>
+      )}
+
+      {/* =====================================================
+          NO ASSIGNED BATCH
+      ===================================================== */}
+
+      {batches.length === 0 && (
+        <section className="rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-20 text-center shadow-sm">
+
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-gray-100 text-gray-400">
+            <BatchIcon />
+          </div>
+
+          <h2 className="mt-5 text-base font-bold text-[#0d2142]">
+            No Training Batch Assigned
+          </h2>
+
+          <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-gray-400">
+            There is currently no training batch assigned to your trainer account.
+          </p>
+
+          <button
+            type="button"
+            onClick={() =>
+              void loadBatches()
+            }
+            className="mt-6 rounded-xl bg-[#0d2142] px-5 py-2.5 text-[11px] font-bold text-white transition hover:bg-black"
+          >
+            Reload
+          </button>
+
+        </section>
+      )}
+
+      {/* =====================================================
+          CLOSE SESSION CONFIRMATION MODAL
+      ===================================================== */}
+
+      {isCloseSessionModalOpen && (
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          onMouseDown={event => {
+            if (
+              event.target ===
+              event.currentTarget &&
+              !isClosing
+            ) {
+              setIsCloseSessionModalOpen(
+                false,
+              );
+            }
+          }}
+        >
+
+          <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
+
+            {/* HEADER */}
+
+            <div className="border-b border-gray-100 px-6 py-5">
+
+              <div className="flex items-start gap-4">
+
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
+                  <WarningIcon />
+                </div>
+
+                <div>
+
+                  <h2 className="text-base font-bold text-[#0d2142]">
+                    End Attendance Session?
+                  </h2>
+
+                  <p className="mt-1 text-xs leading-5 text-gray-500">
+                    Are you sure you want to close this attendance session?
+                  </p>
+
+                </div>
 
               </div>
 
             </div>
 
-            {/* SCAN ERROR */}
+            {/* BODY */}
 
-            {scanError && (
-              <div className="mt-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
+            <div className="px-6 py-5">
 
-                <div className="mt-0.5 text-red-600">
-                  <ErrorIcon />
+              <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4">
+
+                <div className="flex items-start gap-3">
+
+                  <div className="mt-0.5 text-amber-600">
+                    <InfoIcon />
+                  </div>
+
+                  <div>
+
+                    <p className="text-xs font-bold text-amber-800">
+                      This action will end the active session.
+                    </p>
+
+                    <p className="mt-1 text-[10px] leading-5 text-amber-700">
+                      QR scanning will stop, and manual attendance will also be closed. Existing attendance records will remain saved.
+                    </p>
+
+                  </div>
+
                 </div>
 
-                <div>
+              </div>
 
-                  <p className="text-xs font-bold text-red-700">
-                    Scan failed
+              <div className="mt-5 grid grid-cols-2 gap-3">
+
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">
+                    Batch
                   </p>
 
-                  <p className="mt-1 text-[10px] leading-5 text-red-600">
-                    {scanError}
+                  <p className="mt-1 truncate text-xs font-bold text-gray-700">
+                    {selectedBatch?.batchCode ??
+                      "—"}
+                  </p>
+
+                </div>
+
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">
+                    Session
+                  </p>
+
+                  <p className="mt-1 text-xs font-bold text-gray-700">
+                    Active
                   </p>
 
                 </div>
 
               </div>
-            )}
+
+            </div>
+
+            {/* ACTIONS */}
+
+            <div className="flex flex-col-reverse gap-2 border-t border-gray-100 bg-gray-50 px-6 py-4 sm:flex-row sm:justify-end">
+
+              <button
+                type="button"
+                onClick={() =>
+                  setIsCloseSessionModalOpen(
+                    false,
+                  )
+                }
+                disabled={isClosing}
+                className="h-11 rounded-xl border border-gray-200 bg-white px-5 text-xs font-bold text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  void handleConfirmCloseAttendance()
+                }
+                disabled={isClosing}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#0d2142] px-5 text-xs font-bold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <StopIcon />
+
+                {isClosing
+                  ? "Ending Session..."
+                  : "Yes, End Session"}
+              </button>
+
+            </div>
 
           </div>
 
-        </section>
+        </div>
       )}
 
       {/* =====================================================
@@ -1980,13 +2352,13 @@ export default function TrainerAttendancePage() {
           }}
         >
 
-          <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
+          <div className="w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl">
 
             <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
 
               <div className="flex items-center gap-3">
 
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-900 text-white">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0d2142] text-white">
                   <CameraIcon />
                 </div>
 
@@ -2114,156 +2486,6 @@ export default function TrainerAttendancePage() {
         </div>
       )}
 
-      {/* =====================================================
-          SUMMARY
-      ===================================================== */}
-
-      {selectedBatch && (
-        <StatGrid>
-
-          <StatCard
-            title="Showing"
-            variant="primary"
-            icon={User2}
-            value={
-              filteredRecords.length
-            }
-          />
-
-          <StatCard
-            title="Present"
-            variant="success"
-            icon={CheckCircle}
-            value={presentCount}
-          />
-
-          <StatCard
-            title="Late"
-            variant="warning"
-            icon={Clock1}
-            value={lateCount}
-          />
-
-          <StatCard
-            title="Incomplete"
-            variant="danger"
-            icon={BookA}
-            value={incompleteCount}
-          />
-
-        </StatGrid>
-      )}
-
-      {/* =====================================================
-          ATTENDANCE TABLE
-      ===================================================== */}
-
-      {selectedBatch && (
-        <section>
-
-          {isLoadingAttendance ? (
-            <div className="flex min-h-[280px] items-center justify-center">
-
-              <div className="text-center">
-
-                <div className="mx-auto h-7 w-7 animate-spin rounded-full border-2 border-gray-200 border-t-gray-900" />
-
-                <p className="mt-3 text-xs text-gray-400">
-                  Loading attendance records...
-                </p>
-
-              </div>
-
-            </div>
-          ) : filteredRecords.length ===
-            0 ? (
-            <EmptyState
-              search={Boolean(
-                search.trim() ||
-                selectedDate,
-              )}
-            />
-          ) : (
-              <div>
-                <DataTable
-                  columns={columns}
-                  data={filteredRecords}
-                  searchable
-                  showPagination
-                  toolbar={
-                    <div className="flex w-full items-center gap-2 sm:w-auto">
-
-                      <input
-                        type="date"
-                        value={
-                          selectedDate
-                        }
-                        onChange={event =>
-                          setSelectedDate(
-                            event.target.value,
-                          )
-                        }
-                        className="h-10 w-full rounded-xl border border-[#e5e7eb] bg-[#f8f9fa] px-3 text-xs font-medium text-gray-600 outline-none transition focus:border-gray-300 focus:bg-white sm:w-44"
-                      />
-
-                      {selectedDate && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setSelectedDate(
-                              "",
-                            )
-                          }
-                          className="h-10 shrink-0 rounded-xl border border-gray-200 bg-white px-3 text-[10px] font-bold text-gray-500 transition hover:bg-gray-50 hover:text-gray-700"
-                        >
-                          Clear
-                        </button>
-                      )}
-
-                    </div>
-                  }
-                />
-
-              </div>
-
-            
-          )}
-
-        </section>
-      )}
-
-      {/* =====================================================
-          NO ASSIGNED BATCH
-      ===================================================== */}
-
-      {batches.length === 0 && (
-        <section className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-16 text-center">
-
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 text-gray-400">
-            <BatchIcon />
-          </div>
-
-          <h2 className="mt-4 text-sm font-bold text-gray-800">
-            No Training Batch Assigned
-          </h2>
-
-          <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-gray-400">
-            There is currently no training batch assigned to your trainer account.
-          </p>
-
-          <button
-            type="button"
-            onClick={() =>
-              void loadBatches()
-            }
-            className="mt-5 rounded-xl bg-gray-900 px-5 py-2.5 text-[11px] font-bold text-white transition hover:bg-black"
-          >
-            Reload
-          </button>
-
-        </section>
-      )}
-
     </div>
   );
 }
@@ -2284,7 +2506,7 @@ function StepItem({
   return (
     <div className="flex gap-3">
 
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-900 text-[10px] font-bold text-white">
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#0d2142] text-[10px] font-bold text-white">
         {number}
       </div>
 
@@ -2346,7 +2568,7 @@ function EmptyState({
   search: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-[#e7e9ec] bg-white px-6 py-16 text-center">
+    <div className="rounded-3xl border border-[#e5e9ee] bg-white px-6 py-16 text-center shadow-sm">
 
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-gray-400">
 
@@ -2540,6 +2762,38 @@ function BatchIcon({
 }
 
 // =============================================================
+// CALENDAR
+// =============================================================
+
+function CalendarIcon({
+  className = "",
+}: IconProps) {
+  return (
+    <svg
+      className={`!h-4 !w-4 !shrink-0 ${className}`}
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
+      <rect
+        x="3"
+        y="4"
+        width="18"
+        height="17"
+        rx="2"
+      />
+
+      <path d="M16 2v4M8 2v4M3 10h18" />
+
+      <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" />
+    </svg>
+  );
+}
+
+// =============================================================
 // UNLOCK
 // =============================================================
 
@@ -2652,9 +2906,9 @@ function QrIcon({
 }: IconProps) {
   return (
     <svg
-      className={`!h-4 !w-4 !shrink-0 ${className}`}
-      width="16"
-      height="16"
+      className={`!h-5 !w-5 !shrink-0 ${className}`}
+      width="20"
+      height="20"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -2827,9 +3081,9 @@ function ManualIcon({
 }: IconProps) {
   return (
     <svg
-      className={`!h-3.5 !w-3.5 !shrink-0 ${className}`}
-      width="14"
-      height="14"
+      className={`!h-4 !w-4 !shrink-0 ${className}`}
+      width="16"
+      height="16"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -2865,6 +3119,80 @@ function ErrorIcon({
       />
 
       <path d="M12 8v5M12 16h.01" />
+    </svg>
+  );
+}
+
+// =============================================================
+// WARNING
+// =============================================================
+
+function WarningIcon({
+  className = "",
+}: IconProps) {
+  return (
+    <svg
+      className={`!h-5 !w-5 !shrink-0 ${className}`}
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
+      <path d="M10.3 3.9 2.7 17a2 2 0 0 0 1.7 3h15.2a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+
+      <path d="M12 9v4M12 17h.01" />
+    </svg>
+  );
+}
+
+// =============================================================
+// INFO
+// =============================================================
+
+function InfoIcon({
+  className = "",
+}: IconProps) {
+  return (
+    <svg
+      className={`!h-4 !w-4 !shrink-0 ${className}`}
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <circle
+        cx="12"
+        cy="12"
+        r="9"
+      />
+
+      <path d="M12 10v6M12 7h.01" />
+    </svg>
+  );
+}
+
+// =============================================================
+// CODE
+// =============================================================
+
+function CodeIcon({
+  className = "",
+}: IconProps) {
+  return (
+    <svg
+      className={`!h-4 !w-4 !shrink-0 ${className}`}
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
+      <path d="m8 9-4 3 4 3M16 9l4 3-4 3M14 5l-4 14" />
     </svg>
   );
 }

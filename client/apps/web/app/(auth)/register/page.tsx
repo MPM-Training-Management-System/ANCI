@@ -1,5 +1,3 @@
-/* TrainerRegisterPage.tsx */
-
 "use client";
 
 import {
@@ -10,7 +8,15 @@ import {
   useState,
 } from "react";
 
+import Image from "next/image";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+
+import {
+  GoogleLogin,
+  GoogleOAuthProvider,
+  type CredentialResponse,
+} from "@react-oauth/google";
 
 import {
   useRegisterTrainer,
@@ -35,8 +41,16 @@ import type {
 
 import { notify } from "@repo/hooks";
 
+import Logo from "@/assets/image/ANCILOGO.png";
+
+const GOOGLE_CLIENT_ID =
+  process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
+
+// ==========================================================
+// TYPES
+// ==========================================================
+
 interface FormData {
-  // Personal
   firstName: string;
   middleName: string;
   lastName: string;
@@ -44,25 +58,21 @@ interface FormData {
   birthDate: string;
   gender: string;
 
-  // Account
   email: string;
   mobileNumber: string;
   password: string;
   confirmPassword: string;
 
-  // Professional
   specialization: string;
   professionalTitle: string;
   currentOrganization: string;
   bio: string;
   yearsOfExperience: string;
 
-  // License
   professionalLicenseNumber: string;
   professionalLicenseType: string;
   professionalLicenseExpirationDate: string;
 
-  // Profile
   profileImage: File | null;
 }
 
@@ -81,8 +91,11 @@ interface AddressData {
   barangayName: string;
 }
 
+// ==========================================================
+// INITIAL VALUES
+// ==========================================================
+
 const initialForm: FormData = {
-  // Personal
   firstName: "",
   middleName: "",
   lastName: "",
@@ -90,25 +103,21 @@ const initialForm: FormData = {
   birthDate: "",
   gender: "",
 
-  // Account
   email: "",
   mobileNumber: "",
   password: "",
   confirmPassword: "",
 
-  // Professional
   specialization: "",
   professionalTitle: "",
   currentOrganization: "",
   bio: "",
   yearsOfExperience: "",
 
-  // License
   professionalLicenseNumber: "",
   professionalLicenseType: "",
   professionalLicenseExpirationDate: "",
 
-  // Profile
   profileImage: null,
 };
 
@@ -144,15 +153,54 @@ const emptyCertification =
     certificateUrl: "",
   });
 
+// ==========================================================
+// STEPS
+// ==========================================================
+
+const steps = [
+  {
+    number: 1,
+    title: "Personal Information",
+    description:
+      "Tell us about yourself.",
+  },
+  {
+    number: 2,
+    title: "Address",
+    description:
+      "Provide your complete address.",
+  },
+  {
+    number: 3,
+    title: "Professional",
+    description:
+      "Tell us about your professional background.",
+  },
+  {
+    number: 4,
+    title: "Education & Certifications",
+    description:
+      "Add your educational and professional credentials.",
+  },
+  {
+    number: 5,
+    title: "Account",
+    description:
+      "Create your ACE NextGen trainer account.",
+  },
+];
+
+// ==========================================================
+// PAGE
+// ==========================================================
+
 export default function TrainerRegisterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const {
-    registerTrainer,
-    isLoading,
-    error,
-  } = useRegisterTrainer(authApi);
+  // ========================================================
+  // FORM
+  // ========================================================
 
   const [form, setForm] =
     useState<FormData>(initialForm);
@@ -160,15 +208,12 @@ export default function TrainerRegisterPage() {
   const [address, setAddress] =
     useState<AddressData>(initialAddress);
 
-  const [educations, setEducations] =
-    useState<CreateTrainerEducationRequest[]>([
-      emptyEducation(),
-    ]);
+  const [currentStep, setCurrentStep] =
+    useState(1);
 
-  const [certifications, setCertifications] =
-    useState<CreateTrainerCertificationRequest[]>([
-      emptyCertification(),
-    ]);
+  // ========================================================
+  // PSGC
+  // ========================================================
 
   const [provinces, setProvinces] =
     useState<PsgcItem[]>([]);
@@ -182,24 +227,33 @@ export default function TrainerRegisterPage() {
   const [addressLoading, setAddressLoading] =
     useState(false);
 
+  // ========================================================
+  // EDUCATION / CERTIFICATION
+  // ========================================================
+
+  const [educations, setEducations] =
+    useState<CreateTrainerEducationRequest[]>([
+      emptyEducation(),
+    ]);
+
+  const [certifications, setCertifications] =
+    useState<CreateTrainerCertificationRequest[]>(
+      [emptyCertification()]
+    );
+
+  // ========================================================
+  // IMAGE
+  // ========================================================
+
   const [preview, setPreview] =
     useState<string | null>(null);
 
   const fileInputRef =
     useRef<HTMLInputElement | null>(null);
 
-  const [showPassword, setShowPassword] =
-    useState(false);
-
-  const [showConfirmPassword, setShowConfirmPassword] =
-    useState(false);
-
-  const [localError, setLocalError] =
-    useState<string | null>(null);
-
-  /* ------------------------------------------------------------------------ */
-  /* GOOGLE REGISTRATION                                                      */
-  /* ------------------------------------------------------------------------ */
+  // ========================================================
+  // GOOGLE
+  // ========================================================
 
   const [isGoogleRegistration, setIsGoogleRegistration] =
     useState(false);
@@ -210,9 +264,9 @@ export default function TrainerRegisterPage() {
   const [googleProfileImageUrl, setGoogleProfileImageUrl] =
     useState<string | null>(null);
 
-  /* ------------------------------------------------------------------------ */
-  /* OTP                                                                      */
-  /* ------------------------------------------------------------------------ */
+  // ========================================================
+  // OTP
+  // ========================================================
 
   const [showOtpModal, setShowOtpModal] =
     useState(false);
@@ -232,9 +286,37 @@ export default function TrainerRegisterPage() {
   const [registeredEmail, setRegisteredEmail] =
     useState("");
 
-  /* ------------------------------------------------------------------------ */
-  /* LOAD GOOGLE REGISTRATION DATA                                            */
-  /* ------------------------------------------------------------------------ */
+  // ========================================================
+  // ERROR
+  // ========================================================
+
+  const [localError, setLocalError] =
+    useState<string | null>(null);
+
+  // ========================================================
+  // REGISTER HOOK
+  // ========================================================
+
+  const {
+    registerTrainer,
+    isLoading,
+    error,
+  } = useRegisterTrainer(authApi);
+
+  // ========================================================
+  // CURRENT STEP
+  // ========================================================
+
+  const currentStepData =
+    steps[currentStep - 1];
+
+  if (!currentStepData) {
+    return null;
+  }
+
+  // ========================================================
+  // GOOGLE REGISTRATION LOADER
+  // ========================================================
 
   useEffect(() => {
     const googleMode =
@@ -286,9 +368,9 @@ export default function TrainerRegisterPage() {
     }
   }, [searchParams]);
 
-  /* ------------------------------------------------------------------------ */
-  /* LOAD PROVINCES                                                           */
-  /* ------------------------------------------------------------------------ */
+  // ========================================================
+  // LOAD PROVINCES
+  // ========================================================
 
   useEffect(() => {
     const loadProvinces = async () => {
@@ -320,9 +402,9 @@ export default function TrainerRegisterPage() {
     loadProvinces();
   }, []);
 
-  /* ------------------------------------------------------------------------ */
-  /* CLEANUP PREVIEW                                                          */
-  /* ------------------------------------------------------------------------ */
+  // ========================================================
+  // IMAGE CLEANUP
+  // ========================================================
 
   useEffect(() => {
     return () => {
@@ -332,9 +414,9 @@ export default function TrainerRegisterPage() {
     };
   }, [preview]);
 
-  /* ------------------------------------------------------------------------ */
-  /* FORM UPDATE                                                              */
-  /* ------------------------------------------------------------------------ */
+  // ========================================================
+  // UPDATE FORM
+  // ========================================================
 
   const updateField = (
     field: keyof FormData,
@@ -348,9 +430,9 @@ export default function TrainerRegisterPage() {
     setLocalError(null);
   };
 
-  /* ------------------------------------------------------------------------ */
-  /* ADDRESS                                                                  */
-  /* ------------------------------------------------------------------------ */
+  // ========================================================
+  // PSGC PROVINCE
+  // ========================================================
 
   const handleProvinceChange = async (
     provinceCode: string
@@ -409,6 +491,10 @@ export default function TrainerRegisterPage() {
     }
   };
 
+  // ========================================================
+  // PSGC MUNICIPALITY
+  // ========================================================
+
   const handleMunicipalityChange = async (
     municipalityCode: string
   ) => {
@@ -462,6 +548,10 @@ export default function TrainerRegisterPage() {
     }
   };
 
+  // ========================================================
+  // PSGC BARANGAY
+  // ========================================================
+
   const handleBarangayChange = (
     barangayCode: string
   ) => {
@@ -481,6 +571,10 @@ export default function TrainerRegisterPage() {
     setLocalError(null);
   };
 
+  // ========================================================
+  // COMPLETE ADDRESS
+  // ========================================================
+
   const completeAddress = [
     address.houseNumber.trim(),
     address.street.trim(),
@@ -492,9 +586,9 @@ export default function TrainerRegisterPage() {
     .filter(Boolean)
     .join(", ");
 
-  /* ------------------------------------------------------------------------ */
-  /* PROFILE IMAGE                                                            */
-  /* ------------------------------------------------------------------------ */
+  // ========================================================
+  // PROFILE IMAGE
+  // ========================================================
 
   const handleProfileImage = (
     event: ChangeEvent<HTMLInputElement>
@@ -512,11 +606,7 @@ export default function TrainerRegisterPage() {
       "image/webp",
     ];
 
-    if (
-      !allowedTypes.includes(
-        file.type
-      )
-    ) {
+    if (!allowedTypes.includes(file.type)) {
       setLocalError(
         "Only JPG, PNG, and WEBP images are allowed."
       );
@@ -526,10 +616,7 @@ export default function TrainerRegisterPage() {
       return;
     }
 
-    if (
-      file.size >
-      2 * 1024 * 1024
-    ) {
+    if (file.size > 2 * 1024 * 1024) {
       setLocalError(
         "Profile image must be 2MB or smaller."
       );
@@ -572,9 +659,9 @@ export default function TrainerRegisterPage() {
     }
   };
 
-  /* ------------------------------------------------------------------------ */
-  /* EDUCATION                                                                */
-  /* ------------------------------------------------------------------------ */
+  // ========================================================
+  // EDUCATION
+  // ========================================================
 
   const updateEducation = (
     index: number,
@@ -619,9 +706,9 @@ export default function TrainerRegisterPage() {
     });
   };
 
-  /* ------------------------------------------------------------------------ */
-  /* CERTIFICATION                                                            */
-  /* ------------------------------------------------------------------------ */
+  // ========================================================
+  // CERTIFICATION
+  // ========================================================
 
   const updateCertification = (
     index: number,
@@ -666,9 +753,89 @@ export default function TrainerRegisterPage() {
     });
   };
 
-  /* ------------------------------------------------------------------------ */
-  /* OTP                                                                      */
-  /* ------------------------------------------------------------------------ */
+  // ========================================================
+  // GOOGLE SUCCESS
+  // ========================================================
+
+  const handleGoogleSuccess = async (
+    credentialResponse: CredentialResponse
+  ) => {
+    const token =
+      credentialResponse.credential;
+
+    if (!token) {
+      setLocalError(
+        "Google registration failed. No credential was returned."
+      );
+
+      return;
+    }
+
+    try {
+      sessionStorage.setItem(
+        "google_registration_id_token",
+        token
+      );
+
+      const payload =
+        decodeJwtPayload(token);
+
+      const firstName =
+        typeof payload.given_name === "string"
+          ? payload.given_name
+          : "";
+
+      const lastName =
+        typeof payload.family_name === "string"
+          ? payload.family_name
+          : "";
+
+      const email =
+        typeof payload.email === "string"
+          ? payload.email
+          : "";
+
+      const picture =
+        typeof payload.picture === "string"
+          ? payload.picture
+          : "";
+
+      setIsGoogleRegistration(true);
+      setGoogleIdToken(token);
+
+      setForm((current) => ({
+        ...current,
+        firstName,
+        lastName,
+        email,
+      }));
+
+      setGoogleProfileImageUrl(
+        picture || null
+      );
+
+      setLocalError(null);
+    } catch (err) {
+      console.error(
+        "GOOGLE REGISTRATION ERROR:",
+        err
+      );
+
+      setLocalError(
+        "Unable to continue with Google."
+      );
+    }
+  };
+
+  const handleGoogleError = () => {
+    setLocalError(
+      "Google registration was cancelled or failed. Please try again."
+    );
+  };
+
+  // ========================================================
+  // OTP
+  // ========================================================
 
   const sendOtp = async (
     email: string
@@ -724,11 +891,7 @@ export default function TrainerRegisterPage() {
       return;
     }
 
-    if (
-      !/^\d{6}$/.test(
-        cleanOtp
-      )
-    ) {
+    if (!/^\d{6}$/.test(cleanOtp)) {
       setOtpError(
         "OTP must be 6 digits."
       );
@@ -793,9 +956,189 @@ export default function TrainerRegisterPage() {
     );
   };
 
-  /* ------------------------------------------------------------------------ */
-  /* SUBMIT                                                                   */
-  /* ------------------------------------------------------------------------ */
+  // ========================================================
+  // STEP VALIDATION
+  // ========================================================
+
+  const validateStep = (
+    step: number
+  ) => {
+    setLocalError(null);
+
+    if (step === 1) {
+      if (!form.firstName.trim()) {
+        setLocalError(
+          "First name is required."
+        );
+
+        return false;
+      }
+
+      if (!form.lastName.trim()) {
+        setLocalError(
+          "Last name is required."
+        );
+
+        return false;
+      }
+
+      if (!form.birthDate) {
+        setLocalError(
+          "Birth date is required."
+        );
+
+        return false;
+      }
+
+      if (!form.gender) {
+        setLocalError(
+          "Please select your gender."
+        );
+
+        return false;
+      }
+    }
+
+    if (step === 2) {
+      if (!address.houseNumber.trim()) {
+        setLocalError(
+          "House / building number is required."
+        );
+
+        return false;
+      }
+
+      if (!address.provinceCode) {
+        setLocalError(
+          "Please select a province."
+        );
+
+        return false;
+      }
+
+      if (!address.municipalityCode) {
+        setLocalError(
+          "Please select a municipality or city."
+        );
+
+        return false;
+      }
+
+      if (!address.barangayCode) {
+        setLocalError(
+          "Please select a barangay."
+        );
+
+        return false;
+      }
+    }
+
+    if (step === 3) {
+      if (!form.specialization.trim()) {
+        setLocalError(
+          "Specialization is required."
+        );
+
+        return false;
+      }
+    }
+
+    if (step === 5) {
+      if (!form.email.trim()) {
+        setLocalError(
+          "Email is required."
+        );
+
+        return false;
+      }
+
+      if (!form.password) {
+        setLocalError(
+          "Password is required."
+        );
+
+        return false;
+      }
+
+      if (form.password.length < 8) {
+        setLocalError(
+          "Password must be at least 8 characters."
+        );
+
+        return false;
+      }
+
+      if (
+        form.password !==
+        form.confirmPassword
+      ) {
+        setLocalError(
+          "Passwords do not match."
+        );
+
+        return false;
+      }
+
+      if (
+        isGoogleRegistration &&
+        !googleIdToken
+      ) {
+        setLocalError(
+          "Google registration session is missing. Please continue with Google again."
+        );
+
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  // ========================================================
+  // NEXT
+  // ========================================================
+
+  const handleNext = () => {
+    if (!validateStep(currentStep)) {
+      return;
+    }
+
+    if (currentStep < steps.length) {
+      setCurrentStep(
+        (current) =>
+          current + 1
+      );
+
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    }
+  };
+
+  // ========================================================
+  // BACK
+  // ========================================================
+
+  const handleBack = () => {
+    setLocalError(null);
+
+    if (currentStep > 1) {
+      setCurrentStep(
+        (current) =>
+          current - 1
+      );
+
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    }
+  };
+
+  // ========================================================
+  // SUBMIT
+  // ========================================================
 
   const handleSubmit = async (
     event: FormEvent<HTMLFormElement>
@@ -815,80 +1158,62 @@ export default function TrainerRegisterPage() {
       return;
     }
 
-    const checks: [
-      boolean,
-      string
-    ][] = [
+    const checks: [boolean, string][] = [
       [
         !!form.firstName.trim(),
         "First name is required.",
       ],
-
       [
         !!form.lastName.trim(),
         "Last name is required.",
       ],
-
       [
         !!form.birthDate,
         "Birth date is required.",
       ],
-
       [
         !!form.gender,
         "Please select your gender.",
       ],
-
       [
         !!address.houseNumber.trim(),
         "House / building number is required.",
       ],
-
       [
         !!address.provinceCode,
         "Please select a province.",
       ],
-
       [
         !!address.municipalityCode,
         "Please select a municipality or city.",
       ],
-
       [
         !!address.barangayCode,
         "Please select a barangay.",
       ],
-
       [
         !!form.email.trim(),
         "Email is required.",
       ],
-
       [
         !!form.password,
         "Password is required.",
       ],
-
       [
         form.password.length >= 8,
         "Password must be at least 8 characters.",
       ],
-
       [
-        form.password ===
-          form.confirmPassword,
+        form.password === form.confirmPassword,
         "Passwords do not match.",
       ],
-
       [
         !!form.specialization.trim(),
         "Specialization is required.",
       ],
     ];
 
-    for (
-      const [valid, message] of checks
-    ) {
+    for (const [valid, message] of checks) {
       if (!valid) {
         setLocalError(message);
 
@@ -935,7 +1260,8 @@ export default function TrainerRegisterPage() {
             certification.name.trim(),
 
           issuingOrganization:
-            certification.issuingOrganization?.trim() ||
+            certification.issuingOrganization
+              ?.trim() ||
             null,
 
           issuedDate:
@@ -947,12 +1273,12 @@ export default function TrainerRegisterPage() {
             null,
 
           certificateUrl:
-            certification.certificateUrl?.trim() ||
+            certification.certificateUrl
+              ?.trim() ||
             null,
         }));
 
-    const values:
-      RegisterTrainerFormValues = {
+    const values: RegisterTrainerFormValues = {
       firstName:
         form.firstName.trim(),
 
@@ -1032,17 +1358,11 @@ export default function TrainerRegisterPage() {
     };
 
     const response =
-      await registerTrainer(
-        values
-      );
+      await registerTrainer(values);
 
     if (!response) {
       return;
     }
-
-    /* ---------------------------------------------------------------------- */
-    /* GOOGLE REGISTRATION                                                     */
-    /* ---------------------------------------------------------------------- */
 
     if (isGoogleRegistration) {
       sessionStorage.removeItem(
@@ -1062,10 +1382,6 @@ export default function TrainerRegisterPage() {
       return;
     }
 
-    /* ---------------------------------------------------------------------- */
-    /* NORMAL REGISTRATION                                                     */
-    /* ---------------------------------------------------------------------- */
-
     setRegisteredEmail(email);
 
     setOtp("");
@@ -1081,529 +1397,507 @@ export default function TrainerRegisterPage() {
     await sendOtp(email);
   };
 
+  // ========================================================
+  // ERROR
+  // ========================================================
+
   const displayError =
     localError || error;
 
-  /* ------------------------------------------------------------------------ */
-  /* RENDER                                                                   */
-  /* ------------------------------------------------------------------------ */
+  // ========================================================
+  // RENDER
+  // ========================================================
 
   return (
-    <main className="min-h-screen bg-[#f5f7fa] text-[#172033]">
-      {/* Background Grid */}
-      <div className="pointer-events-none fixed inset-0 -z-0 opacity-50 [background-image:linear-gradient(#dfe5ee_1px,transparent_1px),linear-gradient(90deg,#dfe5ee_1px,transparent_1px)] [background-size:42px_42px]" />
+    <GoogleOAuthProvider
+      clientId={GOOGLE_CLIENT_ID}
+    >
+      <main className="min-h-screen bg-[#f7f9ff] text-[#0d2142]">
+        {/* ==================================================
+            HEADER
+        ================================================== */}
 
-      {/* HEADER */}
-      <header className="relative z-20 border-b border-[#e6eaf0] bg-white/95 backdrop-blur">
-        <div className="mx-auto flex h-[76px] max-w-[1240px] items-center justify-between px-5 sm:px-7 lg:px-8">
-          <button
-            type="button"
-            onClick={() =>
-              router.push("/")
-            }
-            className="flex items-center gap-3 text-left"
-          >
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#092653] text-white shadow-[0_5px_16px_rgba(9,38,83,0.16)]">
-              <AceLogo />
-            </div>
-
-            <div>
-              <p className="text-sm font-semibold tracking-[0.15em] text-[#172033]">
-                ACE
-              </p>
-
-              <p className="text-[9px] uppercase tracking-[0.18em] text-[#8a94a6]">
-                Next Gen Consultancy Inc.
-              </p>
-            </div>
-          </button>
-
-          <div className="hidden items-center gap-3 text-sm text-[#697386] sm:flex">
-            <span>
-              Already registered?
-            </span>
-
-            <button
-              type="button"
-              onClick={() =>
-                router.push(
-                  "/login"
-                )
-              }
-              className="font-semibold text-[#1769e0] hover:underline"
+        <header className="border-b border-slate-200 bg-white/90 backdrop-blur">
+          <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 sm:px-8">
+            <Link
+              href="/"
+              className="flex items-center gap-3"
             >
-              Sign in
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* PAGE */}
-      <div className="relative z-10 mx-auto max-w-[1240px] px-5 py-7 sm:px-7 lg:px-8 lg:py-10">
-        <div className="mb-7 flex items-center justify-between gap-4">
-          <button
-            type="button"
-            onClick={() =>
-              router.back()
-            }
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#dfe4eb] bg-white text-[#596579] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#f8fafc]"
-            aria-label="Go back"
-          >
-            <ArrowLeftIcon />
-          </button>
-
-          <div className="hidden items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-[#98a2b3] md:flex">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#C5A059]" />
-            {isGoogleRegistration
-              ? "Google Trainer Registration"
-              : "Secure Trainer Application"}
-          </div>
-        </div>
-
-        <div className="overflow-hidden rounded-[30px] border border-[#e2e7ee] bg-white shadow-[0_22px_70px_rgba(16,24,40,0.10)] lg:grid lg:grid-cols-[310px_minmax(0,1fr)]">
-          {/* BRAND PANEL */}
-          <aside className="relative hidden overflow-hidden bg-[#092653] lg:block">
-            <div className="absolute -right-24 -top-20 h-64 w-64 rounded-full bg-[#1769a8]/35" />
-
-            <div className="absolute -bottom-28 -left-24 h-72 w-72 rounded-full bg-[#123c79]/75" />
-
-            <div className="absolute right-[-50px] top-[42%] h-44 w-44 rounded-full border border-white/10" />
-
-            <div className="absolute left-10 top-[45%] h-16 w-16 rounded-full bg-[#C5A059]/10" />
-
-            <div className="relative flex min-h-[1200px] flex-col justify-between p-9 xl:p-10">
-              <div>
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#092653] shadow-lg">
-                    <AceLogo />
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-semibold tracking-[0.16em] text-white">
-                      ACE
-                    </p>
-
-                    <p className="text-[10px] tracking-[0.18em] text-white/55">
-                      NEXT GEN
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-20">
-                  <p className="mb-4 text-[10px] font-medium uppercase tracking-[0.24em] text-[#C5A059]">
-                    Trainer Portal
-                  </p>
-
-                  <h2 className="text-[38px] font-semibold leading-[1.08] tracking-[-0.045em] text-white">
-                    {isGoogleRegistration ? (
-                      <>
-                        Complete Your
-                        <br />
-                        Trainer
-                        <br />
-                        Profile.
-                      </>
-                    ) : (
-                      <>
-                        Build Your
-                        <br />
-                        Trainer
-                        <br />
-                        Profile.
-                      </>
-                    )}
-                  </h2>
-
-                  <p className="mt-6 max-w-[245px] text-sm leading-7 text-white/60">
-                    {isGoogleRegistration
-                      ? "Your Google account information has been verified. Complete the remaining details to apply for the ACE NextGen Trainer Portal."
-                      : "Join the ACE NextGen training network and manage your professional training journey through one secure platform."}
-                  </p>
-                </div>
-              </div>
+              <Image
+                src={Logo}
+                alt="ACE NextGen"
+                width={48}
+                height={48}
+                className="h-11 w-11 object-contain"
+              />
 
               <div>
-                <div className="mb-8 h-px w-full bg-white/10" />
+                <p className="text-sm font-bold tracking-wide text-[#002b5c]">
+                  ACE NEXTGEN
+                </p>
 
-                <div className="space-y-4">
-                  <Step
-                    number="01"
-                    title="Create your profile"
-                    active
-                  />
-
-                  <Step
-                    number="02"
-                    title="Verify your email"
-                    active={
-                      isGoogleRegistration
-                    }
-                  />
-
-                  <Step
-                    number="03"
-                    title="Application review"
-                  />
-                </div>
-
-                <div className="mt-9 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5 text-[#C5A059]">
-                      <ShieldIcon />
-                    </div>
-
-                    <div>
-                      <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/40">
-                        Secure Registration
-                      </p>
-
-                      <p className="mt-1 text-xs leading-5 text-white/60">
-                        {isGoogleRegistration
-                          ? "Your Google identity has already been verified. Complete your trainer information to continue."
-                          : "Your information is submitted for account creation and trainer application review."}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </aside>
-
-          {/* FORM AREA */}
-          <section className="min-w-0 bg-white px-5 py-7 sm:px-8 sm:py-9 lg:px-10 xl:px-12">
-            <div className="mx-auto max-w-[850px]">
-              <div className="mb-8">
-                <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#eef4ff] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#1769e0]">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#1769e0]" />
-
-                  {isGoogleRegistration
-                    ? "Google Trainer Registration"
-                    : "Trainer Registration"}
-                </div>
-
-                <h1 className="text-2xl font-semibold tracking-[-0.04em] text-[#172033] sm:text-[30px]">
-                  {isGoogleRegistration
-                    ? "Complete your trainer account"
-                    : "Create your trainer account"}
-                </h1>
-
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-[#697386]">
-                  {isGoogleRegistration
-                    ? "Your Google account information has been filled in automatically. Complete the remaining trainer information to continue."
-                    : "Complete your profile and professional information to apply for access to the ACE NextGen Trainer Portal."}
+                <p className="text-[11px] text-[#3B7597]">
+                  Consultancy Inc.
                 </p>
               </div>
+            </Link>
 
-              {isGoogleRegistration && (
-                <div className="mb-6 flex items-start gap-3 rounded-2xl border border-[#dfe8f7] bg-[#f8fbff] px-4 py-3 text-sm leading-5 text-[#344054]">
-                  <div className="mt-0.5 text-[#1769e0]">
-                    <InfoIcon />
+            <Link
+              href="/login"
+              className="text-sm font-semibold text-[#3B7597] transition hover:text-[#002b5c]"
+            >
+              Already have an account?
+              <span className="ml-1 text-[#002b5c]">
+                Sign in
+              </span>
+            </Link>
+          </div>
+        </header>
+
+        {/* ==================================================
+            PAGE
+        ================================================== */}
+
+        <section className="px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+          <div className="mx-auto max-w-5xl">
+            {/* ==================================================
+                TITLE
+            ================================================== */}
+
+            <div className="mb-8 text-center">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#6FD1D7]/40 bg-white px-4 py-2 text-xs font-semibold text-[#3B7597] shadow-sm">
+                <span className="h-2 w-2 rounded-full bg-[#6FD1D7]" />
+                Trainer Registration
+              </div>
+
+              <h1 className="text-3xl font-bold tracking-tight text-[#002b5c] sm:text-4xl">
+                Become an ACE NextGen Trainer
+              </h1>
+
+              <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">
+                Create your trainer profile and
+                submit your credentials for
+                review by ACE NextGen
+                Consultancy Inc.
+              </p>
+            </div>
+
+            {/* ==================================================
+                STEPPER
+            ================================================== */}
+
+            <div className="mb-8 overflow-x-auto">
+              <div className="mx-auto flex min-w-[650px] max-w-4xl items-start justify-between">
+                {steps.map(
+                  (step, index) => {
+                    const active =
+                      currentStep ===
+                      step.number;
+
+                    const completed =
+                      currentStep >
+                      step.number;
+
+                    return (
+                      <div
+                        key={step.number}
+                        className="flex flex-1 items-start"
+                      >
+                        <div className="flex flex-col items-center">
+                          <div
+                            className={[
+                              "flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-bold transition",
+                              active
+                                ? "border-[#002b5c] bg-[#002b5c] text-white"
+                                : completed
+                                ? "border-[#6FD1D7] bg-[#6FD1D7] text-[#002b5c]"
+                                : "border-slate-200 bg-white text-slate-400",
+                            ].join(
+                              " "
+                            )}
+                          >
+                            {completed
+                              ? "✓"
+                              : step.number}
+                          </div>
+
+                          <div className="mt-2 text-center">
+                            <p
+                              className={[
+                                "text-xs font-bold",
+                                active
+                                  ? "text-[#002b5c]"
+                                  : "text-slate-400",
+                              ].join(
+                                " "
+                              )}
+                            >
+                              {step.title}
+                            </p>
+                          </div>
+                        </div>
+
+                        {index <
+                          steps.length -
+                            1 && (
+                          <div
+                            className={[
+                              "mt-5 h-[2px] flex-1",
+                              currentStep >
+                              step.number
+                                ? "bg-[#6FD1D7]"
+                                : "bg-slate-200",
+                            ].join(
+                              " "
+                            )}
+                          />
+                        )}
+                      </div>
+                    );
+                  }
+                )}
+              </div>
+            </div>
+
+            {/* ==================================================
+                CARD
+            ================================================== */}
+
+            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_20px_70px_rgba(13,33,66,0.08)]">
+              {/* ==================================================
+                  CARD HEADER
+              ================================================== */}
+
+              <div className="border-b border-slate-100 bg-gradient-to-r from-[#f7f9ff] to-white px-5 py-6 sm:px-8">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#002b5c] text-white">
+                    <span className="text-lg font-bold">
+                      {currentStep}
+                    </span>
                   </div>
 
                   <div>
-                    <p className="font-semibold text-[#243047]">
-                      Google account connected
-                    </p>
+                    <h2 className="text-xl font-bold text-[#002b5c]">
+                      {
+                        currentStepData.title
+                      }
+                    </h2>
 
-                    <p className="mt-0.5 text-xs text-[#697386]">
-                      Your name and email were provided by Google and have been filled in automatically.
+                    <p className="mt-1 text-sm text-slate-500">
+                      {
+                        currentStepData.description
+                      }
                     </p>
                   </div>
                 </div>
-              )}
+              </div>
+
+              {/* ==================================================
+                  ERROR
+              ================================================== */}
 
               {displayError && (
-                <div className="mb-6 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-5 text-red-700">
-                  <AlertIcon />
-
-                  <span>
-                    {displayError}
-                  </span>
+                <div className="mx-5 mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 sm:mx-8">
+                  {displayError}
                 </div>
               )}
+
+              {/* ==================================================
+                  FORM
+              ================================================== */}
 
               <form
                 onSubmit={handleSubmit}
-                className="space-y-5"
+                className="p-5 sm:p-8"
               >
-                {/* PERSONAL INFORMATION */}
-                <section className="rounded-2xl border border-[#e5e9ef] bg-white p-5 shadow-[0_5px_24px_rgba(20,35,60,0.035)] sm:p-6">
-                  <SectionHeader
-                    icon={<UserIcon />}
-                    title="Personal Information"
-                    description="Basic information about you."
-                  />
+                {/* ==================================================
+                    STEP 1
+                ================================================== */}
 
-                  <div className="mt-6 space-y-5">
-                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                      <InputField
-                        label="First Name"
-                        required
-                        placeholder="Enter first name"
-                        value={
-                          form.firstName
-                        }
-                        readOnly={
-                          isGoogleRegistration
-                        }
-                        onChange={(value) =>
-                          updateField(
-                            "firstName",
-                            value
-                          )
-                        }
+                {currentStep === 1 && (
+                  <div className="space-y-8">
+                    {/* Profile */}
+                    <div>
+                      <SectionHeader
+                        title="Personal Information"
+                        description="Use your legal name and personal details."
                       />
 
-                      <InputField
-                        label="Middle Name"
-                        placeholder="Enter middle name"
-                        value={
-                          form.middleName
-                        }
-                        onChange={(value) =>
-                          updateField(
-                            "middleName",
-                            value
-                          )
-                        }
-                      />
-
-                      <InputField
-                        label="Last Name"
-                        required
-                        placeholder="Enter last name"
-                        value={
-                          form.lastName
-                        }
-                        readOnly={
-                          isGoogleRegistration
-                        }
-                        onChange={(value) =>
-                          updateField(
-                            "lastName",
-                            value
-                          )
-                        }
-                      />
-
-                      <InputField
-                        label="Suffix"
-                        placeholder="e.g. Jr., III"
-                        value={
-                          form.suffix
-                        }
-                        onChange={(value) =>
-                          updateField(
-                            "suffix",
-                            value
-                          )
-                        }
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                      <InputField
-                        label="Birth Date"
-                        required
-                        type="date"
-                        value={
-                          form.birthDate
-                        }
-                        onChange={(value) =>
-                          updateField(
-                            "birthDate",
-                            value
-                          )
-                        }
-                      />
-
-                      <SelectField
-                        label="Gender"
-                        required
-                        value={
-                          form.gender
-                        }
-                        onChange={(value) =>
-                          updateField(
-                            "gender",
-                            value
-                          )
-                        }
-                        options={[
-                          {
-                            label:
-                              "Select gender",
-                            value: "",
-                          },
-                          {
-                            label:
-                              "Male",
-                            value:
-                              "Male",
-                          },
-                          {
-                            label:
-                              "Female",
-                            value:
-                              "Female",
-                          },
-                          {
-                            label:
-                              "Prefer not to say",
-                            value:
-                              "Prefer not to say",
-                          },
-                        ]}
-                      />
-                    </div>
-                  </div>
-                </section>
-
-                {/* PROFILE PHOTO */}
-                <section className="rounded-2xl border border-[#e5e9ef] bg-white p-5 shadow-[0_5px_24px_rgba(20,35,60,0.035)] sm:p-6">
-                  <SectionHeader
-                    icon={<ImageIcon />}
-                    title="Profile Photo"
-                    description={
-                      isGoogleRegistration
-                        ? "Your Google profile photo is shown automatically. You may replace it."
-                        : "Optional profile photo."
-                    }
-                  />
-
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={
-                      handleProfileImage
-                    }
-                    className="hidden"
-                  />
-
-                  <div className="mt-6 flex flex-col items-center gap-5 rounded-2xl border border-dashed border-[#cfd7e3] bg-[#f9fbfe] p-6 sm:flex-row">
-                    <div className="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#dfe4eb]">
-                      {preview ? (
-                        <img
-                          src={preview}
-                          alt="Profile preview"
-                          className="h-full w-full object-cover"
-                        />
-                      ) : googleProfileImageUrl ? (
-                        <img
-                          src={
-                            googleProfileImageUrl
+                      <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                        <InputField
+                          label="First Name"
+                          required
+                          value={
+                            form.firstName
                           }
-                          alt="Google profile"
-                          className="h-full w-full object-cover"
+                          onChange={(value) =>
+                            updateField(
+                              "firstName",
+                              value
+                            )
+                          }
+                          placeholder="First name"
                         />
-                      ) : (
-                        <div className="text-[#b0b8c5]">
-                          <UserIcon
-                            size={40}
-                          />
+
+                        <InputField
+                          label="Middle Name"
+                          value={
+                            form.middleName
+                          }
+                          onChange={(value) =>
+                            updateField(
+                              "middleName",
+                              value
+                            )
+                          }
+                          placeholder="Middle name"
+                        />
+
+                        <InputField
+                          label="Last Name"
+                          required
+                          value={
+                            form.lastName
+                          }
+                          onChange={(value) =>
+                            updateField(
+                              "lastName",
+                              value
+                            )
+                          }
+                          placeholder="Last name"
+                        />
+
+                        <InputField
+                          label="Suffix"
+                          value={
+                            form.suffix
+                          }
+                          onChange={(value) =>
+                            updateField(
+                              "suffix",
+                              value
+                            )
+                          }
+                          placeholder="Jr., Sr., III"
+                        />
+
+                        <InputField
+                          label="Birth Date"
+                          required
+                          type="date"
+                          value={
+                            form.birthDate
+                          }
+                          onChange={(value) =>
+                            updateField(
+                              "birthDate",
+                              value
+                            )
+                          }
+                        />
+
+                        <SelectField
+                          label="Gender"
+                          required
+                          value={
+                            form.gender
+                          }
+                          onChange={(value) =>
+                            updateField(
+                              "gender",
+                              value
+                            )
+                          }
+                          options={[
+                            {
+                              value:
+                                "Male",
+                              label:
+                                "Male",
+                            },
+                            {
+                              value:
+                                "Female",
+                              label:
+                                "Female",
+                            },
+                            {
+                              value:
+                                "Prefer not to say",
+                              label:
+                                "Prefer not to say",
+                            },
+                          ]}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Profile Photo */}
+                    <div>
+                      <SectionHeader
+                        title="Profile Photo"
+                        description="Optional. JPG, PNG, or WEBP up to 2MB."
+                      />
+
+                      <div className="mt-5 flex flex-col gap-5 sm:flex-row sm:items-center">
+                        <div className="relative flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-dashed border-slate-300 bg-slate-50">
+                          {preview ? (
+                            <Image
+                              src={
+                                preview
+                              }
+                              alt="Profile preview"
+                              fill
+                              unoptimized
+                              className="object-cover"
+                            />
+                          ) : googleProfileImageUrl ? (
+                            <Image
+                              src={
+                                googleProfileImageUrl
+                              }
+                              alt="Google profile"
+                              fill
+                              unoptimized
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="text-center">
+                              <div className="mx-auto mb-1 text-2xl text-slate-300">
+                                👤
+                              </div>
+
+                              <p className="text-[10px] font-medium text-slate-400">
+                                No photo
+                              </p>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
 
-                    <div className="text-center sm:text-left">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          fileInputRef.current?.click()
-                        }
-                        className="inline-flex items-center gap-2 rounded-xl border border-[#dfe4eb] bg-white px-4 py-2.5 text-sm font-semibold text-[#344054] transition hover:border-[#1769e0] hover:bg-[#f8fbff]"
-                      >
-                        <UploadIcon />
+                        <div>
+                          <input
+                            ref={
+                              fileInputRef
+                            }
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            onChange={
+                              handleProfileImage
+                            }
+                            className="hidden"
+                            id="profile-image"
+                          />
 
-                        {preview
-                          ? "Change Photo"
-                          : googleProfileImageUrl
-                            ? "Replace Photo"
-                            : "Upload Photo"}
-                      </button>
+                          <div className="flex flex-wrap gap-3">
+                            <label
+                              htmlFor="profile-image"
+                              className="cursor-pointer rounded-xl bg-[#002b5c] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#0d2142]"
+                            >
+                              Upload Photo
+                            </label>
 
-                      <p className="mt-2 text-xs text-[#8a94a6]">
-                        JPG, PNG or WEBP · Maximum 2MB
-                      </p>
+                            {(preview ||
+                              googleProfileImageUrl) && (
+                              <button
+                                type="button"
+                                onClick={
+                                  removeProfileImage
+                                }
+                                className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
 
-                      {preview && (
-                        <button
-                          type="button"
-                          onClick={
-                            removeProfileImage
-                          }
-                          className="mt-2 text-xs font-semibold text-[#697386] hover:text-red-600"
-                        >
-                          Remove photo
-                        </button>
-                      )}
+                          <p className="mt-2 text-xs text-slate-400">
+                            Recommended square
+                            image for your
+                            trainer profile.
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </section>
+                )}
 
-                {/* ADDRESS */}
-                <section className="rounded-2xl border border-[#e5e9ef] bg-white p-5 shadow-[0_5px_24px_rgba(20,35,60,0.035)] sm:p-6">
-                  <SectionHeader
-                    icon={<LocationIcon />}
-                    title="Address Information"
-                    description="Select your location details."
-                  />
+                {/* ==================================================
+                    STEP 2
+                ================================================== */}
 
-                  <div className="mt-6 space-y-5">
-                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                {currentStep === 2 && (
+                  <div>
+                    <SectionHeader
+                      title="Complete Address"
+                      description="Select your location using the official PSGC location data."
+                    />
+
+                    <div className="mt-6 grid gap-5 sm:grid-cols-2">
                       <InputField
                         label="House / Building Number"
                         required
-                        placeholder="e.g. 123"
                         value={
                           address.houseNumber
                         }
-                        onChange={(value) =>
+                        onChange={(value) => {
                           setAddress(
                             (current) => ({
                               ...current,
                               houseNumber:
                                 value,
                             })
-                          )
-                        }
+                          );
+
+                          setLocalError(
+                            null
+                          );
+                        }}
+                        placeholder="House / building number"
                       />
 
                       <InputField
                         label="Street"
-                        placeholder="e.g. Rizal Street"
                         value={
                           address.street
                         }
-                        onChange={(value) =>
+                        onChange={(value) => {
                           setAddress(
                             (current) => ({
                               ...current,
-                              street: value,
+                              street:
+                                value,
                             })
-                          )
-                        }
+                          );
+
+                          setLocalError(
+                            null
+                          );
+                        }}
+                        placeholder="Street"
                       />
-                    </div>
 
-                    <InputField
-                      label="Sitio / Purok"
-                      placeholder="Optional"
-                      value={
-                        address.sitio
-                      }
-                      onChange={(value) =>
-                        setAddress(
-                          (current) => ({
-                            ...current,
-                            sitio: value,
-                          })
-                        )
-                      }
-                    />
+                      <InputField
+                        label="Sitio / Purok"
+                        value={
+                          address.sitio
+                        }
+                        onChange={(value) => {
+                          setAddress(
+                            (current) => ({
+                              ...current,
+                              sitio:
+                                value,
+                            })
+                          );
 
-                    <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+                          setLocalError(
+                            null
+                          );
+                        }}
+                        placeholder="Sitio / Purok"
+                      />
+
                       <SelectField
                         label="Province"
                         required
@@ -1613,23 +1907,23 @@ export default function TrainerRegisterPage() {
                         onChange={
                           handleProvinceChange
                         }
+                        disabled={
+                          addressLoading
+                        }
                         options={[
                           {
-                            label:
-                              addressLoading &&
-                              provinces.length ===
-                                0
-                                ? "Loading..."
-                                : "Select province",
                             value: "",
+                            label:
+                              addressLoading
+                                ? "Loading provinces..."
+                                : "Select province",
                           },
-
                           ...provinces.map(
                             (province) => ({
-                              label:
-                                province.name,
                               value:
                                 province.code,
+                              label:
+                                province.name,
                             })
                           ),
                         ]}
@@ -1638,30 +1932,34 @@ export default function TrainerRegisterPage() {
                       <SelectField
                         label="Municipality / City"
                         required
-                        disabled={
-                          !address.provinceCode
-                        }
                         value={
                           address.municipalityCode
                         }
                         onChange={
                           handleMunicipalityChange
                         }
+                        disabled={
+                          !address.provinceCode ||
+                          addressLoading
+                        }
                         options={[
                           {
-                            label:
-                              "Select municipality / city",
                             value: "",
+                            label:
+                              address.provinceCode
+                                ? addressLoading
+                                  ? "Loading municipalities..."
+                                  : "Select municipality / city"
+                                : "Select province first",
                           },
-
                           ...municipalities.map(
                             (
                               municipality
                             ) => ({
-                              label:
-                                municipality.name,
                               value:
                                 municipality.code,
+                              label:
+                                municipality.name,
                             })
                           ),
                         ]}
@@ -1670,28 +1968,32 @@ export default function TrainerRegisterPage() {
                       <SelectField
                         label="Barangay"
                         required
-                        disabled={
-                          !address.municipalityCode
-                        }
                         value={
                           address.barangayCode
                         }
                         onChange={
                           handleBarangayChange
                         }
+                        disabled={
+                          !address.municipalityCode ||
+                          addressLoading
+                        }
                         options={[
                           {
-                            label:
-                              "Select barangay",
                             value: "",
+                            label:
+                              address.municipalityCode
+                                ? addressLoading
+                                  ? "Loading barangays..."
+                                  : "Select barangay"
+                                : "Select municipality first",
                           },
-
                           ...barangays.map(
                             (barangay) => ({
-                              label:
-                                barangay.name,
                               value:
                                 barangay.code,
+                              label:
+                                barangay.name,
                             })
                           ),
                         ]}
@@ -1699,947 +2001,987 @@ export default function TrainerRegisterPage() {
                     </div>
 
                     {completeAddress && (
-                      <div className="rounded-xl border border-[#dfe8f7] bg-[#f8fbff] px-4 py-3">
-                        <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-[#8a94a6]">
+                      <div className="mt-6 rounded-2xl border border-[#6FD1D7]/30 bg-[#f7f9ff] p-4">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-[#3B7597]">
                           Complete Address
                         </p>
 
-                        <p className="mt-1 text-sm leading-5 text-[#344054]">
+                        <p className="mt-2 text-sm leading-6 text-[#002b5c]">
                           {completeAddress}
                         </p>
                       </div>
                     )}
                   </div>
-                </section>
+                )}
 
-                {/* PROFESSIONAL DETAILS */}
-                <section className="rounded-2xl border border-[#e5e9ef] bg-white p-5 shadow-[0_5px_24px_rgba(20,35,60,0.035)] sm:p-6">
-                  <SectionHeader
-                    icon={<BriefcaseIcon />}
-                    title="Professional Details"
-                    description="Tell us about your professional training background."
-                  />
+                {/* ==================================================
+                    STEP 3
+                ================================================== */}
 
-                  <div className="mt-6 space-y-5">
-                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                      <InputField
-                        label="Specialization"
-                        required
-                        placeholder="e.g. Leadership Training"
-                        value={
-                          form.specialization
-                        }
-                        onChange={(value) =>
-                          updateField(
-                            "specialization",
-                            value
-                          )
-                        }
+                {currentStep === 3 && (
+                  <div className="space-y-8">
+                    <div>
+                      <SectionHeader
+                        title="Professional Information"
+                        description="Tell us about your expertise and professional experience."
                       />
 
-                      <InputField
-                        label="Professional Title"
-                        placeholder="e.g. Senior Training Consultant"
-                        value={
-                          form.professionalTitle
-                        }
-                        onChange={(value) =>
-                          updateField(
-                            "professionalTitle",
-                            value
-                          )
-                        }
-                      />
+                      <div className="mt-6 grid gap-5 sm:grid-cols-2">
+                        <InputField
+                          label="Specialization"
+                          required
+                          value={
+                            form.specialization
+                          }
+                          onChange={(value) =>
+                            updateField(
+                              "specialization",
+                              value
+                            )
+                          }
+                          placeholder="e.g. Mediation"
+                        />
 
-                      <InputField
-                        label="Current Organization"
-                        placeholder="e.g. ACE NextGen Consultancy Inc."
-                        value={
-                          form.currentOrganization
-                        }
-                        onChange={(value) =>
-                          updateField(
-                            "currentOrganization",
-                            value
-                          )
-                        }
-                      />
+                        <InputField
+                          label="Professional Title"
+                          value={
+                            form.professionalTitle
+                          }
+                          onChange={(value) =>
+                            updateField(
+                              "professionalTitle",
+                              value
+                            )
+                          }
+                          placeholder="e.g. Attorney, Mediator"
+                        />
 
-                      <InputField
-                        label="Years of Experience"
-                        type="number"
-                        min="0"
-                        placeholder="e.g. 5"
-                        value={
-                          form.yearsOfExperience
-                        }
-                        onChange={(value) =>
-                          updateField(
-                            "yearsOfExperience",
-                            value
-                          )
-                        }
-                      />
+                        <InputField
+                          label="Current Organization"
+                          value={
+                            form.currentOrganization
+                          }
+                          onChange={(value) =>
+                            updateField(
+                              "currentOrganization",
+                              value
+                            )
+                          }
+                          placeholder="Organization / company"
+                        />
+
+                        <InputField
+                          label="Years of Experience"
+                          type="number"
+                          min="0"
+                          value={
+                            form.yearsOfExperience
+                          }
+                          onChange={(value) =>
+                            updateField(
+                              "yearsOfExperience",
+                              value
+                            )
+                          }
+                          placeholder="e.g. 5"
+                        />
+                      </div>
+
+                      <div className="mt-5">
+                        <label className="mb-2 block text-sm font-semibold text-[#0d2142]">
+                          Professional Bio
+                        </label>
+
+                        <textarea
+                          value={
+                            form.bio
+                          }
+                          onChange={(event) =>
+                            updateField(
+                              "bio",
+                              event.target
+                                .value
+                            )
+                          }
+                          rows={5}
+                          placeholder="Briefly describe your professional experience and expertise."
+                          className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-[#0d2142] outline-none transition placeholder:text-slate-400 focus:border-[#3B7597] focus:ring-4 focus:ring-[#6FD1D7]/10"
+                        />
+                      </div>
                     </div>
 
                     <div>
-                      <label className="mb-2 block text-xs font-medium text-[#344054]">
-                        Professional Bio
-                      </label>
-
-                      <textarea
-                        value={
-                          form.bio
-                        }
-                        onChange={(event) =>
-                          updateField(
-                            "bio",
-                            event.target.value
-                          )
-                        }
-                        placeholder="Briefly describe your professional background, expertise, and training experience."
-                        rows={4}
-                        className="w-full resize-none rounded-xl border border-[#dfe4eb] bg-white px-4 py-3 text-sm text-[#172033] outline-none transition placeholder:text-[#98a2b3] focus:border-[#1769e0] focus:ring-4 focus:ring-[#1769e0]/10"
+                      <SectionHeader
+                        title="Professional License"
+                        description="Optional. Provide your professional license information if applicable."
                       />
+
+                      <div className="mt-6 grid gap-5 sm:grid-cols-2">
+                        <InputField
+                          label="License Type"
+                          value={
+                            form.professionalLicenseType
+                          }
+                          onChange={(value) =>
+                            updateField(
+                              "professionalLicenseType",
+                              value
+                            )
+                          }
+                          placeholder="License type"
+                        />
+
+                        <InputField
+                          label="License Number"
+                          value={
+                            form.professionalLicenseNumber
+                          }
+                          onChange={(value) =>
+                            updateField(
+                              "professionalLicenseNumber",
+                              value
+                            )
+                          }
+                          placeholder="License number"
+                        />
+
+                        <InputField
+                          label="License Expiration Date"
+                          type="date"
+                          value={
+                            form.professionalLicenseExpirationDate
+                          }
+                          onChange={(value) =>
+                            updateField(
+                              "professionalLicenseExpirationDate",
+                              value
+                            )
+                          }
+                        />
+                      </div>
                     </div>
                   </div>
-                </section>
+                )}
 
-                {/* PROFESSIONAL LICENSE */}
-                <section className="rounded-2xl border border-[#e5e9ef] bg-white p-5 shadow-[0_5px_24px_rgba(20,35,60,0.035)] sm:p-6">
-                  <SectionHeader
-                    icon={<ShieldIcon />}
-                    title="Professional License"
-                    description="Provide your professional license information if applicable."
-                  />
+                {/* ==================================================
+                    STEP 4
+                ================================================== */}
 
-                  <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
-                    <InputField
-                      label="License Type"
-                      placeholder="e.g. PRC License"
-                      value={
-                        form.professionalLicenseType
-                      }
-                      onChange={(value) =>
-                        updateField(
-                          "professionalLicenseType",
-                          value
-                        )
-                      }
-                    />
+                {currentStep === 4 && (
+                  <div className="space-y-10">
+                    {/* Education */}
+                    <div>
+                      <div className="flex items-start justify-between gap-4">
+                        <SectionHeader
+                          title="Education"
+                          description="Add your educational background."
+                        />
 
-                    <InputField
-                      label="License Number"
-                      placeholder="Enter license number"
-                      value={
-                        form.professionalLicenseNumber
-                      }
-                      onChange={(value) =>
-                        updateField(
-                          "professionalLicenseNumber",
-                          value
-                        )
-                      }
-                    />
-
-                    <InputField
-                      label="License Expiration Date"
-                      type="date"
-                      value={
-                        form.professionalLicenseExpirationDate
-                      }
-                      onChange={(value) =>
-                        updateField(
-                          "professionalLicenseExpirationDate",
-                          value
-                        )
-                      }
-                    />
-                  </div>
-                </section>
-
-                {/* EDUCATION */}
-                <section className="rounded-2xl border border-[#e5e9ef] bg-white p-5 shadow-[0_5px_24px_rgba(20,35,60,0.035)] sm:p-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <SectionHeader
-                      icon={
-                        <EducationIcon />
-                      }
-                      title="Educational Background"
-                      description="Add your educational qualifications."
-                    />
-
-                    <button
-                      type="button"
-                      onClick={
-                        addEducation
-                      }
-                      className="shrink-0 rounded-xl border border-[#dfe4eb] bg-white px-3 py-2 text-xs font-semibold text-[#1769e0] transition hover:border-[#1769e0] hover:bg-[#f8fbff]"
-                    >
-                      + Add Education
-                    </button>
-                  </div>
-
-                  <div className="mt-6 space-y-5">
-                    {educations.map(
-                      (
-                        education,
-                        index
-                      ) => (
-                        <div
-                          key={index}
-                          className="rounded-2xl border border-[#e5e9ef] bg-[#f9fbfe] p-4"
+                        <button
+                          type="button"
+                          onClick={
+                            addEducation
+                          }
+                          className="shrink-0 rounded-xl border border-[#6FD1D7] px-3 py-2 text-xs font-bold text-[#3B7597] transition hover:bg-[#f7f9ff]"
                         >
-                          <div className="mb-4 flex items-center justify-between">
-                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#697386]">
-                              Education{" "}
-                              {index + 1}
-                            </p>
+                          + Add Education
+                        </button>
+                      </div>
 
-                            {educations.length >
-                              1 && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  removeEducation(
-                                    index
-                                  )
-                                }
-                                className="text-xs font-semibold text-red-500 hover:text-red-700"
-                              >
-                                Remove
-                              </button>
-                            )}
-                          </div>
+                      <div className="mt-5 space-y-5">
+                        {educations.map(
+                          (
+                            education,
+                            index
+                          ) => (
+                            <div
+                              key={
+                                index
+                              }
+                              className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5"
+                            >
+                              <div className="mb-4 flex items-center justify-between">
+                                <p className="text-sm font-bold text-[#002b5c]">
+                                  Education{" "}
+                                  {index +
+                                    1}
+                                </p>
 
-                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <InputField
-                              label="Degree"
-                              required
-                              placeholder="e.g. Bachelor of Science in Nursing"
-                              value={
-                                education.degree
-                              }
-                              onChange={(
-                                value
-                              ) =>
-                                updateEducation(
-                                  index,
-                                  {
-                                    degree:
-                                      value,
-                                  }
-                                )
-                              }
-                            />
-
-                            <InputField
-                              label="Field of Study"
-                              placeholder="e.g. Nursing"
-                              value={
-                                education.fieldOfStudy ??
-                                ""
-                              }
-                              onChange={(
-                                value
-                              ) =>
-                                updateEducation(
-                                  index,
-                                  {
-                                    fieldOfStudy:
-                                      value,
-                                  }
-                                )
-                              }
-                            />
-
-                            <InputField
-                              label="Institution"
-                              required
-                              placeholder="e.g. University of the Philippines"
-                              value={
-                                education.institution
-                              }
-                              onChange={(
-                                value
-                              ) =>
-                                updateEducation(
-                                  index,
-                                  {
-                                    institution:
-                                      value,
-                                  }
-                                )
-                              }
-                            />
-
-                            <InputField
-                              label="Year Graduated"
-                              type="number"
-                              min="1900"
-                              placeholder="e.g. 2022"
-                              value={
-                                education.yearGraduated?.toString() ??
-                                ""
-                              }
-                              onChange={(
-                                value
-                              ) =>
-                                updateEducation(
-                                  index,
-                                  {
-                                    yearGraduated:
-                                      value
-                                        ? Number(
-                                            value
-                                          )
-                                        : null,
-                                  }
-                                )
-                              }
-                            />
-                          </div>
-                        </div>
-                      )
-                    )}
-                  </div>
-                </section>
-
-                {/* CERTIFICATIONS */}
-                <section className="rounded-2xl border border-[#e5e9ef] bg-white p-5 shadow-[0_5px_24px_rgba(20,35,60,0.035)] sm:p-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <SectionHeader
-                      icon={
-                        <CertificateIcon />
-                      }
-                      title="Certifications"
-                      description="Add your professional certifications."
-                    />
-
-                    <button
-                      type="button"
-                      onClick={
-                        addCertification
-                      }
-                      className="shrink-0 rounded-xl border border-[#dfe4eb] bg-white px-3 py-2 text-xs font-semibold text-[#1769e0] transition hover:border-[#1769e0] hover:bg-[#f8fbff]"
-                    >
-                      + Add Certification
-                    </button>
-                  </div>
-
-                  <div className="mt-6 space-y-5">
-                    {certifications.map(
-                      (
-                        certification,
-                        index
-                      ) => (
-                        <div
-                          key={index}
-                          className="rounded-2xl border border-[#e5e9ef] bg-[#f9fbfe] p-4"
-                        >
-                          <div className="mb-4 flex items-center justify-between">
-                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#697386]">
-                              Certification{" "}
-                              {index +
-                                1}
-                            </p>
-
-                            {certifications.length >
-                              1 && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  removeCertification(
-                                    index
-                                  )
-                                }
-                                className="text-xs font-semibold text-red-500 hover:text-red-700"
-                              >
-                                Remove
-                              </button>
-                            )}
-                          </div>
-
-                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <InputField
-                              label="Certification Name"
-                              required
-                              placeholder="e.g. TESDA NC II"
-                              value={
-                                certification.name
-                              }
-                              onChange={(
-                                value
-                              ) =>
-                                updateCertification(
-                                  index,
-                                  {
-                                    name:
-                                      value,
-                                  }
-                                )
-                              }
-                            />
-
-                            <InputField
-                              label="Issuing Organization"
-                              placeholder="e.g. TESDA"
-                              value={
-                                certification.issuingOrganization ??
-                                ""
-                              }
-                              onChange={(
-                                value
-                              ) =>
-                                updateCertification(
-                                  index,
-                                  {
-                                    issuingOrganization:
-                                      value,
-                                  }
-                                )
-                              }
-                            />
-
-                            <InputField
-                              label="Issued Date"
-                              type="date"
-                              value={
-                                certification.issuedDate ??
-                                ""
-                              }
-                              onChange={(
-                                value
-                              ) =>
-                                updateCertification(
-                                  index,
-                                  {
-                                    issuedDate:
-                                      value,
-                                  }
-                                )
-                              }
-                            />
-
-                            <InputField
-                              label="Expiration Date"
-                              type="date"
-                              value={
-                                certification.expirationDate ??
-                                ""
-                              }
-                              onChange={(
-                                value
-                              ) =>
-                                updateCertification(
-                                  index,
-                                  {
-                                    expirationDate:
-                                      value,
-                                  }
-                                )
-                              }
-                            />
-
-                            <div className="sm:col-span-2">
-                              <InputField
-                                label="Certificate URL"
-                                placeholder="Optional certificate/document URL"
-                                value={
-                                  certification.certificateUrl ??
-                                  ""
-                                }
-                                onChange={(
-                                  value
-                                ) =>
-                                  updateCertification(
-                                    index,
-                                    {
-                                      certificateUrl:
-                                        value,
+                                {educations.length >
+                                  1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      removeEducation(
+                                        index
+                                      )
                                     }
-                                  )
+                                    className="text-xs font-semibold text-red-500 hover:text-red-600"
+                                  >
+                                    Remove
+                                  </button>
+                                )}
+                              </div>
+
+                              <div className="grid gap-5 sm:grid-cols-2">
+                                <InputField
+                                  label="Degree"
+                                  required
+                                  value={
+                                    education.degree
+                                  }
+                                  onChange={(
+                                    value
+                                  ) =>
+                                    updateEducation(
+                                      index,
+                                      {
+                                        degree:
+                                          value,
+                                      }
+                                    )
+                                  }
+                                  placeholder="e.g. Bachelor of Science in Information Technology"
+                                />
+
+                                <InputField
+                                  label="Field of Study"
+                                  value={
+                                    education.fieldOfStudy ??
+                                    ""
+                                  }
+                                  onChange={(
+                                    value
+                                  ) =>
+                                    updateEducation(
+                                      index,
+                                      {
+                                        fieldOfStudy:
+                                          value,
+                                      }
+                                    )
+                                  }
+                                  placeholder="Field of study"
+                                />
+
+                                <InputField
+                                  label="Institution"
+                                  required
+                                  value={
+                                    education.institution
+                                  }
+                                  onChange={(
+                                    value
+                                  ) =>
+                                    updateEducation(
+                                      index,
+                                      {
+                                        institution:
+                                          value,
+                                      }
+                                    )
+                                  }
+                                  placeholder="School / University"
+                                />
+
+                                <InputField
+                                  label="Year Graduated"
+                                  type="number"
+                                  min="1900"
+                                  max="2100"
+                                  value={
+                                    education.yearGraduated?.toString() ??
+                                    ""
+                                  }
+                                  onChange={(
+                                    value
+                                  ) =>
+                                    updateEducation(
+                                      index,
+                                      {
+                                        yearGraduated:
+                                          value
+                                            ? Number(
+                                                value
+                                              )
+                                            : null,
+                                      }
+                                    )
+                                  }
+                                  placeholder="e.g. 2025"
+                                />
+                              </div>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Certifications */}
+                    <div>
+                      <div className="flex items-start justify-between gap-4">
+                        <SectionHeader
+                          title="Certifications"
+                          description="Add your relevant professional certifications."
+                        />
+
+                        <button
+                          type="button"
+                          onClick={
+                            addCertification
+                          }
+                          className="shrink-0 rounded-xl border border-[#6FD1D7] px-3 py-2 text-xs font-bold text-[#3B7597] transition hover:bg-[#f7f9ff]"
+                        >
+                          + Add Certification
+                        </button>
+                      </div>
+
+                      <div className="mt-5 space-y-5">
+                        {certifications.map(
+                          (
+                            certification,
+                            index
+                          ) => (
+                            <div
+                              key={
+                                index
+                              }
+                              className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5"
+                            >
+                              <div className="mb-4 flex items-center justify-between">
+                                <p className="text-sm font-bold text-[#002b5c]">
+                                  Certification{" "}
+                                  {index +
+                                    1}
+                                </p>
+
+                                {certifications.length >
+                                  1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      removeCertification(
+                                        index
+                                      )
+                                    }
+                                    className="text-xs font-semibold text-red-500 hover:text-red-600"
+                                  >
+                                    Remove
+                                  </button>
+                                )}
+                              </div>
+
+                              <div className="grid gap-5 sm:grid-cols-2">
+                                <InputField
+                                  label="Certification Name"
+                                  required
+                                  value={
+                                    certification.name
+                                  }
+                                  onChange={(
+                                    value
+                                  ) =>
+                                    updateCertification(
+                                      index,
+                                      {
+                                        name:
+                                          value,
+                                      }
+                                    )
+                                  }
+                                  placeholder="Certification name"
+                                />
+
+                                <InputField
+                                  label="Issuing Organization"
+                                  value={
+                                    certification.issuingOrganization ??
+                                    ""
+                                  }
+                                  onChange={(
+                                    value
+                                  ) =>
+                                    updateCertification(
+                                      index,
+                                      {
+                                        issuingOrganization:
+                                          value,
+                                      }
+                                    )
+                                  }
+                                  placeholder="Issuing organization"
+                                />
+
+                                <InputField
+                                  label="Issued Date"
+                                  type="date"
+                                  value={
+                                    certification.issuedDate ??
+                                    ""
+                                  }
+                                  onChange={(
+                                    value
+                                  ) =>
+                                    updateCertification(
+                                      index,
+                                      {
+                                        issuedDate:
+                                          value,
+                                      }
+                                    )
+                                  }
+                                />
+
+                                <InputField
+                                  label="Expiration Date"
+                                  type="date"
+                                  value={
+                                    certification.expirationDate ??
+                                    ""
+                                  }
+                                  onChange={(
+                                    value
+                                  ) =>
+                                    updateCertification(
+                                      index,
+                                      {
+                                        expirationDate:
+                                          value,
+                                      }
+                                    )
+                                  }
+                                />
+
+                                <div className="sm:col-span-2">
+                                  <InputField
+                                    label="Certificate URL"
+                                    value={
+                                      certification.certificateUrl ??
+                                      ""
+                                    }
+                                    onChange={(
+                                      value
+                                    ) =>
+                                      updateCertification(
+                                        index,
+                                        {
+                                          certificateUrl:
+                                            value,
+                                        }
+                                      )
+                                    }
+                                    placeholder="https://..."
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ==================================================
+                    STEP 5
+                ================================================== */}
+
+                {currentStep === 5 && (
+                  <div className="space-y-8">
+                    {/* Google */}
+                    {!isGoogleRegistration && (
+                      <div className="rounded-2xl border border-slate-200 bg-[#f7f9ff] p-5">
+                        <div className="mb-4">
+                          <p className="text-sm font-bold text-[#002b5c]">
+                            Quick registration
+                          </p>
+
+                          <p className="mt-1 text-xs leading-5 text-slate-500">
+                            You may continue with
+                            your Google account.
+                            Your trainer profile
+                            will still be subject
+                            to ACE NextGen review.
+                          </p>
+                        </div>
+
+                        <div className="relative overflow-hidden rounded-xl">
+                          <GoogleLogin
+                            onSuccess={
+                              handleGoogleSuccess
+                            }
+                            onError={
+                              handleGoogleError
+                            }
+                            width="100%"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Google status */}
+                    {isGoogleRegistration && (
+                      <div className="rounded-2xl border border-[#6FD1D7]/40 bg-[#f7f9ff] p-5">
+                        <div className="flex items-center gap-3">
+                          {googleProfileImageUrl ? (
+                            <div className="relative h-12 w-12 overflow-hidden rounded-full">
+                              <Image
+                                src={
+                                  googleProfileImageUrl
                                 }
+                                alt="Google profile"
+                                fill
+                                unoptimized
+                                className="object-cover"
                               />
                             </div>
+                          ) : (
+                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#002b5c] text-white">
+                              G
+                            </div>
+                          )}
+
+                          <div>
+                            <p className="text-sm font-bold text-[#002b5c]">
+                              Google account connected
+                            </p>
+
+                            <p className="text-xs text-slate-500">
+                              {
+                                form.email
+                              }
+                            </p>
                           </div>
                         </div>
-                      )
+                      </div>
                     )}
-                  </div>
-                </section>
 
-                {/* ACCOUNT */}
-                <section className="rounded-2xl border border-[#e5e9ef] bg-white p-5 shadow-[0_5px_24px_rgba(20,35,60,0.035)] sm:p-6">
-                  <SectionHeader
-                    icon={<LockIcon />}
-                    title="Account Information"
-                    description="Credentials and contact information."
-                  />
-
-                  <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <div>
-                      <label className="mb-2 block text-xs font-medium text-[#344054]">
-                        Email Address
-
-                        <span className="ml-1 text-red-500">
-                          *
-                        </span>
-                      </label>
-
-                      <input
-                        type="email"
-                        value={
-                          form.email
-                        }
-                        readOnly={
-                          isGoogleRegistration
-                        }
-                        onChange={(
-                          event
-                        ) =>
-                          updateField(
-                            "email",
-                            event.target.value
-                          )
-                        }
-                        placeholder="Enter email address"
-                        className={`w-full rounded-xl border px-4 py-3 text-sm text-[#172033] outline-none transition ${
-                          isGoogleRegistration
-                            ? "cursor-not-allowed border-[#dfe4eb] bg-[#f7f8fa] text-[#697386]"
-                            : "border-[#dfe4eb] bg-white placeholder:text-[#98a2b3] focus:border-[#1769e0] focus:ring-4 focus:ring-[#1769e0]/10"
-                        }`}
+                      <SectionHeader
+                        title="Account Information"
+                        description="Create the credentials you will use to access ACE NextGen."
                       />
 
-                      {isGoogleRegistration && (
-                        <p className="mt-2 text-xs text-[#8a94a6]">
-                          This email was verified through Google.
-                        </p>
-                      )}
+                      <div className="mt-6 grid gap-5 sm:grid-cols-2">
+                        <div className="sm:col-span-2">
+                          <InputField
+                            label="Email Address"
+                            required
+                            type="email"
+                            value={
+                              form.email
+                            }
+                            readOnly={
+                              isGoogleRegistration
+                            }
+                            onChange={(
+                              value
+                            ) =>
+                              updateField(
+                                "email",
+                                value
+                              )
+                            }
+                            placeholder="you@example.com"
+                          />
+
+                          {isGoogleRegistration && (
+                            <p className="mt-2 text-xs text-slate-400">
+                              Google account
+                              email cannot
+                              be changed.
+                            </p>
+                          )}
+                        </div>
+
+                        <InputField
+                          label="Mobile Number"
+                          value={
+                            form.mobileNumber
+                          }
+                          onChange={(value) =>
+                            updateField(
+                              "mobileNumber",
+                              value
+                            )
+                          }
+                          placeholder="09XXXXXXXXX"
+                        />
+
+                        <div />
+
+                        <PasswordField
+                          label="Password"
+                          required
+                          value={
+                            form.password
+                          }
+                          onChange={(value) =>
+                            updateField(
+                              "password",
+                              value
+                            )
+                          }
+                          placeholder="At least 8 characters"
+                        />
+
+                        <PasswordField
+                          label="Confirm Password"
+                          required
+                          value={
+                            form.confirmPassword
+                          }
+                          onChange={(value) =>
+                            updateField(
+                              "confirmPassword",
+                              value
+                            )
+                          }
+                          placeholder="Confirm password"
+                        />
+                      </div>
+
+                      <p className="mt-3 text-xs text-slate-400">
+                        Password must contain at
+                        least 8 characters.
+                      </p>
                     </div>
 
-                    <InputField
-                      label="Mobile Number"
-                      type="tel"
-                      placeholder="Enter mobile number"
-                      value={
-                        form.mobileNumber
-                      }
-                      onChange={(value) =>
-                        updateField(
-                          "mobileNumber",
-                          value
-                        )
-                      }
-                    />
+                    {/* Info */}
+                    <div className="rounded-2xl border border-[#6FD1D7]/30 bg-[#f7f9ff] p-5">
+                      <p className="text-sm font-bold text-[#002b5c]">
+                        What happens next?
+                      </p>
 
-                    <PasswordField
-                      label="Password"
-                      required
-                      value={
-                        form.password
-                      }
-                      visible={
-                        showPassword
-                      }
-                      onToggle={() =>
-                        setShowPassword(
-                          (value) =>
-                            !value
-                        )
-                      }
-                      onChange={(value) =>
-                        updateField(
-                          "password",
-                          value
-                        )
-                      }
-                    />
+                      <div className="mt-3 space-y-2 text-sm leading-6 text-slate-500">
+                        {!isGoogleRegistration ? (
+                          <>
+                            <p>
+                              1. Submit your
+                              registration.
+                            </p>
 
-                    <PasswordField
-                      label="Confirm Password"
-                      required
-                      value={
-                        form.confirmPassword
-                      }
-                      visible={
-                        showConfirmPassword
-                      }
-                      onToggle={() =>
-                        setShowConfirmPassword(
-                          (value) =>
-                            !value
-                        )
-                      }
-                      onChange={(value) =>
-                        updateField(
-                          "confirmPassword",
-                          value
-                        )
-                      }
-                    />
+                            <p>
+                              2. Verify your
+                              email using the
+                              OTP sent to you.
+                            </p>
+
+                            <p>
+                              3. Your trainer
+                              application will
+                              be reviewed by an
+                              administrator.
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p>
+                              1. Submit your
+                              trainer
+                              registration.
+                            </p>
+
+                            <p>
+                              2. Your Google
+                              email is already
+                              verified.
+                            </p>
+
+                            <p>
+                              3. Your trainer
+                              application will
+                              be reviewed by an
+                              administrator.
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ==================================================
+                    NAVIGATION
+                ================================================== */}
+
+                <div className="mt-10 flex flex-col-reverse gap-3 border-t border-slate-100 pt-6 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex gap-3">
+                    {currentStep > 1 ? (
+                      <button
+                        type="button"
+                        onClick={
+                          handleBack
+                        }
+                        disabled={
+                          isLoading
+                        }
+                        className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        ← Back
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          router.back()
+                        }
+                        className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                      >
+                        Cancel
+                      </button>
+                    )}
                   </div>
 
-                  <p className="mt-3 text-xs text-[#8a94a6]">
-                    Password must contain at least
-                    8 characters.
-                  </p>
-                </section>
-
-                {/* NEXT STEPS */}
-                <section className="flex gap-4 rounded-2xl border border-[#dfe8f7] bg-[#f8fbff] p-5">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#1769e0] shadow-sm">
-                    <InfoIcon />
-                  </div>
-
-                  <div>
-                    <h3 className="text-sm font-semibold text-[#243047]">
-                      What happens next?
-                    </h3>
-
-                    <p className="mt-1 text-xs leading-5 text-[#697386]">
-                      {isGoogleRegistration
-                        ? "Submit your registration and your Google email will remain verified. Your trainer application will then be reviewed by an administrator."
-                        : "Submit your registration, verify your email using the OTP, then wait for the administrator to review your trainer application."}
-                    </p>
-                  </div>
-                </section>
-
-                {/* SUBMIT */}
-                <div className="flex flex-col-reverse gap-3 border-t border-[#e8ebf0] pt-6 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm text-[#697386]">
-                    Already have an account?
-
+                  {currentStep <
+                  steps.length ? (
                     <button
                       type="button"
-                      onClick={() =>
-                        router.push(
-                          "/login"
-                        )
+                      onClick={
+                        handleNext
                       }
-                      className="ml-1 font-semibold text-[#1769e0] hover:underline"
+                      className="rounded-xl bg-[#002b5c] px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#0d2142]"
                     >
-                      Sign in
+                      Continue →
                     </button>
-                  </p>
-
-                  <div className="flex flex-col-reverse gap-3 sm:flex-row">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        router.back()
-                      }
-                      className="rounded-xl border border-[#dfe4eb] bg-white px-6 py-3 text-sm font-medium text-[#344054] transition hover:bg-[#f8fafc]"
-                    >
-                      Cancel
-                    </button>
-
+                  ) : (
                     <button
                       type="submit"
                       disabled={
                         isLoading
                       }
-                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#092653] px-7 py-3 text-sm font-semibold text-white shadow-[0_5px_16px_rgba(9,38,83,0.16)] transition hover:-translate-y-0.5 hover:bg-[#0c326b] disabled:cursor-not-allowed disabled:opacity-60"
+                      className="rounded-xl bg-[#002b5c] px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#0d2142] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {isLoading
                         ? "Submitting..."
                         : isGoogleRegistration
-                          ? "Complete Registration"
-                          : "Continue to Verification"}
-
-                      {!isLoading && (
-                        <ArrowRightIcon />
-                      )}
+                        ? "Complete Registration"
+                        : "Continue to Verification"}
                     </button>
-                  </div>
+                  )}
                 </div>
               </form>
             </div>
-          </section>
-        </div>
-      </div>
 
-      {/* OTP MODAL */}
-      {showOtpModal && (
-        <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#101828]/55 px-5 backdrop-blur-sm"
-          onClick={() => {
-            if (!otpLoading) {
-              setShowOtpModal(
-                false
-              );
+            {/* ==================================================
+                FOOTER
+            ================================================== */}
 
-              setOtp("");
+            <p className="mt-6 text-center text-xs text-slate-400">
+              By registering, you agree to
+              provide accurate information for
+              trainer verification and review.
+            </p>
+          </div>
+        </section>
 
-              setOtpError(null);
+        {/* ==================================================
+            OTP MODAL
+        ================================================== */}
 
-              setOtpSuccess(null);
-            }
-          }}
-        >
-          <div
-            className="relative w-full max-w-[440px] rounded-[28px] border border-[#e5e9ef] bg-white p-7 shadow-[0_30px_90px_rgba(16,24,40,0.22)] sm:p-8"
-            onClick={(event) =>
-              event.stopPropagation()
-            }
-          >
-            <button
-              type="button"
-              disabled={
-                otpLoading
-              }
-              onClick={() => {
-                setShowOtpModal(
-                  false
-                );
+        {showOtpModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d2142]/60 px-4 py-6 backdrop-blur-sm">
+            <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl sm:p-8">
+              <button
+                type="button"
+                onClick={() =>
+                  setShowOtpModal(false)
+                }
+                disabled={
+                  otpLoading
+                }
+                className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-[#002b5c]"
+              >
+                ×
+              </button>
 
-                setOtp("");
+              <div className="text-center">
+                <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#f7f9ff]">
+                  <Image
+                    src={Logo}
+                    alt="ACE NextGen"
+                    width={48}
+                    height={48}
+                    className="h-12 w-12 object-contain"
+                  />
+                </div>
 
-                setOtpError(null);
+                <h3 className="text-2xl font-bold text-[#002b5c]">
+                  Verify your email
+                </h3>
 
-                setOtpSuccess(null);
-              }}
-              className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full text-[#98a2b3] transition hover:bg-[#f2f4f7] hover:text-[#344054] disabled:opacity-50"
-              aria-label="Close verification dialog"
-            >
-              <CloseIcon />
-            </button>
+                <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500">
+                  We sent a 6-digit
+                  verification code to
+                </p>
 
-            <div className="flex justify-center">
-              <div className="flex h-[68px] w-[68px] items-center justify-center rounded-[20px] bg-[#092653] text-white shadow-[0_8px_20px_rgba(9,38,83,0.15)]">
-                <AceLogo
-                  size={32}
-                />
-              </div>
-            </div>
-
-            <div className="mt-5 text-center">
-              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#C5A059]">
-                Email Verification
-              </p>
-
-              <h2 className="mt-2 text-xl font-semibold tracking-[-0.025em] text-[#172033]">
-                Verify your email
-              </h2>
-
-              <p className="mx-auto mt-2 max-w-[340px] text-sm leading-6 text-[#697386]">
-                Enter the 6-digit verification code
-                we sent to your email.
-              </p>
-
-              <div className="mt-4 rounded-xl bg-[#f8fbff] px-4 py-3">
-                <p className="break-all text-sm font-semibold text-[#1769e0]">
-                  {
-                    registeredEmail
-                  }
+                <p className="mt-1 break-all text-sm font-bold text-[#3B7597]">
+                  {registeredEmail}
                 </p>
               </div>
-            </div>
 
-            <div className="mt-7">
-              <label className="mb-2 block text-xs font-semibold text-[#344054]">
-                Verification Code
-              </label>
+              <div className="mt-7">
+                <label className="mb-2 block text-sm font-semibold text-[#0d2142]">
+                  Verification Code
+                </label>
 
-              <input
-                autoFocus
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
-                value={otp}
-                onChange={(
-                  event
-                ) => {
-                  const value =
-                    event.target.value
-                      .replace(
-                        /\D/g,
-                        ""
-                      )
-                      .slice(
-                        0,
-                        6
-                      );
+                <input
+                  value={otp}
+                  onChange={(event) => {
+                    const value =
+                      event.target.value
+                        .replace(
+                          /\D/g,
+                          ""
+                        )
+                        .slice(
+                          0,
+                          6
+                        );
 
-                  setOtp(value);
-
-                  setOtpError(
-                    null
-                  );
-
-                  setOtpSuccess(
-                    null
-                  );
-                }}
-                onKeyDown={(
-                  event
-                ) => {
-                  if (
-                    event.key ===
-                      "Enter" &&
-                    otp.length ===
-                      6 &&
-                    !otpLoading
-                  ) {
-                    handleVerifyOtp();
-                  }
-                }}
-                placeholder="000000"
-                className="w-full rounded-2xl border border-[#dfe4eb] bg-[#fcfdff] px-4 py-4 text-center text-2xl font-semibold tracking-[0.4em] text-[#172033] outline-none transition placeholder:text-[#c4cad4] focus:border-[#1769e0] focus:bg-white focus:ring-4 focus:ring-[#1769e0]/10"
-              />
+                    setOtp(value);
+                    setOtpError(
+                      null
+                    );
+                  }}
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="000000"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-4 text-center text-2xl font-bold tracking-[0.5em] text-[#002b5c] outline-none transition focus:border-[#3B7597] focus:ring-4 focus:ring-[#6FD1D7]/10"
+                />
+              </div>
 
               {otpError && (
-                <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs leading-5 text-red-700">
+                <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                   {otpError}
                 </div>
               )}
 
-              {otpSuccess &&
-                !otpError && (
-                  <div className="mt-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-xs leading-5 text-green-700">
-                    {
-                      otpSuccess
-                    }
-                  </div>
-                )}
-            </div>
-
-            <button
-              type="button"
-              disabled={
-                otpLoading ||
-                otp.length !== 6
-              }
-              onClick={
-                handleVerifyOtp
-              }
-              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#092653] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_5px_16px_rgba(9,38,83,0.16)] transition hover:bg-[#0c326b] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {otpLoading
-                ? "Verifying..."
-                : "Verify Email"}
-
-              {!otpLoading && (
-                <ArrowRightIcon />
+              {otpSuccess && (
+                <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                  {otpSuccess}
+                </div>
               )}
-            </button>
-
-            <div className="mt-5 text-center">
-              <p className="text-xs text-[#8a94a6]">
-                Didn't receive the code?
-              </p>
 
               <button
                 type="button"
+                onClick={
+                  handleVerifyOtp
+                }
                 disabled={
                   otpLoading
                 }
-                onClick={
-                  handleResendOtp
-                }
-                className="mt-1 text-xs font-semibold text-[#1769e0] hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                className="mt-5 w-full rounded-xl bg-[#002b5c] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#0d2142] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Resend verification code
+                {otpLoading
+                  ? "Verifying..."
+                  : "Verify Email"}
               </button>
+
+              <div className="mt-5 text-center">
+                <button
+                  type="button"
+                  onClick={
+                    handleResendOtp
+                  }
+                  disabled={
+                    otpLoading
+                  }
+                  className="text-sm font-semibold text-[#3B7597] transition hover:text-[#002b5c] disabled:opacity-50"
+                >
+                  Resend verification
+                  code
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </main>
+        )}
+      </main>
+    </GoogleOAuthProvider>
   );
 }
+function decodeJwtPayload(
+  token: string
+): Record<string, unknown> {
+  try {
+    const parts = token.split(".");
 
-/* -------------------------------------------------------------------------- */
-/* COMPONENTS                                                                 */
-/* -------------------------------------------------------------------------- */
+    const payload = parts[1];
 
-function Step({
-  number,
-  title,
-  active = false,
-}: {
-  number: string;
-  title: string;
-  active?: boolean;
-}) {
-  return (
-    <div className="flex items-center gap-3">
-      <div
-        className={`flex h-8 w-8 items-center justify-center rounded-full border text-[9px] font-bold ${
-          active
-            ? "border-[#C5A059] bg-[#C5A059] text-[#092653]"
-            : "border-white/15 bg-white/5 text-white/45"
-        }`}
-      >
-        {number}
-      </div>
+    if (!payload) {
+      return {};
+    }
 
-      <span
-        className={`text-xs ${
-          active
-            ? "font-semibold text-white"
-            : "text-white/45"
-        }`}
-      >
-        {title}
-      </span>
-    </div>
-  );
+    const base64 = payload
+      .replace(/-/g, "+")
+      .replace(/_/g, "/");
+
+    const padded = base64.padEnd(
+      Math.ceil(base64.length / 4) * 4,
+      "="
+    );
+
+    return JSON.parse(
+      window.atob(padded)
+    );
+  } catch {
+    return {};
+  }
 }
+
+// ==========================================================
+// SECTION HEADER
+// ==========================================================
 
 function SectionHeader({
-  icon,
   title,
   description,
 }: {
-  icon: React.ReactNode;
   title: string;
   description: string;
 }) {
   return (
-    <div className="flex items-start gap-3">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#eef4ff] text-[#1769e0]">
-        {icon}
-      </div>
+    <div>
+      <h3 className="text-lg font-bold text-[#002b5c]">
+        {title}
+      </h3>
 
-      <div>
-        <h2 className="text-[15px] font-semibold text-[#243047]">
-          {title}
-        </h2>
-
-        <p className="mt-0.5 text-xs text-[#8a94a6]">
-          {description}
-        </p>
-      </div>
+      <p className="mt-1 text-sm text-slate-500">
+        {description}
+      </p>
     </div>
   );
 }
 
+// ==========================================================
+// INPUT FIELD
+// ==========================================================
+
 function InputField({
   label,
   required,
-  placeholder,
   value,
   onChange,
+  placeholder,
   type = "text",
   min,
-  readOnly = false,
+  max,
+  readOnly,
 }: {
   label: string;
   required?: boolean;
-  placeholder?: string;
   value: string;
   onChange: (value: string) => void;
+  placeholder?: string;
   type?: string;
   min?: string;
+  max?: string;
   readOnly?: boolean;
 }) {
   return (
     <div>
-      <label className="mb-2 block text-xs font-medium text-[#344054]">
+      <label className="mb-2 block text-sm font-semibold text-[#0d2142]">
         {label}
-
         {required && (
           <span className="ml-1 text-red-500">
             *
@@ -2649,24 +2991,30 @@ function InputField({
 
       <input
         type={type}
-        min={min}
         value={value}
-        readOnly={readOnly}
-        placeholder={placeholder}
         onChange={(event) =>
           onChange(
             event.target.value
           )
         }
-        className={`w-full rounded-xl border px-4 py-3 text-sm text-[#172033] outline-none transition placeholder:text-[#98a2b3] ${
+        placeholder={placeholder}
+        min={min}
+        max={max}
+        readOnly={readOnly}
+        className={[
+          "w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-[#0d2142] outline-none transition placeholder:text-slate-400 focus:border-[#3B7597] focus:ring-4 focus:ring-[#6FD1D7]/10",
           readOnly
-            ? "cursor-not-allowed border-[#dfe4eb] bg-[#f7f8fa]"
-            : "border-[#dfe4eb] bg-white focus:border-[#1769e0] focus:ring-4 focus:ring-[#1769e0]/10"
-        }`}
+            ? "cursor-not-allowed bg-slate-50 text-slate-500"
+            : "bg-white",
+        ].join(" ")}
       />
     </div>
   );
 }
+
+// ==========================================================
+// SELECT FIELD
+// ==========================================================
 
 function SelectField({
   label,
@@ -2674,23 +3022,22 @@ function SelectField({
   value,
   onChange,
   options,
-  disabled = false,
+  disabled,
 }: {
   label: string;
   required?: boolean;
   value: string;
   onChange: (value: string) => void;
   options: {
-    label: string;
     value: string;
+    label: string;
   }[];
   disabled?: boolean;
 }) {
   return (
     <div>
-      <label className="mb-2 block text-xs font-medium text-[#344054]">
+      <label className="mb-2 block text-sm font-semibold text-[#0d2142]">
         {label}
-
         {required && (
           <span className="ml-1 text-red-500">
             *
@@ -2698,62 +3045,61 @@ function SelectField({
         )}
       </label>
 
-      <div className="relative">
-        <select
-          value={value}
-          disabled={disabled}
-          onChange={(event) =>
-            onChange(
-              event.target.value
-            )
-          }
-          className="w-full appearance-none rounded-xl border border-[#dfe4eb] bg-white px-4 py-3 pr-10 text-sm text-[#172033] outline-none transition focus:border-[#1769e0] focus:ring-4 focus:ring-[#1769e0]/10 disabled:cursor-not-allowed disabled:bg-[#f7f8fa] disabled:text-[#98a2b3]"
-        >
-          {options.map(
-            (option) => (
-              <option
-                key={
-                  option.value ||
-                  option.label
-                }
-                value={
-                  option.value
-                }
-              >
-                {option.label}
-              </option>
-            )
-          )}
-        </select>
-
-        <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[#8a94a6]">
-          <ChevronDownIcon />
-        </div>
-      </div>
+      <select
+        value={value}
+        onChange={(event) =>
+          onChange(
+            event.target.value
+          )
+        }
+        disabled={disabled}
+        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-[#0d2142] outline-none transition focus:border-[#3B7597] focus:ring-4 focus:ring-[#6FD1D7]/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+      >
+        {options.map(
+          (option) => (
+            <option
+              key={
+                option.value
+              }
+              value={
+                option.value
+              }
+            >
+              {
+                option.label
+              }
+            </option>
+          )
+        )}
+      </select>
     </div>
   );
 }
+
+// ==========================================================
+// PASSWORD FIELD
+// ==========================================================
 
 function PasswordField({
   label,
   required,
   value,
-  visible,
-  onToggle,
   onChange,
+  placeholder,
 }: {
   label: string;
   required?: boolean;
   value: string;
-  visible: boolean;
-  onToggle: () => void;
   onChange: (value: string) => void;
+  placeholder?: string;
 }) {
+  const [show, setShow] =
+    useState(false);
+
   return (
     <div>
-      <label className="mb-2 block text-xs font-medium text-[#344054]">
+      <label className="mb-2 block text-sm font-semibold text-[#0d2142]">
         {label}
-
         {required && (
           <span className="ml-1 text-red-500">
             *
@@ -2764,7 +3110,7 @@ function PasswordField({
       <div className="relative">
         <input
           type={
-            visible
+            show
               ? "text"
               : "password"
           }
@@ -2774,335 +3120,27 @@ function PasswordField({
               event.target.value
             )
           }
-          placeholder={label}
-          className="w-full rounded-xl border border-[#dfe4eb] bg-white px-4 py-3 pr-12 text-sm text-[#172033] outline-none transition placeholder:text-[#98a2b3] focus:border-[#1769e0] focus:ring-4 focus:ring-[#1769e0]/10"
+          placeholder={
+            placeholder
+          }
+          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-20 text-sm text-[#0d2142] outline-none transition placeholder:text-slate-400 focus:border-[#3B7597] focus:ring-4 focus:ring-[#6FD1D7]/10"
         />
 
         <button
           type="button"
-          onClick={onToggle}
-          className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[#8a94a6] hover:text-[#1769e0]"
-          aria-label={
-            visible
-              ? "Hide password"
-              : "Show password"
+          onClick={() =>
+            setShow(
+              (current) =>
+                !current
+            )
           }
+          className="absolute right-3 top-1/2 -translate-y-1/2 px-2 text-xs font-semibold text-[#3B7597] hover:text-[#002b5c]"
         >
-          <EyeIcon
-            visible={visible}
-          />
+          {show
+            ? "Hide"
+            : "Show"}
         </button>
       </div>
     </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* SVG                                                                        */
-/* -------------------------------------------------------------------------- */
-
-function Svg({
-  children,
-  size = 18,
-  strokeWidth = 1.8,
-}: {
-  children: React.ReactNode;
-  size?: number;
-  strokeWidth?: number;
-}) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={
-        strokeWidth
-      }
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {children}
-    </svg>
-  );
-}
-
-function AceLogo({
-  size = 25,
-}: {
-  size?: number;
-}) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 100 100"
-      fill="none"
-      aria-hidden="true"
-    >
-      <circle
-        cx="50"
-        cy="50"
-        r="46"
-        stroke="currentColor"
-        strokeWidth="5"
-      />
-
-      <path
-        d="M28 65 42 31h10l20 34h-11l-4-8H39l-3 8H28Z"
-        fill="currentColor"
-      />
-
-      <path
-        d="M43 49h11l-5-11-6 11Z"
-        fill="white"
-      />
-
-      <path
-        d="M62 31h12v34H62z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
-function UserIcon({
-  size = 18,
-}: {
-  size?: number;
-}) {
-  return (
-    <Svg size={size}>
-      <circle
-        cx="12"
-        cy="8"
-        r="4"
-      />
-
-      <path d="M4 21a8 8 0 0 1 16 0" />
-    </Svg>
-  );
-}
-
-function ImageIcon() {
-  return (
-    <Svg>
-      <rect
-        x="3"
-        y="3"
-        width="18"
-        height="18"
-        rx="2"
-      />
-
-      <circle
-        cx="8.5"
-        cy="8.5"
-        r="1.5"
-      />
-
-      <path d="m21 15-5-5L5 21" />
-    </Svg>
-  );
-}
-
-function UploadIcon() {
-  return (
-    <Svg size={18}>
-      <path d="M12 16V4" />
-      <path d="m7 9 5-5 5 5" />
-      <path d="M5 20h14" />
-    </Svg>
-  );
-}
-
-function BriefcaseIcon() {
-  return (
-    <Svg>
-      <rect
-        x="3"
-        y="7"
-        width="18"
-        height="13"
-        rx="2"
-      />
-
-      <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-
-      <path d="M3 12h18" />
-    </Svg>
-  );
-}
-
-function EducationIcon() {
-  return (
-    <Svg>
-      <path d="M3 9 12 4l9 5-9 5-9-5Z" />
-
-      <path d="M7 11v5c0 1.5 2.2 3 5 3s5-1.5 5-3v-5" />
-
-      <path d="M21 9v6" />
-    </Svg>
-  );
-}
-
-function CertificateIcon() {
-  return (
-    <Svg>
-      <rect
-        x="4"
-        y="3"
-        width="16"
-        height="18"
-        rx="2"
-      />
-
-      <path d="M8 8h8" />
-      <path d="M8 12h5" />
-
-      <path d="m12 17 1.5-1 1.5 1v-4h-3v4Z" />
-    </Svg>
-  );
-}
-
-function LockIcon() {
-  return (
-    <Svg>
-      <rect
-        x="4"
-        y="10"
-        width="16"
-        height="11"
-        rx="2"
-      />
-
-      <path d="M8 10V7a4 4 0 0 1 8 0v3" />
-    </Svg>
-  );
-}
-
-function LocationIcon() {
-  return (
-    <Svg>
-      <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z" />
-
-      <circle
-        cx="12"
-        cy="10"
-        r="2.5"
-      />
-    </Svg>
-  );
-}
-
-function InfoIcon() {
-  return (
-    <Svg>
-      <circle
-        cx="12"
-        cy="12"
-        r="9"
-      />
-
-      <path d="M12 11v5" />
-
-      <path d="M12 8h.01" />
-    </Svg>
-  );
-}
-
-function AlertIcon() {
-  return (
-    <div className="mt-0.5">
-      <Svg size={17}>
-        <path d="M12 3 2.8 20h18.4L12 3Z" />
-
-        <path d="M12 9v4" />
-
-        <path d="M12 16h.01" />
-      </Svg>
-    </div>
-  );
-}
-
-function ShieldIcon() {
-  return (
-    <Svg size={16}>
-      <path d="M12 3 20 6v5c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10V6l8-3Z" />
-
-      <path d="m8.5 12 2.2 2.2 4.8-5" />
-    </Svg>
-  );
-}
-
-function ChevronDownIcon() {
-  return (
-    <Svg size={16}>
-      <path d="m6 9 6 6 6-6" />
-    </Svg>
-  );
-}
-
-function EyeIcon({
-  visible,
-}: {
-  visible: boolean;
-}) {
-  return (
-    <Svg>
-      {visible ? (
-        <>
-          <path d="M3 3l18 18" />
-
-          <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
-
-          <path d="M9.9 4.2A10.8 10.8 0 0 1 12 4c6.5 0 10 8 10 8a18.7 18.7 0 0 1-3.1 4.2" />
-
-          <path d="M6.2 6.2C3.6 8 2 12 2 12s3.5 8 10 8a10.5 10.5 0 0 0 3.1-.5" />
-        </>
-      ) : (
-        <>
-          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
-
-          <circle
-            cx="12"
-            cy="12"
-            r="3"
-          />
-        </>
-      )}
-    </Svg>
-  );
-}
-
-function CloseIcon() {
-  return (
-    <Svg>
-      <path d="M6 6l12 12" />
-      <path d="M18 6 6 18" />
-    </Svg>
-  );
-}
-
-function ArrowLeftIcon() {
-  return (
-    <Svg>
-      <path d="M19 12H5" />
-      <path d="m12 19-7-7 7-7" />
-    </Svg>
-  );
-}
-
-function ArrowRightIcon() {
-  return (
-    <Svg
-      size={17}
-      strokeWidth={2}
-    >
-      <path d="M5 12h14" />
-      <path d="m13 6 6 6-6 6" />
-    </Svg>
   );
 }
