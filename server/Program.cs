@@ -144,6 +144,7 @@ builder.Services.AddScoped<
     IAdminUserService,
     AdminUserService
 >();
+builder.Services.AddScoped<ITrainerDashboardService, TrainerDashboardService>();
 
 builder.Services.Configure<CloudinarySettings>(
     builder.Configuration.GetSection("Cloudinary")
