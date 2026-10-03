@@ -13,6 +13,7 @@ import {
   PracticalAssessmentApi,
   ParticipantApi,
   LearningMaterialApi,
+  TrainerDashboardApi,
   TrainerReportRequestApi
 } from "@repo/api";
 import { auth } from "./auth";
@@ -35,6 +36,9 @@ export const trainerApi =
 
 export const practicalAssessmentApi =
   new PracticalAssessmentApi(apiClient);
+
+  export const trainerDashboardApi =
+  new TrainerDashboardApi(apiClient);
 
   export const authApi =
   new AuthApi(apiClient);
