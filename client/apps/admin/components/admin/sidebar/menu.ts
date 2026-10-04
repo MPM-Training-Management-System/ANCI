@@ -138,6 +138,11 @@ export const sidebarMenu: SidebarSectionType[] = [
             href: "/report",
             icon: FileBarChart2,
           },
+          {
+            title: "Request",
+            href: "/report-request",
+            icon: FileBarChart2,
+          },
         ],
       },
     ],

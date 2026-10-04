@@ -77,9 +77,7 @@ export default function Navbar({
           md:gap-4
         "
       >
-        {/* =================================================
-            MOBILE HAMBURGER
-        ================================================= */}
+ 
 
         <button
           type="button"
@@ -123,9 +121,6 @@ export default function Navbar({
           />
         </div>
 
-        {/* =================================================
-            DIVIDER
-        ================================================= */}
 
         <div
           className="
@@ -138,9 +133,7 @@ export default function Navbar({
           "
         />
 
-        {/* =================================================
-            TITLE
-        ================================================= */}
+   
 
         <div
           className="
@@ -156,9 +149,6 @@ export default function Navbar({
         </div>
       </div>
 
-      {/* =====================================================
-          RIGHT SIDE
-      ===================================================== */}
 
       <div
         className="
@@ -171,99 +161,12 @@ export default function Navbar({
           md:gap-3
         "
       >
-        {/* =================================================
-            ACTIVE TRAINING
-        ================================================= */}
-
-        <div
-          className="
-            hidden
-            items-center
-            gap-3
-
-            rounded-2xl
-            border
-            border-gray-200
-            bg-gray-50
-
-            px-3
-            py-2
-
-            xl:flex
-          "
-        >
-          <div
-            className="
-              flex
-              h-9
-              w-9
-              shrink-0
-              items-center
-              justify-center
-              rounded-xl
-              bg-[#191c1e]
-              text-xs
-              font-bold
-              text-white
-            "
-          >
-            CS
-          </div>
-
-          <div className="min-w-0">
-            <p
-              className="
-                max-w-[170px]
-                truncate
-                text-[10px]
-                font-bold
-                text-gray-800
-              "
-            >
-              Computer Systems Servicing
-            </p>
-
-            <div
-              className="
-                mt-0.5
-                flex
-                items-center
-                gap-1.5
-              "
-            >
-              <span
-                className="
-                  h-1.5
-                  w-1.5
-                  rounded-full
-                  bg-emerald-500
-                "
-              />
-
-              <span
-                className="
-                  text-[9px]
-                  text-gray-400
-                "
-              >
-                Active Training
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* =================================================
-            NOTIFICATIONS
-        ================================================= */}
+ 
 
         <NavbarNotification
           notificationCount={3}
           messageCount={1}
         />
-
-        {/* =================================================
-            DIVIDER
-        ================================================= */}
 
         <div
           className="
@@ -274,10 +177,6 @@ export default function Navbar({
             sm:block
           "
         />
-
-        {/* =================================================
-            PROFILE
-        ================================================= */}
 
         <NavbarProfile />
       </div>

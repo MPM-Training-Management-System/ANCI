@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using server.Data;
 using server.DTOs.Trainer;
 using server.Enums;
-using server.DTOs.Reports;
 using server.Interfaces.Trainer;
 using server.Models.Trainer;
 
@@ -20,8 +19,10 @@ public class TrainerReportRequestService
         _db = db;
     }
 
+
     // =========================================================
-    // CREATE REPORT REQUEST
+    // TRAINER
+    // CREATE REQUEST
     // =========================================================
 
     public async Task<TrainerReportRequestDto>
@@ -29,10 +30,6 @@ public class TrainerReportRequestService
             Guid userId,
             CreateTrainerReportRequestDto dto)
     {
-        // -----------------------------------------------------
-        // GET TRAINER PROFILE
-        // -----------------------------------------------------
-
         var trainerProfile =
             await _db.TrainerProfiles
                 .AsNoTracking()
@@ -44,10 +41,6 @@ public class TrainerReportRequestService
             throw new InvalidOperationException(
                 "Trainer profile was not found.");
         }
-
-        // -----------------------------------------------------
-        // VALIDATE REPORT TYPE
-        // -----------------------------------------------------
 
         var allowedReportTypes =
             new[]
@@ -81,10 +74,6 @@ public class TrainerReportRequestService
                     reportType,
                     StringComparison.OrdinalIgnoreCase));
 
-        // -----------------------------------------------------
-        // CHECK TRAINER ASSIGNMENT
-        // -----------------------------------------------------
-
         var assignment =
             await _db.TrainerAssignments
                 .AsNoTracking()
@@ -107,22 +96,41 @@ public class TrainerReportRequestService
                 "You are not assigned to this training batch.");
         }
 
-        // -----------------------------------------------------
-        // VALIDATE DATE RANGE
-        // -----------------------------------------------------
+        // =====================================================
+        // NORMALIZE DATE VALUES TO UTC
+        // =====================================================
+
+        DateTime? dateFrom = null;
+        DateTime? dateTo = null;
+
+        if (dto.DateFrom.HasValue)
+        {
+            dateFrom =
+                DateTime.SpecifyKind(
+                    dto.DateFrom.Value,
+                    DateTimeKind.Utc);
+        }
+
+        if (dto.DateTo.HasValue)
+        {
+            dateTo =
+                DateTime.SpecifyKind(
+                    dto.DateTo.Value,
+                    DateTimeKind.Utc);
+        }
 
         if (
-            dto.DateFrom.HasValue &&
-            dto.DateTo.HasValue &&
-            dto.DateFrom.Value > dto.DateTo.Value)
+            dateFrom.HasValue &&
+            dateTo.HasValue &&
+            dateFrom.Value > dateTo.Value)
         {
             throw new InvalidOperationException(
                 "Date From cannot be later than Date To.");
         }
 
-        // -----------------------------------------------------
+        // =====================================================
         // CHECK DUPLICATE PENDING REQUEST
-        // -----------------------------------------------------
+        // =====================================================
 
         var hasPendingRequest =
             await _db.TrainerReportRequests
@@ -146,14 +154,15 @@ public class TrainerReportRequestService
                 "You already have a pending request for this report.");
         }
 
-        // -----------------------------------------------------
+        // =====================================================
         // CREATE REQUEST
-        // -----------------------------------------------------
+        // =====================================================
 
         var request =
             new TrainerReportRequest
             {
-                Id = Guid.NewGuid(),
+                Id =
+                    Guid.NewGuid(),
 
                 TrainerProfileId =
                     trainerProfile.Id,
@@ -165,10 +174,10 @@ public class TrainerReportRequestService
                     reportType,
 
                 DateFrom =
-                    dto.DateFrom,
+                    dateFrom,
 
                 DateTo =
-                    dto.DateTo,
+                    dateTo,
 
                 Reason =
                     string.IsNullOrWhiteSpace(dto.Reason)
@@ -187,10 +196,6 @@ public class TrainerReportRequestService
 
         await _db.SaveChangesAsync();
 
-        // -----------------------------------------------------
-        // RETURN DTO
-        // -----------------------------------------------------
-
         return MapToDto(
             request,
             assignment.TrainingBatch.BatchCode,
@@ -199,7 +204,9 @@ public class TrainerReportRequestService
                 .Name);
     }
 
+
     // =========================================================
+    // TRAINER
     // GET MY REQUESTS
     // =========================================================
 
@@ -247,8 +254,156 @@ public class TrainerReportRequestService
             .ToList();
     }
 
+
     // =========================================================
-    // MAP DTO
+    // ADMIN
+    // GET ALL REQUESTS
+    // =========================================================
+
+    public async Task<
+        IReadOnlyList<AdminTrainerReportRequestDto>>
+        GetAdminRequestsAsync()
+    {
+        var requests =
+            await _db.TrainerReportRequests
+                .AsNoTracking()
+                .Include(x =>
+                    x.TrainerProfile)
+                .Include(x =>
+                    x.TrainingBatch)
+                    .ThenInclude(x =>
+                        x.TrainingProgram)
+                .OrderByDescending(
+                    x => x.RequestedAt)
+                .ToListAsync();
+
+        return requests
+            .Select(
+                MapToAdminDto)
+            .ToList();
+    }
+
+
+    // =========================================================
+    // ADMIN
+    // APPROVE
+    // =========================================================
+
+    public async Task<
+        AdminTrainerReportRequestDto>
+        ApproveAsync(
+            Guid adminUserId,
+            Guid requestId,
+            ReviewTrainerReportRequestDto dto)
+    {
+        var request =
+            await _db.TrainerReportRequests
+                .Include(x =>
+                    x.TrainerProfile)
+                .Include(x =>
+                    x.TrainingBatch)
+                    .ThenInclude(x =>
+                        x.TrainingProgram)
+                .FirstOrDefaultAsync(
+                    x => x.Id == requestId);
+
+        if (request == null)
+        {
+            throw new InvalidOperationException(
+                "Report request was not found.");
+        }
+
+        if (
+            request.Status !=
+            TrainerReportRequestStatus.Pending)
+        {
+            throw new InvalidOperationException(
+                "Only pending report requests can be approved.");
+        }
+
+        request.Status =
+            TrainerReportRequestStatus.Approved;
+
+        request.ReviewedAt =
+            DateTime.UtcNow;
+
+        request.ReviewedByUserId =
+            adminUserId;
+
+        request.AdminRemarks =
+            string.IsNullOrWhiteSpace(
+                dto.AdminRemarks)
+                ? null
+                : dto.AdminRemarks.Trim();
+
+        await _db.SaveChangesAsync();
+
+        return MapToAdminDto(
+            request);
+    }
+
+
+    // =========================================================
+    // ADMIN
+    // REJECT
+    // =========================================================
+
+    public async Task<
+        AdminTrainerReportRequestDto>
+        RejectAsync(
+            Guid adminUserId,
+            Guid requestId,
+            ReviewTrainerReportRequestDto dto)
+    {
+        var request =
+            await _db.TrainerReportRequests
+                .Include(x =>
+                    x.TrainerProfile)
+                .Include(x =>
+                    x.TrainingBatch)
+                    .ThenInclude(x =>
+                        x.TrainingProgram)
+                .FirstOrDefaultAsync(
+                    x => x.Id == requestId);
+
+        if (request == null)
+        {
+            throw new InvalidOperationException(
+                "Report request was not found.");
+        }
+
+        if (
+            request.Status !=
+            TrainerReportRequestStatus.Pending)
+        {
+            throw new InvalidOperationException(
+                "Only pending report requests can be rejected.");
+        }
+
+        request.Status =
+            TrainerReportRequestStatus.Rejected;
+
+        request.ReviewedAt =
+            DateTime.UtcNow;
+
+        request.ReviewedByUserId =
+            adminUserId;
+
+        request.AdminRemarks =
+            string.IsNullOrWhiteSpace(
+                dto.AdminRemarks)
+                ? null
+                : dto.AdminRemarks.Trim();
+
+        await _db.SaveChangesAsync();
+
+        return MapToAdminDto(
+            request);
+    }
+
+
+    // =========================================================
+    // TRAINER DTO MAPPER
     // =========================================================
 
     private static TrainerReportRequestDto
@@ -291,6 +446,86 @@ public class TrainerReportRequestService
 
             ReviewedAt =
                 request.ReviewedAt,
+
+            AdminRemarks =
+                request.AdminRemarks,
+
+            ReportFileUrl =
+                request.ReportFileUrl
+        };
+    }
+
+
+    // =========================================================
+    // ADMIN DTO MAPPER
+    // =========================================================
+
+    private static AdminTrainerReportRequestDto
+        MapToAdminDto(
+            TrainerReportRequest request)
+    {
+        var trainerName =
+            request.TrainerProfile?.ActivatedAt.HasValue == true
+                ? $"{request.TrainerProfile.FirstName} {request.TrainerProfile.LastName}"
+                : string.Empty;
+       
+
+        var trainerCode =
+            request.TrainerProfile?.ActivatedAt.HasValue == true
+                ? request.TrainerProfile.UserId.ToString()
+                :
+                string.Empty;
+
+        return new AdminTrainerReportRequestDto
+        {
+            Id =
+                request.Id,
+
+            TrainerProfileId =
+                request.TrainerProfileId,
+
+            TrainingBatchId =
+                request.TrainingBatchId,
+
+            TrainerName =
+                trainerName,
+
+            TrainerCode =
+                trainerCode,
+
+            BatchCode =
+                request.TrainingBatch?.BatchCode
+                ?? string.Empty,
+
+            TrainingProgramName =
+                request.TrainingBatch?
+                    .TrainingProgram?
+                    .Name
+                ?? string.Empty,
+
+            ReportType =
+                request.ReportType,
+
+            DateFrom =
+                request.DateFrom,
+
+            DateTo =
+                request.DateTo,
+
+            Reason =
+                request.Reason,
+
+            Status =
+                request.Status.ToString(),
+
+            RequestedAt =
+                request.RequestedAt,
+
+            ReviewedAt =
+                request.ReviewedAt,
+
+            ReviewedByUserId =
+                request.ReviewedByUserId,
 
             AdminRemarks =
                 request.AdminRemarks,

@@ -53,7 +53,7 @@ import {
 
 import { adminDashboardApi } from "@/lib/api";
 import { useAdminDashboard } from "@repo/hooks";
-import { PageSkeleton } from "@repo/ui/index";
+import { formatNumber, MetricRow, PageSkeleton, SectionCard, StatCard } from "@repo/ui/index";
 
 /* =========================================================
    TYPES
@@ -64,42 +64,19 @@ type IconType = React.ComponentType<{
   size?: number;
 }>;
 
-type StatCardProps = {
-  title: string;
-  value: string | number;
-  description?: string;
-  icon: IconType;
-  iconClassName?: string;
-  loading?: boolean;
-};
 
-type SectionCardProps = {
-  title: string;
-  description?: string;
-  icon?: IconType;
-  children: React.ReactNode;
-  className?: string;
-  action?: React.ReactNode;
-};
 
 type StatusBadgeProps = {
   status: string;
 };
 
-type MetricRowProps = {
-  label: string;
-  value: string | number;
-  icon?: IconType;
-  iconClassName?: string;
-};
+
 
 /* =========================================================
    HELPERS
 ========================================================= */
 
-function formatNumber(value: number) {
-  return new Intl.NumberFormat("en-US").format(value);
-}
+
 
 function formatDate(value: string) {
   if (!value) return "—";
@@ -168,126 +145,9 @@ function getStatusClass(status: string) {
   return "border-slate-200 bg-slate-50 text-slate-600";
 }
 
-/* =========================================================
-   REUSABLE UI
-========================================================= */
 
-function StatCard({
-  title,
-  value,
-  description,
-  icon: Icon,
-  iconClassName = "bg-slate-100 text-slate-700",
-  loading = false,
-}: StatCardProps) {
-  return (
-    <div className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-slate-500">
-            {title}
-          </p>
 
-          {loading ? (
-            <div className="mt-3 h-9 w-24 animate-pulse rounded-lg bg-slate-100" />
-          ) : (
-            <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
-              {typeof value === "number"
-                ? formatNumber(value)
-                : value}
-            </p>
-          )}
 
-          {description && (
-            <p className="mt-2 text-xs text-slate-400">
-              {description}
-            </p>
-          )}
-        </div>
-
-        <div
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${iconClassName}`}
-        >
-          <Icon className="h-5 w-5" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SectionCard({
-  title,
-  description,
-  icon: Icon,
-  children,
-  className = "",
-  action,
-}: SectionCardProps) {
-  return (
-    <section
-      className={`rounded-2xl border border-slate-200 bg-white shadow-sm ${className}`}
-    >
-      <div className="flex items-center justify-between gap-4 border-b border-slate-100 px-5 py-4">
-        <div className="flex min-w-0 items-center gap-3">
-          {Icon && (
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
-              <Icon className="h-4 w-4" />
-            </div>
-          )}
-
-          <div className="min-w-0">
-            <h2 className="truncate text-sm font-semibold text-slate-900">
-              {title}
-            </h2>
-
-            {description && (
-              <p className="mt-0.5 text-xs text-slate-400">
-                {description}
-              </p>
-            )}
-          </div>
-        </div>
-
-        {action}
-      </div>
-
-      <div className="p-5">
-        {children}
-      </div>
-    </section>
-  );
-}
-
-function MetricRow({
-  label,
-  value,
-  icon: Icon,
-  iconClassName = "bg-slate-100 text-slate-500",
-}: MetricRowProps) {
-  return (
-    <div className="flex items-center justify-between gap-4 py-3">
-      <div className="flex min-w-0 items-center gap-3">
-        {Icon && (
-          <div
-            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${iconClassName}`}
-          >
-            <Icon className="h-4 w-4" />
-          </div>
-        )}
-
-        <span className="truncate text-sm text-slate-600">
-          {label}
-        </span>
-      </div>
-
-      <span className="shrink-0 text-sm font-semibold text-slate-900">
-        {typeof value === "number"
-          ? formatNumber(value)
-          : value}
-      </span>
-    </div>
-  );
-}
 
 function StatusBadge({ status }: StatusBadgeProps) {
   return (
@@ -371,9 +231,6 @@ function ChartTooltip({
   );
 }
 
-/* =========================================================
-   LINE CHART
-========================================================= */
 
 function EnrollmentLineGraph({
   dashboard,
@@ -1265,7 +1122,7 @@ if (isLoading && !dashboard) {
               dashboard.users.totalParticipants,
             )} participants`}
             icon={Users}
-            iconClassName="bg-slate-100 text-slate-700"
+           
           />
 
           <StatCard
@@ -1275,7 +1132,7 @@ if (isLoading && !dashboard) {
               dashboard.users.unverifiedEmailCount,
             )} unverified email`}
             icon={GraduationCap}
-            iconClassName="bg-blue-50 text-blue-600"
+       
           />
 
           <StatCard
@@ -1285,7 +1142,7 @@ if (isLoading && !dashboard) {
               dashboard.trainerApplications.pendingApplications,
             )} pending applications`}
             icon={UserCheck}
-            iconClassName="bg-emerald-50 text-emerald-600"
+           
           />
 
           <StatCard
@@ -1295,7 +1152,7 @@ if (isLoading && !dashboard) {
               dashboard.training.activeTrainingPrograms,
             )} active programs`}
             icon={BookOpen}
-            iconClassName="bg-violet-50 text-violet-600"
+      
           />
         </div>
 

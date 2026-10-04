@@ -60,9 +60,7 @@ export default function TrainerApplicationsPage() {
 
   const [statusFilter, setStatusFilter] = useState("All");
 
-  // =========================================================
   // OPEN REVIEW
-  // =========================================================
 
   const openReview = (
     application: (typeof applications)[number],
@@ -76,9 +74,8 @@ export default function TrainerApplicationsPage() {
     setIsModalOpen(true);
   };
 
-  // =========================================================
   // CLOSE MODAL
-  // =========================================================
+
 
   const closeModal = () => {
     if (isReviewing) return;
@@ -88,10 +85,8 @@ export default function TrainerApplicationsPage() {
     setSelectedApplication(null);
   };
 
-  // =========================================================
-  // SUBMIT REVIEW
-  // =========================================================
 
+  // SUBMIT REVIEW
   const handleReview = async () => {
     if (!selectedApplication) {
       return;
@@ -110,9 +105,9 @@ export default function TrainerApplicationsPage() {
     }
   };
 
-  // =========================================================
+
   // FILTER
-  // =========================================================
+
 
   const filteredApplications = useMemo(() => {
     if (statusFilter === "All") {
@@ -126,9 +121,9 @@ export default function TrainerApplicationsPage() {
     );
   }, [applications, statusFilter]);
 
-  // =========================================================
+
   // STATISTICS
-  // =========================================================
+
 
   const totalApplications = applications.length;
 
@@ -154,9 +149,9 @@ export default function TrainerApplicationsPage() {
     },
   ).length;
 
-  // =========================================================
+
   // LOADING
-  // =========================================================
+
 
   if (isLoading && applications.length === 0) {
     return (
@@ -170,9 +165,9 @@ export default function TrainerApplicationsPage() {
     );
   }
 
-  // =========================================================
+
   // PAGE
-  // =========================================================
+
 
   return (
     <div className="min-h-full lg:p-2">
@@ -218,9 +213,9 @@ export default function TrainerApplicationsPage() {
       />
 
       <div className="mx-auto max-w-7xl space-y-6">
-        {/* =====================================================
-            STATISTICS
-        ===================================================== */}
+   
+
+
 
         <StatGrid>
           <StatCard
@@ -256,9 +251,7 @@ export default function TrainerApplicationsPage() {
           />
         </StatGrid>
 
-        {/* =====================================================
-            ERROR
-        ===================================================== */}
+   
 
         {error && (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
@@ -280,9 +273,7 @@ export default function TrainerApplicationsPage() {
           </div>
         )}
 
-        {/* =====================================================
-            TABLE
-        ===================================================== */}
+     
 
         <DataTable
           columns={columns}
@@ -367,9 +358,7 @@ export default function TrainerApplicationsPage() {
         />
       </div>
 
-      {/* =======================================================
-          REVIEW MODAL
-      ======================================================= */}
+   
 
       {isModalOpen && selectedApplication && (
         <ReviewModal
@@ -386,10 +375,6 @@ export default function TrainerApplicationsPage() {
     </div>
   );
 }
-
-// =============================================================
-// REVIEW MODAL
-// =============================================================
 
 function ReviewModal({
   application,
@@ -456,9 +441,6 @@ function ReviewModal({
           event.stopPropagation()
         }
       >
-        {/* =====================================================
-            MODAL HEADER
-        ===================================================== */}
 
         <div className="shrink-0 border-b border-slate-200 bg-white px-5 py-4 sm:px-7">
           <div className="flex items-center justify-between gap-4">
@@ -542,15 +524,11 @@ function ReviewModal({
           </div>
         </div>
 
-        {/* =====================================================
-            MODAL BODY
-        ===================================================== */}
+  
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <div className="space-y-7 p-5 sm:p-7">
-            {/* =================================================
-                PERSONAL INFORMATION
-            ================================================= */}
+    
 
             <Section
               title="Personal Information"
@@ -640,9 +618,7 @@ function ReviewModal({
               </div>
             </Section>
 
-            {/* =================================================
-                PROFESSIONAL INFORMATION
-            ================================================= */}
+     
 
             <Section
               title="Professional Information"
@@ -698,9 +674,7 @@ function ReviewModal({
               </div>
             </Section>
 
-            {/* =================================================
-                PROFESSIONAL LICENSE
-            ================================================= */}
+    
 
             <Section
               title="Professional License"
@@ -738,9 +712,6 @@ function ReviewModal({
               </div>
             </Section>
 
-            {/* =================================================
-                EDUCATIONAL BACKGROUND
-            ================================================= */}
 
             <Section
               title="Educational Background"
@@ -751,9 +722,7 @@ function ReviewModal({
               <EducationList application={application} />
             </Section>
 
-            {/* =================================================
-                CERTIFICATIONS
-            ================================================= */}
+
 
             <Section
               title="Certifications"
@@ -766,10 +735,7 @@ function ReviewModal({
               />
             </Section>
 
-            {/* =================================================
-                DOCUMENTS
-            ================================================= */}
-
+   
             <Section
               title="Submitted Documents"
               icon={
@@ -781,9 +747,7 @@ function ReviewModal({
               />
             </Section>
 
-            {/* =================================================
-                APPLICATION INFORMATION
-            ================================================= */}
+
 
             <Section
               title="Application Information"
@@ -816,10 +780,6 @@ function ReviewModal({
                 />
               </div>
             </Section>
-
-            {/* =================================================
-                PREVIOUS ADMIN REMARKS
-            ================================================= */}
 
             {application.adminRemarks && (
               <Section

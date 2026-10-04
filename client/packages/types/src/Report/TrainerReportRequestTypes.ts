@@ -5,38 +5,79 @@ export type TrainerReportRequestStatus =
   | "Completed";
 
 export type TrainerReportType =
-  | "Training Completion"
-  | "Enrollment"
   | "Attendance"
-  | "Assessment Results"
-  | "Certificates"
-  | "Trainer Report";
+  | "Assessment"
+  | "TrainingSummary"
+  | "Certificate";
+
+export interface CreateTrainerReportRequest {
+  reportType: TrainerReportType;
+  trainingBatchId: string;
+  dateFrom?: string | null;
+  dateTo?: string | null;
+  reason?: string | null;
+}
 
 export interface TrainerReportRequest {
   id: string;
 
-  reportType: TrainerReportType;
-  reason?: string | null;
+  trainingBatchId: string;
 
-  trainerProfileId: string;
-  trainingBatchId?: string | null;
+  batchCode: string;
+
+  trainingProgramName: string;
+
+  reportType: TrainerReportType;
+
+  dateFrom?: string | null;
+
+  dateTo?: string | null;
+
+  reason?: string | null;
 
   status: TrainerReportRequestStatus;
 
+  requestedAt: string;
+
+  reviewedAt?: string | null;
+
   adminRemarks?: string | null;
+
   reportFileUrl?: string | null;
+}
+
+
+export interface AdminTrainerReportRequest {
+  id: string;
+
+  trainerProfileId: string;
+  trainingBatchId: string;
+
+  trainerName: string;
+  trainerCode: string;
+
+  batchCode: string;
+  trainingProgramName: string;
+
+  reportType: TrainerReportType;
+
+  dateFrom?: string | null;
+  dateTo?: string | null;
+
+  reason?: string | null;
+
+  status: TrainerReportRequestStatus;
 
   requestedAt: string;
+
   reviewedAt?: string | null;
+  reviewedByUserId?: string | null;
+
+  adminRemarks?: string | null;
+
+  reportFileUrl?: string | null;
 }
 
-export interface CreateTrainerReportRequest {
-  reportType: TrainerReportType;
-  reason?: string | null;
-  trainingBatchId?: string | null;
-}
-
-export interface TrainerReportRequestListResponse {
-  items: TrainerReportRequest[];
-  totalCount: number;
+export interface ReviewTrainerReportRequest {
+  adminRemarks?: string | null;
 }
