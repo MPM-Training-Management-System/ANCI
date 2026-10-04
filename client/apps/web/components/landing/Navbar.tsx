@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Logo from "@/assets/image/ANCILOGO.png";
+import Image from "next/image";
 
 const navigation = [
   {
@@ -51,11 +53,14 @@ export default function Navbar() {
           className="flex items-center gap-3"
         >
           <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl ">
-            <img
-              src="/ANCILOGO.png"
-              alt="ACE NextGen"
-              className="h-full w-full object-contain"
-            />
+             <Image
+                               src={Logo}
+                               alt="ACE NextGen Consultancy Inc. logo"
+                               width={44}
+                               height={44}
+                               priority
+                               className="h-full w-full object-contain"
+                             />
           </div>
 
           <div className="hidden sm:block">
@@ -100,14 +105,6 @@ export default function Navbar() {
             className="rounded-lg bg-[#002b5c] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#0d2142] hover:shadow-lg"
           >
             Apply Now
-          </Link>
-
-          <Link
-            href="/login"
-            aria-label="Login"
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-[#002b5c] text-white transition hover:bg-[#2563eb]"
-          >
-            <span className="text-sm">→</span>
           </Link>
         </div>
 

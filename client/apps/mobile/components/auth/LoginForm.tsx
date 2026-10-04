@@ -1,10 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -16,10 +14,10 @@ import {
   Image,
 } from "react-native";
 
+import { AppAlert } from "@repo/ui-mobile";
+
 import { SafeAreaView } from "react-native-safe-area-context";
-
 import Ionicons from "@expo/vector-icons/Ionicons";
-
 import { useRouter } from "expo-router";
 
 import {
@@ -36,10 +34,6 @@ import {
 import { authApi } from "@/api/api";
 import { auth } from "@/api/auth";
 
-/* ============================================================
-   GOOGLE CONFIG
-   ============================================================ */
-
 const GOOGLE_WEB_CLIENT_ID =
   process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? "";
 
@@ -51,25 +45,54 @@ export default function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const [showPassword, setShowPassword] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  const [isGoogleLoading, setIsGoogleLoading] =
-    useState(false);
+  const [appAlert, setAppAlert] = useState({
+    visible: false,
+    type: "info" as "success" | "error" | "warning" | "info",
+    title: "",
+    message: "",
+    confirmText: "OK",
+    showCancel: false,
+  });
 
-  const {
-    login,
-    isLoading,
-    error,
-  } = useLogin(authApi);
+  const [alertAction, setAlertAction] = useState<(() => void) | null>(null);
 
-  const {
-    googleLogin,
-  } = useGoogleAuth(authApi);
+  const { login, isLoading, error } = useLogin(authApi);
+  const { googleLogin } = useGoogleAuth(authApi);
 
-  /* ============================================================
-     GOOGLE CONFIGURATION
-     ============================================================ */
+  const showAlert = (
+    title: string,
+    message: string,
+    type: "success" | "error" | "warning" | "info" = "info",
+    confirmText = "OK",
+    onConfirm?: () => void
+  ) => {
+    setAlertAction(() => onConfirm ?? null);
+
+    setAppAlert({
+      visible: true,
+      type,
+      title,
+      message,
+      confirmText,
+      showCancel: false,
+    });
+  };
+
+  const closeAlert = () => {
+    const action = alertAction;
+
+    setAlertAction(null);
+
+    setAppAlert((prev) => ({
+      ...prev,
+      visible: false,
+    }));
+
+    action?.();
+  };
 
   React.useEffect(() => {
     GoogleSignin.configure({
@@ -83,47 +106,49 @@ export default function LoginForm() {
     );
   }, []);
 
-  /* ============================================================
-     NORMAL LOGIN
-     ============================================================ */
-
   const handleLogin = async () => {
     if (!email.trim()) {
-      Alert.alert(
+      showAlert(
         "Login Required",
-        "Please enter your email address."
+        "Please enter your email address.",
+        "warning"
       );
       return;
     }
 
     if (!password) {
-      Alert.alert(
+      showAlert(
         "Login Required",
-        "Please enter your password."
+        "Please enter your password.",
+        "warning"
       );
       return;
     }
 
-    try {
-      const values: LoginFormValues = {
-        email: email.trim().toLowerCase(),
-        password,
-      };
+    const values: LoginFormValues = {
+      email: email.trim().toLowerCase(),
+      password,
+    };
 
+    try {
       const response = await login(values);
 
-      if (!response) {
+      if (!response?.token || !response?.user) {
+        showAlert(
+          "Login Failed",
+          "Invalid login response from the server.",
+          "error"
+        );
         return;
       }
 
-      const role = String(
-        response.user?.role ?? ""
-      ).toLowerCase();
+      const role = response.user.role?.toLowerCase();
 
       if (role !== "participant") {
-        Alert.alert(
+        showAlert(
           "Access Denied",
-          "This mobile application is only available for Participants."
+          "Only participant accounts can log in to the mobile application.",
+          "warning"
         );
         return;
       }
@@ -131,32 +156,39 @@ export default function LoginForm() {
       await auth.saveToken(response.token);
       await auth.saveUser(response.user);
 
-      router.replace("/(tabs)");
-    } catch (error) {
-      console.error("LOGIN ERROR:", error);
+      const savedToken = await auth.getToken();
 
-      Alert.alert(
+      if (!savedToken) {
+        showAlert(
+          "Login Failed",
+          "Your session could not be saved. Please try again.",
+          "error"
+        );
+        return;
+      }
+
+      router.replace("/(tabs)");
+    } catch (err) {
+      showAlert(
         "Login Failed",
-        error instanceof Error
-          ? error.message
-          : "Unable to login. Please try again."
+        err instanceof Error
+          ? err.message
+          : "Unable to login. Please try again.",
+        "error"
       );
     }
   };
 
-  /* ============================================================
-     GOOGLE LOGIN
-     ============================================================ */
-
-  const handleGoogleSignIn = async () => {
-    if (isLoading || isGoogleLoading) {
+  const handleGoogleLogin = async () => {
+    if (isGoogleLoading || isLoading) {
       return;
     }
 
     if (!GOOGLE_WEB_CLIENT_ID) {
-      Alert.alert(
-        "Google Sign-In Error",
-        "Google Sign-In is not configured. Please check EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID."
+      showAlert(
+        "Google Sign-In",
+        "Google Sign-In is not configured. Please check the Google Web Client ID.",
+        "error"
       );
       return;
     }
@@ -164,319 +196,196 @@ export default function LoginForm() {
     try {
       setIsGoogleLoading(true);
 
-      console.log("================================");
-      console.log("GOOGLE LOGIN START");
-      console.log(
-        "GOOGLE WEB CLIENT ID:",
-        GOOGLE_WEB_CLIENT_ID
-      );
-      console.log("================================");
-
       await GoogleSignin.hasPlayServices({
         showPlayServicesUpdateDialog: true,
       });
 
-      const response =
-        await GoogleSignin.signIn();
+      const response = await GoogleSignin.signIn();
 
-      console.log(
-        "GOOGLE SIGN-IN RESPONSE:",
-        response
-      );
-
-      const idToken =
-        response.data?.idToken;
+      const idToken = response.data?.idToken;
 
       if (!idToken) {
-        Alert.alert(
+        showAlert(
           "Google Sign-In Failed",
-          "Google did not provide an ID token. Please try again."
+          "Google did not return a valid ID token.",
+          "error"
         );
         return;
       }
 
-      console.log(
-        "GOOGLE ID TOKEN RECEIVED:",
-        `${idToken.substring(0, 20)}...`
-      );
+   const loginResult = await googleLogin({
+  idToken,
+});
 
-      /* ========================================================
-         SEND GOOGLE ID TOKEN TO BACKEND
-         ======================================================== */
-
-      const loginResult =
-        await googleLogin({
-          idToken,
-        });
 if (!loginResult) {
-  Alert.alert(
+  showAlert(
     "Google Sign-In Failed",
-    "Unable to complete Google login. Please try again."
+    "No login response was received from the server. Please try again.",
+    "error"
   );
   return;
 }
-      console.log(
-        "GOOGLE BACKEND RESULT:",
-        loginResult
-      );
 
-      /* ========================================================
-         NEW GOOGLE USER
-         ======================================================== */
-
-      if (
-        loginResult.requiresRegistration ||
-        loginResult.isNewUser
-      ) {
-        console.log(
-          "NEW GOOGLE USER - REDIRECTING TO REGISTER"
-        );
-
-        /*
-         * Save the Google ID token temporarily.
-         *
-         * This is NOT the application authentication token.
-         * It will only be used during Google registration.
-         */
-
+if (
+  loginResult.requiresRegistration ||
+  loginResult.isNewUser
+) {
         await auth.saveToken("");
 
-        const SecureStore =
-          await import("expo-secure-store");
-
-        await SecureStore.setItemAsync(
-          GOOGLE_REGISTRATION_TOKEN_KEY,
+        await auth.saveToken(
           idToken
         );
 
-        const params =
-          new URLSearchParams();
+        const googleUser = response.data?.user;
 
-        params.set("google", "1");
+        const params = new URLSearchParams();
 
-        if (loginResult.email) {
-          params.set(
-            "email",
-            loginResult.email
-          );
+        if (googleUser?.email) {
+          params.set("email", googleUser.email);
         }
 
-        if (loginResult.firstName) {
+        if (googleUser?.givenName) {
           params.set(
             "firstName",
-            loginResult.firstName
+            googleUser.givenName
           );
         }
 
-        if (loginResult.lastName) {
+        if (googleUser?.familyName) {
           params.set(
             "lastName",
-            loginResult.lastName
+            googleUser.familyName
           );
         }
 
-        if (loginResult.fullName) {
+        if (googleUser?.name) {
           params.set(
             "fullName",
-            loginResult.fullName
+            googleUser.name
           );
         }
 
-        if (
-          loginResult.profileImageUrl
-        ) {
+        if (googleUser?.photo) {
           params.set(
             "profileImageUrl",
-            loginResult.profileImageUrl
+            googleUser.photo
           );
         }
 
-        router.replace(
+        router.push(
           `/(auth)/register?${params.toString()}`
         );
 
         return;
       }
 
-      /* ========================================================
-         EXISTING GOOGLE USER
-         ======================================================== */
+      const token = loginResult.login?.token;
+      const user = loginResult.login?.user;
 
-      if (!loginResult.login) {
-        Alert.alert(
+      if (!token || !user) {
+        showAlert(
           "Google Sign-In Failed",
-          "Unable to complete Google login. Please try again."
+          "The server did not return a valid login session.",
+          "error"
         );
         return;
       }
 
-      if (!loginResult.login.token) {
-        Alert.alert(
-          "Google Sign-In Failed",
-          "The server did not return an authentication token."
-        );
-        return;
-      }
-
-      if (!loginResult.login.user) {
-        Alert.alert(
-          "Google Sign-In Failed",
-          "The server did not return your user information."
-        );
-        return;
-      }
-
-      /* ========================================================
-         CHECK ROLE
-         ======================================================== */
-
-      const role = String(
-        loginResult.login.user.role ?? ""
-      ).toLowerCase();
-
-      console.log(
-        "GOOGLE USER ROLE:",
-        role
-      );
+      const role = user.role?.toLowerCase();
 
       if (role !== "participant") {
-        Alert.alert(
+        showAlert(
           "Access Denied",
-          "This mobile application is only available for Participants."
+          "Only participant accounts can log in to the mobile application.",
+          "warning"
         );
-
         return;
       }
 
-      /* ========================================================
-         SAVE BACKEND JWT
-         ======================================================== */
+      await auth.saveToken(token);
+      await auth.saveUser(user);
 
-      await auth.saveToken(
-        loginResult.login.token
-      );
-
-      await auth.saveUser(
-        loginResult.login.user
-      );
-
-      /* ========================================================
-         VERIFY TOKEN WAS SAVED
-         ======================================================== */
-
-      const savedToken =
-        await auth.getToken();
-
-      console.log(
-        "GOOGLE TOKEN SAVED:",
-        Boolean(savedToken)
-      );
+      const savedToken = await auth.getToken();
 
       if (!savedToken) {
-        Alert.alert(
-          "Login Error",
-          "Your Google login was successful, but your session could not be saved. Please try again."
+        showAlert(
+          "Google Sign-In Failed",
+          "Your session could not be saved. Please try again.",
+          "error"
         );
-
         return;
       }
 
-      console.log(
-        "================================"
-      );
-      console.log(
-        "EXISTING GOOGLE USER LOGIN SUCCESSFUL"
-      );
-      console.log(
-        "USER:",
-        loginResult.login.user
-      );
-      console.log(
-        "================================"
-      );
-
-      Alert.alert(
+      showAlert(
         "Welcome to ANCI",
         `Welcome ${
-          loginResult.login.user.fullName ??
+          user.fullName ??
           response.data?.user?.name ??
           "User"
         }!`,
-        [
-          {
-            text: "Continue",
-            onPress: () => {
-              router.replace(
-                "/(tabs)"
-              );
-            },
-          },
-        ]
+        "success",
+        "Continue",
+        () => {
+          router.replace("/(tabs)");
+        }
       );
-    } catch (error: any) {
-      console.error(
-        "GOOGLE LOGIN ERROR:",
-        error
-      );
-
+    } catch (err: any) {
       if (
-        error?.code ===
-        statusCodes.SIGN_IN_CANCELLED
+        err?.code === statusCodes.SIGN_IN_CANCELLED
       ) {
-        console.log(
-          "Google Sign-In cancelled by user."
-        );
-
         return;
       }
 
       if (
-        error?.code ===
-        statusCodes.IN_PROGRESS
+        err?.code === statusCodes.IN_PROGRESS
       ) {
-        Alert.alert(
+        showAlert(
           "Google Sign-In",
-          "Google Sign-In is already in progress."
+          "Google Sign-In is already in progress.",
+          "warning"
         );
-
         return;
       }
 
       if (
-        error?.code ===
+        err?.code ===
         statusCodes.PLAY_SERVICES_NOT_AVAILABLE
       ) {
-        Alert.alert(
+        showAlert(
           "Google Play Services",
-          "Google Play Services is not available or needs to be updated."
+          "Google Play Services is not available or needs to be updated.",
+          "warning"
         );
-
         return;
       }
 
-      Alert.alert(
+      showAlert(
         "Google Sign-In Failed",
-        error instanceof Error
-          ? error.message
-          : "Unable to sign in with Google. Please try again."
+        err instanceof Error
+          ? err.message
+          : "Unable to sign in with Google. Please try again.",
+        "error"
       );
     } finally {
       setIsGoogleLoading(false);
     }
   };
 
-  /* ============================================================
-     UI
-     ============================================================ */
-
-  const loading =
-    isLoading || isGoogleLoading;
-
   return (
     <SafeAreaView
       style={styles.safeArea}
       edges={["top", "bottom"]}
     >
+      <AppAlert
+        visible={appAlert.visible}
+        type={appAlert.type}
+        title={appAlert.title}
+        message={appAlert.message}
+        confirmText={appAlert.confirmText}
+        onConfirm={closeAlert}
+        showCancel={false}
+      />
+
       <KeyboardAvoidingView
         style={styles.container}
         behavior={
@@ -486,421 +395,292 @@ if (!loginResult) {
         }
       >
         <ScrollView
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
           contentContainerStyle={
             styles.scrollContent
           }
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          {/* ================================================== */}
-          {/* HEADER */}
-          {/* ================================================== */}
-
-          <View style={styles.header}>
+          <View style={styles.content}>
             <View style={styles.logoContainer}>
               <Image
                 source={require("@/assets/images/ANCILOGO.png")}
-                resizeMode="contain"
                 style={styles.logo}
+                resizeMode="contain"
               />
+            </View>
 
-              <Text
-                style={styles.brandName}
-              >
-                ACE NEXTGEN
+            <View style={styles.headerContainer}>
+              <Text style={styles.title}>
+                Welcome Back
               </Text>
 
-              <Text
-                style={styles.brandSubtitle}
-              >
-                TRAINING MANAGEMENT
+              <Text style={styles.subtitle}>
+                Sign in to your ACE NextGen account
               </Text>
             </View>
-          </View>
 
-          {/* ================================================== */}
-          {/* LOGIN CONTENT */}
-          {/* ================================================== */}
+            <View style={styles.form}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>
+                  Email Address
+                </Text>
 
-          <View style={styles.content}>
-            <Text
-              style={styles.welcomeTitle}
-            >
-              Welcome back!
-            </Text>
+                <View style={styles.inputWrapper}>
+                  <Ionicons
+                    name="mail-outline"
+                    size={20}
+                    color="#64748B"
+                    style={styles.inputIcon}
+                  />
 
-            <Text
-              style={styles.welcomeSubtitle}
-            >
-              Sign in to continue your learning journey.
-            </Text>
-
-            {/* ================================================== */}
-            {/* EMAIL */}
-            {/* ================================================== */}
-
-            <View style={styles.field}>
-              <Text style={styles.label}>
-                Email
-              </Text>
-
-              <View
-                style={[
-                  styles.inputWrapper,
-                  email.length > 0 &&
-                    styles.inputWrapperActive,
-                ]}
-              >
-                <Ionicons
-                  name="mail-outline"
-                  size={20}
-                  color="#2563EB"
-                  style={styles.inputIcon}
-                />
-
-                <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="you@email.com"
-                  placeholderTextColor="#A0AEC0"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={!loading}
-                  style={styles.input}
-                />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter your email"
+                    placeholderTextColor="#94A3B8"
+                    value={email}
+                    onChangeText={setEmail}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="email-address"
+                    editable={
+                      !isLoading &&
+                      !isGoogleLoading
+                    }
+                  />
+                </View>
               </View>
-            </View>
 
-            {/* ================================================== */}
-            {/* PASSWORD */}
-            {/* ================================================== */}
-
-            <View style={styles.field}>
-              <View
-                style={styles.passwordHeader}
-              >
+              <View style={styles.inputGroup}>
                 <Text style={styles.label}>
                   Password
                 </Text>
 
-                <Pressable
-                  disabled={loading}
-                  hitSlop={8}
-                >
-                  <Text
-                    style={
-                      styles.forgotPassword
-                    }
-                  >
-                    Forgot password?
-                  </Text>
-                </Pressable>
-              </View>
-
-              <View
-                style={[
-                  styles.inputWrapper,
-                  password.length > 0 &&
-                    styles.inputWrapperActive,
-                ]}
-              >
-                <Ionicons
-                  name="lock-closed-outline"
-                  size={20}
-                  color="#2563EB"
-                  style={styles.inputIcon}
-                />
-
-                <TextInput
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="Enter your password"
-                  placeholderTextColor="#A0AEC0"
-                  secureTextEntry={
-                    !showPassword
-                  }
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={!loading}
-                  style={styles.input}
-                />
-
-                <Pressable
-                  onPress={() =>
-                    setShowPassword(
-                      (value) => !value
-                    )
-                  }
-                  disabled={loading}
-                  hitSlop={10}
-                  style={styles.eyeButton}
-                >
+                <View style={styles.inputWrapper}>
                   <Ionicons
-                    name={
-                      showPassword
-                        ? "eye-off-outline"
-                        : "eye-outline"
-                    }
-                    size={21}
-                    color="#718096"
-                  />
-                </Pressable>
-              </View>
-            </View>
-
-            {/* ================================================== */}
-            {/* ERROR */}
-            {/* ================================================== */}
-
-            {error && (
-              <View
-                style={
-                  styles.errorContainer
-                }
-              >
-                <Ionicons
-                  name="alert-circle-outline"
-                  size={18}
-                  color="#DC2626"
-                />
-
-                <Text
-                  style={styles.errorText}
-                >
-                  {error}
-                </Text>
-              </View>
-            )}
-
-            {/* ================================================== */}
-            {/* LOGIN BUTTON */}
-            {/* ================================================== */}
-
-            <Pressable
-              onPress={handleLogin}
-              disabled={loading}
-              style={({ pressed }) => [
-                styles.loginButton,
-
-                pressed &&
-                  !loading &&
-                  styles.loginButtonPressed,
-
-                loading &&
-                  styles.loginButtonDisabled,
-              ]}
-            >
-              {isLoading ? (
-                <View
-                  style={
-                    styles.loadingContent
-                  }
-                >
-                  <ActivityIndicator
-                    size="small"
-                    color="#FFFFFF"
+                    name="lock-closed-outline"
+                    size={20}
+                    color="#64748B"
+                    style={styles.inputIcon}
                   />
 
-                  <Text
-                    style={
-                      styles.loginButtonText
+                  <TextInput
+                    style={[
+                      styles.input,
+                      styles.passwordInput,
+                    ]}
+                    placeholder="Enter your password"
+                    placeholderTextColor="#94A3B8"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={
+                      !isLoading &&
+                      !isGoogleLoading
                     }
-                  >
-                    Signing in...
-                  </Text>
-                </View>
-              ) : (
-                <View
-                  style={
-                    styles.loginButtonContent
-                  }
-                >
-                  <Text
-                    style={
-                      styles.loginButtonText
-                    }
-                  >
-                    Sign in
-                  </Text>
-
-                  <Ionicons
-                    name="arrow-forward"
-                    size={19}
-                    color="#FFFFFF"
-                  />
-                </View>
-              )}
-            </Pressable>
-
-              <Text
-                  style={
-                    styles.dividerText
-                  }
-                >
-                  OR
-                </Text>
-
-            {/* ================================================== */}
-            {/* GOOGLE LOGIN */}
-            {/* ================================================== */}
-
-            <Pressable
-              onPress={
-                handleGoogleSignIn
-              }
-              disabled={loading}
-              style={({ pressed }) => [
-                styles.googleButton,
-
-                pressed &&
-                  !loading &&
-                  styles.googleButtonPressed,
-
-                loading &&
-                  styles.googleButtonDisabled,
-              ]}
-            >
-              {isGoogleLoading ? (
-                <View
-                  style={
-                    styles.googleLoadingContent
-                  }
-                >
-                  <ActivityIndicator
-                    size="small"
-                    color="#4285F4"
                   />
 
-                  <Text
-                    style={
-                      styles.googleButtonText
+                  <Pressable
+                    onPress={() =>
+                      setShowPassword(
+                        (prev) => !prev
+                      )
+                    }
+                    style={styles.eyeButton}
+                    disabled={
+                      isLoading ||
+                      isGoogleLoading
                     }
                   >
-                    Connecting to Google...
-                  </Text>
-                </View>
-              ) : (
-                <View
-                  style={
-                    styles.googleButtonContent
-                  }
-                >
-                  <View
-                    style={
-                      styles.googleIconContainer
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.googleG
+                    <Ionicons
+                      name={
+                        showPassword
+                          ? "eye-off-outline"
+                          : "eye-outline"
                       }
-                    >
-                      G
-                    </Text>
-                  </View>
-
-                  <Text
-                    style={
-                      styles.googleButtonText
-                    }
-                  >
-                    Continue with Google
-                  </Text>
+                      size={21}
+                      color="#64748B"
+                    />
+                  </Pressable>
                 </View>
-              )}
-            </Pressable>
-
-            {/* ================================================== */}
-            {/* REGISTER */}
-            {/* ================================================== */}
-
-            <View
-              style={
-                styles.registerSection
-              }
-            >
-              <View
-                style={
-                  styles.registerDivider
-                }
-              >
-                <View
-                  style={styles.divider}
-                />
-
-              
-
-                <View
-                  style={styles.divider}
-                />
               </View>
-
-              <Text
-                style={
-                  styles.registerQuestion
-                }
-              >
-                Don't have an account?
-              </Text>
 
               <Pressable
                 onPress={() =>
                   router.push(
-                    "/register"
+                    "/(auth)/otp-verification"
                   )
                 }
-                disabled={loading}
-                style={({ pressed }) => [
-                  styles.registerButton,
+                disabled={
+                  isLoading ||
+                  isGoogleLoading
+                }
+                style={styles.forgotButton}
+              >
+                <Text style={styles.forgotText}>
+                  Forgot Password?
+                </Text>
+              </Pressable>
 
-                  pressed &&
-                    styles.registerButtonPressed,
+              {error ? (
+                <View style={styles.errorContainer}>
+                  <Ionicons
+                    name="alert-circle-outline"
+                    size={18}
+                    color="#DC2626"
+                  />
+
+                  {/* <Text
+                    style={styles.errorText}
+                  >
+                    {error instanceof Error
+                      ? error.message
+                      : String(error)}
+                  </Text> */}
+                </View>
+              ) : null}
+
+              <Pressable
+                onPress={handleLogin}
+                disabled={
+                  isLoading ||
+                  isGoogleLoading
+                }
+                style={[
+                  styles.loginButton,
+                  (isLoading ||
+                    isGoogleLoading) &&
+                    styles.disabledButton,
                 ]}
               >
+                {isLoading ? (
+                  <ActivityIndicator
+                    size="small"
+                    color="#FFFFFF"
+                  />
+                ) : (
+                  <>
+                    <Text
+                      style={styles.loginButtonText}
+                    >
+                      Sign In
+                    </Text>
+
+                    <Ionicons
+                      name="arrow-forward"
+                      size={20}
+                      color="#FFFFFF"
+                    />
+                  </>
+                )}
+              </Pressable>
+
+              <View style={styles.dividerContainer}>
+                <View
+                  style={styles.divider}
+                />
+
                 <Text
-                  style={
-                    styles.registerButtonText
-                  }
+                  style={styles.dividerText}
                 >
-                  Create an account
+                  OR
                 </Text>
 
-                <Ionicons
-                  name="arrow-forward"
-                  size={17}
-                  color="#2563EB"
+                <View
+                  style={styles.divider}
                 />
+              </View>
+
+              <Pressable
+                onPress={handleGoogleLogin}
+                disabled={
+                  isLoading ||
+                  isGoogleLoading
+                }
+                style={[
+                  styles.googleButton,
+                  (isLoading ||
+                    isGoogleLoading) &&
+                    styles.disabledGoogleButton,
+                ]}
+              >
+                {isGoogleLoading ? (
+                  <ActivityIndicator
+                    size="small"
+                    color="#002B5C"
+                  />
+                ) : (
+                  <>
+                    <View
+                      style={
+                        styles.googleIconContainer
+                      }
+                    >
+                      <Text
+                        style={
+                          styles.googleIcon
+                        }
+                      >
+                        G
+                      </Text>
+                    </View>
+
+                    <Text
+                      style={
+                        styles.googleButtonText
+                      }
+                    >
+                      Continue with Google
+                    </Text>
+                  </>
+                )}
               </Pressable>
+
+              <View
+                style={styles.registerContainer}
+              >
+                <Text
+                  style={styles.registerText}
+                >
+                  Don't have an account?
+                </Text>
+
+                <Pressable
+                  onPress={() =>
+                    router.push(
+                      "/(auth)/register"
+                    )
+                  }
+                  disabled={
+                    isLoading ||
+                    isGoogleLoading
+                  }
+                >
+                  <Text
+                    style={
+                      styles.registerLink
+                    }
+                  >
+                    Create Account
+                  </Text>
+                </Pressable>
+              </View>
             </View>
-          </View>
 
-          {/* ================================================== */}
-          {/* FOOTER */}
-          {/* ================================================== */}
-
-          <View style={styles.footer}>
-            <View
-              style={styles.securityRow}
-            >
-              <Ionicons
-                name="shield-checkmark-outline"
-                size={15}
-                color="#64748B"
-              />
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>
+                ACE NextGen Consultancy Inc.
+              </Text>
 
               <Text
-                style={styles.securityText}
+                style={styles.footerSubtext}
               >
-                Secure and protected access
+                Integrated Service and Training
+                Management System
               </Text>
             </View>
-
-            <Text
-              style={styles.footerText}
-            >
-              ACE NextGen • Participant Portal
-            </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -908,18 +688,10 @@ if (!loginResult) {
   );
 }
 
-/* ==============================================================
-   STYLES
-   ============================================================== */
-
 const styles = StyleSheet.create({
-  /* ================================================== */
-  /* SAFE AREA */
-  /* ================================================== */
-
   safeArea: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F7F9FB",
   },
 
   container: {
@@ -928,528 +700,221 @@ const styles = StyleSheet.create({
 
   scrollContent: {
     flexGrow: 1,
+  },
+
+  content: {
+    flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 95,
-    paddingBottom: 30,
+    paddingTop: 90,
+    paddingBottom: 24,
   },
-
-  /* ================================================== */
-  /* HEADER */
-  /* ================================================== */
-
-  header: {
-    width: "100%",
-    marginBottom: 38,
-  },
-
-  /* ================================================== */
-  /* BACK BUTTON */
-  /* ================================================== */
-
-  backButtonRow: {
-    width: "100%",
-    height: 48,
-
-    justifyContent: "flex-start",
-    alignItems: "flex-start",
-  },
-
-  backButton: {
-    width: 42,
-    height: 42,
-
-    alignItems: "center",
-    justifyContent: "center",
-
-    borderRadius: 21,
-
-    backgroundColor: "#F8FAFC",
-
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-
-    elevation: 3,
-
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-  },
-
-  backButtonPressed: {
-    opacity: 0.6,
-
-    transform: [
-      {
-        scale: 0.95,
-      },
-    ],
-  },
-
-  /* ================================================== */
-  /* LOGO */
-  /* ================================================== */
 
   logoContainer: {
-    width: "100%",
-
     alignItems: "center",
-    justifyContent: "center",
-
-    marginTop: 4,
+    marginBottom: 20,
   },
 
   logo: {
-    width: 92,
-    height: 92,
+    width: 100,
+    height: 100,
   },
 
-  /* ================================================== */
-  /* BRAND */
-  /* ================================================== */
-
-  brandName: {
-    marginTop: 8,
-
-    fontSize: 20,
-    fontWeight: "900",
-
-    letterSpacing: 1.8,
-
-    color: "#0F172A",
+  headerContainer: {
+    alignItems: "center",
+    marginBottom: 32,
   },
 
-  brandSubtitle: {
-    marginTop: 4,
+  title: {
+    fontSize: 30,
+    fontWeight: "800",
+    color: "#002B5C",
+    marginBottom: 8,
+  },
 
-    fontSize: 9,
-    fontWeight: "700",
-
-    letterSpacing: 1.8,
-
+  subtitle: {
+    fontSize: 15,
     color: "#64748B",
+    textAlign: "center",
   },
 
-  /* ================================================== */
-  /* CONTENT */
-  /* ================================================== */
-
-  content: {
+  form: {
     width: "100%",
   },
 
-  welcomeTitle: {
-    fontSize: 30,
-    lineHeight: 36,
-
-    fontWeight: "800",
-
-    letterSpacing: -0.7,
-
-    color: "#111827",
-  },
-
-  welcomeSubtitle: {
-    marginTop: 8,
-
-    maxWidth: 330,
-
-    fontSize: 14,
-    lineHeight: 21,
-
-    color: "#64748B",
-  },
-
-  /* ================================================== */
-  /* FORM */
-  /* ================================================== */
-
-  field: {
-    marginTop: 25,
-  },
-
-  passwordHeader: {
-    flexDirection: "row",
-
-    alignItems: "center",
-
-    justifyContent: "space-between",
+  inputGroup: {
+    marginBottom: 18,
   },
 
   label: {
-    marginBottom: 9,
-
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: "700",
-
-    color: "#334155",
-  },
-
-  forgotPassword: {
-    marginBottom: 9,
-
-    fontSize: 11,
-    fontWeight: "700",
-
-    color: "#2563EB",
+    color: "#0D2142",
+    marginBottom: 8,
   },
 
   inputWrapper: {
-    width: "100%",
-    height: 56,
-
-    flexDirection: "row",
-
-    alignItems: "center",
-
-    paddingHorizontal: 15,
-
-    borderWidth: 1,
-    borderColor: "#D9E2EC",
-
-    borderRadius: 12,
-
+    height: 54,
     backgroundColor: "#FFFFFF",
-  },
-
-  inputWrapperActive: {
-    borderColor: "#93C5FD",
+    borderRadius: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
   },
 
   inputIcon: {
-    marginRight: 11,
+    marginRight: 10,
   },
 
   input: {
     flex: 1,
+    height: "100%",
+    fontSize: 15,
+    color: "#0D2142",
+  },
 
-    height: 54,
-
-    paddingVertical: 0,
-
-    fontSize: 14,
-
-    color: "#111827",
+  passwordInput: {
+    paddingRight: 8,
   },
 
   eyeButton: {
-    width: 32,
-    height: 40,
-
-    alignItems: "center",
-    justifyContent: "center",
+    padding: 6,
   },
 
-  /* ================================================== */
-  /* ERROR */
-  /* ================================================== */
+  forgotButton: {
+    alignSelf: "flex-end",
+    marginTop: -4,
+    marginBottom: 20,
+  },
+
+  forgotText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#3B7597",
+  },
 
   errorContainer: {
     flexDirection: "row",
-
-    alignItems: "center",
-
-    marginTop: 14,
-
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-
-    borderRadius: 10,
-
+    alignItems: "flex-start",
     backgroundColor: "#FEF2F2",
-
-    borderWidth: 1,
-    borderColor: "#FECACA",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
   },
 
   errorText: {
     flex: 1,
-
     marginLeft: 8,
-
-    fontSize: 11,
-    lineHeight: 16,
-
-    color: "#B91C1C",
+    fontSize: 13,
+    lineHeight: 19,
+    color: "#DC2626",
   },
-
-  /* ================================================== */
-  /* LOGIN BUTTON */
-  /* ================================================== */
 
   loginButton: {
-    width: "100%",
-    height: 56,
-
-    marginTop: 27,
-
-    borderRadius: 12,
-
-    backgroundColor: "#2563EB",
-
+    height: 54,
+    borderRadius: 14,
+    backgroundColor: "#002B5C",
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-
-    shadowColor: "#2563EB",
-
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-
-    shadowOffset: {
-      width: 0,
-      height: 5,
-    },
-
-    elevation: 4,
+    gap: 10,
   },
 
-  loginButtonContent: {
-    width: "100%",
-    height: 56,
-
-    paddingHorizontal: 20,
-
-    flexDirection: "row",
-
-    alignItems: "center",
-    justifyContent: "center",
-
-    gap: 12,
+  disabledButton: {
+    opacity: 0.6,
   },
 
   loginButtonText: {
-    fontSize: 15,
-
-    fontWeight: "800",
-
     color: "#FFFFFF",
-  },
-
-  loadingContent: {
-    flexDirection: "row",
-
-    alignItems: "center",
-    justifyContent: "center",
-
-    gap: 9,
-  },
-
-  loginButtonPressed: {
-    opacity: 0.88,
-
-    transform: [
-      {
-        scale: 0.985,
-      },
-    ],
-  },
-
-  loginButtonDisabled: {
-    opacity: 0.6,
-  },
-
-  /* ================================================== */
-  /* GOOGLE BUTTON */
-  /* ================================================== */
-
-  googleButton: {
-    width: "100%",
-    height: 56,
-
-    marginTop: 5,
-
-    borderRadius: 12,
-
-    backgroundColor: "#FFFFFF",
-
-    borderWidth: 1,
-    borderColor: "#D9E2EC",
-
-    alignItems: "center",
-    justifyContent: "center",
-
-    shadowColor: "#000",
-
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-
-    elevation: 2,
-  },
-
-  googleButtonContent: {
-    width: "100%",
-    height: 56,
-
-    flexDirection: "row",
-
-    alignItems: "center",
-    justifyContent: "center",
-
-    gap: 11,
-  },
-
-  googleIconContainer: {
-    width: 22,
-    height: 22,
-
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  googleG: {
-    fontSize: 19,
-
+    fontSize: 16,
     fontWeight: "800",
-
-    color: "#4285F4",
   },
 
-  googleButtonText: {
-    fontSize: 14,
-
-    fontWeight: "700",
-
-    color: "#334155",
-  },
-
-  googleLoadingContent: {
+  dividerContainer: {
     flexDirection: "row",
-
     alignItems: "center",
-    justifyContent: "center",
-
-    gap: 9,
-  },
-
-  googleButtonPressed: {
-    opacity: 0.7,
-
-    transform: [
-      {
-        scale: 0.985,
-      },
-    ],
-  },
-
-  googleButtonDisabled: {
-    opacity: 0.6,
-  },
-
-  /* ================================================== */
-  /* REGISTER */
-  /* ================================================== */
-
-  registerSection: {
-    marginTop: 30,
-  },
-
-  registerDivider: {
-    flexDirection: "row",
-
-    alignItems: "center",
-
-    width: "100%",
+    marginVertical: 24,
   },
 
   divider: {
     flex: 1,
-
     height: 1,
-
     backgroundColor: "#E2E8F0",
   },
 
   dividerText: {
-    marginHorizontal: 12,
-    textAlign: "center",
-    margin: 10,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "700",
-
     color: "#94A3B8",
+    marginHorizontal: 12,
   },
 
-  registerQuestion: {
-    marginTop: 18,
+  googleButton: {
+    height: 54,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
 
-    textAlign: "center",
+  disabledGoogleButton: {
+    opacity: 0.6,
+  },
 
-    fontSize: 12,
+  googleIconContainer: {
+    width: 24,
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
+  googleIcon: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#4285F4",
+  },
+
+  googleButtonText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#0D2142",
+  },
+
+  registerContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 28,
+    gap: 5,
+  },
+
+  registerText: {
+    fontSize: 14,
     color: "#64748B",
   },
 
-  registerButton: {
-    width: "100%",
-    height: 50,
-
-    marginTop: 11,
-
-    flexDirection: "row",
-
-    alignItems: "center",
-    justifyContent: "center",
-
-    gap: 8,
-
-    borderRadius: 11,
-
-    borderWidth: 1,
-    borderColor: "#BFDBFE",
-
-    backgroundColor: "#F8FBFF",
+  registerLink: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#3B7597",
   },
-
-  registerButtonPressed: {
-    opacity: 0.7,
-  },
-
-  registerButtonText: {
-    fontSize: 13,
-
-    fontWeight: "700",
-
-    color: "#2563EB",
-  },
-
-  /* ================================================== */
-  /* FOOTER */
-  /* ================================================== */
 
   footer: {
     alignItems: "center",
-
     marginTop: 32,
   },
 
-  securityRow: {
-    flexDirection: "row",
-
-    alignItems: "center",
-  },
-
-  securityText: {
-    marginLeft: 6,
-
-    fontSize: 10,
-
+  footerText: {
+    fontSize: 12,
+    fontWeight: "700",
     color: "#64748B",
   },
 
-  footerText: {
-    marginTop: 9,
-
-    fontSize: 9,
-
-    color: "#CBD5E1",
+  footerSubtext: {
+    fontSize: 11,
+    color: "#94A3B8",
+    textAlign: "center",
+    marginTop: 4,
   },
 });

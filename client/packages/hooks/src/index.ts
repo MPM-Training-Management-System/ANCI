@@ -32,3 +32,4 @@ export * from "./useTrainerReportRequests";
 export * from "./useReport";
 export * from "./useTrainerReportRequests";
 export * from "./useTrainerDashboard";
+export * from "./useAdminTrainerReportRequests";

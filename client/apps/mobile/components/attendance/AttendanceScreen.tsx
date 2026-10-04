@@ -18,9 +18,7 @@ import {
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 import ParticipantQrCard from "./ParticipantQrCard";
-import AttendanceSessionCard from "./AttendanceSessionCard";
-import AttendanceSummary from "./AttendanceSummary";
-import AttendanceHistory from "./AttendanceHistory";
+
 
 import { useEnrollments } from "@repo/hooks";
 import {
@@ -921,16 +919,6 @@ export default function AttendanceScreen() {
   // STATUS
   // ============================================================
 
-  const statusText =
-    today?.timeOut
-      ? "Attendance completed"
-      : today?.timeIn
-      ? "Currently present"
-      : isManualAttendanceOpen
-      ? "Ready to Time In"
-      : isSessionOpen
-      ? "Waiting for manual attendance"
-      : "Waiting for trainer";
 
   // ============================================================
   // LOADING
@@ -1258,17 +1246,7 @@ export default function AttendanceScreen() {
                 isSessionOpen
               }
             />
-            <View style={styles.howToUseCard}>
-              <View style={styles.howToUseIcon}>
-                <Ionicons name="scan-outline" size={18} color="#2563EB" />
-              </View>
-              <View style={styles.howToUseContent}>
-                <Text style={styles.howToUseTitle}>How to use</Text>
-                <Text style={styles.howToUseStep}>1. Show this QR code to your trainer.</Text>
-                <Text style={styles.howToUseStep}>2. Your trainer will scan it to record your attendance.</Text>
-                <Text style={styles.howToUseStep}>3. Make sure the attendance session is open.</Text>
-              </View>
-            </View>
+           
           </>
         ) : (
           <View
@@ -1494,9 +1472,7 @@ export default function AttendanceScreen() {
         </View>
       </View>
 
-      {/* ======================================================
-          TODAY ATTENDANCE RECORD
-      ====================================================== */}
+ 
 
       {today && (
         <View
@@ -1504,23 +1480,11 @@ export default function AttendanceScreen() {
             styles.section
           }
         >
-          <AttendanceSessionCard
-            attendance={
-              today as any
-            }
-            onTimeIn={
-              handleTimeIn
-            }
-            onTimeOut={
-              handleTimeOut
-            }
-          />
+         
         </View>
       )}
 
-      {/* ======================================================
-          CURRENT STATUS
-      ====================================================== */}
+  
 
       {today && (
         <View
@@ -1551,34 +1515,13 @@ export default function AttendanceScreen() {
             />
           </View>
 
-          <View
-            style={
-              styles.currentStatusContent
-            }
-          >
-            <Text
-              style={
-                styles.currentStatusLabel
-              }
-            >
-              YOUR ATTENDANCE
-            </Text>
-
-            <Text
-              style={
-                styles.currentStatusValue
-              }
-            >
-              {statusText}
-            </Text>
-          </View>
+        
+           
+        
         </View>
       )}
 
-      
-      {/* ======================================================
-          ONLINE
-      ====================================================== */}
+
 
       {today?.mode ===
         "Online" && (
@@ -1642,11 +1585,7 @@ export default function AttendanceScreen() {
             styles.section
           }
         >
-          <AttendanceSummary
-            attendance={
-              today as any
-            }
-          />
+       
         </View>
       )}
 
@@ -1661,11 +1600,7 @@ export default function AttendanceScreen() {
             styles.section
           }
         >
-          <AttendanceHistory
-            history={
-              attendance as any
-            }
-          />
+          
         </View>
       )}
 

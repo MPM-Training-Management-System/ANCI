@@ -1,7 +1,8 @@
 import type {
+  AdminTrainerReportRequest,
   CreateTrainerReportRequest,
+  ReviewTrainerReportRequest,
   TrainerReportRequest,
-  TrainerReportRequestListResponse,
 } from "@repo/types";
 
 import { ApiClient } from "../api/client";
@@ -18,8 +19,8 @@ export class TrainerReportRequestApi {
   // TRAINER
   // =========================================================
 
-  async getMyRequests(): Promise<TrainerReportRequestListResponse> {
-    return this.client.get<TrainerReportRequestListResponse>(
+  async getMyRequests(): Promise<TrainerReportRequest[]> {
+    return this.client.get<TrainerReportRequest[]>(
       TrainerReportRequestEndpoints.myRequests
     );
   }
@@ -37,33 +38,29 @@ export class TrainerReportRequestApi {
   // ADMIN
   // =========================================================
 
-  async getAdminRequests(): Promise<TrainerReportRequestListResponse> {
-    return this.client.get<TrainerReportRequestListResponse>(
+  async getAdminRequests(): Promise<AdminTrainerReportRequest[]> {
+    return this.client.get<AdminTrainerReportRequest[]>(
       TrainerReportRequestEndpoints.adminRequests
     );
   }
 
   async approveRequest(
     id: string,
-    adminRemarks?: string
-  ): Promise<TrainerReportRequest> {
-    return this.client.post<TrainerReportRequest>(
+    payload: ReviewTrainerReportRequest
+  ): Promise<AdminTrainerReportRequest> {
+    return this.client.post<AdminTrainerReportRequest>(
       TrainerReportRequestEndpoints.approve(id),
-      {
-        adminRemarks,
-      }
+      payload
     );
   }
 
   async rejectRequest(
     id: string,
-    adminRemarks: string
-  ): Promise<TrainerReportRequest> {
-    return this.client.post<TrainerReportRequest>(
+    payload: ReviewTrainerReportRequest
+  ): Promise<AdminTrainerReportRequest> {
+    return this.client.post<AdminTrainerReportRequest>(
       TrainerReportRequestEndpoints.reject(id),
-      {
-        adminRemarks,
-      }
+      payload
     );
   }
 }

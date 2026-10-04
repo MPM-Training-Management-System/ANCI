@@ -1959,16 +1959,15 @@ function generateServiceRequestPdf(
 
   return doc;
 }
-
 /* =========================================================
    PUBLIC FUNCTION
    ========================================================= */
 
-export function exportReportPdf({
+function buildReportPdf({
   reportType,
   report,
   filter,
-}: ExportReportPdfOptions): void {
+}: ExportReportPdfOptions): jsPDF {
   let doc: jsPDF;
 
   switch (reportType) {
@@ -2043,7 +2042,83 @@ export function exportReportPdf({
 
   addFooter(doc);
 
+  return doc;
+}
+
+/* =========================================================
+   GENERATE PDF BLOB
+   ========================================================= */
+
+/**
+ * Generates the same PDF used by the Admin Reports page,
+ * but returns it as a Blob instead of immediately downloading it.
+ *
+ * This is used when an Admin approves a Trainer report request.
+ */
+export function generateReportPdfBlob({
+  reportType,
+  report,
+  filter,
+}: ExportReportPdfOptions): Blob {
+  const doc =
+    buildReportPdf({
+      reportType,
+      report,
+      filter,
+    });
+
+  return doc.output("blob");
+}
+
+/* =========================================================
+   GENERATE PDF ARRAY BUFFER
+   ========================================================= */
+
+/**
+ * Optional helper for APIs/services that prefer binary data.
+ */
+export function generateReportPdfArrayBuffer({
+  reportType,
+  report,
+  filter,
+}: ExportReportPdfOptions): ArrayBuffer {
+  const doc =
+    buildReportPdf({
+      reportType,
+      report,
+      filter,
+    });
+
+  return doc.output("arraybuffer");
+}
+
+/* =========================================================
+   DOWNLOAD PDF
+   ========================================================= */
+
+export function exportReportPdf({
+  reportType,
+  report,
+  filter,
+}: ExportReportPdfOptions): void {
+  const doc =
+    buildReportPdf({
+      reportType,
+      report,
+      filter,
+    });
+
   doc.save(
     getFilename(reportType)
   );
+}
+
+/* =========================================================
+   PDF FILENAME
+   ========================================================= */
+
+export function getReportPdfFilename(
+  reportType: ReportType
+): string {
+  return getFilename(reportType);
 }

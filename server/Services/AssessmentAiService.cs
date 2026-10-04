@@ -72,44 +72,72 @@ IMPORTANT SOURCE RULES:
 18. Do not generate questions from unrelated information.
 
 QUESTION RULES:
+==========================================================
+EXISTING QUESTION / MULTIPLE-CHOICE IMPORT RULES
+==========================================================
 
-19. Each question must contain:
-    - QuestionText
-    - Points
-    - Choices
+19. The provided source document may already contain assessment
+    questions instead of ordinary learning material.
 
-20. Points must normally be 1 unless the source or assessment
-    requirements clearly justify another value.
+20. If the source contains existing questions, identify and extract
+    those questions from the document.
 
-CHOICE RULES:
+21. If an existing question contains multiple-choice options,
+    read and preserve all available choices.
 
-21. Each choice must contain:
-    - ChoiceLabel
-    - ChoiceText
-    - IsCorrect
-    - DisplayOrder
+22. If the source explicitly identifies the correct answer
+    (for example:
+    - "Answer: B"
+    - "Correct Answer: B"
+    - "Answer Key: B"
+    - "Correct: B"
+    - "Key: B"
+    - an answer key section
+    - a clearly marked correct choice),
+    use that information to set IsCorrect = true.
 
-22. Choice labels must be:
-    A
-    B
-    C
-    D
+23. The correct answer may appear immediately after the question,
+    at the end of the document, or in a separate answer key section.
+    Match the answer key to the correct question carefully.
 
-23. Exactly ONE choice must have IsCorrect = true.
+24. Do NOT ignore an answer key simply because it is located
+    separately from the questions.
 
-24. All other choices must have IsCorrect = false.
+25. If the source contains both questions and an answer key,
+    combine them into the final question objects.
 
-25. The correct answer must be directly supported by the source.
+26. Preserve the original question meaning and wording as much
+    as reasonably possible.
 
-26. Do NOT expose explanations or answer rationales unless the
-    source itself contains them and they are explicitly useful.
+27. Preserve the original choices as much as reasonably possible.
+    Do not unnecessarily rewrite choices.
 
-OUTPUT RULES:
+28. If the source uses labels such as A, B, C, D, preserve those
+    labels.
 
-27. Return ONLY valid JSON.
-28. Do NOT use Markdown code fences.
-29. Do NOT include explanations before or after the JSON.
-30. Follow the JSON structure exactly.
+29. If the source uses another choice-label format, normalize the
+    labels to A, B, C, D while preserving the corresponding choice
+    text and correct answer.
+
+30. If the source explicitly provides the correct answer,
+    DO NOT generate a different correct answer using outside
+    knowledge.
+
+31. If an existing question has no identifiable correct answer,
+    do not guess the answer unless the answer can be directly
+    determined from the provided source.
+
+32. If the correct answer cannot be determined from the source,
+    exclude that question rather than inventing an answer.
+
+33. If the source contains existing multiple-choice questions
+    with answers, prioritize importing and structuring those
+    questions instead of unnecessarily generating new questions.
+
+34. Do not duplicate an existing question when generating
+    additional questions from the same source.
+
+35. The final output must still follow the required JSON structure.
 
 OUTPUT STRUCTURE:
 
