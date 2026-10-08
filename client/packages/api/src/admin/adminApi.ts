@@ -1,5 +1,5 @@
 import { ApiClient } from "../api/client";
-import { ParticipantEndpoints } from "../participant";
+
 import { AdminEndpoints } from "./admin.endpoint";
 
 import type {
