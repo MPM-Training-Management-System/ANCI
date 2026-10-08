@@ -6,10 +6,14 @@ namespace server.Services;
 public class OpenCodeService : IOpenCodeService
 {
     private readonly IConfiguration _configuration;
+    private readonly ILogger<OpenCodeService> _logger;
 
-    public OpenCodeService(IConfiguration configuration)
+    public OpenCodeService(
+        IConfiguration configuration,
+        ILogger<OpenCodeService> logger)
     {
         _configuration = configuration;
+        _logger = logger;
     }
 
     // ============================================================
@@ -22,7 +26,7 @@ public class OpenCodeService : IOpenCodeService
     {
         return await ExecuteOpenCodeAsync(
             prompt,
-            [],
+            Array.Empty<string>(),
             cancellationToken
         );
     }
@@ -46,9 +50,7 @@ public class OpenCodeService : IOpenCodeService
 
         if (imagePaths is null)
         {
-            throw new ArgumentNullException(
-                nameof(imagePaths)
-            );
+            throw new ArgumentNullException(nameof(imagePaths));
         }
 
         var validImagePaths = imagePaths
@@ -91,13 +93,28 @@ public class OpenCodeService : IOpenCodeService
             );
         }
 
-        var model =
-            _configuration["OpenCode:Model"]
-            ?? "anciprovider01/deepseek-v4-flash";
+        // ========================================================
+        // CONFIGURATION
+        // ========================================================
+
+        var configuredModel =
+            _configuration["OpenCode:Model"];
+
+        var model = string.IsNullOrWhiteSpace(configuredModel)
+            ? "anciprovider01/deepseek-v4-flash"
+            : configuredModel.Trim();
+
+        var configuredPath =
+            _configuration["OpenCode:Path"];
 
         var opencodePath =
-            _configuration["OpenCode:Path"]
-            ?? @"C:\nvm4w\nodejs\opencode.ps1";
+            string.IsNullOrWhiteSpace(configuredPath)
+                ? @"C:\nvm4w\nodejs\opencode.ps1"
+                : configuredPath.Trim();
+
+        // ========================================================
+        // VALIDATE OPENCODE
+        // ========================================================
 
         if (!File.Exists(opencodePath))
         {
@@ -105,6 +122,21 @@ public class OpenCodeService : IOpenCodeService
                 $"OpenCode executable was not found at: {opencodePath}"
             );
         }
+
+        // ========================================================
+        // LOG CONFIGURATION
+        // ========================================================
+
+        _logger.LogInformation(
+            "Starting OpenCode. Model: {Model}, Path: {Path}, Images: {ImageCount}",
+            model,
+            opencodePath,
+            imagePaths.Count
+        );
+
+        // ========================================================
+        // PROCESS
+        // ========================================================
 
         var psi = new ProcessStartInfo
         {
@@ -117,15 +149,15 @@ public class OpenCodeService : IOpenCodeService
 
             CreateNoWindow = true,
 
-            WorkingDirectory =
-                Directory.GetCurrentDirectory()
+            WorkingDirectory = Directory.GetCurrentDirectory()
         };
 
         // ========================================================
-        // POWERSHELL
+        // POWERSHELL ARGUMENTS
         // ========================================================
 
         psi.ArgumentList.Add("-NoProfile");
+        psi.ArgumentList.Add("-NonInteractive");
         psi.ArgumentList.Add("-ExecutionPolicy");
         psi.ArgumentList.Add("Bypass");
         psi.ArgumentList.Add("-File");
@@ -141,7 +173,7 @@ public class OpenCodeService : IOpenCodeService
         // MODEL
         // ========================================================
 
-        psi.ArgumentList.Add("-m");
+        psi.ArgumentList.Add("--model");
         psi.ArgumentList.Add(model);
 
         // ========================================================
@@ -150,7 +182,7 @@ public class OpenCodeService : IOpenCodeService
 
         foreach (var imagePath in imagePaths)
         {
-            psi.ArgumentList.Add("-f");
+            psi.ArgumentList.Add("--file");
             psi.ArgumentList.Add(imagePath);
         }
 
@@ -162,7 +194,8 @@ public class OpenCodeService : IOpenCodeService
 
         using var process = new Process
         {
-            StartInfo = psi
+            StartInfo = psi,
+            EnableRaisingEvents = true
         };
 
         try
@@ -170,41 +203,59 @@ public class OpenCodeService : IOpenCodeService
             process.Start();
 
             // ====================================================
-            // READ OUTPUT
+            // READ OUTPUT AND ERROR CONCURRENTLY
             // ====================================================
 
             var outputTask =
-                process.StandardOutput.ReadToEndAsync(
-                    cancellationToken
-                );
+                process.StandardOutput.ReadToEndAsync();
 
             var errorTask =
-                process.StandardError.ReadToEndAsync(
-                    cancellationToken
-                );
+                process.StandardError.ReadToEndAsync();
 
             await process.WaitForExitAsync(
                 cancellationToken
             );
 
-            var output =
-                await outputTask;
-
-            var error =
-                await errorTask;
+            var output = await outputTask;
+            var error = await errorTask;
 
             // ====================================================
-            // ERROR HANDLING
+            // LOG RAW OUTPUT
+            // ====================================================
+
+            _logger.LogDebug(
+                "OpenCode stdout: {Output}",
+                output
+            );
+
+            if (!string.IsNullOrWhiteSpace(error))
+            {
+                _logger.LogWarning(
+                    "OpenCode stderr: {Error}",
+                    error
+                );
+            }
+
+            // ====================================================
+            // EXIT CODE
             // ====================================================
 
             if (process.ExitCode != 0)
             {
+                var cleanError =
+                    string.IsNullOrWhiteSpace(error)
+                        ? "OpenCode returned a non-zero exit code without an error message."
+                        : error.Trim();
+
                 throw new InvalidOperationException(
-                    $"OpenCode failed with exit code " +
-                    $"{process.ExitCode}. " +
-                    $"Error: {error}"
+                    $"OpenCode failed with exit code {process.ExitCode}. " +
+                    $"Error: {cleanError}"
                 );
             }
+
+            // ====================================================
+            // EMPTY RESPONSE
+            // ====================================================
 
             if (string.IsNullOrWhiteSpace(output))
             {
@@ -226,8 +277,17 @@ public class OpenCodeService : IOpenCodeService
             }
             catch
             {
-                // Ignore cleanup errors after cancellation.
+                // Ignore cleanup errors.
             }
+
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "OpenCode execution failed."
+            );
 
             throw;
         }

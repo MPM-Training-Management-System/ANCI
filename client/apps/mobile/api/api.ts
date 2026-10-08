@@ -1,13 +1,15 @@
 import {
   ApiClient,
   AuthApi,
-  ParticipantApi,
+  ParticipantProfileApi,
   TrainingBatchApi,
   EnrollmentApi,
   AttendanceApi,
   LearningMaterialApi,
   LearningProgressApi,
   WrittenAssessmentApi,
+  AuthAPIs,
+  ServiceApi
 } from "@repo/api";
 
 import { auth } from "./auth";
@@ -20,11 +22,19 @@ export const apiClient = new ApiClient({
   },
 });
 
-export const participantApi =
-  new ParticipantApi(apiClient);
+export const participantProfileApi =
+  new ParticipantProfileApi(apiClient);
+
+  export const authAPIs =
+  new AuthAPIs(apiClient);
+
+  
 
 export const authApi =
   new AuthApi(apiClient);
+
+  export const serviceApi =
+  new ServiceApi(apiClient);
 
 export const learningProgressApi =
   new LearningProgressApi(apiClient);

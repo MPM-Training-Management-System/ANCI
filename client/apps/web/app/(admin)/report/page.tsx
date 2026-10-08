@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -34,12 +35,8 @@ import {
   PageSkeleton,
   StatCard,
   StatGrid,
-  Button
+  Button,
 } from "@repo/ui/index";
-
-
-
-
 
 /* =========================================================
    REPORT TYPES
@@ -49,6 +46,7 @@ const REPORT_TYPES: TrainerReportType[] = [
   "Attendance",
   "Assessment",
   "TrainingSummary",
+  "Enrollment",
   "Certificate",
 ];
 
@@ -64,10 +62,13 @@ function formatReportType(
       return "Attendance Report";
 
     case "Assessment":
-      return "Assessment Report";
+      return "Assessment Results Report";
 
     case "TrainingSummary":
       return "Training Summary";
+
+    case "Enrollment":
+      return "Enrollment Report";
 
     case "Certificate":
       return "Certificate Report";
@@ -291,7 +292,6 @@ export default function TrainerReportsPage() {
 
   const trainingBatchId =
     assignedTraining?.trainingBatchId ??
-    assignedTraining?.trainingBatchId ??
     "";
 
   // =======================================================
@@ -441,6 +441,7 @@ export default function TrainerReportsPage() {
   return (
     <main className="min-h-full bg-slate-50 p-4 sm:p-6">
       <div className="mx-auto max-w-[1600px]">
+
         {/* =================================================
             HEADER
         ================================================= */}
@@ -595,6 +596,7 @@ export default function TrainerReportsPage() {
 
             <div className="mt-5">
               <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+
                 <div className="border-b border-slate-100 px-5 py-4">
                   <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
@@ -618,6 +620,7 @@ export default function TrainerReportsPage() {
                   onSubmit={handleSubmit}
                   className="p-5"
                 >
+
                   {/* ERROR */}
 
                   {(formError ||
@@ -641,6 +644,7 @@ export default function TrainerReportsPage() {
                   {/* FORM GRID */}
 
                   <div className="grid gap-5 md:grid-cols-2">
+
                     {/* REPORT TYPE */}
 
                     <div>
@@ -664,6 +668,7 @@ export default function TrainerReportsPage() {
                         }
                         className="mt-2 h-11 w-full rounded-xl bg-white px-3 text-sm text-slate-700 outline-none ring-1 ring-slate-200 transition focus:ring-2 focus:ring-[#6FD1D7]"
                       >
+
                         <option value="">
                           Select report type
                         </option>
@@ -680,6 +685,7 @@ export default function TrainerReportsPage() {
                             </option>
                           )
                         )}
+
                       </select>
                     </div>
 
@@ -768,6 +774,7 @@ export default function TrainerReportsPage() {
                         />
                       </div>
                     </div>
+
                   </div>
 
                   {/* REASON */}
@@ -809,6 +816,7 @@ export default function TrainerReportsPage() {
                   {/* ACTIONS */}
 
                   <div className="mt-6 flex flex-col justify-end gap-3 sm:flex-row">
+
                     <Button
                       type="button"
                       variant="outline"
@@ -837,6 +845,7 @@ export default function TrainerReportsPage() {
                         ? "Submitting..."
                         : "Submit Request"}
                     </Button>
+
                   </div>
                 </form>
               </section>
@@ -848,8 +857,10 @@ export default function TrainerReportsPage() {
 
             <div className="mt-5">
               <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+
                 <div className="border-b border-slate-100 px-5 py-4">
                   <div className="flex items-center gap-3">
+
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
                       <FileText className="h-4 w-4" />
                     </div>
@@ -864,23 +875,30 @@ export default function TrainerReportsPage() {
                         report requests.
                       </p>
                     </div>
+
                   </div>
                 </div>
 
                 <div className="p-5">
+
                   {loading ? (
                     <div className="flex min-h-[220px] items-center justify-center">
+
                       <div className="flex items-center gap-2 text-sm text-slate-500">
+
                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-200 border-t-[#3B7597]" />
 
                         Loading report requests...
+
                       </div>
+
                     </div>
                   ) : requests.length ===
                     0 ? (
                     <EmptyState />
                   ) : (
                     <div className="space-y-3">
+
                       {requests.map(
                         (
                           request: TrainerReportRequest
@@ -891,11 +909,15 @@ export default function TrainerReportsPage() {
                             }
                             className="rounded-2xl bg-slate-50 p-5 transition hover:bg-slate-100/70"
                           >
+
                             <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+
                               {/* REQUEST INFO */}
 
                               <div className="min-w-0 flex-1">
+
                                 <div className="flex flex-wrap items-center gap-2">
+
                                   <h3 className="text-sm font-semibold text-slate-900">
                                     {formatReportType(
                                       request.reportType
@@ -907,9 +929,11 @@ export default function TrainerReportsPage() {
                                       request.status
                                     }
                                   />
+
                                 </div>
 
                                 <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+
                                   {/* BATCH */}
 
                                   <div>
@@ -966,12 +990,14 @@ export default function TrainerReportsPage() {
                                       )}
                                     </p>
                                   </div>
+
                                 </div>
 
                                 {/* REASON */}
 
                                 {request.reason && (
                                   <div className="mt-4 rounded-xl bg-white px-4 py-3">
+
                                     <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                                       Reason
                                     </p>
@@ -981,6 +1007,7 @@ export default function TrainerReportsPage() {
                                         request.reason
                                       }
                                     </p>
+
                                   </div>
                                 )}
 
@@ -988,6 +1015,7 @@ export default function TrainerReportsPage() {
 
                                 {request.adminRemarks && (
                                   <div className="mt-3 rounded-xl bg-white px-4 py-3">
+
                                     <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                                       Admin Remarks
                                     </p>
@@ -1006,13 +1034,16 @@ export default function TrainerReportsPage() {
                                         )}
                                       </p>
                                     )}
+
                                   </div>
                                 )}
+
                               </div>
 
                               {/* REPORT ACTION */}
 
                               <div className="shrink-0">
+
                                 {request.reportFileUrl ? (
                                   <a
                                     href={
@@ -1047,13 +1078,18 @@ export default function TrainerReportsPage() {
                                     Awaiting Report
                                   </div>
                                 )}
+
                               </div>
+
                             </div>
+
                           </div>
                         )
                       )}
+
                     </div>
                   )}
+
                 </div>
               </section>
             </div>

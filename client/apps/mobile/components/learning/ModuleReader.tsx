@@ -13,7 +13,7 @@ import {
   StyleSheet,
   Text,
   View,
-  Dimensions
+  useWindowDimensions,
 } from "react-native";
 
 import { router } from "expo-router";
@@ -45,70 +45,220 @@ type MediaState = {
   videoError: boolean;
 };
 
-const SCREEN_WIDTH = Dimensions.get("window").width;
+type ReaderPageType =
+  | "welcome"
+  | "objectives"
+  | "section"
+  | "summary"
+  | "takeaways";
 
-const VIDEO_WIDTH = SCREEN_WIDTH - 36 - 40;
-const VIDEO_HEIGHT = VIDEO_WIDTH * (9 / 16);
+type ReaderPage = {
+  type: ReaderPageType;
+  sectionIndex?: number;
+};
 
 // ============================================================
 // YOUTUBE VIDEO ID
 // ============================================================
 
 function getYouTubeVideoId(
-  url: string,
+  url: string | null | undefined,
 ): string | null {
+  if (!url) {
+    return null;
+  }
+
   const cleanUrl = url.trim();
 
   if (!cleanUrl) {
     return null;
   }
 
-  // youtu.be/VIDEO_ID
-  const shortMatch = cleanUrl.match(
-    /youtu\.be\/([^?&#/]+)/i,
-  );
+  try {
+    const parsed = new URL(cleanUrl);
 
-  if (shortMatch?.[1]) {
-    return shortMatch[1];
-  }
+    const hostname = parsed.hostname
+      .toLowerCase()
+      .replace(/^www\./, "");
 
-  // youtube.com/watch?v=VIDEO_ID
-  const watchMatch = cleanUrl.match(
-    /youtube\.com\/watch\?[^#]*v=([^&#]+)/i,
-  );
+    // ========================================================
+    // youtu.be/VIDEO_ID
+    // ========================================================
 
-  if (watchMatch?.[1]) {
-    return watchMatch[1];
-  }
+    if (hostname === "youtu.be") {
+      const videoId = parsed.pathname
+        .split("/")
+        .filter(Boolean)[0];
 
-  // youtube.com/shorts/VIDEO_ID
-  const shortsMatch = cleanUrl.match(
-    /youtube\.com\/shorts\/([^?&#/]+)/i,
-  );
+      return videoId || null;
+    }
 
-  if (shortsMatch?.[1]) {
-    return shortsMatch[1];
-  }
+    // ========================================================
+    // youtube.com
+    // ========================================================
 
-  // youtube.com/live/VIDEO_ID
-  const liveMatch = cleanUrl.match(
-    /youtube\.com\/live\/([^?&#/]+)/i,
-  );
+    if (
+      hostname === "youtube.com" ||
+      hostname.endsWith(".youtube.com")
+    ) {
+      // ======================================================
+      // youtube.com/watch?v=VIDEO_ID
+      // ======================================================
 
-  if (liveMatch?.[1]) {
-    return liveMatch[1];
-  }
+      const watchId =
+        parsed.searchParams.get("v");
 
-  // youtube.com/embed/VIDEO_ID
-  const embedMatch = cleanUrl.match(
-    /youtube\.com\/embed\/([^?&#/]+)/i,
-  );
+      if (watchId) {
+        return watchId;
+      }
 
-  if (embedMatch?.[1]) {
-    return embedMatch[1];
+      // ======================================================
+      // youtube.com/shorts/VIDEO_ID
+      // ======================================================
+
+      if (
+        parsed.pathname.startsWith(
+          "/shorts/",
+        )
+      ) {
+        const videoId =
+          parsed.pathname
+            .split("/")
+            .filter(Boolean)[1];
+
+        return videoId || null;
+      }
+
+      // ======================================================
+      // youtube.com/embed/VIDEO_ID
+      // ======================================================
+
+      if (
+        parsed.pathname.startsWith(
+          "/embed/",
+        )
+      ) {
+        const videoId =
+          parsed.pathname
+            .split("/")
+            .filter(Boolean)[1];
+
+        return videoId || null;
+      }
+
+      // ======================================================
+      // youtube.com/live/VIDEO_ID
+      // ======================================================
+
+      if (
+        parsed.pathname.startsWith(
+          "/live/",
+        )
+      ) {
+        const videoId =
+          parsed.pathname
+            .split("/")
+            .filter(Boolean)[1];
+
+        return videoId || null;
+      }
+    }
+  } catch {
+    // ========================================================
+    // FALLBACK
+    // ========================================================
+
+    const shortMatch =
+      cleanUrl.match(
+        /youtu\.be\/([^?&#/]+)/i,
+      );
+
+    if (shortMatch?.[1]) {
+      return shortMatch[1];
+    }
+
+    const watchMatch =
+      cleanUrl.match(
+        /youtube\.com\/watch\?[^#]*v=([^&#]+)/i,
+      );
+
+    if (watchMatch?.[1]) {
+      return watchMatch[1];
+    }
+
+    const shortsMatch =
+      cleanUrl.match(
+        /youtube\.com\/shorts\/([^?&#/]+)/i,
+      );
+
+    if (shortsMatch?.[1]) {
+      return shortsMatch[1];
+    }
+
+    const liveMatch =
+      cleanUrl.match(
+        /youtube\.com\/live\/([^?&#/]+)/i,
+      );
+
+    if (liveMatch?.[1]) {
+      return liveMatch[1];
+    }
+
+    const embedMatch =
+      cleanUrl.match(
+        /youtube\.com\/embed\/([^?&#/]+)/i,
+      );
+
+    if (embedMatch?.[1]) {
+      return embedMatch[1];
+    }
   }
 
   return null;
+}
+
+// ============================================================
+// NORMALIZE STRING LIST
+// ============================================================
+
+function normalizeStringList(
+  value: unknown,
+): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) =>
+        String(item ?? "").trim(),
+      )
+      .filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    const trimmed =
+      value.trim();
+
+    if (!trimmed) {
+      return [];
+    }
+
+    try {
+      const parsed =
+        JSON.parse(trimmed);
+
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((item) =>
+            String(item ?? "").trim(),
+          )
+          .filter(Boolean);
+      }
+    } catch {
+      // Not JSON.
+    }
+
+    return [trimmed];
+  }
+
+  return [];
 }
 
 // ============================================================
@@ -120,6 +270,14 @@ export default function ModuleReader({
   moduleId,
   moduleIndex,
 }: Props) {
+  // ==========================================================
+  // SCREEN SIZE
+  // ==========================================================
+
+  const {
+    width: screenWidth,
+  } = useWindowDimensions();
+
   // ==========================================================
   // LEARNING MATERIAL
   // ==========================================================
@@ -153,12 +311,12 @@ export default function ModuleReader({
   );
 
   // ==========================================================
-  // CURRENT SECTION
+  // CURRENT READER PAGE
   // ==========================================================
 
   const [
-    currentSectionIndex,
-    setCurrentSectionIndex,
+    currentPageIndex,
+    setCurrentPageIndex,
   ] = useState(0);
 
   // ==========================================================
@@ -193,22 +351,14 @@ export default function ModuleReader({
     const loadKey =
       `${materialId}:${moduleId}:${reloadKey}`;
 
-    /*
-     * Important:
-     *
-     * The hook functions can receive new references
-     * on every render.
-     *
-     * Do NOT put those functions inside the dependency
-     * array here because that can cause an infinite loop.
-     */
     if (
       loadedKeyRef.current === loadKey
     ) {
       return;
     }
 
-    loadedKeyRef.current = loadKey;
+    loadedKeyRef.current =
+      loadKey;
 
     const load = async () => {
       try {
@@ -228,7 +378,7 @@ export default function ModuleReader({
           materialId,
         );
       } catch {
-        // Errors are handled by the hooks.
+        // Errors handled by hooks.
       }
     };
 
@@ -237,71 +387,6 @@ export default function ModuleReader({
     materialId,
     moduleId,
     reloadKey,
-  ]);
-
-  // ==========================================================
-  // RESET MEDIA ERROR WHEN SECTION CHANGES
-  // ==========================================================
-
-  useEffect(() => {
-    setMediaState({
-      imageError: false,
-      videoError: false,
-    });
-  }, [
-    currentSectionIndex,
-  ]);
-
-  // ==========================================================
-  // RESUME FIRST UNREAD SECTION
-  // ==========================================================
-
-  useEffect(() => {
-    if (
-      sections.length === 0 ||
-      !learningProgress
-    ) {
-      return;
-    }
-
-    const moduleProgress =
-      learningProgress.modules.find(
-        (module) =>
-          module.moduleId === moduleId,
-      );
-
-    if (!moduleProgress) {
-      return;
-    }
-
-    const firstUnreadIndex =
-      sections.findIndex(
-        (section) =>
-          !moduleProgress.sections.some(
-            (progressSection) =>
-              progressSection.sectionId ===
-                section.id &&
-              progressSection.isRead,
-          ),
-      );
-
-    if (firstUnreadIndex >= 0) {
-      setCurrentSectionIndex(
-        firstUnreadIndex,
-      );
-
-      return;
-    }
-
-    // All sections are already read.
-    // Open the last section.
-    setCurrentSectionIndex(
-      sections.length - 1,
-    );
-  }, [
-    sections,
-    learningProgress,
-    moduleId,
   ]);
 
   // ==========================================================
@@ -322,34 +407,471 @@ export default function ModuleReader({
     );
 
   // ==========================================================
+  // MODULE CONTENT
+  //
+  // The module-level fields are:
+  //
+  // welcome
+  // learningObjectives
+  // summary
+  // keyTakeaways
+  //
+  // ==========================================================
+
+  const moduleWelcome =
+    currentModule?.welcomeContent ??
+    "";
+
+  const learningObjectives =
+    normalizeStringList(
+      currentModule?.learningObjectives,
+    );
+
+  const moduleSummary =
+    currentModule?.summary ??
+    "";
+
+  const keyTakeaways =
+    normalizeStringList(
+      currentModule?.keyTakeaways,
+    );
+
+  // ==========================================================
+  // BUILD READER PAGES
+  //
+  // ORDER:
+  //
+  // 1. Welcome
+  // 2. Objectives
+  // 3. Sections
+  // 4. Summary
+  // 5. Key Takeaways
+  //
+  // ==========================================================
+
+  const readerPages =
+    useMemo<ReaderPage[]>(() => {
+      const pages: ReaderPage[] = [];
+
+      // ------------------------------------------------------
+      // WELCOME
+      // ------------------------------------------------------
+
+      if (
+        moduleWelcome.trim()
+      ) {
+        pages.push({
+          type: "welcome",
+        });
+      }
+
+      // ------------------------------------------------------
+      // OBJECTIVES
+      // ------------------------------------------------------
+
+      if (
+        learningObjectives.length > 0
+      ) {
+        pages.push({
+          type: "objectives",
+        });
+      }
+
+      // ------------------------------------------------------
+      // LESSON SECTIONS
+      // ------------------------------------------------------
+
+      sections.forEach(
+        (_, index) => {
+          pages.push({
+            type: "section",
+            sectionIndex: index,
+          });
+        },
+      );
+
+      // ------------------------------------------------------
+      // SUMMARY
+      // ------------------------------------------------------
+
+      if (
+        moduleSummary.trim()
+      ) {
+        pages.push({
+          type: "summary",
+        });
+      }
+
+      // ------------------------------------------------------
+      // KEY TAKEAWAYS
+      // ------------------------------------------------------
+
+      if (
+        keyTakeaways.length > 0
+      ) {
+        pages.push({
+          type: "takeaways",
+        });
+      }
+
+      return pages;
+    }, [
+      moduleWelcome,
+      learningObjectives,
+      sections,
+      moduleSummary,
+      keyTakeaways,
+    ]);
+
+  // ==========================================================
+  // CURRENT PAGE
+  // ==========================================================
+
+  const currentPage =
+    readerPages[
+      currentPageIndex
+    ];
+
+  // ==========================================================
   // CURRENT SECTION
   // ==========================================================
 
   const currentSection =
-    sections[currentSectionIndex];
+    currentPage?.type === "section" &&
+    currentPage.sectionIndex !==
+      undefined
+      ? sections[
+          currentPage.sectionIndex
+        ]
+      : null;
+
+  // ==========================================================
+  // RESET MEDIA WHEN PAGE CHANGES
+  // ==========================================================
+
+  useEffect(() => {
+    setMediaState({
+      imageError: false,
+      videoError: false,
+    });
+  }, [
+    currentPageIndex,
+  ]);
+
+  // ==========================================================
+  // RESUME FIRST UNREAD SECTION
+  //
+  // Welcome/objectives are informational pages.
+  // Section progress remains based on actual lessons.
+  //
+  // ==========================================================
+
+  useEffect(() => {
+    if (
+      readerPages.length === 0
+    ) {
+      return;
+    }
+
+    if (!learningProgress) {
+      return;
+    }
+
+    const moduleProgress =
+      learningProgress.modules.find(
+        (module) =>
+          module.moduleId ===
+          moduleId,
+      );
+
+    if (!moduleProgress) {
+      return;
+    }
+
+    if (sections.length === 0) {
+      setCurrentPageIndex(0);
+      return;
+    }
+
+    const firstUnreadSectionIndex =
+      sections.findIndex(
+        (section) =>
+          !moduleProgress.sections.some(
+            (progressSection) =>
+              progressSection.sectionId ===
+                section.id &&
+              progressSection.isRead,
+          ),
+      );
+
+    if (
+      firstUnreadSectionIndex >= 0
+    ) {
+      const readerIndex =
+        readerPages.findIndex(
+          (page) =>
+            page.type === "section" &&
+            page.sectionIndex ===
+              firstUnreadSectionIndex,
+        );
+
+      if (readerIndex >= 0) {
+        setCurrentPageIndex(
+          readerIndex,
+        );
+      }
+
+      return;
+    }
+
+    // All lessons are already completed.
+    // Open the last informational page.
+    setCurrentPageIndex(
+      Math.max(
+        readerPages.length - 1,
+        0,
+      ),
+    );
+  }, [
+    readerPages,
+    learningProgress,
+    moduleId,
+    sections,
+  ]);
 
   // ==========================================================
   // MEDIA INFORMATION
   // ==========================================================
 
   const mediaUrl =
-    currentSection?.mediaUrl?.trim() ?? "";
+    currentSection?.mediaUrl?.trim() ??
+    "";
 
   const contentType =
     currentSection?.contentType
       ?.trim()
       .toLowerCase() ?? "";
 
+  // ==========================================================
+  // IMAGE DETECTION
+  // ==========================================================
+
   const isImage =
-    contentType === "image";
+    contentType === "image" ||
+    contentType.startsWith("image/");
+
+  // ==========================================================
+  // VIDEO DETECTION
+  // ==========================================================
 
   const isVideo =
-    contentType === "video";
+    contentType === "video" ||
+    contentType.startsWith("video/") ||
+    contentType === "youtube" ||
+    contentType === "youtube-video";
+
+  // ==========================================================
+  // YOUTUBE VIDEO ID
+  // ==========================================================
 
   const youtubeVideoId =
-    isVideo
-      ? getYouTubeVideoId(mediaUrl)
+    mediaUrl
+      ? getYouTubeVideoId(
+          mediaUrl,
+        )
       : null;
+
+  const isYoutubeVideo =
+    Boolean(youtubeVideoId);
+
+  // ==========================================================
+  // CLOUDINARY IMAGE DETECTION
+  // ==========================================================
+
+  const isCloudinaryImage =
+    Boolean(
+      mediaUrl &&
+        (
+          mediaUrl.includes(
+            "res.cloudinary.com",
+          ) ||
+          mediaUrl.includes(
+            "cloudinary.com",
+          )
+        ) &&
+        (
+          mediaUrl.includes(
+            "/image/upload/",
+          ) ||
+          Boolean(
+            mediaUrl.match(
+              /\.(jpg|jpeg|png|webp|gif|bmp)(\?.*)?$/i,
+            ),
+          )
+        ),
+    );
+
+  // ==========================================================
+  // FINAL IMAGE DETECTION
+  // ==========================================================
+
+  const shouldRenderImage =
+    Boolean(
+      mediaUrl &&
+        !isYoutubeVideo &&
+        (
+          isImage ||
+          isCloudinaryImage
+        ),
+    );
+
+  // ==========================================================
+  // YOUTUBE
+  // ==========================================================
+
+  const shouldRenderYoutube =
+    Boolean(
+      mediaUrl &&
+        youtubeVideoId,
+    );
+
+  // ==========================================================
+  // NORMAL VIDEO
+  // ==========================================================
+
+  const shouldRenderNormalVideo =
+    Boolean(
+      mediaUrl &&
+        isVideo &&
+        !isYoutubeVideo &&
+        !shouldRenderImage,
+    );
+
+  // ==========================================================
+  // UNKNOWN MEDIA
+  // ==========================================================
+
+  const shouldRenderUnknownMedia =
+    Boolean(
+      mediaUrl &&
+        !shouldRenderImage &&
+        !shouldRenderNormalVideo &&
+        !shouldRenderYoutube,
+    );
+
+  // ==========================================================
+  // DEBUG
+  // ==========================================================
+
+  useEffect(() => {
+    console.log(
+      "========================================",
+    );
+
+    console.log(
+      "MODULE READER",
+    );
+
+    console.log(
+      "CURRENT MODULE:",
+      JSON.stringify(
+        currentModule,
+        null,
+        2,
+      ),
+    );
+
+    console.log(
+      "READER PAGES:",
+      readerPages,
+    );
+
+    console.log(
+      "CURRENT PAGE:",
+      currentPage,
+    );
+
+    console.log(
+      "CURRENT SECTION:",
+      JSON.stringify(
+        currentSection,
+        null,
+        2,
+      ),
+    );
+
+    console.log(
+      "WELCOME:",
+      moduleWelcome,
+    );
+
+    console.log(
+      "OBJECTIVES:",
+      learningObjectives,
+    );
+
+    console.log(
+      "SUMMARY:",
+      moduleSummary,
+    );
+
+    console.log(
+      "KEY TAKEAWAYS:",
+      keyTakeaways,
+    );
+
+    console.log(
+      "========================================",
+    );
+  }, [
+    currentModule,
+    readerPages,
+    currentPage,
+    currentSection,
+    moduleWelcome,
+    learningObjectives,
+    moduleSummary,
+    keyTakeaways,
+  ]);
+
+  // ==========================================================
+  // VIDEO DIMENSIONS
+  // ==========================================================
+
+  const videoWidth =
+    Math.max(
+      screenWidth - 36,
+      240,
+    );
+
+  const videoHeight =
+    videoWidth * (9 / 16);
+
+  // ==========================================================
+  // COMPLETE CURRENT SECTION
+  // ==========================================================
+
+  const completeCurrentSection =
+    async () => {
+      if (
+        !currentSection
+      ) {
+        return true;
+      }
+
+      if (isCompleting) {
+        return false;
+      }
+
+      const savedProgress =
+        await completeSection(
+          currentSection.id,
+        );
+
+      return Boolean(
+        savedProgress,
+      );
+    };
 
   // ==========================================================
   // NEXT
@@ -357,38 +879,35 @@ export default function ModuleReader({
 
   const handleNext =
     async () => {
-      if (!currentSection) {
-        return;
-      }
-
-      // Prevent duplicate requests
       if (isCompleting) {
         return;
       }
 
       // ------------------------------------------------------
-      // SAVE CURRENT SECTION AS READ
-      // ------------------------------------------------------
-
-      const savedProgress =
-        await completeSection(
-          currentSection.id,
-        );
-
-      // If saving failed, do not continue.
-      if (!savedProgress) {
-        return;
-      }
-
-      // ------------------------------------------------------
-      // NEXT SECTION
+      // If this is an actual lesson, save its progress first.
       // ------------------------------------------------------
 
       if (
-        currentSectionIndex <
-        sections.length - 1
+        currentPage?.type ===
+        "section"
       ) {
-        setCurrentSectionIndex(
+        const completed =
+          await completeCurrentSection();
+
+        if (!completed) {
+          return;
+        }
+      }
+
+      // ------------------------------------------------------
+      // Next page
+      // ------------------------------------------------------
+
+      if (
+        currentPageIndex <
+        readerPages.length - 1
+      ) {
+        setCurrentPageIndex(
           (current) =>
             current + 1,
         );
@@ -397,18 +916,10 @@ export default function ModuleReader({
       }
 
       // ------------------------------------------------------
-      // MODULE FINISHED
+      // LAST PAGE
       // ------------------------------------------------------
 
-      router.replace({
-        pathname:
-          "/learning/material",
-        params: {
-          materialId,
-          completedModuleId:
-            moduleId,
-        },
-      });
+      router.back();
     };
 
   // ==========================================================
@@ -418,12 +929,13 @@ export default function ModuleReader({
   const handlePrevious =
     () => {
       if (
-        currentSectionIndex === 0
+        currentPageIndex === 0 ||
+        isCompleting
       ) {
         return;
       }
 
-      setCurrentSectionIndex(
+      setCurrentPageIndex(
         (current) =>
           current - 1,
       );
@@ -435,7 +947,8 @@ export default function ModuleReader({
 
   const handleRetry =
     () => {
-      loadedKeyRef.current = null;
+      loadedKeyRef.current =
+        null;
 
       setReloadKey(
         (current) =>
@@ -458,13 +971,13 @@ export default function ModuleReader({
       >
         <ActivityIndicator
           size="large"
-          color="#111827"
+          color="#002B5C"
         />
 
         <Text
           style={styles.loadingText}
         >
-          Loading lesson...
+          Loading module...
         </Text>
       </View>
     );
@@ -485,13 +998,7 @@ export default function ModuleReader({
         <Text
           style={styles.errorTitle}
         >
-          Unable to Load Lesson
-        </Text>
-
-        <Text
-          style={styles.errorText}
-        >
-          {error.message}
+          Unable to Load Module
         </Text>
 
         <Pressable
@@ -547,10 +1054,10 @@ export default function ModuleReader({
   }
 
   // ==========================================================
-  // NO CONTENT
+  // NO MODULE
   // ==========================================================
 
-  if (!currentSection) {
+  if (!currentModule) {
     return (
       <View
         style={styles.center}
@@ -558,14 +1065,41 @@ export default function ModuleReader({
         <Text
           style={styles.errorTitle}
         >
-          No Lesson Content
+          Module Not Found
+        </Text>
+
+        <Text
+          style={styles.errorText}
+        >
+          The selected learning module
+          could not be found.
+        </Text>
+      </View>
+    );
+  }
+
+  // ==========================================================
+  // NO READER CONTENT
+  // ==========================================================
+
+  if (
+    readerPages.length === 0
+  ) {
+    return (
+      <View
+        style={styles.center}
+      >
+        <Text
+          style={styles.errorTitle}
+        >
+          No Module Content
         </Text>
 
         <Text
           style={styles.errorText}
         >
           This module does not have any
-          sections yet.
+          learning content yet.
         </Text>
       </View>
     );
@@ -576,16 +1110,58 @@ export default function ModuleReader({
   // ==========================================================
 
   const progress =
-    sections.length > 0
+    readerPages.length > 0
       ? (
-          (currentSectionIndex + 1) /
-          sections.length
+          (currentPageIndex + 1) /
+          readerPages.length
         ) * 100
       : 0;
 
-  const isLastSection =
-    currentSectionIndex ===
-    sections.length - 1;
+  const isLastPage =
+    currentPageIndex ===
+    readerPages.length - 1;
+
+  // ==========================================================
+  // PAGE LABEL
+  // ==========================================================
+
+  const pageLabel =
+    currentPage?.type ===
+      "welcome"
+      ? "WELCOME"
+      : currentPage?.type ===
+          "objectives"
+        ? "LEARNING OBJECTIVES"
+        : currentPage?.type ===
+            "section"
+          ? `LESSON ${
+              currentSection?.sectionNumber ??
+              ""
+            }`
+          : currentPage?.type ===
+              "summary"
+            ? "MODULE SUMMARY"
+            : "KEY TAKEAWAYS";
+
+  // ==========================================================
+  // PAGE TITLE
+  // ==========================================================
+
+  const pageTitle =
+    currentPage?.type ===
+      "welcome"
+      ? "Welcome to the Module"
+      : currentPage?.type ===
+          "objectives"
+        ? "Learning Objectives"
+        : currentPage?.type ===
+            "section"
+          ? currentSection?.title ??
+            "Lesson"
+          : currentPage?.type ===
+              "summary"
+            ? "Module Summary"
+            : "Key Takeaways";
 
   // ==========================================================
   // MAIN
@@ -630,14 +1206,15 @@ export default function ModuleReader({
             <Text
               style={styles.headerLabel}
             >
-              MODULE {moduleIndex + 1}
+              MODULE{" "}
+              {moduleIndex + 1}
             </Text>
 
             <Text
               style={styles.headerTitle}
               numberOfLines={2}
             >
-              {currentModule?.title}
+              {currentModule.title}
             </Text>
           </View>
 
@@ -647,8 +1224,8 @@ export default function ModuleReader({
             <Text
               style={styles.pageBadgeText}
             >
-              {currentSectionIndex + 1}/
-              {sections.length}
+              {currentPageIndex + 1}/
+              {readerPages.length}
             </Text>
           </View>
         </View>
@@ -676,12 +1253,15 @@ export default function ModuleReader({
           <Text
             style={styles.progressText}
           >
-            {Math.round(progress)}% completed
+            {Math.round(
+              progress,
+            )}
+            % completed
           </Text>
         </View>
 
         {/* ==================================================
-            LESSON
+            MAIN CONTENT CARD
         ================================================== */}
 
         <View
@@ -690,230 +1270,509 @@ export default function ModuleReader({
           <Text
             style={styles.lessonLabel}
           >
-            LESSON{" "}
-            {currentSection.sectionNumber}
+            {pageLabel}
           </Text>
 
           <Text
             style={styles.lessonTitle}
           >
-            {currentSection.title}
+            {pageTitle}
           </Text>
 
           <View
             style={styles.divider}
           />
 
-          {currentSection.content ? (
-            <Text
-              style={styles.lessonContent}
-            >
-              {currentSection.content}
-            </Text>
-          ) : (
-            <Text
-              style={styles.noContent}
-            >
-              No lesson text is available
-              for this section.
-            </Text>
-          )}
-
           {/* ==================================================
-              IMAGE
+              WELCOME
           ================================================== */}
 
-          {isImage &&
-            mediaUrl && (
+          {currentPage?.type ===
+            "welcome" && (
+            <View>
               <View
-                style={styles.mediaCard}
-              >
-                <Text
-                  style={styles.mediaLabel}
-                >
-                  LESSON IMAGE
-                </Text>
-
-                {mediaState.imageError ? (
-                  <View
-                    style={styles.mediaError}
-                  >
-                    <View
-                      style={
-                        styles.mediaErrorIcon
-                      }
-                    >
-                      <Text
-                        style={
-                          styles.mediaErrorIconText
-                        }
-                      >
-                        !
-                      </Text>
-                    </View>
-
-                    <Text
-                      style={
-                        styles.mediaErrorTitle
-                      }
-                    >
-                      Unable to load image
-                    </Text>
-
-                    <Text
-                      style={
-                        styles.mediaErrorText
-                      }
-                    >
-                      The lesson image could not
-                      be loaded.
-                    </Text>
-                  </View>
-                ) : (
-                  <View
-                    style={
-                      styles.imageWrapper
-                    }
-                  >
-                    <Image
-                      source={{
-                        uri: mediaUrl,
-                      }}
-                      style={
-                        styles.lessonImage
-                      }
-                      resizeMode="contain"
-                      onError={() => {
-                        setMediaState(
-                          (current) => ({
-                            ...current,
-                            imageError: true,
-                          }),
-                        );
-                      }}
-                    />
-                  </View>
-                )}
-              </View>
-            )}
-
-          {/* ==================================================
-              VIDEO
-          ================================================== */}
-
-          {isVideo &&
-            mediaUrl && (
-              <View
-                style={styles.mediaCard}
+                style={
+                  styles.introBanner
+                }
               >
                 <View
-                  style={styles.mediaHeader}
+                  style={
+                    styles.introIcon
+                  }
                 >
                   <Text
-                    style={styles.mediaLabel}
+                    style={
+                      styles.introIconText
+                    }
                   >
-                    LESSON VIDEO
+                    W
                   </Text>
                 </View>
 
-                {mediaState.videoError ? (
-                  <View
-                    style={styles.mediaError}
-                  >
-                    <View
-                      style={
-                        styles.mediaErrorIcon
-                      }
-                    >
-                      <Text
-                        style={
-                          styles.mediaErrorIconText
-                        }
-                      >
-                        !
-                      </Text>
-                    </View>
-
-                    <Text
-                      style={
-                        styles.mediaErrorTitle
-                      }
-                    >
-                      Unable to play video
-                    </Text>
-
-                    <Text
-                      style={
-                        styles.mediaErrorText
-                      }
-                    >
-                      This YouTube video cannot
-                      be played inside the lesson.
-                    </Text>
-                  </View>
-                ) : youtubeVideoId ? (
-                  <View
+                <View
+                  style={
+                    styles.introBannerText
+                  }
+                >
+                  <Text
                     style={
-                      styles.videoWrapper
+                      styles.introBannerTitle
                     }
                   >
-                  <YoutubePlayer
-  height={VIDEO_HEIGHT}
-  width={VIDEO_WIDTH}
-  videoId={youtubeVideoId}
-  play={false}
-  onError={(playerError: any) => {
-    console.log(
-      "YouTube player error:",
-      playerError,
-    );
+                    Welcome
+                  </Text>
 
-    setMediaState((current) => ({
-      ...current,
-      videoError: true,
-    }));
-  }}
-  initialPlayerParams={{
-    controls: true,
-    modestbranding: true,
-    rel: false,
-  }}
-/>
-                  </View>
+                  <Text
+                    style={
+                      styles.introBannerSubtitle
+                    }
+                  >
+                    Let's begin this
+                    learning module.
+                  </Text>
+                </View>
+              </View>
+
+              <Text
+                style={
+                  styles.lessonContent
+                }
+              >
+                {moduleWelcome}
+              </Text>
+            </View>
+          )}
+
+          {/* ==================================================
+              OBJECTIVES
+          ================================================== */}
+
+          {currentPage?.type ===
+            "objectives" && (
+            <View>
+              <Text
+                style={
+                  styles.sectionIntro
+                }
+              >
+                After completing this
+                module, you should be able
+                to:
+              </Text>
+
+              <View
+                style={
+                  styles.objectivesList
+                }
+              >
+                {learningObjectives.map(
+                  (
+                    objective,
+                    index,
+                  ) => (
+                    <View
+                      key={`objective-${index}`}
+                      style={
+                        styles.objectiveItem
+                      }
+                    >
+                      <View
+                        style={
+                          styles.numberCircle
+                        }
+                      >
+                        <Text
+                          style={
+                            styles.numberText
+                          }
+                        >
+                          {index + 1}
+                        </Text>
+                      </View>
+
+                      <Text
+                        style={
+                          styles.objectiveText
+                        }
+                      >
+                        {objective}
+                      </Text>
+                    </View>
+                  ),
+                )}
+              </View>
+            </View>
+          )}
+
+          {/* ==================================================
+              SECTION / LESSON
+          ================================================== */}
+
+          {currentPage?.type ===
+            "section" &&
+            currentSection && (
+              <View>
+                {currentSection.content ? (
+                  <Text
+                    style={
+                      styles.lessonContent
+                    }
+                  >
+                    {
+                      currentSection.content
+                    }
+                  </Text>
                 ) : (
+                  <Text
+                    style={
+                      styles.noContent
+                    }
+                  >
+                    No lesson text is
+                    available for this
+                    section.
+                  </Text>
+                )}
+
+                {/* ============================================
+                    IMAGE
+                ============================================ */}
+
+                {shouldRenderImage && (
                   <View
-                    style={styles.mediaError}
+                    style={
+                      styles.mediaCard
+                    }
                   >
                     <View
                       style={
-                        styles.mediaErrorIcon
+                        styles.mediaHeader
                       }
                     >
                       <Text
                         style={
-                          styles.mediaErrorIconText
+                          styles.mediaLabel
                         }
                       >
-                        !
+                        IMAGE
+                      </Text>
+                    </View>
+
+                    {mediaState.imageError ? (
+                      <View
+                        style={
+                          styles.mediaError
+                        }
+                      >
+                        <Text
+                          style={
+                            styles.mediaErrorTitle
+                          }
+                        >
+                          Unable to load
+                          image
+                        </Text>
+
+                        <Text
+                          style={
+                            styles.mediaErrorText
+                          }
+                        >
+                          The image could
+                          not be loaded
+                          from
+                          Cloudinary.
+                        </Text>
+
+                        <Pressable
+                          onPress={() => {
+                            setMediaState(
+                              (
+                                current,
+                              ) => ({
+                                ...current,
+                                imageError:
+                                  false,
+                              }),
+                            );
+                          }}
+                          style={
+                            styles.mediaRetryButton
+                          }
+                        >
+                          <Text
+                            style={
+                              styles.mediaRetryText
+                            }
+                          >
+                            Reload Image
+                          </Text>
+                        </Pressable>
+                      </View>
+                    ) : (
+                      <View
+                        style={
+                          styles.imageWrapper
+                        }
+                      >
+                        <Image
+                          source={{
+                            uri: mediaUrl,
+                          }}
+                          style={
+                            styles.lessonImage
+                          }
+                          resizeMode="contain"
+                          onError={(
+                            event,
+                          ) => {
+                            console.log(
+                              "IMAGE ERROR:",
+                              event
+                                .nativeEvent,
+                            );
+
+                            setMediaState(
+                              (
+                                current,
+                              ) => ({
+                                ...current,
+                                imageError:
+                                  true,
+                              }),
+                            );
+                          }}
+                        />
+                      </View>
+                    )}
+                  </View>
+                )}
+
+                {/* ============================================
+                    YOUTUBE
+                ============================================ */}
+
+                {shouldRenderYoutube && (
+                  <View
+                    style={
+                      styles.mediaCard
+                    }
+                  >
+                    <View
+                      style={
+                        styles.mediaHeader
+                      }
+                    >
+                      <Text
+                        style={
+                          styles.mediaLabel
+                        }
+                      >
+                        LESSON VIDEO
+                      </Text>
+                    </View>
+
+                    {mediaState.videoError ? (
+                      <View
+                        style={
+                          styles.mediaError
+                        }
+                      >
+                        <View
+                          style={
+                            styles.mediaErrorIcon
+                          }
+                        >
+                          <Text
+                            style={
+                              styles.mediaErrorIconText
+                            }
+                          >
+                            !
+                          </Text>
+                        </View>
+
+                        <Text
+                          style={
+                            styles.mediaErrorTitle
+                          }
+                        >
+                          Unable to play
+                          video
+                        </Text>
+
+                        <Text
+                          style={
+                            styles.mediaErrorText
+                          }
+                        >
+                          This YouTube
+                          video could
+                          not be loaded
+                          inside the
+                          lesson.
+                        </Text>
+
+                        <Pressable
+                          onPress={() => {
+                            setMediaState(
+                              (
+                                current,
+                              ) => ({
+                                ...current,
+                                videoError:
+                                  false,
+                              }),
+                            );
+                          }}
+                          style={
+                            styles.mediaRetryButton
+                          }
+                        >
+                          <Text
+                            style={
+                              styles.mediaRetryText
+                            }
+                          >
+                            Reload Video
+                          </Text>
+                        </Pressable>
+                      </View>
+                    ) : (
+                      <View
+                        style={
+                          styles.videoWrapper
+                        }
+                      >
+                        <YoutubePlayer
+                          height={
+                            videoHeight
+                          }
+                          width={
+                            videoWidth
+                          }
+                          videoId={
+                            youtubeVideoId!
+                          }
+                          play={false}
+                          forceAndroidAutoplay={
+                            false
+                          }
+                          initialPlayerParams={{
+                            controls: true,
+                            modestbranding:
+                              true,
+                            rel: false,
+                            playsinline:
+                              true,
+                          }}
+                          onError={(
+                            playerError: string,
+                          ) => {
+                            console.log(
+                              "YOUTUBE PLAYER ERROR:",
+                              playerError,
+                            );
+
+                            setMediaState(
+                              (
+                                current,
+                              ) => ({
+                                ...current,
+                                videoError:
+                                  true,
+                              }),
+                            );
+                          }}
+                        />
+                      </View>
+                    )}
+                  </View>
+                )}
+
+                {/* ============================================
+                    NORMAL VIDEO
+                ============================================ */}
+
+                {shouldRenderNormalVideo && (
+                  <View
+                    style={
+                      styles.mediaCard
+                    }
+                  >
+                    <View
+                      style={
+                        styles.mediaHeader
+                      }
+                    >
+                      <Text
+                        style={
+                          styles.mediaLabel
+                        }
+                      >
+                        VIDEO
+                      </Text>
+                    </View>
+
+                    <View
+                      style={
+                        styles.mediaError
+                      }
+                    >
+                      <Text
+                        style={
+                          styles.mediaErrorTitle
+                        }
+                      >
+                        Video File
+                      </Text>
+
+                      <Text
+                        style={
+                          styles.mediaErrorText
+                        }
+                      >
+                        This lesson
+                        contains a
+                        video file
+                        that is not a
+                        YouTube link.
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                {/* ============================================
+                    UNKNOWN MEDIA
+                ============================================ */}
+
+                {shouldRenderUnknownMedia && (
+                  <View
+                    style={
+                      styles.mediaCard
+                    }
+                  >
+                    <View
+                      style={
+                        styles.mediaHeader
+                      }
+                    >
+                      <Text
+                        style={
+                          styles.mediaLabel
+                        }
+                      >
+                        ADDITIONAL
+                        RESOURCE
                       </Text>
                     </View>
 
                     <Text
                       style={
-                        styles.mediaErrorTitle
+                        styles.mediaUrl
                       }
                     >
-                      Invalid YouTube Video
-                    </Text>
-
-                    <Text
-                      style={
-                        styles.mediaErrorText
-                      }
-                    >
-                      The video link provided by
-                      the learning material is
-                      invalid.
+                      {mediaUrl}
                     </Text>
                   </View>
                 )}
@@ -921,28 +1780,104 @@ export default function ModuleReader({
             )}
 
           {/* ==================================================
-              UNKNOWN MEDIA TYPE
+              SUMMARY
           ================================================== */}
 
-          {!isImage &&
-            !isVideo &&
-            mediaUrl && (
+          {currentPage?.type ===
+            "summary" && (
+            <View>
               <View
-                style={styles.mediaCard}
+                style={
+                  styles.summaryBanner
+                }
               >
                 <Text
-                  style={styles.mediaLabel}
+                  style={
+                    styles.summaryBannerTitle
+                  }
                 >
-                  ADDITIONAL RESOURCE
+                  Module Summary
                 </Text>
 
                 <Text
-                  style={styles.mediaUrl}
+                  style={
+                    styles.summaryBannerText
+                  }
                 >
-                  {mediaUrl}
+                  Review the main ideas
+                  covered in this module.
                 </Text>
               </View>
-            )}
+
+              <Text
+                style={
+                  styles.lessonContent
+                }
+              >
+                {moduleSummary}
+              </Text>
+            </View>
+          )}
+
+          {/* ==================================================
+              KEY TAKEAWAYS
+          ================================================== */}
+
+          {currentPage?.type ===
+            "takeaways" && (
+            <View>
+              <Text
+                style={
+                  styles.sectionIntro
+                }
+              >
+                Remember these important
+                points from the module:
+              </Text>
+
+              <View
+                style={
+                  styles.takeawaysList
+                }
+              >
+                {keyTakeaways.map(
+                  (
+                    takeaway,
+                    index,
+                  ) => (
+                    <View
+                      key={`takeaway-${index}`}
+                      style={
+                        styles.takeawayItem
+                      }
+                    >
+                      <View
+                        style={
+                          styles.checkCircle
+                        }
+                      >
+                        <Text
+                          style={
+                            styles.checkText
+                          }
+                        >
+                          ✓
+                        </Text>
+                      </View>
+
+                      <Text
+                        style={
+                          styles.takeawayText
+                        }
+                      >
+                        {takeaway}
+                      </Text>
+                    </View>
+                  ),
+                )}
+              </View>
+            </View>
+          )}
         </View>
 
         {/* ==================================================
@@ -956,7 +1891,9 @@ export default function ModuleReader({
             style={styles.readingIcon}
           >
             <Text
-              style={styles.readingIconText}
+              style={
+                styles.readingIconText
+              }
             >
               i
             </Text>
@@ -965,8 +1902,13 @@ export default function ModuleReader({
           <Text
             style={styles.readingText}
           >
-            Read the lesson carefully before
-            continuing to the next page.
+            {currentPage?.type ===
+              "takeaways"
+              ? "Review the key takeaways before finishing the module."
+              : currentPage?.type ===
+                  "objectives"
+                ? "Understand the learning objectives before continuing."
+                : "Read the content carefully before continuing to the next page."}
           </Text>
         </View>
       </ScrollView>
@@ -979,28 +1921,36 @@ export default function ModuleReader({
         style={styles.bottomBar}
       >
         <Pressable
-          onPress={handlePrevious}
+          onPress={
+            handlePrevious
+          }
           disabled={
-            currentSectionIndex === 0 ||
+            currentPageIndex ===
+              0 ||
             isCompleting
           }
           style={[
             styles.previousButton,
             (
-              currentSectionIndex === 0 ||
+              currentPageIndex ===
+                0 ||
               isCompleting
             ) &&
               styles.disabledButton,
           ]}
         >
           <Text
-            style={styles.previousArrow}
+            style={
+              styles.previousArrow
+            }
           >
             ←
           </Text>
 
           <Text
-            style={styles.previousText}
+            style={
+              styles.previousText
+            }
           >
             Previous
           </Text>
@@ -1010,7 +1960,9 @@ export default function ModuleReader({
           onPress={() =>
             void handleNext()
           }
-          disabled={isCompleting}
+          disabled={
+            isCompleting
+          }
           style={[
             styles.nextButton,
             isCompleting &&
@@ -1022,7 +1974,7 @@ export default function ModuleReader({
           >
             {isCompleting
               ? "Saving..."
-              : isLastSection
+              : isLastPage
                 ? "Finish Module"
                 : "Next"}
           </Text>
@@ -1044,418 +1996,601 @@ export default function ModuleReader({
 // STYLES
 // ============================================================
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8FAFC",
-  },
+const styles =
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: "#F8FAFC",
+    },
 
-  scroll: {
-    flex: 1,
-  },
+    scroll: {
+      flex: 1,
+    },
 
-  content: {
-    paddingTop: 22,
-    paddingHorizontal: 18,
-    paddingBottom: 130,
-  },
+    content: {
+      margin: 6,
+      paddingTop: 22,
+      paddingHorizontal: 18,
+      paddingBottom: 130,
+    },
 
-  // ==========================================================
-  // HEADER
-  // ==========================================================
+    // ========================================================
+    // HEADER
+    // ========================================================
 
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-  },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 16,
+    },
 
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 13,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
+    backButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 13,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "#FFFFFF",
+      borderWidth: 1,
+      borderColor: "#E5E7EB",
+    },
 
-  backArrow: {
-    marginTop: -3,
-    fontSize: 28,
-    lineHeight: 30,
-    color: "#111827",
-  },
+    backArrow: {
+      marginTop: -3,
+      fontSize: 28,
+      lineHeight: 30,
+      color: "#111827",
+    },
 
-  headerInfo: {
-    flex: 1,
-    marginLeft: 11,
-  },
+    headerInfo: {
+      flex: 1,
+      marginLeft: 11,
+    },
 
-  headerLabel: {
-    fontSize: 8,
-    fontWeight: "900",
-    letterSpacing: 0.8,
-    color: "#94A3B8",
-  },
+    headerLabel: {
+      fontSize: 8,
+      fontWeight: "900",
+      letterSpacing: 0.8,
+      color: "#94A3B8",
+    },
 
-  headerTitle: {
-    marginTop: 3,
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: "800",
-    color: "#111827",
-  },
+    headerTitle: {
+      marginTop: 3,
+      fontSize: 15,
+      lineHeight: 20,
+      fontWeight: "800",
+      color: "#111827",
+    },
 
-  pageBadge: {
-    minWidth: 46,
-    height: 30,
-    paddingHorizontal: 8,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#111827",
-  },
+    pageBadge: {
+      minWidth: 46,
+      height: 30,
+      paddingHorizontal: 8,
+      borderRadius: 10,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "#002B5C",
+    },
 
-  pageBadgeText: {
-    fontSize: 8,
-    fontWeight: "900",
-    color: "#FFFFFF",
-  },
+    pageBadgeText: {
+      fontSize: 8,
+      fontWeight: "900",
+      color: "#FFFFFF",
+    },
 
-  // ==========================================================
-  // PROGRESS
-  // ==========================================================
+    // ========================================================
+    // PROGRESS
+    // ========================================================
 
-  progressArea: {
-    marginBottom: 18,
-  },
+    progressArea: {
+      marginBottom: 18,
+    },
 
-  progressTrack: {
-    height: 6,
-    borderRadius: 999,
-    overflow: "hidden",
-    backgroundColor: "#E2E8F0",
-  },
+    progressTrack: {
+      height: 6,
+      borderRadius: 999,
+      overflow: "hidden",
+      backgroundColor: "#E2E8F0",
+    },
 
-  progressFill: {
-    height: "100%",
-    borderRadius: 999,
-    backgroundColor: "#111827",
-  },
+    progressFill: {
+      height: "100%",
+      borderRadius: 999,
+      backgroundColor: "#002B5C",
+    },
 
-  progressText: {
-    marginTop: 6,
-    fontSize: 8,
-    fontWeight: "700",
-    color: "#64748B",
-  },
+    progressText: {
+      marginTop: 6,
+      fontSize: 8,
+      fontWeight: "700",
+      color: "#64748B",
+    },
 
-  // ==========================================================
-  // LESSON
-  // ==========================================================
+    // ========================================================
+    // MAIN CARD
+    // ========================================================
 
-  lessonCard: {
-    padding: 15,
-    borderRadius: 21,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
+    lessonCard: {
+      padding: 15,
+      borderRadius: 21,
+      backgroundColor: "#FFFFFF",
+      borderWidth: 1,
+      borderColor: "#E5E7EB",
+    },
 
-  lessonLabel: {
-    fontSize: 8,
-    fontWeight: "900",
-    letterSpacing: 0.8,
-    color: "#94A3B8",
-  },
+    lessonLabel: {
+      fontSize: 8,
+      fontWeight: "900",
+      letterSpacing: 0.8,
+      color: "#94A3B8",
+    },
 
-  lessonTitle: {
-    marginTop: 8,
-    fontSize: 23,
-    lineHeight: 30,
-    fontWeight: "800",
-    color: "#111827",
-  },
+    lessonTitle: {
+      marginTop: 8,
+      fontSize: 23,
+      lineHeight: 30,
+      fontWeight: "800",
+      color: "#111827",
+    },
 
-  divider: {
-    height: 1,
-    marginTop: 17,
-    marginBottom: 17,
-    backgroundColor: "#E5E7EB",
-  },
+    divider: {
+      height: 1,
+      marginTop: 17,
+      marginBottom: 17,
+      backgroundColor: "#E5E7EB",
+    },
 
-  lessonContent: {
-    fontSize: 13,
-    lineHeight: 23,
-    color: "#475569",
-  },
+    lessonContent: {
+      fontSize: 13,
+      lineHeight: 23,
+      color: "#475569",
+    },
 
-  noContent: {
-    fontSize: 11,
-    lineHeight: 18,
-    color: "#94A3B8",
-  },
+    noContent: {
+      fontSize: 11,
+      lineHeight: 18,
+      color: "#94A3B8",
+    },
 
-  // ==========================================================
-  // MEDIA
-  // ==========================================================
+    sectionIntro: {
+      fontSize: 13,
+      lineHeight: 22,
+      color: "#475569",
+      marginBottom: 18,
+    },
 
-  mediaCard: {
-    marginTop: 20,
-    padding: 3,
-    borderRadius: 13,
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    overflow: "hidden",
-  },
+    // ========================================================
+    // WELCOME
+    // ========================================================
 
-  mediaHeader: {
-    margin: 10,
-  },
+    introBanner: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: 14,
+      marginBottom: 18,
+      borderRadius: 15,
+      backgroundColor: "#EFF6FF",
+      borderWidth: 1,
+      borderColor: "#DBEAFE",
+    },
 
-  mediaLabel: {
-    fontSize: 7,
-    fontWeight: "900",
-    letterSpacing: 0.8,
-    color: "#94A3B8",
-  },
+    introIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: 12,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "#002B5C",
+      marginRight: 11,
+    },
 
-  mediaUrl: {
-    marginTop: 5,
-    fontSize: 9,
-    lineHeight: 15,
-    color: "#475569",
-  },
+    introIconText: {
+      fontSize: 13,
+      fontWeight: "900",
+      color: "#FFFFFF",
+    },
 
-  // ==========================================================
-  // IMAGE
-  // ==========================================================
+    introBannerText: {
+      flex: 1,
+    },
 
-  imageWrapper: {
-    width: "100%",
-    marginTop: 10,
-    borderRadius: 10,
-    overflow: "hidden",
-    backgroundColor: "#FFFFFF",
-  },
+    introBannerTitle: {
+      fontSize: 12,
+      fontWeight: "900",
+      color: "#002B5C",
+    },
 
-  lessonImage: {
-    width: "100%",
-    height: 240,
-  },
+    introBannerSubtitle: {
+      marginTop: 3,
+      fontSize: 9,
+      lineHeight: 14,
+      color: "#64748B",
+    },
 
-  // ==========================================================
-  // VIDEO
-  // ==========================================================
+    // ========================================================
+    // OBJECTIVES
+    // ========================================================
 
- videoWrapper: {
-  width: "100%",
-  marginTop: 1,
-  borderRadius: 10,
-  overflow: "hidden",
-  backgroundColor: "#000000",
-  alignItems: "center",
-},
+    objectivesList: {
+      gap: 12,
+    },
 
-  // ==========================================================
-  // MEDIA ERROR
-  // ==========================================================
+    objectiveItem: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      padding: 12,
+      borderRadius: 14,
+      backgroundColor: "#F8FAFC",
+      borderWidth: 1,
+      borderColor: "#E2E8F0",
+    },
 
-  mediaError: {
-    marginTop: 10,
-    paddingVertical: 22,
-    paddingHorizontal: 15,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 10,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
+    numberCircle: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "#002B5C",
+      marginRight: 10,
+    },
 
-  mediaErrorIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F1F5F9",
-  },
+    numberText: {
+      fontSize: 10,
+      fontWeight: "900",
+      color: "#FFFFFF",
+    },
 
-  mediaErrorIconText: {
-    fontSize: 13,
-    fontWeight: "900",
-    color: "#64748B",
-  },
+    objectiveText: {
+      flex: 1,
+      paddingTop: 4,
+      fontSize: 11,
+      lineHeight: 18,
+      color: "#475569",
+    },
 
-  mediaErrorTitle: {
-    marginTop: 9,
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#111827",
-    textAlign: "center",
-  },
+    // ========================================================
+    // SUMMARY
+    // ========================================================
 
-  mediaErrorText: {
-    marginTop: 5,
-    fontSize: 9,
-    lineHeight: 15,
-    color: "#64748B",
-    textAlign: "center",
-  },
+    summaryBanner: {
+      padding: 14,
+      marginBottom: 18,
+      borderRadius: 15,
+      backgroundColor: "#F8FAFC",
+      borderWidth: 1,
+      borderColor: "#E2E8F0",
+    },
 
-  // ==========================================================
-  // READING
-  // ==========================================================
+    summaryBannerTitle: {
+      fontSize: 12,
+      fontWeight: "900",
+      color: "#002B5C",
+    },
 
-  readingCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 14,
-    padding: 13,
-    borderRadius: 15,
-    backgroundColor: "#EFF6FF",
-    borderWidth: 1,
-    borderColor: "#DBEAFE",
-  },
+    summaryBannerText: {
+      marginTop: 4,
+      fontSize: 9,
+      lineHeight: 15,
+      color: "#64748B",
+    },
 
-  readingIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 9,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#DBEAFE",
-    marginRight: 9,
-  },
+    // ========================================================
+    // TAKEAWAYS
+    // ========================================================
 
-  readingIconText: {
-    fontSize: 12,
-    fontWeight: "900",
-    color: "#2563EB",
-  },
+    takeawaysList: {
+      gap: 12,
+    },
 
-  readingText: {
-    flex: 1,
-    fontSize: 9,
-    lineHeight: 15,
-    color: "#3B82F6",
-  },
+    takeawayItem: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      padding: 12,
+      borderRadius: 14,
+      backgroundColor: "#F8FAFC",
+      borderWidth: 1,
+      borderColor: "#E2E8F0",
+    },
 
-  // ==========================================================
-  // BOTTOM BAR
-  // ==========================================================
+    checkCircle: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "#002B5C",
+      marginRight: 10,
+    },
 
-  bottomBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 9,
-    paddingHorizontal: 18,
-    paddingTop: 11,
-    paddingBottom: 25,
-    backgroundColor: "#FFFFFF",
-    borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
-  },
+    checkText: {
+      fontSize: 12,
+      fontWeight: "900",
+      color: "#FFFFFF",
+    },
 
-  previousButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    minWidth: 105,
-    paddingVertical: 13,
-    paddingHorizontal: 13,
-    borderRadius: 13,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
+    takeawayText: {
+      flex: 1,
+      paddingTop: 4,
+      fontSize: 11,
+      lineHeight: 18,
+      color: "#475569",
+    },
 
-  previousArrow: {
-    marginRight: 5,
-    fontSize: 15,
-    color: "#475569",
-  },
+    // ========================================================
+    // MEDIA
+    // ========================================================
 
-  previousText: {
-    fontSize: 9,
-    fontWeight: "800",
-    color: "#475569",
-  },
+    mediaCard: {
+      width: "100%",
+      marginTop: 20,
+      borderRadius: 13,
+      backgroundColor: "#F8FAFC",
+      borderWidth: 1,
+      borderColor: "#E2E8F0",
+      overflow: "hidden",
+    },
 
-  nextButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 13,
-    borderRadius: 13,
-    backgroundColor: "#111827",
-  },
+    mediaHeader: {
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      backgroundColor: "#FFFFFF",
+      borderBottomWidth: 1,
+      borderBottomColor: "#E5E7EB",
+    },
 
-  nextText: {
-    fontSize: 10,
-    fontWeight: "900",
-    color: "#FFFFFF",
-  },
+    mediaLabel: {
+      fontSize: 8,
+      fontWeight: "900",
+      letterSpacing: 0.8,
+      color: "#002B5C",
+    },
 
-  nextArrow: {
-    marginLeft: 7,
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#FFFFFF",
-  },
+    // ========================================================
+    // IMAGE
+    // ========================================================
 
-  disabledButton: {
-    opacity: 0.4,
-  },
+    imageWrapper: {
+      width: "100%",
+      minHeight: 220,
+      backgroundColor: "#F8FAFC",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 8,
+    },
 
-  // ==========================================================
-  // CENTER
-  // ==========================================================
+    lessonImage: {
+      width: "100%",
+      height: 320,
+      backgroundColor: "#FFFFFF",
+    },
 
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 30,
-    backgroundColor: "#F8FAFC",
-  },
+    // ========================================================
+    // VIDEO
+    // ========================================================
 
-  loadingText: {
-    marginTop: 12,
-    fontSize: 11,
-    color: "#64748B",
-  },
+    videoWrapper: {
+      width: "100%",
+      backgroundColor: "#000000",
+      alignItems: "center",
+      justifyContent: "center",
+      overflow: "hidden",
+    },
 
-  errorTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#111827",
-  },
+    // ========================================================
+    // MEDIA ERROR
+    // ========================================================
 
-  errorText: {
-    marginTop: 6,
-    fontSize: 10,
-    lineHeight: 16,
-    textAlign: "center",
-    color: "#64748B",
-  },
+    mediaError: {
+      paddingVertical: 25,
+      paddingHorizontal: 18,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "#FFFFFF",
+    },
 
-  retryButton: {
-    marginTop: 18,
-    paddingHorizontal: 20,
-    paddingVertical: 11,
-    borderRadius: 12,
-    backgroundColor: "#111827",
-  },
+    mediaErrorIcon: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "#F1F5F9",
+    },
 
-  retryText: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: "#FFFFFF",
-  },
-});
+    mediaErrorIconText: {
+      fontSize: 13,
+      fontWeight: "900",
+      color: "#64748B",
+    },
+
+    mediaErrorTitle: {
+      marginTop: 9,
+      fontSize: 12,
+      fontWeight: "800",
+      color: "#111827",
+      textAlign: "center",
+    },
+
+    mediaErrorText: {
+      marginTop: 6,
+      fontSize: 9,
+      lineHeight: 15,
+      color: "#64748B",
+      textAlign: "center",
+    },
+
+    mediaRetryButton: {
+      marginTop: 14,
+      paddingHorizontal: 15,
+      paddingVertical: 9,
+      borderRadius: 9,
+      backgroundColor: "#002B5C",
+    },
+
+    mediaRetryText: {
+      fontSize: 9,
+      fontWeight: "800",
+      color: "#FFFFFF",
+    },
+
+    mediaUrl: {
+      padding: 12,
+      fontSize: 9,
+      lineHeight: 15,
+      color: "#64748B",
+    },
+
+    // ========================================================
+    // READING MESSAGE
+    // ========================================================
+
+    readingCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginTop: 14,
+      padding: 13,
+      borderRadius: 15,
+      backgroundColor: "#EFF6FF",
+      borderWidth: 1,
+      borderColor: "#DBEAFE",
+    },
+
+    readingIcon: {
+      width: 28,
+      height: 28,
+      borderRadius: 9,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "#DBEAFE",
+      marginRight: 9,
+    },
+
+    readingIconText: {
+      fontSize: 12,
+      fontWeight: "900",
+      color: "#2563EB",
+    },
+
+    readingText: {
+      flex: 1,
+      fontSize: 9,
+      lineHeight: 15,
+      color: "#3B82F6",
+    },
+
+    // ========================================================
+    // BOTTOM BAR
+    // ========================================================
+
+    bottomBar: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 9,
+      paddingHorizontal: 18,
+      paddingTop: 11,
+      paddingBottom: 25,
+      backgroundColor: "#FFFFFF",
+      borderTopWidth: 1,
+      borderTopColor: "#E5E7EB",
+    },
+
+    previousButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      minWidth: 105,
+      paddingVertical: 13,
+      paddingHorizontal: 13,
+      borderRadius: 13,
+      backgroundColor: "#FFFFFF",
+      borderWidth: 1,
+      borderColor: "#E5E7EB",
+    },
+
+    previousArrow: {
+      marginRight: 5,
+      fontSize: 15,
+      color: "#475569",
+    },
+
+    previousText: {
+      fontSize: 9,
+      fontWeight: "800",
+      color: "#475569",
+    },
+
+    nextButton: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 13,
+      borderRadius: 13,
+      backgroundColor: "#002B5C",
+    },
+
+    nextText: {
+      fontSize: 10,
+      fontWeight: "900",
+      color: "#FFFFFF",
+    },
+
+    nextArrow: {
+      marginLeft: 7,
+      fontSize: 16,
+      fontWeight: "800",
+      color: "#FFFFFF",
+    },
+
+    disabledButton: {
+      opacity: 0.4,
+    },
+
+    // ========================================================
+    // CENTER
+    // ========================================================
+
+    center: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 30,
+      backgroundColor: "#F8FAFC",
+    },
+
+    loadingText: {
+      marginTop: 12,
+      fontSize: 11,
+      color: "#64748B",
+    },
+
+    errorTitle: {
+      fontSize: 16,
+      fontWeight: "800",
+      color: "#111827",
+      textAlign: "center",
+    },
+
+    errorText: {
+      marginTop: 6,
+      fontSize: 10,
+      lineHeight: 16,
+      textAlign: "center",
+      color: "#64748B",
+    },
+
+    retryButton: {
+      marginTop: 18,
+      paddingHorizontal: 20,
+      paddingVertical: 11,
+      borderRadius: 12,
+      backgroundColor: "#002B5C",
+    },
+
+    retryText: {
+      fontSize: 10,
+      fontWeight: "800",
+      color: "#FFFFFF",
+    },
+  });

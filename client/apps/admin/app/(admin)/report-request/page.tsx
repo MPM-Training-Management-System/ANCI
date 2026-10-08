@@ -1,31 +1,41 @@
 "use client";
 
-import {
-  CheckCircle2,
-  Clock3,
-  FileText,
-  Loader2,
-  MessageSquareText,
-  RefreshCw,
-  Search,
-  UserRound,
-  XCircle,
-} from "lucide-react";
+import dynamic from "next/dynamic";
 
 import {
   useMemo,
   useState,
 } from "react";
 
+import {
+  FileText,
+  CheckCircle2,
+  XCircle,
+  Clock3,
+  Eye,
+  Search,
+  Download,
+  Loader2,
+  ClipboardList,
+  CalendarDays,
+  UserRound,
+} from "lucide-react";
+
+import {
+  useAdminReports,
+  useAdminTrainerReportRequests,
+} from "@repo/hooks";
+
 import type {
   AdminTrainerReportRequest,
   TrainerReportRequestStatus,
-  TrainerReportType,
+  ReportFilter,
+  ReportType,
+  AttendanceReport,
+  AssessmentResultsReport,
+  TrainingCompletionReport,
+  CertificateReport,
 } from "@repo/types";
-
-import {
-  useAdminTrainerReportRequests,
-} from "@repo/hooks";
 
 import {
   PageSection,
@@ -34,117 +44,105 @@ import {
 } from "@repo/ui/index";
 
 import {
-  trainerReportRequestApi,
+  reportApi,
+  adminTrainerReportRequestApi,
 } from "@/lib/api";
 
+/*
+ * ============================================================
+ * PDF EXPORTER
+ * ============================================================
+ *
+ * IMPORTANT:
+ *
+ * This component is dynamically loaded with SSR disabled.
+ *
+ * It is the ONLY component that loads jsPDF.
+ *
+ * DO NOT import jsPDF in this file.
+ */
 
-// =========================================================
-// HELPERS
-// =========================================================
-
-function formatDate(
-  value?: string | null
-) {
-  if (!value) {
-    return "—";
+const ReportPdfExporter = dynamic(
+  () =>
+    import(
+      "@/components/reports/ReportPdfExporter"
+    ),
+  {
+    ssr: false,
   }
+);
 
-  return new Intl.DateTimeFormat(
-    "en-US",
-    {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }
-  ).format(
-    new Date(value)
-  );
+/*
+ * ============================================================
+ * TYPES
+ * ============================================================
+ */
+
+type ReviewMode =
+  | "approve"
+  | "reject"
+  | null;
+
+type ReportData =
+  | AttendanceReport
+  | AssessmentResultsReport
+  | TrainingCompletionReport
+  | CertificateReport;
+
+interface PdfExportRequest {
+  request: AdminTrainerReportRequest;
+  reportType: ReportType;
+  report: ReportData;
+  filter: ReportFilter;
 }
 
-
-function formatDateRange(
-  dateFrom?: string | null,
-  dateTo?: string | null
-) {
-  if (!dateFrom && !dateTo) {
-    return "All available dates";
-  }
-
-  if (
-    dateFrom &&
-    dateTo
-  ) {
-    return `${formatDate(
-      dateFrom
-    )} – ${formatDate(
-      dateTo
-    )}`;
-  }
-
-  if (dateFrom) {
-    return `From ${formatDate(
-      dateFrom
-    )}`;
-  }
-
-  return `Until ${formatDate(
-    dateTo
-  )}`;
-}
-
-
-function reportTypeLabel(
-  type: TrainerReportType
-) {
-  switch (type) {
-    case "TrainingSummary":
-      return "Training Summary";
-
-    default:
-      return type;
-  }
-}
-
-
-function statusClasses(
-  status: TrainerReportRequestStatus
-) {
-  switch (status) {
-    case "Pending":
-      return "bg-amber-50 text-amber-700";
-
-    case "Approved":
-      return "bg-blue-50 text-blue-700";
-
-    case "Completed":
-      return "bg-emerald-50 text-emerald-700";
-
-    case "Rejected":
-      return "bg-red-50 text-red-700";
-
-    default:
-      return "bg-gray-100 text-gray-600";
-  }
-}
-
-
-// =========================================================
-// PAGE
-// =========================================================
+/*
+ * ============================================================
+ * PAGE
+ * ============================================================
+ */
 
 export default function AdminReportRequestsPage() {
+  /*
+   * ============================================================
+   * TRAINER REPORT REQUEST HOOK
+   * ============================================================
+   */
+
   const {
     requests,
     loading,
     processingId,
     error,
     loadRequests,
-    approveRequest,
+    approveAndGenerate,
     rejectRequest,
   } =
     useAdminTrainerReportRequests(
-      trainerReportRequestApi
+      adminTrainerReportRequestApi
     );
+
+  /*
+   * ============================================================
+   * ADMIN REPORT HOOK
+   * ============================================================
+   */
+
+  const {
+    loadAttendance,
+    loadAssessmentResults,
+    loadTrainingCompletion,
+    loadCertificates,
+  } =
+    useAdminReports(
+      reportApi
+    );
+
+  /*
+   * ============================================================
+   * FILTER STATES
+   * ============================================================
+   */
 
   const [
     search,
@@ -155,8 +153,14 @@ export default function AdminReportRequestsPage() {
     statusFilter,
     setStatusFilter,
   ] = useState<
-    "All" | TrainerReportRequestStatus
+    TrainerReportRequestStatus | "All"
   >("All");
+
+  /*
+   * ============================================================
+   * MODAL STATES
+   * ============================================================
+   */
 
   const [
     selectedRequest,
@@ -169,89 +173,139 @@ export default function AdminReportRequestsPage() {
   const [
     reviewMode,
     setReviewMode,
-  ] = useState<
-    "approve" | "reject" | null
-  >(null);
+  ] =
+    useState<ReviewMode>(null);
 
   const [
     remarks,
     setRemarks,
   ] = useState("");
 
-  // =========================================================
-  // STATS
-  // =========================================================
+  const [
+    showReviewModal,
+    setShowReviewModal,
+  ] = useState(false);
 
-  const stats = useMemo(() => {
-    return {
-      total:
-        requests.length,
+  const [
+    showViewModal,
+    setShowViewModal,
+  ] = useState(false);
 
-      pending:
-        requests.filter(
-          request =>
-            request.status === "Pending"
-        ).length,
+  /*
+   * ============================================================
+   * PDF GENERATION STATE
+   * ============================================================
+   */
 
-      approved:
-        requests.filter(
-          request =>
-            request.status === "Approved"
-        ).length,
+  const [
+    generatingReport,
+    setGeneratingReport,
+  ] = useState(false);
 
-      completed:
-        requests.filter(
-          request =>
-            request.status === "Completed"
-        ).length,
+  const [
+    pdfExportRequest,
+    setPdfExportRequest,
+  ] =
+    useState<PdfExportRequest | null>(
+      null
+    );
 
-      rejected:
-        requests.filter(
-          request =>
-            request.status === "Rejected"
-        ).length,
-    };
-  }, [requests]);
+  /*
+   * ============================================================
+   * STATISTICS
+   * ============================================================
+   */
 
-  // =========================================================
-  // FILTER
-  // =========================================================
+  const totalRequests =
+    requests.length;
+
+  const pendingRequests =
+    requests.filter(
+      (request) =>
+        request.status ===
+        "Pending"
+    ).length;
+
+  const approvedRequests =
+    requests.filter(
+      (request) =>
+        request.status ===
+        "Approved"
+    ).length;
+
+  const completedRequests =
+    requests.filter(
+      (request) =>
+        request.status ===
+        "Completed"
+    ).length;
+
+  const rejectedRequests =
+    requests.filter(
+      (request) =>
+        request.status ===
+        "Rejected"
+    ).length;
+
+  /*
+   * ============================================================
+   * FILTERED REQUESTS
+   * ============================================================
+   */
 
   const filteredRequests =
     useMemo(() => {
-      const keyword =
+      const normalizedSearch =
         search
           .trim()
           .toLowerCase();
 
       return requests.filter(
-        request => {
+        (request) => {
           const matchesStatus =
-            statusFilter === "All" ||
+            statusFilter ===
+              "All" ||
             request.status ===
               statusFilter;
 
-          const matchesSearch =
-            !keyword ||
-            request.trainerName
-              .toLowerCase()
-              .includes(keyword) ||
-            request.trainerCode
-              .toLowerCase()
-              .includes(keyword) ||
-            request.batchCode
-              .toLowerCase()
-              .includes(keyword) ||
-            request.trainingProgramName
-              .toLowerCase()
-              .includes(keyword) ||
-            request.reportType
-              .toLowerCase()
-              .includes(keyword);
+          if (
+            !matchesStatus
+          ) {
+            return false;
+          }
+
+          if (
+            !normalizedSearch
+          ) {
+            return true;
+          }
 
           return (
-            matchesStatus &&
-            matchesSearch
+            request.trainerName
+              ?.toLowerCase()
+              .includes(
+                normalizedSearch
+              ) ||
+            request.trainerCode
+              ?.toLowerCase()
+              .includes(
+                normalizedSearch
+              ) ||
+            request.batchCode
+              ?.toLowerCase()
+              .includes(
+                normalizedSearch
+              ) ||
+            request.trainingProgramName
+              ?.toLowerCase()
+              .includes(
+                normalizedSearch
+              ) ||
+            request.reportType
+              ?.toLowerCase()
+              .includes(
+                normalizedSearch
+              )
           );
         }
       );
@@ -261,9 +315,135 @@ export default function AdminReportRequestsPage() {
       statusFilter,
     ]);
 
-  // =========================================================
-  // OPEN REVIEW
-  // =========================================================
+  /*
+   * ============================================================
+   * FORMAT DATE
+   * ============================================================
+   */
+
+  function formatDate(
+    value?: string | null
+  ) {
+    if (!value) {
+      return "—";
+    }
+
+    const date =
+      new Date(value);
+
+    if (
+      Number.isNaN(
+        date.getTime()
+      )
+    ) {
+      return "—";
+    }
+
+    return date.toLocaleDateString(
+      "en-US",
+      {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }
+    );
+  }
+
+  /*
+   * ============================================================
+   * FORMAT DATE TIME
+   * ============================================================
+   */
+
+  function formatDateTime(
+    value?: string | null
+  ) {
+    if (!value) {
+      return "—";
+    }
+
+    const date =
+      new Date(value);
+
+    if (
+      Number.isNaN(
+        date.getTime()
+      )
+    ) {
+      return "—";
+    }
+
+    return date.toLocaleString(
+      "en-US",
+      {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      }
+    );
+  }
+
+  /*
+   * ============================================================
+   * REPORT TYPE LABEL
+   * ============================================================
+   */
+
+  function getReportTypeLabel(
+    reportType: string
+  ) {
+    switch (reportType) {
+      case "Attendance":
+        return "Attendance Report";
+
+      case "Assessment":
+        return "Assessment Results";
+
+      case "TrainingSummary":
+        return "Training Summary";
+
+      case "Certificate":
+        return "Certificate Report";
+
+      default:
+        return reportType;
+    }
+  }
+
+  /*
+   * ============================================================
+   * STATUS CLASS
+   * ============================================================
+   */
+
+  function getStatusClasses(
+    status: TrainerReportRequestStatus
+  ) {
+    switch (status) {
+      case "Pending":
+        return "bg-amber-50 text-amber-700 border-amber-200";
+
+      case "Approved":
+        return "bg-blue-50 text-blue-700 border-blue-200";
+
+      case "Completed":
+        return "bg-emerald-50 text-emerald-700 border-emerald-200";
+
+      case "Rejected":
+        return "bg-red-50 text-red-700 border-red-200";
+
+      default:
+        return "bg-gray-50 text-gray-700 border-gray-200";
+    }
+  }
+
+  /*
+   * ============================================================
+   * OPEN REVIEW
+   * ============================================================
+   */
 
   function openReview(
     request: AdminTrainerReportRequest,
@@ -281,13 +461,29 @@ export default function AdminReportRequestsPage() {
       request.adminRemarks ??
         ""
     );
+
+    setShowReviewModal(
+      true
+    );
   }
 
-  // =========================================================
-  // CLOSE REVIEW
-  // =========================================================
+  /*
+   * ============================================================
+   * CLOSE REVIEW
+   * ============================================================
+   */
 
   function closeReview() {
+    if (
+      generatingReport
+    ) {
+      return;
+    }
+
+    setShowReviewModal(
+      false
+    );
+
     setSelectedRequest(
       null
     );
@@ -299,9 +495,147 @@ export default function AdminReportRequestsPage() {
     setRemarks("");
   }
 
-  // =========================================================
-  // SUBMIT REVIEW
-  // =========================================================
+  /*
+   * ============================================================
+   * OPEN VIEW
+   * ============================================================
+   */
+
+  function openView(
+    request: AdminTrainerReportRequest
+  ) {
+    setSelectedRequest(
+      request
+    );
+
+    setShowViewModal(
+      true
+    );
+  }
+
+  /*
+   * ============================================================
+   * CLOSE VIEW
+   * ============================================================
+   */
+
+  function closeView() {
+    setShowViewModal(
+      false
+    );
+
+    setSelectedRequest(
+      null
+    );
+  }
+
+  /*
+   * ============================================================
+   * LOAD REPORT DATA
+   * ============================================================
+   *
+   * IMPORTANT:
+   *
+   * This function DOES NOT load jsPDF.
+   *
+   * It only retrieves the report data.
+   */
+
+  async function loadReportForRequest(
+    request: AdminTrainerReportRequest
+  ): Promise<{
+    reportType: ReportType;
+    report: ReportData;
+    filter: ReportFilter;
+  }> {
+    const filter: ReportFilter = {
+      trainingBatchId:
+        request.trainingBatchId,
+
+      dateFrom:
+        request.dateFrom ??
+        undefined,
+
+      dateTo:
+        request.dateTo ??
+        undefined,
+    };
+
+    switch (
+      request.reportType
+    ) {
+      case "Attendance": {
+        const report =
+          await loadAttendance(
+            filter
+          );
+
+        return {
+          reportType:
+            "attendance",
+          report:
+            report as AttendanceReport,
+          filter,
+        };
+      }
+
+      case "Assessment": {
+        const report =
+          await loadAssessmentResults(
+            filter
+          );
+
+        return {
+          reportType:
+            "assessment-results",
+          report:
+            report as AssessmentResultsReport,
+          filter,
+        };
+      }
+
+      case "TrainingSummary": {
+        const report =
+          await loadTrainingCompletion(
+            filter
+          );
+
+        return {
+          reportType:
+            "training-completion",
+          report:
+            report as TrainingCompletionReport,
+          filter,
+        };
+      }
+
+      case "Certificate": {
+        const report =
+          await loadCertificates(
+            filter
+          );
+
+        return {
+          reportType:
+            "certificates",
+          report:
+            report as CertificateReport,
+          filter,
+        };
+      }
+
+      default:
+        throw new Error(
+          `Unsupported report type: ${request.reportType}`
+        );
+    }
+  }
+
+  /*
+   * ============================================================
+   * HANDLE REVIEW
+   * ============================================================
+   */
 
   async function handleReview() {
     if (
@@ -312,165 +646,369 @@ export default function AdminReportRequestsPage() {
     }
 
     try {
-      const payload = {
-        adminRemarks:
-          remarks.trim()
-            ? remarks.trim()
-            : null,
-      };
+      /*
+       * ========================================================
+       * REJECT
+       * ========================================================
+       */
 
       if (
         reviewMode ===
-        "approve"
+        "reject"
       ) {
-        await approveRequest(
-          selectedRequest.id,
-          payload
-        );
-      } else {
         await rejectRequest(
           selectedRequest.id,
-          payload
+          {
+            adminRemarks:
+              remarks.trim()
+                ? remarks.trim()
+                : null,
+          }
         );
+
+        closeReview();
+
+        await loadRequests();
+
+        return;
       }
 
-      closeReview();
-    } catch {
-      // Error is already handled by the hook.
+      /*
+       * ========================================================
+       * APPROVE
+       * ========================================================
+       */
+
+      setGeneratingReport(
+        true
+      );
+
+      /*
+       * Retrieve the requested report data.
+       *
+       * No jsPDF here.
+       */
+
+      const {
+        reportType,
+        report,
+        filter,
+      } =
+        await loadReportForRequest(
+          selectedRequest
+        );
+
+      /*
+       * Pass the report data to the browser-only
+       * ReportPdfExporter component.
+       */
+
+      setPdfExportRequest({
+        request:
+          selectedRequest,
+        reportType,
+        report,
+        filter,
+      });
+    } catch (err) {
+      console.error(
+        "Failed to process trainer report request:",
+        err
+      );
+
+      setGeneratingReport(
+        false
+      );
     }
   }
 
+  /*
+   * ============================================================
+   * HANDLE GENERATED PDF
+   * ============================================================
+   *
+   * The ReportPdfExporter returns the PDF as Blob.
+   *
+   * Then we send that Blob to:
+   *
+   * approveAndGenerate()
+   *
+   * which uploads the generated PDF to the backend.
+   */
+
+  async function handlePdfGenerated(
+    blob: Blob
+  ) {
+    if (
+      !pdfExportRequest
+    ) {
+      setGeneratingReport(
+        false
+      );
+
+      return;
+    }
+
+    try {
+      await approveAndGenerate(
+        pdfExportRequest.request.id,
+        blob,
+        remarks.trim()
+          ? remarks.trim()
+          : null
+      );
+
+      setPdfExportRequest(
+        null
+      );
+
+      setGeneratingReport(
+        false
+      );
+
+      closeReview();
+
+      await loadRequests();
+    } catch (error) {
+      console.error(
+        "Failed to upload generated report:",
+        error
+      );
+
+      setGeneratingReport(
+        false
+      );
+    }
+  }
+
+  /*
+   * ============================================================
+   * HANDLE PDF ERROR
+   * ============================================================
+   */
+
+  function handlePdfExportError(
+    error: unknown
+  ) {
+    console.error(
+      "PDF generation failed:",
+      error
+    );
+
+    setPdfExportRequest(
+      null
+    );
+
+    setGeneratingReport(
+      false
+    );
+  }
+
+  /*
+   * ============================================================
+   * OPEN GENERATED REPORT
+   * ============================================================
+   */
+
+  function handleDownload(
+    request: AdminTrainerReportRequest
+  ) {
+    if (
+      !request.reportFileUrl
+    ) {
+      return;
+    }
+
+    window.open(
+      request.reportFileUrl,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  }
+
+  /*
+   * ============================================================
+   * RENDER
+   * ============================================================
+   */
+
   return (
     <div className="space-y-6">
+      {/* ======================================================
+          HIDDEN PDF EXPORTER
+      ====================================================== */}
 
-      {/* =====================================================
-          HEADER
-      ===================================================== */}
+      {pdfExportRequest && (
+        <ReportPdfExporter
+          reportType={
+            pdfExportRequest.reportType
+          }
+          report={
+            pdfExportRequest.report
+          }
+          filter={
+            pdfExportRequest.filter
+          }
+          onComplete={
+            handlePdfGenerated
+          }
+          onError={
+            handlePdfExportError
+          }
+        />
+      )}
+
+      {/* ======================================================
+          PAGE HEADER
+      ====================================================== */}
 
       <PageSection
         title="Trainer Report Requests"
-        description="Review and manage report requests submitted by trainers."
-        actions={
+        description="Review, approve, reject, and manage report requests submitted by trainers."
+      />
+
+      {/* ======================================================
+          ERROR
+      ====================================================== */}
+
+      {error && (
+        <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <XCircle className="mt-0.5 h-5 w-5 shrink-0" />
+
+          <div className="flex-1">
+            <p className="font-semibold">
+              Unable to process request
+            </p>
+
+            <p className="mt-1">
+              {error}
+            </p>
+          </div>
+
           <button
             type="button"
             onClick={() =>
               void loadRequests()
             }
-            disabled={loading}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#002b5c] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#0d2142] disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-md border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100"
           >
-            <RefreshCw
-              className={`h-4 w-4 ${
-                loading
-                  ? "animate-spin"
-                  : ""
-              }`}
-            />
-
-            Refresh
+            Retry
           </button>
-        }
-      />
-
-      {/* =====================================================
-          ERROR
-      ===================================================== */}
-
-      {error && (
-        <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
         </div>
       )}
 
-      {/* =====================================================
-          STATS
-      ===================================================== */}
+      {/* ======================================================
+          STATISTICS
+      ====================================================== */}
 
       <StatGrid>
         <StatCard
           title="Total Requests"
-          value={stats.total}
+          value={
+            totalRequests
+          }
           icon={
-            FileText 
+            ClipboardList
           }
         />
 
         <StatCard
           title="Pending"
-          value={stats.pending}
+          value={
+            pendingRequests
+          }
           variant="warning"
           icon={
-            Clock3 
+            Clock3
           }
         />
 
         <StatCard
           title="Approved"
-          value={stats.approved}
+          value={
+            approvedRequests
+          }
           variant="primary"
           icon={
-            CheckCircle2 
+            CheckCircle2
           }
         />
 
         <StatCard
           title="Completed"
-          value={stats.completed}
+          value={
+            completedRequests
+          }
           variant="success"
           icon={
-            CheckCircle2 
+            CheckCircle2
+          }
+        />
+
+        <StatCard
+          title="Rejected"
+          value={
+            rejectedRequests
+          }
+          variant="default"
+          icon={
+            XCircle
           }
         />
       </StatGrid>
 
-      {/* =====================================================
-          CONTENT
-      ===================================================== */}
+      {/* ======================================================
+          REPORT REQUESTS
+      ====================================================== */}
 
       <PageSection
-        title="Requests"
-        description={`${filteredRequests.length} request${
-          filteredRequests.length === 1
-            ? ""
-            : "s"
-        } found`}
+        title="Report Requests"
+        description="View all trainer report requests and take the appropriate action."
       >
-
-        {/* ===================================================
+        {/* ====================================================
             FILTERS
-        =================================================== */}
+        ==================================================== */}
 
-        <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-
-          <div className="relative w-full md:max-w-md">
+        <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="relative w-full lg:max-w-md">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
 
             <input
               type="text"
-              value={search}
-              onChange={event =>
+              value={
+                search
+              }
+              onChange={(
+                event
+              ) =>
                 setSearch(
-                  event.target.value
+                  event.target
+                    .value
                 )
               }
-              placeholder="Search trainer, batch, program..."
-              className="w-full rounded-xl bg-[#f7f9fb] py-2.5 pl-10 pr-4 text-sm text-gray-900 outline-none ring-1 ring-transparent transition focus:bg-white focus:ring-[#6FD1D7]"
+              placeholder="Search trainer, batch, program, or report type..."
+              className="w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-[#3B7597] focus:ring-2 focus:ring-[#3B7597]/20"
             />
           </div>
 
           <select
-            value={statusFilter}
-            onChange={event =>
+            value={
+              statusFilter
+            }
+            onChange={(
+              event
+            ) =>
               setStatusFilter(
-                event.target.value as
-                  | "All"
+                event.target
+                  .value as
                   | TrainerReportRequestStatus
+                  | "All"
               )
             }
-            className="rounded-xl bg-[#f7f9fb] px-4 py-2.5 text-sm font-medium text-gray-700 outline-none ring-1 ring-transparent transition focus:bg-white focus:ring-[#6FD1D7]"
+            className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 outline-none transition focus:border-[#3B7597] focus:ring-2 focus:ring-[#3B7597]/20"
           >
             <option value="All">
-              All Status
+              All Statuses
             </option>
 
             <option value="Pending">
@@ -481,103 +1019,122 @@ export default function AdminReportRequestsPage() {
               Approved
             </option>
 
-            <option value="Rejected">
-              Rejected
-            </option>
-
             <option value="Completed">
               Completed
+            </option>
+
+            <option value="Rejected">
+              Rejected
             </option>
           </select>
         </div>
 
-        {/* ===================================================
-            LOADING
-        =================================================== */}
+        {/* ====================================================
+            TABLE
+        ==================================================== */}
 
-        {loading ? (
-          <div className="flex min-h-[280px] items-center justify-center">
-            <div className="flex items-center gap-3 text-sm text-gray-500">
-              <Loader2 className="h-5 w-5 animate-spin" />
-
-              Loading report requests...
-            </div>
-          </div>
-        ) : filteredRequests.length === 0 ? (
-          /* =================================================
-             EMPTY
-             ================================================= */
-
-          <div className="flex min-h-[280px] flex-col items-center justify-center text-center">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f7f9fb] text-gray-400">
-              <FileText className="h-5 w-5" />
-            </div>
-
-            <h3 className="text-sm font-semibold text-gray-900">
-              No report requests found
-            </h3>
-
-            <p className="mt-1 max-w-sm text-sm text-gray-500">
-              Trainer report requests will appear here once submitted.
-            </p>
-          </div>
-        ) : (
-          /* =================================================
-             TABLE
-             ================================================= */
-
+        <div className="overflow-hidden rounded-xl border border-gray-200">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1050px] text-left">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+            <table className="min-w-[1100px] w-full">
+              <thead className="bg-gray-50">
+                <tr className="border-b border-gray-200">
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Trainer
                   </th>
 
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Report
-                  </th>
-
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Training
                   </th>
 
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Report
+                  </th>
+
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Date Range
                   </th>
 
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Requested
                   </th>
 
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Status
                   </th>
 
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Action
                   </th>
                 </tr>
               </thead>
 
-              <tbody>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {loading &&
+                  filteredRequests.length ===
+                    0 && (
+                    <tr>
+                      <td
+                        colSpan={
+                          7
+                        }
+                        className="px-5 py-12 text-center"
+                      >
+                        <div className="flex flex-col items-center justify-center gap-3 text-gray-500">
+                          <Loader2 className="h-6 w-6 animate-spin" />
+
+                          <span className="text-sm">
+                            Loading report requests...
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+
+                {!loading &&
+                  filteredRequests.length ===
+                    0 && (
+                    <tr>
+                      <td
+                        colSpan={
+                          7
+                        }
+                        className="px-5 py-12 text-center"
+                      >
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <FileText className="h-8 w-8 text-gray-300" />
+
+                          <p className="text-sm font-medium text-gray-600">
+                            No report requests found.
+                          </p>
+
+                          <p className="text-xs text-gray-400">
+                            Try changing your search or status filter.
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+
                 {filteredRequests.map(
-                  request => {
+                  (
+                    request
+                  ) => {
                     const isProcessing =
                       processingId ===
                       request.id;
 
                     return (
                       <tr
-                        key={request.id}
-                        className="border-b border-gray-50 last:border-0"
+                        key={
+                          request.id
+                        }
+                        className="transition hover:bg-gray-50"
                       >
-
                         {/* TRAINER */}
 
-                        <td className="px-4 py-4">
+                        <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#eef4f8] text-[#002b5c]">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#002b5c]/10 text-[#002b5c]">
                               <UserRound className="h-4 w-4" />
                             </div>
 
@@ -597,57 +1154,57 @@ export default function AdminReportRequestsPage() {
                           </div>
                         </td>
 
-                        {/* REPORT */}
-
-                        <td className="px-4 py-4">
-                          <div>
-                            <p className="text-sm font-semibold text-gray-900">
-                              {reportTypeLabel(
-                                request.reportType
-                              )}
-                            </p>
-
-                            {request.reason && (
-                              <p className="mt-1 max-w-[220px] truncate text-xs text-gray-500">
-                                {
-                                  request.reason
-                                }
-                              </p>
-                            )}
-                          </div>
-                        </td>
-
                         {/* TRAINING */}
 
-                        <td className="px-4 py-4">
-                          <p className="text-sm font-medium text-gray-800">
-                            {
-                              request.batchCode
-                            }
-                          </p>
-
-                          <p className="mt-1 max-w-[220px] truncate text-xs text-gray-500">
+                        <td className="px-5 py-4">
+                          <p className="text-sm font-medium text-gray-900">
                             {
                               request.trainingProgramName
                             }
                           </p>
+
+                          <p className="mt-1 text-xs text-gray-500">
+                            Batch:{" "}
+                            {
+                              request.batchCode
+                            }
+                          </p>
                         </td>
 
-                        {/* DATE RANGE */}
+                        {/* REPORT */}
 
-                        <td className="px-4 py-4">
-                          <span className="text-sm text-gray-700">
-                            {formatDateRange(
-                              request.dateFrom,
-                              request.dateTo
+                        <td className="px-5 py-4">
+                          <span className="inline-flex items-center gap-1.5 rounded-md bg-[#002b5c]/5 px-2.5 py-1 text-xs font-medium text-[#002b5c]">
+                            <FileText className="h-3.5 w-3.5" />
+
+                            {getReportTypeLabel(
+                              request.reportType
                             )}
                           </span>
                         </td>
 
+                        {/* DATE RANGE */}
+
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <CalendarDays className="h-4 w-4 text-gray-400" />
+
+                            <span>
+                              {formatDate(
+                                request.dateFrom
+                              )}{" "}
+                              –{" "}
+                              {formatDate(
+                                request.dateTo
+                              )}
+                            </span>
+                          </div>
+                        </td>
+
                         {/* REQUESTED */}
 
-                        <td className="px-4 py-4">
-                          <span className="text-sm text-gray-700">
+                        <td className="px-5 py-4">
+                          <span className="text-sm text-gray-600">
                             {formatDate(
                               request.requestedAt
                             )}
@@ -656,9 +1213,9 @@ export default function AdminReportRequestsPage() {
 
                         {/* STATUS */}
 
-                        <td className="px-4 py-4">
+                        <td className="px-5 py-4">
                           <span
-                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusClasses(
+                            className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${getStatusClasses(
                               request.status
                             )}`}
                           >
@@ -670,66 +1227,60 @@ export default function AdminReportRequestsPage() {
 
                         {/* ACTION */}
 
-                        <td className="px-4 py-4">
+                        <td className="px-5 py-4">
                           <div className="flex justify-end gap-2">
-
                             {request.status ===
-                              "Pending" && (
+                            "Pending" ? (
                               <>
                                 <button
                                   type="button"
+                                  disabled={
+                                    isProcessing ||
+                                    generatingReport
+                                  }
                                   onClick={() =>
                                     openReview(
                                       request,
                                       "approve"
                                     )
                                   }
-                                  disabled={
-                                    isProcessing
-                                  }
-                                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#002b5c] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#0d2142] disabled:cursor-not-allowed disabled:opacity-50"
+                                  className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-2 text-xs font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
-                                  {isProcessing ? (
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                  ) : (
-                                    <CheckCircle2 className="h-3.5 w-3.5" />
-                                  )}
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
 
                                   Approve
                                 </button>
 
                                 <button
                                   type="button"
+                                  disabled={
+                                    isProcessing ||
+                                    generatingReport
+                                  }
                                   onClick={() =>
                                     openReview(
                                       request,
                                       "reject"
                                     )
                                   }
-                                  disabled={
-                                    isProcessing
-                                  }
-                                  className="inline-flex items-center gap-1.5 rounded-xl bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                  className="inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-white px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                   <XCircle className="h-3.5 w-3.5" />
 
                                   Reject
                                 </button>
                               </>
-                            )}
-
-                            {request.status !==
-                              "Pending" && (
+                            ) : (
                               <button
                                 type="button"
                                 onClick={() =>
-                                  setSelectedRequest(
+                                  openView(
                                     request
                                   )
                                 }
-                                className="inline-flex items-center gap-1.5 rounded-xl bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-[#eef4f8] hover:text-[#002b5c]"
+                                className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
                               >
-                                <FileText className="h-3.5 w-3.5" />
+                                <Eye className="h-3.5 w-3.5" />
 
                                 View
                               </button>
@@ -743,21 +1294,57 @@ export default function AdminReportRequestsPage() {
               </tbody>
             </table>
           </div>
-        )}
+        </div>
+
+        {/* ====================================================
+            RESULT COUNT
+        ==================================================== */}
+
+        <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
+          <span>
+            Showing{" "}
+            <span className="font-medium text-gray-700">
+              {
+                filteredRequests.length
+              }
+            </span>{" "}
+            of{" "}
+            <span className="font-medium text-gray-700">
+              {requests.length}
+            </span>{" "}
+            requests
+          </span>
+
+          <button
+            type="button"
+            onClick={() =>
+              void loadRequests()
+            }
+            disabled={
+              loading ||
+              generatingReport
+            }
+            className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 font-medium text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {loading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              "Refresh"
+            )}
+          </button>
+        </div>
       </PageSection>
 
-      {/* =====================================================
+      {/* ======================================================
           REVIEW MODAL
-      ===================================================== */}
+      ====================================================== */}
 
-      {selectedRequest &&
+      {showReviewModal &&
+        selectedRequest &&
         reviewMode && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
-            <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl">
-
-              {/* HEADER */}
-
-              <div className="flex items-start justify-between px-6 py-5">
+          <div className="fixed inset-0 z-999 flex items-center justify-center bg-black/40 p-4">
+            <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+              <div className="flex items-start justify-between border-b border-gray-100 px-6 py-5">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">
                     {reviewMode ===
@@ -767,7 +1354,13 @@ export default function AdminReportRequestsPage() {
                   </h2>
 
                   <p className="mt-1 text-sm text-gray-500">
-                    Review the request before submitting your decision.
+                    {
+                      selectedRequest.trainerName
+                    }{" "}
+                    •{" "}
+                    {
+                      selectedRequest.reportType
+                    }
                   </p>
                 </div>
 
@@ -776,122 +1369,148 @@ export default function AdminReportRequestsPage() {
                   onClick={
                     closeReview
                   }
-                  className="text-gray-400 transition hover:text-gray-700"
+                  disabled={
+                    generatingReport
+                  }
+                  className="rounded-md p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 disabled:opacity-50"
                 >
-                  ×
+                  <XCircle className="h-5 w-5" />
                 </button>
               </div>
 
-              {/* DETAILS */}
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+  <div className="space-y-5">
+                <div className="rounded-lg bg-gray-50 p-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs font-medium text-gray-400">
+                        Trainer
+                      </p>
 
-              <div className="mx-6 rounded-xl bg-[#f7f9fb] p-4">
-                <div className="grid grid-cols-2 gap-4">
+                      <p className="mt-1 text-sm font-medium text-gray-900">
+                        {
+                          selectedRequest.trainerName
+                        }
+                      </p>
+                    </div>
 
-                  <div>
-                    <p className="text-xs text-gray-500">
-                      Trainer
-                    </p>
+                    <div>
+                      <p className="text-xs font-medium text-gray-400">
+                        Trainer Code
+                      </p>
 
-                    <p className="mt-1 text-sm font-semibold text-gray-900">
-                      {
-                        selectedRequest.trainerName
-                      }
-                    </p>
-                  </div>
+                      <p className="mt-1 text-sm font-medium text-gray-900">
+                        {
+                          selectedRequest.trainerCode
+                        }
+                      </p>
+                    </div>
 
-                  <div>
-                    <p className="text-xs text-gray-500">
-                      Report
-                    </p>
+                    <div>
+                      <p className="text-xs font-medium text-gray-400">
+                        Batch
+                      </p>
 
-                    <p className="mt-1 text-sm font-semibold text-gray-900">
-                      {reportTypeLabel(
-                        selectedRequest.reportType
-                      )}
-                    </p>
-                  </div>
+                      <p className="mt-1 text-sm font-medium text-gray-900">
+                        {
+                          selectedRequest.batchCode
+                        }
+                      </p>
+                    </div>
 
-                  <div>
-                    <p className="text-xs text-gray-500">
-                      Batch
-                    </p>
+                    <div>
+                      <p className="text-xs font-medium text-gray-400">
+                        Report
+                      </p>
 
-                    <p className="mt-1 text-sm font-semibold text-gray-900">
-                      {
-                        selectedRequest.batchCode
-                      }
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-xs text-gray-500">
-                      Date Range
-                    </p>
-
-                    <p className="mt-1 text-sm font-semibold text-gray-900">
-                      {formatDateRange(
-                        selectedRequest.dateFrom,
-                        selectedRequest.dateTo
-                      )}
-                    </p>
+                      <p className="mt-1 text-sm font-medium text-gray-900">
+                        {getReportTypeLabel(
+                          selectedRequest.reportType
+                        )}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
                 {selectedRequest.reason && (
-                  <div className="mt-4">
-                    <p className="text-xs text-gray-500">
-                      Trainer Reason
-                    </p>
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Trainer's Reason
+                    </label>
 
-                    <p className="mt-1 text-sm leading-6 text-gray-700">
+                    <div className="mt-2 rounded-lg border border-gray-200 bg-white p-3 text-sm text-gray-700">
                       {
                         selectedRequest.reason
                       }
-                    </p>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label
+                    htmlFor="adminRemarks"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Admin Remarks
+                  </label>
+
+                  <textarea
+                    id="adminRemarks"
+                    value={
+                      remarks
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setRemarks(
+                        event.target
+                          .value
+                      )
+                    }
+                    rows={4}
+                    disabled={
+                      generatingReport
+                    }
+                    placeholder={
+                      reviewMode ===
+                      "approve"
+                        ? "Add optional remarks about this approval..."
+                        : "Enter the reason for rejecting this request..."
+                    }
+                    className="mt-2 w-full resize-none rounded-lg border border-gray-200 px-3 py-2.5 text-sm outline-none transition focus:border-[#3B7597] focus:ring-2 focus:ring-[#3B7597]/20 disabled:bg-gray-50"
+                  />
+                </div>
+
+                {reviewMode ===
+                  "approve" && (
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                    <div className="flex gap-3">
+                      <FileText className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
+
+                      <div>
+                        <p className="text-sm font-semibold text-blue-800">
+                          Report will be generated automatically
+                        </p>
+
+                        <p className="mt-1 text-xs leading-5 text-blue-700">
+                          The system will retrieve the requested report data, generate the PDF, and upload it with this approval.
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* REMARKS */}
-
-              <div className="px-6 py-5">
-                <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-800">
-                  <MessageSquareText className="h-4 w-4" />
-
-                  Admin Remarks
-                </label>
-
-                <textarea
-                  value={remarks}
-                  onChange={event =>
-                    setRemarks(
-                      event.target.value
-                    )
-                  }
-                  rows={4}
-                  placeholder={
-                    reviewMode ===
-                    "approve"
-                      ? "Add instructions or remarks for the trainer..."
-                      : "Explain why the request is being rejected..."
-                  }
-                  className="w-full resize-none rounded-xl bg-[#f7f9fb] px-4 py-3 text-sm text-gray-900 outline-none ring-1 ring-transparent transition focus:bg-white focus:ring-[#6FD1D7]"
-                />
-              </div>
-
-              {/* FOOTER */}
-
-              <div className="flex justify-end gap-3 px-6 pb-6">
+              <div className="flex justify-end gap-3 border-t border-gray-100 px-6 py-4">
                 <button
                   type="button"
                   onClick={
                     closeReview
                   }
                   disabled={
-                    processingId ===
-                    selectedRequest.id
+                    generatingReport
                   }
-                  className="rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-200 disabled:opacity-50"
+                  className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -902,178 +1521,180 @@ export default function AdminReportRequestsPage() {
                     void handleReview()
                   }
                   disabled={
+                    generatingReport ||
                     processingId ===
-                    selectedRequest.id
+                      selectedRequest.id
                   }
-                  className={
+                  className={`inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-50 ${
                     reviewMode ===
                     "approve"
-                      ? "inline-flex items-center gap-2 rounded-xl bg-[#002b5c] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#0d2142] disabled:cursor-not-allowed disabled:opacity-50"
-                      : "inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  }
+                      ? "bg-emerald-600 hover:bg-emerald-700"
+                      : "bg-red-600 hover:bg-red-700"
+                  }`}
                 >
-                  {processingId ===
-                  selectedRequest.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : reviewMode ===
-                    "approve" ? (
-                    <CheckCircle2 className="h-4 w-4" />
-                  ) : (
-                    <XCircle className="h-4 w-4" />
-                  )}
+                  {generatingReport ||
+                  processingId ===
+                    selectedRequest.id ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
 
-                  {reviewMode ===
-                  "approve"
-                    ? "Approve Request"
-                    : "Reject Request"}
+                      {reviewMode ===
+                      "approve"
+                        ? "Generating Report..."
+                        : "Rejecting..."}
+                    </>
+                  ) : (
+                    <>
+                      {reviewMode ===
+                      "approve" ? (
+                        <CheckCircle2 className="h-4 w-4" />
+                      ) : (
+                        <XCircle className="h-4 w-4" />
+                      )}
+
+                      {reviewMode ===
+                      "approve"
+                        ? "Approve & Generate"
+                        : "Reject Request"}
+                    </>
+                  )}
                 </button>
               </div>
             </div>
           </div>
+          </div>
         )}
 
-      {/* =====================================================
+      {/* ======================================================
           VIEW MODAL
-      ===================================================== */}
+      ====================================================== */}
 
-      {selectedRequest &&
-        !reviewMode && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
-            <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl">
-
-              <div className="flex items-start justify-between px-6 py-5">
+      {showViewModal &&
+        selectedRequest && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="w-full max-w-lg rounded-xl bg-white shadow-2xl">
+              <div className="flex items-start justify-between border-b border-gray-100 px-6 py-5">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">
                     Report Request Details
                   </h2>
 
                   <p className="mt-1 text-sm text-gray-500">
-                    Request information and review details.
+                    {
+                      selectedRequest.trainerName
+                    }
                   </p>
                 </div>
 
                 <button
                   type="button"
-                  onClick={() =>
-                    setSelectedRequest(
-                      null
-                    )
+                  onClick={
+                    closeView
                   }
-                  className="text-gray-400 transition hover:text-gray-700"
+                  className="rounded-md p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
                 >
-                  ×
+                  <XCircle className="h-5 w-5" />
                 </button>
               </div>
 
-              <div className="space-y-4 px-6 pb-6">
+              <div className="space-y-5 px-6 py-5">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs font-medium text-gray-400">
+                      Trainer
+                    </p>
 
-                <div className="rounded-xl bg-[#f7f9fb] p-4">
-                  <div className="grid grid-cols-2 gap-4">
+                    <p className="mt-1 text-sm font-medium text-gray-900">
+                      {
+                        selectedRequest.trainerName
+                      }
+                    </p>
+                  </div>
 
-                    <div>
-                      <p className="text-xs text-gray-500">
-                        Trainer
-                      </p>
+                  <div>
+                    <p className="text-xs font-medium text-gray-400">
+                      Trainer Code
+                    </p>
 
-                      <p className="mt-1 text-sm font-semibold text-gray-900">
-                        {
-                          selectedRequest.trainerName
-                        }
-                      </p>
+                    <p className="mt-1 text-sm font-medium text-gray-900">
+                      {
+                        selectedRequest.trainerCode
+                      }
+                    </p>
+                  </div>
 
-                      <p className="text-xs text-gray-500">
-                        {
-                          selectedRequest.trainerCode
-                        }
-                      </p>
-                    </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-400">
+                      Training Batch
+                    </p>
 
-                    <div>
-                      <p className="text-xs text-gray-500">
-                        Status
-                      </p>
+                    <p className="mt-1 text-sm font-medium text-gray-900">
+                      {
+                        selectedRequest.batchCode
+                      }
+                    </p>
+                  </div>
 
-                      <span
-                        className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusClasses(
-                          selectedRequest.status
-                        )}`}
-                      >
-                        {
-                          selectedRequest.status
-                        }
-                      </span>
-                    </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-400">
+                      Report Type
+                    </p>
 
-                    <div>
-                      <p className="text-xs text-gray-500">
-                        Report
-                      </p>
+                    <p className="mt-1 text-sm font-medium text-gray-900">
+                      {getReportTypeLabel(
+                        selectedRequest.reportType
+                      )}
+                    </p>
+                  </div>
 
-                      <p className="mt-1 text-sm font-semibold text-gray-900">
-                        {reportTypeLabel(
-                          selectedRequest.reportType
-                        )}
-                      </p>
-                    </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-400">
+                      Requested
+                    </p>
 
-                    <div>
-                      <p className="text-xs text-gray-500">
-                        Batch
-                      </p>
+                    <p className="mt-1 text-sm font-medium text-gray-900">
+                      {formatDateTime(
+                        selectedRequest.requestedAt
+                      )}
+                    </p>
+                  </div>
 
-                      <p className="mt-1 text-sm font-semibold text-gray-900">
-                        {
-                          selectedRequest.batchCode
-                        }
-                      </p>
-                    </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-400">
+                      Reviewed
+                    </p>
+
+                    <p className="mt-1 text-sm font-medium text-gray-900">
+                      {formatDateTime(
+                        selectedRequest.reviewedAt
+                      )}
+                    </p>
                   </div>
                 </div>
 
                 <div>
-                  <p className="text-xs text-gray-500">
-                    Training Program
+                  <p className="text-xs font-medium text-gray-400">
+                    Status
                   </p>
 
-                  <p className="mt-1 text-sm text-gray-800">
+                  <span
+                    className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${getStatusClasses(
+                      selectedRequest.status
+                    )}`}
+                  >
                     {
-                      selectedRequest.trainingProgramName
+                      selectedRequest.status
                     }
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-xs text-gray-500">
-                    Requested
-                  </p>
-
-                  <p className="mt-1 text-sm text-gray-800">
-                    {formatDate(
-                      selectedRequest.requestedAt
-                    )}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-xs text-gray-500">
-                    Date Range
-                  </p>
-
-                  <p className="mt-1 text-sm text-gray-800">
-                    {formatDateRange(
-                      selectedRequest.dateFrom,
-                      selectedRequest.dateTo
-                    )}
-                  </p>
+                  </span>
                 </div>
 
                 {selectedRequest.reason && (
                   <div>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs font-medium text-gray-400">
                       Trainer Reason
                     </p>
 
-                    <p className="mt-1 text-sm leading-6 text-gray-800">
+                    <p className="mt-1 rounded-lg bg-gray-50 p-3 text-sm text-gray-700">
                       {
                         selectedRequest.reason
                       }
@@ -1083,11 +1704,11 @@ export default function AdminReportRequestsPage() {
 
                 {selectedRequest.adminRemarks && (
                   <div>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs font-medium text-gray-400">
                       Admin Remarks
                     </p>
 
-                    <p className="mt-1 text-sm leading-6 text-gray-800">
+                    <p className="mt-1 rounded-lg bg-gray-50 p-3 text-sm text-gray-700">
                       {
                         selectedRequest.adminRemarks
                       }
@@ -1095,20 +1716,57 @@ export default function AdminReportRequestsPage() {
                   </div>
                 )}
 
-                {selectedRequest.reportFileUrl && (
-                  <a
-                    href={
-                      selectedRequest.reportFileUrl
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 rounded-xl bg-[#002b5c] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#0d2142]"
-                  >
-                    <FileText className="h-4 w-4" />
+                {selectedRequest.reportFileUrl ? (
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white text-emerald-600">
+                          <FileText className="h-5 w-5" />
+                        </div>
 
-                    View Report
-                  </a>
+                        <div>
+                          <p className="text-sm font-semibold text-emerald-800">
+                            Generated Report
+                          </p>
+
+                          <p className="text-xs text-emerald-700">
+                            PDF report is available.
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleDownload(
+                            selectedRequest
+                          )
+                        }
+                        className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-2 text-xs font-medium text-white transition hover:bg-emerald-700"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+
+                        Open PDF
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
+                    No generated report file is available.
+                  </div>
                 )}
+              </div>
+
+              <div className="flex justify-end border-t border-gray-100 px-6 py-4">
+                <button
+                  type="button"
+                  onClick={
+                    closeView
+                  }
+                  className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                >
+                  Close
+                </button>
               </div>
             </div>
           </div>

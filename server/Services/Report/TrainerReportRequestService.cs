@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 using server.Data;
@@ -5,6 +6,7 @@ using server.DTOs.Trainer;
 using server.Enums;
 using server.Interfaces.Trainer;
 using server.Models.Trainer;
+using server.Services.Interfaces;
 
 namespace server.Services.Trainer;
 
@@ -12,11 +14,14 @@ public class TrainerReportRequestService
     : ITrainerReportRequestService
 {
     private readonly ApplicationDbContext _db;
+    private readonly ICloudinaryService _cloudinaryService;
 
     public TrainerReportRequestService(
-        ApplicationDbContext db)
+        ApplicationDbContext db,
+        ICloudinaryService cloudinaryService)
     {
         _db = db;
+        _cloudinaryService = cloudinaryService;
     }
 
 
@@ -74,6 +79,11 @@ public class TrainerReportRequestService
                     reportType,
                     StringComparison.OrdinalIgnoreCase));
 
+
+        // =====================================================
+        // CHECK TRAINER ASSIGNMENT
+        // =====================================================
+
         var assignment =
             await _db.TrainerAssignments
                 .AsNoTracking()
@@ -95,6 +105,7 @@ public class TrainerReportRequestService
             throw new UnauthorizedAccessException(
                 "You are not assigned to this training batch.");
         }
+
 
         // =====================================================
         // NORMALIZE DATE VALUES TO UTC
@@ -128,6 +139,7 @@ public class TrainerReportRequestService
                 "Date From cannot be later than Date To.");
         }
 
+
         // =====================================================
         // CHECK DUPLICATE PENDING REQUEST
         // =====================================================
@@ -153,6 +165,7 @@ public class TrainerReportRequestService
             throw new InvalidOperationException(
                 "You already have a pending request for this report.");
         }
+
 
         // =====================================================
         // CREATE REQUEST
@@ -286,16 +299,21 @@ public class TrainerReportRequestService
 
     // =========================================================
     // ADMIN
-    // APPROVE
+    // APPROVE + GENERATE REPORT
     // =========================================================
 
     public async Task<
         AdminTrainerReportRequestDto>
-        ApproveAsync(
+        ApproveAndGenerateAsync(
             Guid adminUserId,
             Guid requestId,
-            ReviewTrainerReportRequestDto dto)
+            IFormFile file,
+            string? adminRemarks)
     {
+        // =====================================================
+        // FIND REQUEST
+        // =====================================================
+
         var request =
             await _db.TrainerReportRequests
                 .Include(x =>
@@ -305,13 +323,19 @@ public class TrainerReportRequestService
                     .ThenInclude(x =>
                         x.TrainingProgram)
                 .FirstOrDefaultAsync(
-                    x => x.Id == requestId);
+                    x =>
+                        x.Id == requestId);
 
         if (request == null)
         {
             throw new InvalidOperationException(
                 "Report request was not found.");
         }
+
+
+        // =====================================================
+        // ONLY PENDING REQUESTS CAN BE PROCESSED
+        // =====================================================
 
         if (
             request.Status !=
@@ -321,22 +345,130 @@ public class TrainerReportRequestService
                 "Only pending report requests can be approved.");
         }
 
-        request.Status =
-            TrainerReportRequestStatus.Approved;
 
-        request.ReviewedAt =
-            DateTime.UtcNow;
+        // =====================================================
+        // VALIDATE FILE
+        // =====================================================
 
-        request.ReviewedByUserId =
-            adminUserId;
+        if (file == null)
+        {
+            throw new InvalidOperationException(
+                "Generated report PDF is required.");
+        }
 
-        request.AdminRemarks =
-            string.IsNullOrWhiteSpace(
-                dto.AdminRemarks)
-                ? null
-                : dto.AdminRemarks.Trim();
+        if (file.Length <= 0)
+        {
+            throw new InvalidOperationException(
+                "The generated report PDF is empty.");
+        }
 
-        await _db.SaveChangesAsync();
+
+        var extension =
+            Path.GetExtension(
+                file.FileName);
+
+        if (
+            string.IsNullOrWhiteSpace(extension) ||
+            !extension.Equals(
+                ".pdf",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "Only PDF report files are allowed.");
+        }
+
+
+        if (
+            !string.IsNullOrWhiteSpace(file.ContentType) &&
+            !file.ContentType.Equals(
+                "application/pdf",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "The uploaded report must be a PDF file.");
+        }
+
+
+        // =====================================================
+        // UPLOAD GENERATED PDF TO CLOUDINARY
+        // =====================================================
+
+        (string Url, string PublicId) upload;
+
+        try
+        {
+            await using var stream =
+                file.OpenReadStream();
+
+            upload =
+                await _cloudinaryService
+                    .UploadDocumentAsync(
+                        stream,
+                        file.FileName,
+                        "ace-nextgen/reports");
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException(
+                $"Failed to upload the generated report: {ex.Message}",
+                ex);
+        }
+
+
+        // =====================================================
+        // SAVE REPORT INFORMATION
+        // =====================================================
+
+        try
+        {
+            request.Status =
+                TrainerReportRequestStatus.Approved;
+
+            request.ReportFileUrl =
+                upload.Url;
+
+            request.ReviewedAt =
+                DateTime.UtcNow;
+
+            request.ReviewedByUserId =
+                adminUserId;
+
+            request.AdminRemarks =
+                string.IsNullOrWhiteSpace(
+                    adminRemarks)
+                    ? null
+                    : adminRemarks.Trim();
+
+            await _db.SaveChangesAsync();
+        }
+        catch
+        {
+            // If database saving fails after Cloudinary upload,
+            // attempt to remove the orphaned Cloudinary file.
+
+            try
+            {
+                if (
+                    !string.IsNullOrWhiteSpace(
+                        upload.PublicId))
+                {
+                    await _cloudinaryService
+                        .DeleteDocumentAsync(
+                            upload.PublicId);
+                }
+            }
+            catch
+            {
+                // Do not hide the original database exception.
+            }
+
+            throw;
+        }
+
+
+        // =====================================================
+        // RETURN UPDATED REQUEST
+        // =====================================================
 
         return MapToAdminDto(
             request);
@@ -364,7 +496,8 @@ public class TrainerReportRequestService
                     .ThenInclude(x =>
                         x.TrainingProgram)
                 .FirstOrDefaultAsync(
-                    x => x.Id == requestId);
+                    x =>
+                        x.Id == requestId);
 
         if (request == null)
         {
@@ -379,6 +512,11 @@ public class TrainerReportRequestService
             throw new InvalidOperationException(
                 "Only pending report requests can be rejected.");
         }
+
+
+        // =====================================================
+        // UPDATE STATUS
+        // =====================================================
 
         request.Status =
             TrainerReportRequestStatus.Rejected;
@@ -396,6 +534,7 @@ public class TrainerReportRequestService
                 : dto.AdminRemarks.Trim();
 
         await _db.SaveChangesAsync();
+
 
         return MapToAdminDto(
             request);
@@ -468,13 +607,13 @@ public class TrainerReportRequestService
             request.TrainerProfile?.ActivatedAt.HasValue == true
                 ? $"{request.TrainerProfile.FirstName} {request.TrainerProfile.LastName}"
                 : string.Empty;
-       
+
 
         var trainerCode =
             request.TrainerProfile?.ActivatedAt.HasValue == true
                 ? request.TrainerProfile.UserId.ToString()
-                :
-                string.Empty;
+                : string.Empty;
+
 
         return new AdminTrainerReportRequestDto
         {

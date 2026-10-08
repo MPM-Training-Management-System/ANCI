@@ -29,8 +29,15 @@ import type {
   ServiceRequestReportItem,
 } from "@repo/types";
 
-import { useReports } from "@repo/hooks";
-import { reportApi } from "@/lib/api";
+import {
+  useReports,
+  useTrainingGrade,
+} from "@repo/hooks";
+
+import {
+  api,
+  reportApi,
+} from "@/lib/api";
 
 import ReportExportButton from "@/components/reports/ReportExportButton";
 
@@ -74,6 +81,12 @@ const reportTabs: {
       "Review written assessment performance and results.",
   },
   {
+    id: "grade-calculation",
+    label: "Grade Calculation",
+    description:
+      "Review computed training grades, passing results, and participant performance.",
+  },
+  {
     id: "certificates",
     label: "Certificates",
     description:
@@ -98,6 +111,10 @@ const reportTabs: {
 // =========================================================
 
 export default function ReportsPage() {
+  // =======================================================
+  // NORMAL REPORT HOOK
+  // =======================================================
+
   const {
     overview,
     trainingCompletion,
@@ -122,6 +139,17 @@ export default function ReportsPage() {
   } = useReports(reportApi);
 
   // =======================================================
+  // GRADE CALCULATION HOOK
+  // =======================================================
+
+  const {
+    grades,
+    isLoading: gradeLoading,
+    error: gradeError,
+    loadAllGrades,
+  } = useTrainingGrade(api);
+
+  // =======================================================
   // STATE
   // =======================================================
 
@@ -142,6 +170,10 @@ export default function ReportsPage() {
 
   const [page, setPage] =
     useState(1);
+
+  // Grade-specific batch filter
+  const [gradeBatchFilter, setGradeBatchFilter] =
+    useState("all");
 
   const pageSize = 10;
 
@@ -165,11 +197,29 @@ export default function ReportsPage() {
     setStatus("All");
     setDateFrom("");
     setDateTo("");
+    setGradeBatchFilter("all");
+
+    // -------------------------------------------------------
+    // OVERVIEW
+    // -------------------------------------------------------
 
     if (activeReport === "overview") {
       getOverview().catch(() => {});
       return;
     }
+
+    // -------------------------------------------------------
+    // GRADE CALCULATION
+    // -------------------------------------------------------
+
+    if (activeReport === "grade-calculation") {
+      loadAllGrades().catch(() => {});
+      return;
+    }
+
+    // -------------------------------------------------------
+    // NORMAL REPORT FILTER
+    // -------------------------------------------------------
 
     const filter: ReportFilter = {
       page: 1,
@@ -219,6 +269,7 @@ export default function ReportsPage() {
     getCertificates,
     getTrainers,
     getServiceRequests,
+    loadAllGrades,
   ]);
 
   // =======================================================
@@ -228,6 +279,159 @@ export default function ReportsPage() {
   const activeTab = reportTabs.find(
     tab => tab.id === activeReport
   );
+
+  // =======================================================
+  // IS GRADE REPORT
+  // =======================================================
+
+  const isGradeReport =
+    activeReport === "grade-calculation";
+
+  // =======================================================
+  // GRADE BATCHES
+  // =======================================================
+
+  const gradeBatches = useMemo(() => {
+    return Array.from(
+      new Set(
+        (grades ?? [])
+          .map(
+            (grade: any) =>
+              grade.batchCode
+          )
+          .filter(Boolean)
+      )
+    ).sort();
+  }, [grades]);
+
+  // =======================================================
+  // FILTERED GRADES
+  // =======================================================
+
+  const filteredGrades = useMemo(() => {
+    const keyword =
+      search
+        .trim()
+        .toLowerCase();
+
+    return (grades ?? []).filter(
+      (grade: any) => {
+        const participantName =
+          String(
+            grade.participantName ??
+              ""
+          ).toLowerCase();
+
+        const batchCode =
+          String(
+            grade.batchCode ??
+              ""
+          ).toLowerCase();
+
+        const matchesSearch =
+          !keyword ||
+          participantName.includes(
+            keyword
+          ) ||
+          batchCode.includes(
+            keyword
+          );
+
+        const matchesBatch =
+          gradeBatchFilter ===
+            "all" ||
+          grade.batchCode ===
+            gradeBatchFilter;
+
+        return (
+          matchesSearch &&
+          matchesBatch
+        );
+      }
+    );
+  }, [
+    grades,
+    search,
+    gradeBatchFilter,
+  ]);
+
+  // =======================================================
+  // GRADE STATISTICS
+  // =======================================================
+
+  const gradeTotalParticipants =
+    filteredGrades.length;
+
+  const gradePassedCount =
+    filteredGrades.filter(
+      (grade: any) =>
+        Boolean(grade.isPassed)
+    ).length;
+
+  const gradeFailedCount =
+    gradeTotalParticipants -
+    gradePassedCount;
+
+  const gradeAverage =
+    gradeTotalParticipants > 0
+      ? filteredGrades.reduce(
+          (
+            sum: number,
+            grade: any
+          ) =>
+            sum +
+            Number(
+              grade.overallGrade ??
+                0
+            ),
+          0
+        ) /
+        gradeTotalParticipants
+      : 0;
+
+  // =======================================================
+  // GRADE REPORT DATA FOR PDF
+  // =======================================================
+
+  const gradeReportData = useMemo(() => {
+    if (!isGradeReport) {
+      return null;
+    }
+
+    return {
+      reportType:
+        "grade-calculation",
+
+      totalParticipants:
+        gradeTotalParticipants,
+
+      passedCount:
+        gradePassedCount,
+
+      failedCount:
+        gradeFailedCount,
+
+      averageGrade:
+        gradeAverage,
+
+      results: {
+        items: filteredGrades,
+        page: 1,
+        pageSize:
+          filteredGrades.length || 1,
+        totalCount:
+          filteredGrades.length,
+        totalPages: 1,
+      },
+    };
+  }, [
+    isGradeReport,
+    gradeTotalParticipants,
+    gradePassedCount,
+    gradeFailedCount,
+    gradeAverage,
+    filteredGrades,
+  ]);
 
   // =======================================================
   // FILTER OPTIONS
@@ -309,17 +513,26 @@ export default function ReportsPage() {
         search.trim();
     }
 
-    if (status !== "All") {
+    if (
+      !isGradeReport &&
+      status !== "All"
+    ) {
       filter.status =
         status;
     }
 
-    if (dateFrom) {
+    if (
+      !isGradeReport &&
+      dateFrom
+    ) {
       filter.dateFrom =
         dateFrom;
     }
 
-    if (dateTo) {
+    if (
+      !isGradeReport &&
+      dateTo
+    ) {
       filter.dateTo =
         dateTo;
     }
@@ -332,6 +545,7 @@ export default function ReportsPage() {
     status,
     dateFrom,
     dateTo,
+    isGradeReport,
   ]);
 
   // =======================================================
@@ -355,6 +569,9 @@ export default function ReportsPage() {
       case "assessment-results":
         return assessmentResults;
 
+      case "grade-calculation":
+        return gradeReportData;
+
       case "certificates":
         return certificates;
 
@@ -374,6 +591,7 @@ export default function ReportsPage() {
     enrollments,
     attendance,
     assessmentResults,
+    gradeReportData,
     certificates,
     trainers,
     serviceRequests,
@@ -392,6 +610,12 @@ export default function ReportsPage() {
   // =======================================================
 
   function applyFilters() {
+    // Grade Calculation uses client-side filtering.
+    if (activeReport === "grade-calculation") {
+      setPage(1);
+      return;
+    }
+
     const filter: ReportFilter = {
       ...currentFilter,
       page: 1,
@@ -400,38 +624,73 @@ export default function ReportsPage() {
 
     setPage(1);
 
-    if (activeReport === "training-completion") {
-      getTrainingCompletion(filter).catch(() => {});
+    if (
+      activeReport ===
+      "training-completion"
+    ) {
+      getTrainingCompletion(
+        filter
+      ).catch(() => {});
       return;
     }
 
-    if (activeReport === "enrollments") {
-      getEnrollments(filter).catch(() => {});
+    if (
+      activeReport ===
+      "enrollments"
+    ) {
+      getEnrollments(
+        filter
+      ).catch(() => {});
       return;
     }
 
-    if (activeReport === "attendance") {
-      getAttendance(filter).catch(() => {});
+    if (
+      activeReport ===
+      "attendance"
+    ) {
+      getAttendance(
+        filter
+      ).catch(() => {});
       return;
     }
 
-    if (activeReport === "assessment-results") {
-      getAssessmentResults(filter).catch(() => {});
+    if (
+      activeReport ===
+      "assessment-results"
+    ) {
+      getAssessmentResults(
+        filter
+      ).catch(() => {});
       return;
     }
 
-    if (activeReport === "certificates") {
-      getCertificates(filter).catch(() => {});
+    if (
+      activeReport ===
+      "certificates"
+    ) {
+      getCertificates(
+        filter
+      ).catch(() => {});
       return;
     }
 
-    if (activeReport === "trainers") {
-      getTrainers(filter).catch(() => {});
+    if (
+      activeReport ===
+      "trainers"
+    ) {
+      getTrainers(
+        filter
+      ).catch(() => {});
       return;
     }
 
-    if (activeReport === "service-requests") {
-      getServiceRequests(filter).catch(() => {});
+    if (
+      activeReport ===
+      "service-requests"
+    ) {
+      getServiceRequests(
+        filter
+      ).catch(() => {});
     }
   }
 
@@ -444,45 +703,86 @@ export default function ReportsPage() {
     setStatus("All");
     setDateFrom("");
     setDateTo("");
+    setGradeBatchFilter("all");
     setPage(1);
+
+    // Grade Calculation is client-side.
+    if (activeReport === "grade-calculation") {
+      return;
+    }
 
     const filter: ReportFilter = {
       page: 1,
       pageSize,
     };
 
-    if (activeReport === "training-completion") {
-      getTrainingCompletion(filter).catch(() => {});
+    if (
+      activeReport ===
+      "training-completion"
+    ) {
+      getTrainingCompletion(
+        filter
+      ).catch(() => {});
       return;
     }
 
-    if (activeReport === "enrollments") {
-      getEnrollments(filter).catch(() => {});
+    if (
+      activeReport ===
+      "enrollments"
+    ) {
+      getEnrollments(
+        filter
+      ).catch(() => {});
       return;
     }
 
-    if (activeReport === "attendance") {
-      getAttendance(filter).catch(() => {});
+    if (
+      activeReport ===
+      "attendance"
+    ) {
+      getAttendance(
+        filter
+      ).catch(() => {});
       return;
     }
 
-    if (activeReport === "assessment-results") {
-      getAssessmentResults(filter).catch(() => {});
+    if (
+      activeReport ===
+      "assessment-results"
+    ) {
+      getAssessmentResults(
+        filter
+      ).catch(() => {});
       return;
     }
 
-    if (activeReport === "certificates") {
-      getCertificates(filter).catch(() => {});
+    if (
+      activeReport ===
+      "certificates"
+    ) {
+      getCertificates(
+        filter
+      ).catch(() => {});
       return;
     }
 
-    if (activeReport === "trainers") {
-      getTrainers(filter).catch(() => {});
+    if (
+      activeReport ===
+      "trainers"
+    ) {
+      getTrainers(
+        filter
+      ).catch(() => {});
       return;
     }
 
-    if (activeReport === "service-requests") {
-      getServiceRequests(filter).catch(() => {});
+    if (
+      activeReport ===
+      "service-requests"
+    ) {
+      getServiceRequests(
+        filter
+      ).catch(() => {});
     }
   }
 
@@ -493,6 +793,14 @@ export default function ReportsPage() {
   function goToPage(
     nextPage: number
   ) {
+    // Grade Calculation has no server pagination.
+    if (
+      activeReport ===
+      "grade-calculation"
+    ) {
+      return;
+    }
+
     const filter: ReportFilter = {
       ...currentFilter,
       page: nextPage,
@@ -501,38 +809,73 @@ export default function ReportsPage() {
 
     setPage(nextPage);
 
-    if (activeReport === "training-completion") {
-      getTrainingCompletion(filter).catch(() => {});
+    if (
+      activeReport ===
+      "training-completion"
+    ) {
+      getTrainingCompletion(
+        filter
+      ).catch(() => {});
       return;
     }
 
-    if (activeReport === "enrollments") {
-      getEnrollments(filter).catch(() => {});
+    if (
+      activeReport ===
+      "enrollments"
+    ) {
+      getEnrollments(
+        filter
+      ).catch(() => {});
       return;
     }
 
-    if (activeReport === "attendance") {
-      getAttendance(filter).catch(() => {});
+    if (
+      activeReport ===
+      "attendance"
+    ) {
+      getAttendance(
+        filter
+      ).catch(() => {});
       return;
     }
 
-    if (activeReport === "assessment-results") {
-      getAssessmentResults(filter).catch(() => {});
+    if (
+      activeReport ===
+      "assessment-results"
+    ) {
+      getAssessmentResults(
+        filter
+      ).catch(() => {});
       return;
     }
 
-    if (activeReport === "certificates") {
-      getCertificates(filter).catch(() => {});
+    if (
+      activeReport ===
+      "certificates"
+    ) {
+      getCertificates(
+        filter
+      ).catch(() => {});
       return;
     }
 
-    if (activeReport === "trainers") {
-      getTrainers(filter).catch(() => {});
+    if (
+      activeReport ===
+      "trainers"
+    ) {
+      getTrainers(
+        filter
+      ).catch(() => {});
       return;
     }
 
-    if (activeReport === "service-requests") {
-      getServiceRequests(filter).catch(() => {});
+    if (
+      activeReport ===
+      "service-requests"
+    ) {
+      getServiceRequests(
+        filter
+      ).catch(() => {});
     }
   }
 
@@ -541,19 +884,26 @@ export default function ReportsPage() {
   // =======================================================
 
   const currentPagination =
-    activeReport === "training-completion"
+    activeReport ===
+    "training-completion"
       ? trainingCompletion?.results
-      : activeReport === "enrollments"
+      : activeReport ===
+          "enrollments"
         ? enrollments?.results
-        : activeReport === "attendance"
+        : activeReport ===
+            "attendance"
           ? attendance?.results
-          : activeReport === "assessment-results"
+          : activeReport ===
+              "assessment-results"
             ? assessmentResults?.results
-            : activeReport === "certificates"
+            : activeReport ===
+                "certificates"
               ? certificates?.results
-              : activeReport === "trainers"
+              : activeReport ===
+                  "trainers"
                 ? trainers?.results
-                : activeReport === "service-requests"
+                : activeReport ===
+                    "service-requests"
                   ? serviceRequests?.results
                   : null;
 
@@ -570,24 +920,38 @@ export default function ReportsPage() {
 
       <PageSection
         title="Reports & Analytics"
-        description="View training, enrollment, attendance, assessment, certificate, trainer, and service request reports across the ACE NextGen platform."
+        description="View training, enrollment, attendance, assessment, grade, certificate, trainer, and service request reports across the ACE NextGen platform."
       />
 
       {/* =================================================
           ERROR
       ================================================= */}
 
-      {error && (
-        <div className="rounded-2xl bg-red-50 p-4">
-          <p className="text-sm font-semibold text-red-800">
-            Unable to load report
-          </p>
+      {error &&
+        !isGradeReport && (
+          <div className="rounded-2xl bg-red-50 p-4">
+            <p className="text-sm font-semibold text-red-800">
+              Unable to load report
+            </p>
 
-          <p className="mt-1 text-xs text-red-600">
-            {error}
-          </p>
-        </div>
-      )}
+            <p className="mt-1 text-xs text-red-600">
+              {error}
+            </p>
+          </div>
+        )}
+
+      {isGradeReport &&
+        gradeError && (
+          <div className="rounded-2xl bg-red-50 p-4">
+            <p className="text-sm font-semibold text-red-800">
+              Unable to load grade calculation
+            </p>
+
+            <p className="mt-1 text-xs text-red-600">
+              {gradeError}
+            </p>
+          </div>
+        )}
 
       {/* =================================================
           REPORT NAVIGATION
@@ -595,16 +959,20 @@ export default function ReportsPage() {
 
       <div className="rounded-2xl bg-white p-2 shadow-sm">
         <div className="flex gap-1 overflow-x-auto">
+
           {reportTabs.map(tab => {
             const active =
-              activeReport === tab.id;
+              activeReport ===
+              tab.id;
 
             return (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() =>
-                  setActiveReport(tab.id)
+                  setActiveReport(
+                    tab.id
+                  )
                 }
                 className={
                   active
@@ -616,6 +984,7 @@ export default function ReportsPage() {
               </button>
             );
           })}
+
         </div>
       </div>
 
@@ -641,10 +1010,18 @@ export default function ReportsPage() {
           ============================================= */}
 
           <ReportExportButton
-            reportType={activeReport}
-            label={currentReportTitle}
-            report={currentReportData}
-            filter={currentFilter}
+            reportType={
+              activeReport
+            }
+            label={
+              currentReportTitle
+            }
+            report={
+              currentReportData as any
+            }
+            filter={
+              currentFilter
+            }
           />
 
         </div>
@@ -654,10 +1031,15 @@ export default function ReportsPage() {
           OVERVIEW
       ================================================= */}
 
-      {activeReport === "overview" && (
+      {activeReport ===
+        "overview" && (
         <OverviewReport
-          overview={overview}
-          loading={loading}
+          overview={
+            overview
+          }
+          loading={
+            loading
+          }
         />
       )}
 
@@ -665,11 +1047,27 @@ export default function ReportsPage() {
           FILTERS
       ================================================= */}
 
-      {activeReport !== "overview" && (
+      {activeReport !==
+        "overview" && (
         <div className="rounded-2xl bg-white p-5 shadow-sm">
+
           <div className="flex flex-col gap-4">
 
-            <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto]">
+            {/* ===========================================
+                MAIN FILTER ROW
+            =========================================== */}
+
+            <div
+              className={
+                isGradeReport
+                  ? "grid gap-3 lg:grid-cols-[1fr_auto_auto]"
+                  : "grid gap-3 lg:grid-cols-[1fr_auto_auto]"
+              }
+            >
+
+              {/* =========================================
+                  SEARCH
+              ========================================= */}
 
               <div>
                 <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
@@ -677,10 +1075,13 @@ export default function ReportsPage() {
                 </label>
 
                 <input
-                  value={search}
+                  value={
+                    search
+                  }
                   onChange={event =>
                     setSearch(
-                      event.target.value
+                      event.target
+                        .value
                     )
                   }
                   onKeyDown={event => {
@@ -692,53 +1093,116 @@ export default function ReportsPage() {
                     }
                   }}
                   placeholder={
-                    activeReport ===
-                    "trainers"
-                      ? "Search trainer..."
+                    isGradeReport
+                      ? "Search participant or batch..."
                       : activeReport ===
-                          "service-requests"
-                        ? "Search applicant or service..."
-                        : "Search participant, training, or batch..."
+                          "trainers"
+                        ? "Search trainer..."
+                        : activeReport ===
+                            "service-requests"
+                          ? "Search applicant or service..."
+                          : "Search participant, training, or batch..."
                   }
                   className="mt-2 h-10 w-full rounded-xl bg-gray-50 px-3 text-xs text-gray-700 outline-none transition focus:bg-white focus:ring-2 focus:ring-[#6FD1D7]/40"
                 />
               </div>
 
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                  Status
-                </label>
+              {/* =========================================
+                  GRADE BATCH FILTER
+              ========================================= */}
 
-                <Select
-                  value={status}
-                  onValueChange={
-                    setStatus
-                  }
-                >
-                  <SelectTrigger className="mt-2 h-10 w-full min-w-40">
-                    <SelectValue />
-                  </SelectTrigger>
+              {isGradeReport ? (
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    Batch
+                  </label>
 
-                  <SelectContent>
-                    {statusOptions.map(
-                      option => (
-                        <SelectItem
-                          key={
-                            option
-                          }
-                          value={
-                            option
-                          }
-                        >
-                          {option}
-                        </SelectItem>
-                      )
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
+                  <Select
+                    value={
+                      gradeBatchFilter
+                    }
+                    onValueChange={
+                      setGradeBatchFilter
+                    }
+                  >
+                    <SelectTrigger className="mt-2 h-10 w-full min-w-48">
+                      <SelectValue placeholder="All Batches" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+
+                      <SelectItem value="all">
+                        All Batches
+                      </SelectItem>
+
+                      {gradeBatches.map(
+                        batch => (
+                          <SelectItem
+                            key={
+                              batch
+                            }
+                            value={
+                              batch
+                            }
+                          >
+                            {batch}
+                          </SelectItem>
+                        )
+                      )}
+
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                /* =======================================
+                   NORMAL STATUS FILTER
+                ======================================= */
+
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    Status
+                  </label>
+
+                  <Select
+                    value={
+                      status
+                    }
+                    onValueChange={
+                      setStatus
+                    }
+                  >
+                    <SelectTrigger className="mt-2 h-10 w-full min-w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      {statusOptions.map(
+                        option => (
+                          <SelectItem
+                            key={
+                              option
+                            }
+                            value={
+                              option
+                            }
+                          >
+                            {
+                              option
+                            }
+                          </SelectItem>
+                        )
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* =========================================
+                  ACTION BUTTONS
+              ========================================= */}
 
               <div className="flex items-end gap-2">
+
                 <button
                   type="button"
                   onClick={
@@ -758,58 +1222,67 @@ export default function ReportsPage() {
                 >
                   Clear
                 </button>
+
               </div>
 
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 lg:max-w-md">
+            {/* ===========================================
+                DATE FILTERS
+            =========================================== */}
 
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                  Date From
-                </label>
+            {!isGradeReport && (
+              <div className="grid gap-3 sm:grid-cols-2 lg:max-w-md">
 
-                <input
-                  type="date"
-                  value={
-                    dateFrom
-                  }
-                  onChange={event =>
-                    setDateFrom(
-                      event.target.value
-                    )
-                  }
-                  className="mt-2 h-10 w-full rounded-xl bg-gray-50 px-3 text-xs text-gray-700 outline-none focus:bg-white focus:ring-2 focus:ring-[#6FD1D7]/40"
-                />
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    Date From
+                  </label>
+
+                  <input
+                    type="date"
+                    value={
+                      dateFrom
+                    }
+                    onChange={event =>
+                      setDateFrom(
+                        event.target
+                          .value
+                      )
+                    }
+                    className="mt-2 h-10 w-full rounded-xl bg-gray-50 px-3 text-xs text-gray-700 outline-none focus:bg-white focus:ring-2 focus:ring-[#6FD1D7]/40"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    Date To
+                  </label>
+
+                  <input
+                    type="date"
+                    value={
+                      dateTo
+                    }
+                    onChange={event =>
+                      setDateTo(
+                        event.target
+                          .value
+                      )
+                    }
+                    className="mt-2 h-10 w-full rounded-xl bg-gray-50 px-3 text-xs text-gray-700 outline-none focus:bg-white focus:ring-2 focus:ring-[#6FD1D7]/40"
+                  />
+                </div>
+
               </div>
-
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                  Date To
-                </label>
-
-                <input
-                  type="date"
-                  value={
-                    dateTo
-                  }
-                  onChange={event =>
-                    setDateTo(
-                      event.target.value
-                    )
-                  }
-                  className="mt-2 h-10 w-full rounded-xl bg-gray-50 px-3 text-xs text-gray-700 outline-none focus:bg-white focus:ring-2 focus:ring-[#6FD1D7]/40"
-                />
-              </div>
-
-            </div>
+            )}
 
           </div>
         </div>
       )}
 
       {/* =================================================
-          REPORT CONTENT
+          TRAINING COMPLETION
       ================================================= */}
 
       {activeReport ===
@@ -818,9 +1291,15 @@ export default function ReportsPage() {
           data={
             trainingCompletion
           }
-          loading={loading}
+          loading={
+            loading
+          }
         />
       )}
+
+      {/* =================================================
+          ENROLLMENTS
+      ================================================= */}
 
       {activeReport ===
         "enrollments" && (
@@ -828,9 +1307,15 @@ export default function ReportsPage() {
           data={
             enrollments
           }
-          loading={loading}
+          loading={
+            loading
+          }
         />
       )}
+
+      {/* =================================================
+          ATTENDANCE
+      ================================================= */}
 
       {activeReport ===
         "attendance" && (
@@ -838,9 +1323,15 @@ export default function ReportsPage() {
           data={
             attendance
           }
-          loading={loading}
+          loading={
+            loading
+          }
         />
       )}
+
+      {/* =================================================
+          ASSESSMENT RESULTS
+      ================================================= */}
 
       {activeReport ===
         "assessment-results" && (
@@ -848,9 +1339,43 @@ export default function ReportsPage() {
           data={
             assessmentResults
           }
-          loading={loading}
+          loading={
+            loading
+          }
         />
       )}
+
+      {/* =================================================
+          GRADE CALCULATION
+      ================================================= */}
+
+      {activeReport ===
+        "grade-calculation" && (
+        <GradeCalculationReport
+          grades={
+            filteredGrades
+          }
+          loading={
+            gradeLoading
+          }
+          totalParticipants={
+            gradeTotalParticipants
+          }
+          passedCount={
+            gradePassedCount
+          }
+          failedCount={
+            gradeFailedCount
+          }
+          averageGrade={
+            gradeAverage
+          }
+        />
+      )}
+
+      {/* =================================================
+          CERTIFICATES
+      ================================================= */}
 
       {activeReport ===
         "certificates" && (
@@ -858,17 +1383,31 @@ export default function ReportsPage() {
           data={
             certificates
           }
-          loading={loading}
+          loading={
+            loading
+          }
         />
       )}
+
+      {/* =================================================
+          TRAINERS
+      ================================================= */}
 
       {activeReport ===
         "trainers" && (
         <TrainerReport
-          data={trainers}
-          loading={loading}
+          data={
+            trainers
+          }
+          loading={
+            loading
+          }
         />
       )}
+
+      {/* =================================================
+          SERVICE REQUESTS
+      ================================================= */}
 
       {activeReport ===
         "service-requests" && (
@@ -876,7 +1415,9 @@ export default function ReportsPage() {
           data={
             serviceRequests
           }
-          loading={loading}
+          loading={
+            loading
+          }
         />
       )}
 
@@ -886,6 +1427,7 @@ export default function ReportsPage() {
 
       {activeReport !==
         "overview" &&
+        !isGradeReport &&
         currentPagination &&
         currentPagination.totalPages >
           1 && (
@@ -1795,6 +2337,164 @@ function AssessmentResultsReport({
 }
 
 // =========================================================
+// GRADE CALCULATION REPORT
+// =========================================================
+
+function GradeCalculationReport({
+  grades,
+  loading,
+  totalParticipants,
+  passedCount,
+  failedCount,
+  averageGrade,
+}: {
+  grades: any[];
+  loading: boolean;
+  totalParticipants: number;
+  passedCount: number;
+  failedCount: number;
+  averageGrade: number;
+}) {
+  if (loading) {
+    return (
+      <LoadingState text="Loading grade calculation report..." />
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+
+      {/* ================================================
+          GRADE SUMMARY
+      ================================================= */}
+
+      <StatGrid>
+
+        <StatCard
+          variant="primary"
+          title="Total Participants"
+          value={
+            totalParticipants
+          }
+          description="Participants with calculated grades"
+        />
+
+        <StatCard
+          variant="success"
+          title="Passed"
+          value={
+            passedCount
+          }
+          description="Participants who passed"
+        />
+
+        <StatCard
+          variant="danger"
+          title="Failed"
+          value={
+            failedCount
+          }
+          description="Participants who failed"
+        />
+
+        <StatCard
+          variant="primary"
+          title="Average Grade"
+          value={
+            averageGrade.toFixed(
+              2
+            )
+          }
+          description="Average overall grade"
+        />
+
+      </StatGrid>
+
+      {/* ================================================
+          GRADE TABLE
+      ================================================= */}
+
+      {grades.length === 0 ? (
+        <EmptyState
+          title="No grade records found"
+          description="There are no grade calculation records matching the current filters."
+        />
+      ) : (
+        <ReportTable
+          headers={[
+            "Participant",
+            "Batch",
+            "Overall Grade",
+            "Result",
+          ]}
+          rows={
+            grades.map(
+              (
+                grade: any
+              ) => [
+                <div
+                  key="participant"
+                >
+                  <p className="font-semibold text-gray-900">
+                    {
+                      grade.participantName ??
+                      "Unknown Participant"
+                    }
+                  </p>
+
+                  {grade.participantCode && (
+                    <p className="mt-1 font-mono text-[10px] text-gray-400">
+                      {
+                        grade.participantCode
+                      }
+                    </p>
+                  )}
+                </div>,
+
+                <span
+                  key="batch"
+                  className="font-mono text-xs"
+                >
+                  {
+                    grade.batchCode ??
+                    "—"
+                  }
+                </span>,
+
+                <span
+                  key="grade"
+                  className="font-semibold text-[#002b5c]"
+                >
+                  {Number(
+                    grade.overallGrade ??
+                      0
+                  ).toFixed(2)}
+                </span>,
+
+                <StatusBadge
+                  key="result"
+                  label={
+                    grade.isPassed
+                      ? "Passed"
+                      : "Failed"
+                  }
+                  variant={
+                    grade.isPassed
+                      ? "success"
+                      : "danger"
+                  }
+                />,
+              ]
+            )
+          }
+        />
+      )}
+
+    </div>
+  );
+}
+
+// =========================================================
 // CERTIFICATE REPORT
 // =========================================================
 
@@ -2584,7 +3284,9 @@ function Pagination({
 
         <button
           type="button"
-          disabled={page <= 1}
+          disabled={
+            page <= 1
+          }
           onClick={() =>
             onPageChange(
               page - 1

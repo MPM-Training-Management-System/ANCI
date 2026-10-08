@@ -1,20 +1,12 @@
-export const ParticipantEndpoints = {
-  
-  getMe: "/api/participant-profiles/me",
+export const ParticipantProfileEndpoints = {
 
-  listParticpant: "/api/User?role=Participant",
 
-  byId: (id: number) => `/api/User/${id}`,
+  getMyProfile: () =>
+    `/api/participant-profiles/me`,
 
-  create: "/api/participant/register",
+  updateMyProfile: () =>
+    `/api/participant-profiles/me`,
 
-  update: (id: number) => `/api/User/${id}`,
-
-  delete: (id: number) => `/api/User/${id}`,
-  
-   status: (
-    id: number,
-    isActive: boolean
-  ) =>
-    `/api/User/${id}/status?isActive=${isActive}`,
-} 
+  updateProfileImage: () =>
+    `/api/participant-profiles/me/image`,
+};

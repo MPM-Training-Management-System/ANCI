@@ -11,7 +11,7 @@ import {
   ServiceApi,
   AuthAPIs,
   PracticalAssessmentApi,
-  ParticipantApi,
+  ParticipantProfileApi,
   LearningMaterialApi,
   TrainerDashboardApi,
   TrainerReportRequestApi
@@ -44,7 +44,7 @@ export const practicalAssessmentApi =
   new AuthApi(apiClient);
 
     export const participantApi =
-  new ParticipantApi(apiClient);
+  new ParticipantProfileApi(apiClient);
 
 export const serviceApi =
   new ServiceApi(apiClient);

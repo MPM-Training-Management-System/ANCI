@@ -230,22 +230,42 @@ async getOpenSession(
   attendanceSessionId: string | null;
   manualAttendanceOpen: boolean;
 }> {
-  return this.api.request<{
+  const endpoint = AttendanceEndpoints.getOpenSession(
+    batchId,
+    trainingSessionId
+  );
+
+  console.log("=================================");
+  console.log("ATTENDANCE OPEN SESSION REQUEST");
+  console.log("batchId:", batchId);
+  console.log("trainingSessionId:", trainingSessionId);
+  console.log("endpoint:", endpoint);
+  console.log("=================================");
+
+  const result = await this.api.request<{
     isOpen: boolean;
     attendanceSessionId: string | null;
     manualAttendanceOpen: boolean;
   }>(
-    AttendanceEndpoints.getOpenSession(
-      batchId,
-      trainingSessionId
-    ),
+    endpoint,
     {
       method: "GET",
     }
   );
+
+  console.log("=================================");
+  console.log("ATTENDANCE OPEN SESSION RESPONSE");
+  console.log("result:", result);
+  console.log("isOpen:", result?.isOpen);
+  console.log("attendanceSessionId:", result?.attendanceSessionId);
+  console.log(
+    "manualAttendanceOpen:",
+    result?.manualAttendanceOpen
+  );
+  console.log("=================================");
+
+  return result;
 }
-
-
 
 async getAttendanceProgress(): Promise<
   {

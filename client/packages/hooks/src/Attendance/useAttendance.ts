@@ -196,21 +196,28 @@ const loadOpenAttendanceSession =
     async (
       batchId: string,
       trainingSessionId: string
-    ): Promise<
-      OpenAttendanceSessionDto | null
-    > => {
-
-      if (!batchId || !trainingSessionId) {
-        setOpenSessionId(null);
-        setManualAttendanceOpen(false);
-
-        return null;
-      }
-
+    ) => {
       try {
-
         setIsLoadingOpenSession(true);
         setOpenSessionError(null);
+
+        console.log(
+          "=============================================="
+        );
+        console.log(
+          "MOBILE - CHECKING OPEN ATTENDANCE SESSION"
+        );
+        console.log(
+          "batchId:",
+          batchId
+        );
+        console.log(
+          "trainingSessionId:",
+          trainingSessionId
+        );
+        console.log(
+          "=============================================="
+        );
 
         const result =
           await api.getOpenSession(
@@ -218,45 +225,85 @@ const loadOpenAttendanceSession =
             trainingSessionId
           );
 
-        if (result.isOpen) {
-          setOpenSessionId(
-            result.attendanceSessionId
-          );
-        } else {
-          setOpenSessionId(null);
-        }
-
-        setManualAttendanceOpen(
-          result.isOpen &&
-          result.manualAttendanceOpen
+        console.log(
+          "MOBILE - OPEN ATTENDANCE RESPONSE"
         );
 
-        return result;
+        console.log(
+          "result:",
+          JSON.stringify(
+            result,
+            null,
+            2
+          )
+        );
 
-      } catch (err) {
+        console.log(
+          "result.isOpen:",
+          result?.isOpen
+        );
+
+        console.log(
+          "result.attendanceSessionId:",
+          result?.attendanceSessionId
+        );
+
+        console.log(
+          "result.manualAttendanceOpen:",
+          result?.manualAttendanceOpen
+        );
+
+        console.log(
+          "=============================================="
+        );
+
+        // ====================================================
+        // SESSION IS CLOSED
+        // ====================================================
+
+        if (
+          !result?.isOpen ||
+          !result?.attendanceSessionId
+        ) {
+          setOpenSessionId(null);
+          setManualAttendanceOpen(false);
+
+          return;
+        }
+
+        // ====================================================
+        // SESSION IS OPEN
+        // ====================================================
+
+        setOpenSessionId(
+          result.attendanceSessionId
+        );
+
+        setManualAttendanceOpen(
+          Boolean(
+            result.manualAttendanceOpen
+          )
+        );
+
+      } catch (error) {
+        console.error(
+          "Failed to load open attendance session:",
+          error
+        );
 
         setOpenSessionId(null);
         setManualAttendanceOpen(false);
 
-        const normalizedError =
-          err instanceof Error
-            ? err
-            : new Error(
-                "Failed to load attendance session status."
-              );
-
         setOpenSessionError(
-          normalizedError
+          error instanceof Error
+            ? error
+            : new Error(
+                "Failed to load attendance session."
+              )
         );
-
-        return null;
-
       } finally {
-
         setIsLoadingOpenSession(false);
-
       }
-
     },
     [api]
   );
@@ -370,7 +417,8 @@ const loadOpenAttendanceSession =
   //
   // Session becomes OPEN.
   //
-  // Manual Attendance remains CLOSED.
+  // Manual Attendance remains CLOSED
+  // until trainer explicitly opens it.
   // ==========================================================
 
   const openAttendance =
@@ -388,17 +436,14 @@ const loadOpenAttendanceSession =
             request
           );
 
-          // ================================================
-          // Get the actual session state from backend.
-          // ================================================
-
-         const result =
-  await api.getOpenSession(
-    request.trainingBatchId,
-    request.trainingSessionId
-  );
+          const result =
+            await api.getOpenSession(
+              request.trainingBatchId,
+              request.trainingSessionId
+            );
 
           if (result.isOpen) {
+
             setOpenSessionId(
               result.attendanceSessionId
             );
@@ -406,9 +451,12 @@ const loadOpenAttendanceSession =
             setManualAttendanceOpen(
               result.manualAttendanceOpen
             );
+
           } else {
+
             setOpenSessionId(null);
             setManualAttendanceOpen(false);
+
           }
 
           return result;
@@ -461,16 +509,7 @@ const loadOpenAttendanceSession =
             sessionId
           );
 
-          // ================================================
-          // Session is now closed.
-          // ================================================
-
           setOpenSessionId(null);
-
-          // ================================================
-          // Manual attendance is automatically closed
-          // by backend when session ends.
-          // ================================================
 
           setManualAttendanceOpen(false);
 
@@ -731,68 +770,80 @@ const loadOpenAttendanceSession =
   // Backend checks:
   // Session OPEN
   // Manual Attendance OPEN
+  //
+  // IMPORTANT:
+  // AttendanceApi.manual() requires:
+  //
+  // 1. request
+  // 2. enrollmentId
+  //
+  // The enrollmentId is required so the backend knows
+  // which participant enrollment should receive
+  // the attendance record.
   // ==========================================================
+const manualAttendance =
+  useCallback(
+    async (
+      request: ManualAttendanceRequest
+    ) => {
 
-  const manualAttendance =
-    useCallback(
-      async (
-        request: ManualAttendanceRequest
-      ) => {
+      try {
 
-        try {
+        setIsSubmitting(true);
+        setError(null);
 
-          setIsSubmitting(true);
-          setError(null);
+        await api.manual(
+          request
+        );
 
-          await api.manual(
-            request
-          );
+      } catch (err) {
 
-        } catch (err) {
+        const normalizedError =
+          err instanceof Error
+            ? err
+            : new Error(
+                "Failed to record manual attendance."
+              );
 
-          const normalizedError =
-            err instanceof Error
-              ? err
-              : new Error(
-                  "Failed to record manual attendance."
-                );
+        setError(
+          normalizedError
+        );
 
-          setError(
-            normalizedError
-          );
+        throw normalizedError;
 
-          throw normalizedError;
+      } finally {
 
-        } finally {
+        setIsSubmitting(false);
 
-          setIsSubmitting(false);
+      }
 
-        }
-
-      },
-      [api]
-    );
+    },
+    [api]
+  );
 
 
   // ==========================================================
   // REFRESH OPEN SESSION
   // ==========================================================
-const refreshOpenAttendanceSession =
-  useCallback(
-    async (
-      batchId: string,
-      trainingSessionId: string
-    ) => {
 
-      return loadOpenAttendanceSession(
-        batchId,
-        trainingSessionId
-      );
-    },
-    [
-      loadOpenAttendanceSession,
-    ]
-  );
+  const refreshOpenAttendanceSession =
+    useCallback(
+      async (
+        batchId: string,
+        trainingSessionId: string
+      ) => {
+
+        return loadOpenAttendanceSession(
+          batchId,
+          trainingSessionId
+        );
+
+      },
+      [
+        loadOpenAttendanceSession,
+      ]
+    );
+
 
   // ==========================================================
   // REFRESH SESSION RECORDS

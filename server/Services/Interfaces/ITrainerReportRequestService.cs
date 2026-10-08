@@ -1,11 +1,10 @@
+using Microsoft.AspNetCore.Http;
 using server.DTOs.Trainer;
 
 namespace server.Interfaces.Trainer;
 
 public interface ITrainerReportRequestService
 {
- 
-
     Task<TrainerReportRequestDto>
         CreateAsync(
             Guid userId,
@@ -15,16 +14,15 @@ public interface ITrainerReportRequestService
         GetMyRequestsAsync(
             Guid userId);
 
-
-
     Task<IReadOnlyList<AdminTrainerReportRequestDto>>
         GetAdminRequestsAsync();
 
     Task<AdminTrainerReportRequestDto>
-        ApproveAsync(
+        ApproveAndGenerateAsync(
             Guid adminUserId,
             Guid requestId,
-            ReviewTrainerReportRequestDto dto);
+            IFormFile file,
+            string? adminRemarks);
 
     Task<AdminTrainerReportRequestDto>
         RejectAsync(
