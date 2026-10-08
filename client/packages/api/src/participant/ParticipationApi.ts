@@ -15,17 +15,6 @@ import type {
   RecordParticipationRequest,
 } from "@repo/types";
 
-// =========================================================
-// PARTICIPATION API
-//
-// Shared API client for:
-// Admin Web
-// Trainer Web
-// Participant Mobile
-//
-// JSON serialization is handled by ApiClient.
-// Do NOT JSON.stringify() request bodies here.
-// =========================================================
 
 export class ParticipationApi {
 

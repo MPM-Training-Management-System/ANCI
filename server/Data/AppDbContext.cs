@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using server.Models.Assessment;
 using server.Models.Attendance;
 using server.Models.Auth;
+using server.Models.Backup;
 using server.Models.Learning;
 using server.Models.Otp;
 using server.Models.Participant;
@@ -26,6 +27,8 @@ public DbSet<TrainingProgramRequirement>
     public DbSet<User> Users
         => Set<User>();
 
+public DbSet<Backup> Backups
+    => Set<Backup>();
     public DbSet<LearningMaterial> LearningMaterials
     => Set<LearningMaterial>();
 
@@ -227,6 +230,53 @@ public DbSet<ParticipationRecord>
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+
+// ==========================================
+// BACKUP
+// ==========================================
+
+modelBuilder.Entity<Backup>(entity =>
+{
+    entity.ToTable("Backups");
+
+    entity.HasKey(x => x.Id);
+
+    entity.Property(x => x.FileName)
+        .IsRequired()
+        .HasMaxLength(255);
+
+    entity.Property(x => x.FilePath)
+        .HasMaxLength(1000);
+
+    entity.Property(x => x.FileSize)
+        .IsRequired();
+
+    entity.Property(x => x.BackupType)
+        .IsRequired()
+        .HasMaxLength(50);
+
+    entity.Property(x => x.Status)
+        .IsRequired()
+        .HasMaxLength(50);
+
+    entity.Property(x => x.CreatedAt)
+        .IsRequired();
+
+    entity.Property(x => x.CompletedAt)
+        .IsRequired(false);
+
+    entity.Property(x => x.CreatedByUserId)
+        .IsRequired(false);
+
+    entity.Property(x => x.ErrorMessage)
+        .HasMaxLength(2000);
+
+    entity.HasIndex(x => x.CreatedAt);
+
+    entity.HasIndex(x => x.Status);
+
+    entity.HasIndex(x => x.BackupType);
+});
        
         modelBuilder.Entity<Certificate>(entity =>
 {

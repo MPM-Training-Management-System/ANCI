@@ -158,17 +158,6 @@ public class AttendanceController : ControllerBase
         return Ok(result);
     }
 
-    // =========================================================
-    // GET ATTENDANCE QR
-    // Trainer / Participant
-    //
-    // Permanent QR.
-    //
-    // QR can be retrieved whether the session
-    // is OPEN or CLOSED.
-    //
-    // Actual scanning is controlled by session status.
-    // =========================================================
 
     [HttpGet("sessions/{id:guid}/qr")]
     [Authorize(Roles = "Trainer,Participant")]
@@ -188,25 +177,7 @@ public class AttendanceController : ControllerBase
         return Ok(result);
     }
 
-    // =========================================================
-    // SCAN ATTENDANCE
-    // Trainer
-    //
-    // Trainer scans participant's PERMANENT QR.
-    //
-    // Requirement:
-    // Session must be OPEN.
-    //
-    // Manual Attendance status does NOT matter.
-    //
-    // Example:
-    //
-    // Session OPEN
-    // Manual CLOSED
-    //       ↓
-    // QR scanning still works.
-    // =========================================================
-
+ 
     [HttpPost("scan")]
     [Authorize(Roles = "Trainer")]
     public async Task<IActionResult> ScanAttendance(

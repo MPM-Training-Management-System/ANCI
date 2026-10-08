@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "8.4.4",
     "@react-native-google-signin/google-signin": "^16.1.5",
     "@react-native/debugger-frontend": "^0.87.0",
@@ -39,6 +40,7 @@
     "expo-linking": "~8.0.12",
     "expo-local-authentication": "~17.0.9",
     "expo-router": "~6.0.24",
+    "expo-screen-capture": "~8.0.10",
     "expo-secure-store": "~15.0.7",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",

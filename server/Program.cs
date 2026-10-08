@@ -25,6 +25,8 @@ using server.Interfaces.Reports;
 using server.Services.Reports;
 using server.Interfaces.Trainer;
 using server.Services.Trainer;
+using server.Interfaces;
+using server.Services.Backup;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(options =>
@@ -64,6 +66,7 @@ builder.Services.AddScoped<
     IOpenCodeService,
     OpenCodeService
 >();
+builder.Services.AddScoped<IBackupService, BackupService>();
 builder.Services.AddScoped<
     ILearningModuleChunkingService,
     LearningModuleChunkingService>();

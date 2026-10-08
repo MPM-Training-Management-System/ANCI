@@ -3,6 +3,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -37,11 +38,13 @@ import {
   BookOpen,
   Layers3,
   GraduationCap,
+  Plus,
 } from "lucide-react";
 
 import {
   columns,
-  type LearningMaterialTableMeta,
+  type TrainerLearningModuleRow,
+  type TrainerLearningModuleTableMeta,
 } from "./columns";
 
 import LearningMaterialDetailsModal from "@/components/learning/LearningMaterialDetailsModal";
@@ -54,68 +57,29 @@ import TrainerModulePreviewModal from "@/components/learning/TrainerModulePrevie
 // TYPES
 // ============================================================
 
-type MaterialType =
-  | "PDF"
-  | "Presentation"
-  | "Document"
-  | "Video"
-  | "Activity"
-  | "Other";
-
 type DeleteTarget =
   | "module"
   | "section";
-
-// ============================================================
-// HELPERS
-// ============================================================
-
-function getMaterialType(
-  value: string,
-): MaterialType {
-  const type = value
-    .trim()
-    .toLowerCase();
-
-  if (type === "pdf") {
-    return "PDF";
-  }
-
-  if (
-    type === "presentation" ||
-    type === "ppt" ||
-    type === "pptx"
-  ) {
-    return "Presentation";
-  }
-
-  if (
-    type === "document" ||
-    type === "doc" ||
-    type === "docx"
-  ) {
-    return "Document";
-  }
-
-  if (
-    type === "video" ||
-    type === "mp4"
-  ) {
-    return "Video";
-  }
-
-  if (type === "activity") {
-    return "Activity";
-  }
-
-  return "Other";
-}
 
 // ============================================================
 // PAGE
 // ============================================================
 
 export default function TrainerLearning() {
+  // ==========================================================
+  // REFS
+  // ==========================================================
+
+  const replaceFileInputRef =
+    useRef<HTMLInputElement | null>(
+      null,
+    );
+
+  const replaceMaterialIdRef =
+    useRef<string | null>(
+      null,
+    );
+
   // ==========================================================
   // MODULE PREVIEW
   // ==========================================================
@@ -156,7 +120,6 @@ export default function TrainerLearning() {
   // ==========================================================
 
   const {
-    extraction,
     modules,
     moduleFileExtraction,
     sections,
@@ -214,13 +177,24 @@ export default function TrainerLearning() {
   );
 
   // ==========================================================
-  // ALL MATERIALS
+  // ALL PUBLISHED MATERIALS
   // ==========================================================
 
   const [
     allMaterials,
     setAllMaterials,
   ] = useState<LearningMaterial[]>(
+    [],
+  );
+
+  // ==========================================================
+  // ALL MODULES
+  // ==========================================================
+
+  const [
+    allModules,
+    setAllModules,
+  ] = useState<LearningModule[]>(
     [],
   );
 
@@ -239,11 +213,6 @@ export default function TrainerLearning() {
   ] = useState("All Trainings");
 
   const [
-    typeFilter,
-    setTypeFilter,
-  ] = useState("All Types");
-
-  const [
     statusFilter,
     setStatusFilter,
   ] = useState("All Status");
@@ -260,13 +229,15 @@ export default function TrainerLearning() {
   );
 
   // ==========================================================
-  // DETAILS MODAL
+  // MANAGE MODULE MODAL
   // ==========================================================
 
   const [
-    showDetails,
-    setShowDetails,
-  ] = useState(false);
+    manageModuleId,
+    setManageModuleId,
+  ] = useState<string | null>(
+    null,
+  );
 
   // ==========================================================
   // MODULE FORM
@@ -331,15 +302,6 @@ export default function TrainerLearning() {
   );
 
   // ==========================================================
-  // DETAIL LOADING
-  // ==========================================================
-
-  const [
-    isLoadingDetails,
-    setIsLoadingDetails,
-  ] = useState(false);
-
-  // ==========================================================
   // ACTION ERROR
   // ==========================================================
 
@@ -351,7 +313,9 @@ export default function TrainerLearning() {
   );
 
   // ==========================================================
-  // LOAD BATCHES + MATERIALS
+  // LOAD ASSIGNED BATCHES
+  // + PUBLISHED MATERIALS
+  // + MODULES
   // ==========================================================
 
   useEffect(() => {
@@ -363,14 +327,22 @@ export default function TrainerLearning() {
         setBatchError(null);
         setActionError(null);
 
+        // ------------------------------------------------------
+        // 1. GET TRAINER-ASSIGNED BATCHES
+        // ------------------------------------------------------
+
         const batchResult =
-          await trainingBatchApi.getAll();
+          await trainingBatchApi.getAssigned();
 
         if (cancelled) {
           return;
         }
 
         setBatches(batchResult);
+
+        // ------------------------------------------------------
+        // 2. GET LEARNING MATERIALS
+        // ------------------------------------------------------
 
         const materialResults =
           await Promise.all(
@@ -394,6 +366,10 @@ export default function TrainerLearning() {
         const combined =
           materialResults.flat();
 
+        // ------------------------------------------------------
+        // 3. REMOVE DUPLICATES
+        // ------------------------------------------------------
+
         const uniqueMaterials =
           Array.from(
             new Map(
@@ -406,15 +382,10 @@ export default function TrainerLearning() {
             ).values(),
           );
 
-        /*
-         * TRAINER VIEW
-         *
-         * Only display materials that
-         * Admin has already published.
-         *
-         * Draft materials remain hidden
-         * from the Trainer.
-         */
+        // ------------------------------------------------------
+        // 4. ONLY PUBLISHED MATERIALS
+        // ------------------------------------------------------
+
         const publishedMaterials =
           uniqueMaterials.filter(
             (material) =>
@@ -423,6 +394,52 @@ export default function TrainerLearning() {
 
         setAllMaterials(
           publishedMaterials,
+        );
+
+        // ------------------------------------------------------
+        // 5. LOAD MODULES
+        // ------------------------------------------------------
+
+        const moduleResults =
+          await Promise.all(
+            publishedMaterials.map(
+              async (material) => {
+                try {
+                  return await loadModules(
+                    material.id,
+                  );
+                } catch {
+                  return [];
+                }
+              },
+            ),
+          );
+
+        if (cancelled) {
+          return;
+        }
+
+        const combinedModules =
+          moduleResults.flat();
+
+        // ------------------------------------------------------
+        // 6. REMOVE DUPLICATE MODULES
+        // ------------------------------------------------------
+
+        const uniqueModules =
+          Array.from(
+            new Map(
+              combinedModules.map(
+                (module) => [
+                  module.id,
+                  module,
+                ],
+              ),
+            ).values(),
+          );
+
+        setAllModules(
+          uniqueModules,
         );
       } catch (err) {
         if (cancelled) {
@@ -433,7 +450,7 @@ export default function TrainerLearning() {
           err instanceof Error
             ? err
             : new Error(
-                "Failed to load learning materials.",
+                "Failed to load trainer learning data.",
               );
 
         setBatchError(
@@ -455,6 +472,7 @@ export default function TrainerLearning() {
     };
   }, [
     loadLearningMaterials,
+    loadModules,
   ]);
 
   // ==========================================================
@@ -496,57 +514,89 @@ export default function TrainerLearning() {
     }, [batches]);
 
   // ==========================================================
-  // FILTER MATERIALS
+  // MODULE TABLE ROWS
   // ==========================================================
 
-  const filteredMaterials =
+  const moduleRows =
+    useMemo<TrainerLearningModuleRow[]>(
+      () => {
+        return allModules.map(
+          (module) => {
+            const material =
+              allMaterials.find(
+                (item) =>
+                  item.id ===
+                  module.learningMaterialId,
+              );
+
+            const batch =
+              material
+                ? batchMap.get(
+                    material.trainingBatchId,
+                  ) ?? null
+                : null;
+
+            return {
+              module,
+              batch,
+              lessonCount: 0,
+            };
+          },
+        );
+      },
+      [
+        allModules,
+        allMaterials,
+        batchMap,
+      ],
+    );
+
+  // ==========================================================
+  // FILTER MODULES
+  // ==========================================================
+
+  const filteredModules =
     useMemo(() => {
       const query =
         search
           .toLowerCase()
           .trim();
 
-      return allMaterials.filter(
-        (material) => {
-          const batch =
-            batchMap.get(
-              material.trainingBatchId,
-            );
+      return moduleRows.filter(
+        (row) => {
+          const module =
+            row.module;
 
           const trainingName =
-            batch?.programName ??
-            "";
+            row.batch
+              ?.programName ?? "";
 
           const batchCode =
-            material.batchCode ??
-            batch?.batchCode ??
-            "";
+            row.batch
+              ?.batchCode ?? "";
 
-          const materialType =
-            getMaterialType(
-              material.materialType,
+          const hasContent =
+            Boolean(
+              module.welcomeContent ||
+                module.learningObjectives ||
+                module.summary ||
+                module.keyTakeaways,
             );
 
-          const status =
-            material.isPublished
-              ? "Published"
+          const moduleStatus =
+            hasContent
+              ? "Ready"
               : "Draft";
 
           const matchesSearch =
             !query ||
-            material.title
+            module.title
               .toLowerCase()
               .includes(query) ||
             trainingName
               .toLowerCase()
               .includes(query) ||
             batchCode
-              .toLowerCase()
-              .includes(query) ||
-            (
-              material.fileName ??
-              ""
-            )
               .toLowerCase()
               .includes(query);
 
@@ -556,32 +606,23 @@ export default function TrainerLearning() {
             trainingName ===
               trainingFilter;
 
-          const matchesType =
-            typeFilter ===
-              "All Types" ||
-            materialType ===
-              typeFilter;
-
           const matchesStatus =
             statusFilter ===
               "All Status" ||
-            status ===
+            moduleStatus ===
               statusFilter;
 
           return (
             matchesSearch &&
             matchesTraining &&
-            matchesType &&
             matchesStatus
           );
         },
       );
     }, [
-      allMaterials,
-      batchMap,
+      moduleRows,
       search,
       trainingFilter,
-      typeFilter,
       statusFilter,
     ]);
 
@@ -590,57 +631,32 @@ export default function TrainerLearning() {
   // ==========================================================
 
   const publishedCount =
-    allMaterials.filter(
-      (material) =>
-        material.isPublished,
-    ).length;
+    allMaterials.length;
 
   const moduleCount =
-    modules.length;
+    allModules.length;
 
   const lessonCount =
     sections.length;
 
   // ==========================================================
-  // VIEW MATERIAL
+  // GET MATERIAL FROM MODULE ROW
   // ==========================================================
 
-  async function viewMaterial(
-    material: LearningMaterial,
+  function getMaterialForRow(
+    row: TrainerLearningModuleRow,
   ) {
-    try {
-      setActionError(null);
-      setIsLoadingDetails(true);
-
-      const result =
-        await loadLearningMaterial(
-          material.id,
-        );
-
-      setSelected(result);
-      setShowDetails(true);
-
-      await loadModules(
-        material.id,
-      );
-    } catch (err) {
-      setActionError(
-        err instanceof Error
-          ? err
-          : new Error(
-              "Failed to load material details.",
-            ),
-      );
-    } finally {
-      setIsLoadingDetails(false);
-    }
+    return (
+      allMaterials.find(
+        (material) =>
+          material.id ===
+          row.module.learningMaterialId,
+      ) ?? null
+    );
   }
 
   // ==========================================================
   // OPEN MATERIAL
-  //
-  // ADMIN-UPLOADED FILE
-  // TRAINER CAN ONLY VIEW IT
   // ==========================================================
 
   function openMaterial(
@@ -664,15 +680,274 @@ export default function TrainerLearning() {
   }
 
   // ==========================================================
+  // OPEN MATERIAL FROM TABLE
+  // ==========================================================
+
+  function handleOpenMaterial(
+    row: TrainerLearningModuleRow,
+  ) {
+    const material =
+      getMaterialForRow(row);
+
+    if (!material) {
+      setActionError(
+        new Error(
+          "Learning material not found.",
+        ),
+      );
+
+      return;
+    }
+
+    openMaterial(material);
+  }
+
+  // ==========================================================
+  // REPLACE MATERIAL FILE
+  // ==========================================================
+
+  function handleReplaceMaterial(
+    row: TrainerLearningModuleRow,
+  ) {
+    const material =
+      getMaterialForRow(row);
+
+    if (!material) {
+      setActionError(
+        new Error(
+          "Learning material not found.",
+        ),
+      );
+
+      return;
+    }
+
+    replaceMaterialIdRef.current =
+      material.id;
+
+    replaceFileInputRef.current?.click();
+  }
+
+  // ==========================================================
+  // HANDLE REPLACE FILE
+  // ==========================================================
+
+  async function handleReplaceFileChange(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const file =
+      event.target.files?.[0];
+
+    const materialId =
+      replaceMaterialIdRef.current;
+
+    event.target.value = "";
+
+    if (
+      !file ||
+      !materialId
+    ) {
+      return;
+    }
+
+    try {
+      setActionError(null);
+
+      await learningMaterialApi.uploadFile(
+        materialId,
+        file,
+      );
+
+      const refreshed =
+        await loadLearningMaterial(
+          materialId,
+        );
+
+      setAllMaterials(
+        (current) =>
+          current.map(
+            (material) =>
+              material.id ===
+              materialId
+                ? refreshed
+                : material,
+          ),
+      );
+
+      if (
+        selected?.id ===
+        materialId
+      ) {
+        setSelected(
+          refreshed,
+        );
+      }
+    } catch (err) {
+      setActionError(
+        err instanceof Error
+          ? err
+          : new Error(
+              "Failed to replace learning material.",
+            ),
+      );
+    } finally {
+      replaceMaterialIdRef.current =
+        null;
+    }
+  }
+
+  // ==========================================================
+  // EXTRACT MATERIAL
+  // ==========================================================
+
+  async function handleExtractMaterial(
+    row: TrainerLearningModuleRow,
+  ) {
+    const material =
+      getMaterialForRow(row);
+
+    if (!material) {
+      setActionError(
+        new Error(
+          "Learning material not found.",
+        ),
+      );
+
+      return;
+    }
+
+    try {
+      setActionError(null);
+
+      await learningMaterialApi.extractText(
+        material.id,
+      );
+
+      const refreshed =
+        await loadLearningMaterial(
+          material.id,
+        );
+
+      setAllMaterials(
+        (current) =>
+          current.map(
+            (item) =>
+              item.id ===
+              material.id
+                ? refreshed
+                : item,
+          ),
+      );
+
+      if (
+        selected?.id ===
+        material.id
+      ) {
+        setSelected(
+          refreshed,
+        );
+      }
+    } catch (err) {
+      setActionError(
+        err instanceof Error
+          ? err
+          : new Error(
+              "Failed to extract learning material text.",
+            ),
+      );
+    }
+  }
+
+  // ==========================================================
+  // OPEN MANAGE MODULE
+  // ==========================================================
+
+  function openManageModule(
+    row: TrainerLearningModuleRow,
+  ) {
+    const material =
+      getMaterialForRow(row);
+
+    if (!material) {
+      setActionError(
+        new Error(
+          "The learning material for this module could not be found.",
+        ),
+      );
+
+      return;
+    }
+
+    setSelected(
+      material,
+    );
+
+    setManageModuleId(
+      row.module.id,
+    );
+
+    void (async () => {
+      try {
+        setActionError(null);
+
+        await loadModules(
+          material.id,
+        );
+
+        await loadSections(
+          row.module.id,
+        );
+      } catch (err) {
+        setActionError(
+          err instanceof Error
+            ? err
+            : new Error(
+                "Failed to load module details.",
+              ),
+        );
+      }
+    })();
+  }
+
+  // ==========================================================
+  // CLOSE MANAGE MODULE
+  // ==========================================================
+
+  function closeManageModule() {
+    setManageModuleId(
+      null,
+    );
+
+    clearModuleFileExtraction();
+  }
+
+  // ==========================================================
   // CREATE MODULE
   // ==========================================================
 
   function openCreateModule() {
-    if (!selected) {
+    const material =
+      selected ??
+      allMaterials[0] ??
+      null;
+
+    if (!material) {
+      setActionError(
+        new Error(
+          "No published learning material is available.",
+        ),
+      );
+
       return;
     }
 
-    setSelectedModule(null);
+    setSelected(
+      material,
+    );
+
+    setSelectedModule(
+      null,
+    );
 
     setModuleFormMode(
       "create",
@@ -705,25 +980,35 @@ export default function TrainerLearning() {
 
   // ==========================================================
   // SAVE MODULE
+  //
+  // IMPORTANT:
+  //
+  // moduleNumber and displayOrder are NO LONGER SENT.
+  //
+  // The backend automatically generates them.
   // ==========================================================
 
-  async function handleModuleSubmit(
+  const handleModuleSubmit = async (
     data: {
       learningMaterialId: string;
-      moduleNumber: number;
       title: string;
       description: string;
-      displayOrder: number;
     },
-  ) {
+  ) => {
     try {
       setActionError(null);
 
-      if (!selected) {
+      if (
+        !data.learningMaterialId
+      ) {
         throw new Error(
           "No learning material is currently selected.",
         );
       }
+
+      // --------------------------------------------------------
+      // CREATE
+      // --------------------------------------------------------
 
       if (
         moduleFormMode ===
@@ -731,10 +1016,7 @@ export default function TrainerLearning() {
       ) {
         await createLearningModule({
           learningMaterialId:
-            selected.id,
-
-          moduleNumber:
-            data.moduleNumber,
+            data.learningMaterialId,
 
           title:
             data.title,
@@ -742,21 +1024,23 @@ export default function TrainerLearning() {
           description:
             data.description ||
             null,
-
-          displayOrder:
-            data.displayOrder,
         });
-      } else {
+      }
+
+      // --------------------------------------------------------
+      // UPDATE
+      // --------------------------------------------------------
+
+      else {
         if (!selectedModule) {
-          return;
+          throw new Error(
+            "No learning module is currently selected.",
+          );
         }
 
         await updateLearningModule(
           selectedModule.id,
           {
-            moduleNumber:
-              data.moduleNumber,
-
             title:
               data.title,
 
@@ -775,16 +1059,38 @@ export default function TrainerLearning() {
 
             keyTakeaways:
               selectedModule.keyTakeaways,
-
-            displayOrder:
-              data.displayOrder,
           },
         );
       }
 
-      await loadModules(
-        selected.id,
+      // --------------------------------------------------------
+      // REFRESH MODULES
+      // --------------------------------------------------------
+
+      const updatedModules =
+        await loadModules(
+          data.learningMaterialId,
+        );
+
+      setAllModules(
+        (current) => {
+          const otherModules =
+            current.filter(
+              (module) =>
+                module.learningMaterialId !==
+                data.learningMaterialId,
+            );
+
+          return [
+            ...otherModules,
+            ...updatedModules,
+          ];
+        },
       );
+
+      // --------------------------------------------------------
+      // CLOSE
+      // --------------------------------------------------------
 
       setShowModuleForm(
         false,
@@ -802,7 +1108,7 @@ export default function TrainerLearning() {
             ),
       );
     }
-  }
+  };
 
   // ==========================================================
   // DELETE MODULE
@@ -820,10 +1126,43 @@ export default function TrainerLearning() {
         selectedModule.id,
       );
 
+      setAllModules(
+        (current) =>
+          current.filter(
+            (module) =>
+              module.id !==
+              selectedModule.id,
+          ),
+      );
+
       if (selected) {
-        await loadModules(
-          selected.id,
+        const updatedModules =
+          await loadModules(
+            selected.id,
+          );
+
+        setAllModules(
+          (current) => {
+            const otherModules =
+              current.filter(
+                (module) =>
+                  module.learningMaterialId !==
+                  selected.id,
+              );
+
+            return [
+              ...otherModules,
+              ...updatedModules,
+            ];
+          },
         );
+      }
+
+      if (
+        manageModuleId ===
+        selectedModule.id
+      ) {
+        closeManageModule();
       }
 
       setSelectedModule(
@@ -861,8 +1200,25 @@ export default function TrainerLearning() {
       );
 
       if (selected) {
-        await loadModules(
-          selected.id,
+        const updatedModules =
+          await loadModules(
+            selected.id,
+          );
+
+        setAllModules(
+          (current) => {
+            const otherModules =
+              current.filter(
+                (module) =>
+                  module.learningMaterialId !==
+                  selected.id,
+              );
+
+            return [
+              ...otherModules,
+              ...updatedModules,
+            ];
+          },
         );
       }
     } catch (err) {
@@ -893,8 +1249,25 @@ export default function TrainerLearning() {
       );
 
       if (selected) {
-        await loadModules(
-          selected.id,
+        const updatedModules =
+          await loadModules(
+            selected.id,
+          );
+
+        setAllModules(
+          (current) => {
+            const otherModules =
+              current.filter(
+                (module) =>
+                  module.learningMaterialId !==
+                  selected.id,
+              );
+
+            return [
+              ...otherModules,
+              ...updatedModules,
+            ];
+          },
         );
       }
     } catch (err) {
@@ -923,8 +1296,25 @@ export default function TrainerLearning() {
       );
 
       if (selected) {
-        await loadModules(
-          selected.id,
+        const updatedModules =
+          await loadModules(
+            selected.id,
+          );
+
+        setAllModules(
+          (current) => {
+            const otherModules =
+              current.filter(
+                (module) =>
+                  module.learningMaterialId !==
+                  selected.id,
+              );
+
+            return [
+              ...otherModules,
+              ...updatedModules,
+            ];
+          },
         );
       }
     } catch (err) {
@@ -957,8 +1347,25 @@ export default function TrainerLearning() {
       );
 
       if (selected) {
-        await loadModules(
-          selected.id,
+        const updatedModules =
+          await loadModules(
+            selected.id,
+          );
+
+        setAllModules(
+          (current) => {
+            const otherModules =
+              current.filter(
+                (module) =>
+                  module.learningMaterialId !==
+                  selected.id,
+              );
+
+            return [
+              ...otherModules,
+              ...updatedModules,
+            ];
+          },
         );
       }
 
@@ -992,22 +1399,57 @@ export default function TrainerLearning() {
     try {
       setActionError(null);
 
-      if (modules.length === 0) {
+      const materialModules =
+        await loadModules(
+          selected.id,
+        );
+
+      if (
+        materialModules.length ===
+        0
+      ) {
         throw new Error(
           "No learning modules found. Please create a learning module first.",
         );
       }
 
-      for (const module of modules) {
+      for (
+        const module of
+        materialModules
+      ) {
+        setGeneratingModuleId(
+          module.id,
+        );
+
         await generateModuleAiContent(
           module.id,
         );
       }
 
+      setGeneratingModuleId(
+        null,
+      );
+
       const updatedModules =
         await loadModules(
           selected.id,
         );
+
+      setAllModules(
+        (current) => {
+          const otherModules =
+            current.filter(
+              (module) =>
+                module.learningMaterialId !==
+                selected.id,
+            );
+
+          return [
+            ...otherModules,
+            ...updatedModules,
+          ];
+        },
+      );
 
       for (
         const module of
@@ -1018,6 +1460,10 @@ export default function TrainerLearning() {
         );
       }
     } catch (err) {
+      setGeneratingModuleId(
+        null,
+      );
+
       setActionError(
         err instanceof Error
           ? err
@@ -1310,66 +1756,95 @@ export default function TrainerLearning() {
       : `Are you sure you want to remove "${selectedSection?.title ?? ""}"?`;
 
   // ==========================================================
-  // PAGE ERROR
-  // ==========================================================
-
-  const pageErrorMessage =
-    actionError?.message ??
-    batchError?.message ??
-    error ??
-    null;
-
-  // ==========================================================
-  // PAGE LOADING
-  // ==========================================================
-
-  const isPageLoading =
-    isLoadingBatches ||
-    isLoading ||
-    isLoadingDetails;
-
-  // ==========================================================
   // TABLE META
   // ==========================================================
 
-  const tableMeta:
-    LearningMaterialTableMeta = {
-      batchMap,
+  const tableMeta: TrainerLearningModuleTableMeta = {
+    // --------------------------------------------------------
+    // MANAGE
+    // --------------------------------------------------------
 
-      onView: (
-        material
-      ) => {
-        void viewMaterial(
-          material
-        );
-      },
-      onPublish: function (material: LearningMaterial): void {
-        throw new Error("Function not implemented.");
-      },
-      onDelete: function (material: LearningMaterial): void {
-        throw new Error("Function not implemented.");
-      }
-    };
+    onManage: (
+      row,
+    ) => {
+      openManageModule(
+        row,
+      );
+    },
+
+    // --------------------------------------------------------
+    // OPEN
+    // --------------------------------------------------------
+
+    onOpenMaterial:
+      handleOpenMaterial,
+
+    // --------------------------------------------------------
+    // REPLACE
+    // --------------------------------------------------------
+
+    onReplaceMaterial:
+      handleReplaceMaterial,
+
+    // --------------------------------------------------------
+    // EXTRACT
+    // --------------------------------------------------------
+
+    onExtractMaterial:
+      handleExtractMaterial,
+
+    // --------------------------------------------------------
+    // DELETE
+    // --------------------------------------------------------
+
+    onDeleteModule: (
+      row,
+    ) => {
+      openDeleteModule(
+        row.module,
+      );
+    },
+  };
 
   // ==========================================================
   // RENDER
   // ==========================================================
 
   return (
-    <div className="space-y-6 m-5">
+    <div className="m-5 space-y-6">
 
+      {/* ======================================================
+          HIDDEN REPLACE FILE INPUT
+      ====================================================== */}
 
+      <input
+        ref={
+          replaceFileInputRef
+        }
+        type="file"
+        className="hidden"
+        accept=".pdf,.doc,.docx,.ppt,.pptx,.txt"
+        onChange={
+          handleReplaceFileChange
+        }
+      />
+
+      {/* ======================================================
+          PAGE HEADER
+      ====================================================== */}
 
       <PageSection
-        title="Learning Materials"
-        description="View published learning materials and develop training modules and lessons."
+        title="Learning Modules"
+        description="Manage modules and lessons from published learning materials assigned to your training batches."
       />
 
       {/* ======================================================
           ERROR
       ====================================================== */}
 
-      {pageErrorMessage && (
+      {(actionError ||
+        batchError ||
+        error) && (
         <div className="rounded-2xl border border-red-100 bg-red-50 p-4">
           <div className="flex items-start gap-3">
 
@@ -1379,11 +1854,17 @@ export default function TrainerLearning() {
 
             <div>
               <p className="text-sm font-semibold text-red-900">
-                Learning Material Error
+                Learning Module Error
               </p>
 
               <p className="mt-1 text-xs leading-5 text-red-700">
-                {pageErrorMessage}
+                {
+                  actionError
+                    ?.message ??
+                  batchError
+                    ?.message ??
+                  error
+                }
               </p>
             </div>
 
@@ -1409,7 +1890,7 @@ export default function TrainerLearning() {
 
         <StatCard
           title="Published"
-          description="Available training resources"
+          description="Resources available for training"
           value={
             publishedCount
           }
@@ -1429,7 +1910,7 @@ export default function TrainerLearning() {
 
         <StatCard
           title="Lessons"
-          description="Lessons you manage"
+          description="Lessons currently loaded"
           value={
             lessonCount
           }
@@ -1444,263 +1925,251 @@ export default function TrainerLearning() {
       ====================================================== */}
 
       <DataTable
-        columns={columns}
-        data={filteredMaterials}
-        meta={tableMeta}
-        loading={isPageLoading}
+        columns={
+          columns
+        }
+
+        data={
+          filteredModules
+        }
+
+        meta={
+          tableMeta
+        }
+
+        loading={
+          isLoadingBatches ||
+          isLoading
+        }
+
         searchable
+
         toolbar={
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2">
 
-            {/* TRAINING */}
+           
 
-            <Select
-              value={
-                trainingFilter
-              }
-              onValueChange={
-                setTrainingFilter
-              }
-            >
-              <SelectTrigger className="h-10 w-55 rounded-xl border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium text-gray-700">
-                <SelectValue placeholder="All Trainings" />
-              </SelectTrigger>
+<div className="ml-auto flex items-center gap-2">
 
-              <SelectContent>
-                {trainings.map(
-                  (
-                    training,
-                  ) => (
-                    <SelectItem
-                      key={
-                        training
-                      }
-                      value={
-                        training
-                      }
-                    >
-                      {
-                        training
-                      }
-                    </SelectItem>
-                  ),
-                )}
-              </SelectContent>
-            </Select>
+  {/* ==================================================
+      OPEN FILE
+  ================================================== */}
 
-            {/* TYPE */}
+  <button
+    type="button"
+    onClick={() => {
+      const material =
+        selected ??
+        allMaterials[0] ??
+        null;
 
-            <Select
-              value={
-                typeFilter
-              }
-              onValueChange={
-                setTypeFilter
-              }
-            >
-              <SelectTrigger className="h-10 w-42 rounded-xl border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium text-gray-700">
-                <SelectValue placeholder="All Types" />
-              </SelectTrigger>
+      if (!material) {
+        setActionError(
+          new Error(
+            "No published learning material is available.",
+          ),
+        );
 
-              <SelectContent>
+        return;
+      }
 
-                <SelectItem value="All Types">
-                  All Types
-                </SelectItem>
+      openMaterial(
+        material,
+      );
+    }}
+    disabled={
+      allMaterials.length === 0
+    }
+    className={[
+      "inline-flex h-10",
+      "items-center justify-center gap-2",
+      "rounded-xl",
+      "border border-[#002b5c]",
+      "bg-white",
+      "px-4",
+      "text-sm font-semibold",
+      "text-[#002b5c]",
+      "transition",
+      "hover:bg-[#f3f7fb]",
+      "disabled:cursor-not-allowed",
+      "disabled:opacity-50",
+    ].join(" ")}
+  >
+    <BookOpen className="h-4 w-4" />
 
-                <SelectItem value="PDF">
-                  PDF
-                </SelectItem>
+    Open File
+  </button>
 
-                <SelectItem value="Presentation">
-                  Presentation
-                </SelectItem>
+  {/* ==================================================
+      ADD MODULE
+  ================================================== */}
 
-                <SelectItem value="Document">
-                  Document
-                </SelectItem>
+  <button
+    type="button"
+    onClick={
+      openCreateModule
+    }
+    disabled={
+      allMaterials.length === 0
+    }
+    className={[
+      "inline-flex h-10",
+      "items-center justify-center gap-2",
+      "rounded-xl",
+      "bg-[#002b5c]",
+      "px-4",
+      "text-sm font-semibold",
+      "text-white",
+      "transition",
+      "hover:bg-[#0d2142]",
+      "disabled:cursor-not-allowed",
+      "disabled:opacity-50",
+    ].join(" ")}
+  >
+    <Plus className="h-4 w-4" />
 
-                <SelectItem value="Video">
-                  Video
-                </SelectItem>
+    Add Module
+  </button>
 
-                <SelectItem value="Activity">
-                  Activity
-                </SelectItem>
-
-                <SelectItem value="Other">
-                  Other
-                </SelectItem>
-
-              </SelectContent>
-            </Select>
-
-            {/* STATUS */}
-
-            <Select
-              value={
-                statusFilter
-              }
-              onValueChange={
-                setStatusFilter
-              }
-            >
-              <SelectTrigger className="h-10 w-40 rounded-xl border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium text-gray-700">
-                <SelectValue placeholder="All Status" />
-              </SelectTrigger>
-
-              <SelectContent>
-
-                <SelectItem value="All Status">
-                  All Status
-                </SelectItem>
-
-                <SelectItem value="Published">
-                  Published
-                </SelectItem>
-
-                <SelectItem value="Draft">
-                  Draft
-                </SelectItem>
-
-              </SelectContent>
-            </Select>
+</div>
 
           </div>
         }
       />
 
       {/* ======================================================
-          DETAILS MODAL
+          MANAGE MODULE MODAL
       ====================================================== */}
 
       <LearningMaterialDetailsModal
-        open={showDetails}
+        open={
+          manageModuleId !== null
+        }
 
-        material={selected}
+        material={
+          selected
+        }
 
-        modules={modules}
+        modules={
+          modules
+        }
 
-        sections={sections}
+        sections={
+          sections
+        }
 
-        batchMap={batchMap}
+        batchMap={
+          batchMap
+        }
 
-        generatingModuleId={generatingModuleId}
+        moduleFileExtraction={
+          moduleFileExtraction
+        }
 
-        onGenerateModule={(
-          moduleId
-        ) => {
-          void handleGenerateModule(
-            moduleId
-          );
-        } }
+        isUploading={
+          isSaving
+        }
 
-        extraction={extraction}
+        isGenerating={
+          isGenerating
+        }
 
-        onViewModule={openModulePreview}
+        isExtracting={
+          isExtracting
+        }
 
-        moduleFileExtraction={moduleFileExtraction}
+        generatingModuleId={
+          generatingModuleId
+        }
 
-        isSaving={isSaving}
+        initialManagedModuleId={
+          manageModuleId
+        }
 
-        /*
-         * Trainer does not upload
-         * or modify Admin's source file.
-         */
-        isUploading={false}
+        onManageModuleClose={
+          closeManageModule
+        }
 
-        isGenerating={isGenerating}
-
-        isExtracting={isExtracting}
-
-        onClose={() => {
-          setShowDetails(
-            false
-          );
-
-          setSelected(
-            null
-          );
-        } }
-
-        /*
-         * ADMIN-ONLY ACTIONS ARE
-         * INTENTIONALLY NOT PASSED:
-         *
-         * onPublish
-         * onUploadMaterial
-         * onExtractMaterial
-         */
-        onOpenMaterial={() => {
-          if (selected) {
-            openMaterial(
-              selected
-            );
-          }
-        } }
-
-        /*
-         * TRAINER MODULE ACTIONS
-         */
-        onGenerateModules={() => {
-          void handleGenerateModules();
-        } }
+        onClose={
+          closeManageModule
+        }
 
         onUploadModuleFile={(
           moduleId,
-          file
+          file,
         ) => {
           void handleUploadModuleFile(
             moduleId,
-            file
+            file,
           );
-        } }
+        }}
 
         onExtractModuleFile={(
           moduleId,
-          moduleFileId
+          moduleFileId,
         ) => {
           void handleExtractModuleFile(
             moduleId,
-            moduleFileId
+            moduleFileId,
           );
-        } }
+        }}
 
         onExtractAllModuleFiles={(
-          moduleId
+          moduleId,
         ) => {
           void handleExtractAllModuleFiles(
-            moduleId
+            moduleId,
           );
-        } }
+        }}
+
+        onGenerateModules={() => {
+          void handleGenerateModules();
+        }}
+
+        onGenerateModule={(
+          moduleId,
+        ) => {
+          void handleGenerateModule(
+            moduleId,
+          );
+        }}
 
         onLoadSections={(
-          module
+          module,
         ) => {
           void handleLoadSections(
-            module
+            module,
           );
-        } }
+        }}
 
-        onCreateModule={openCreateModule}
+        onCreateSection={
+          openCreateSection
+        }
 
-        onEditModule={openEditModule}
+        onEditModule={
+          openEditModule
+        }
 
-        onCreateSection={openCreateSection}
+        onEditSection={
+          openEditSection
+        }
 
-        onEditSection={openEditSection}
+        onDeleteModule={
+          openDeleteModule
+        }
 
-        onDeleteModule={openDeleteModule}
+        onDeleteSection={
+          openDeleteSection
+        }
 
-        onDeleteSection={openDeleteSection}
+        onClearModuleFileExtraction={
+          clearModuleFileExtraction
+        }
 
-        onClearModuleFileExtraction={clearModuleFileExtraction} onPublish={function (): void {
-          throw new Error("Function not implemented.");
-        } } onUploadMaterial={function (event: React.ChangeEvent<HTMLInputElement>): void {
-          throw new Error("Function not implemented.");
-        } } onExtractMaterial={function (): void {
-          throw new Error("Function not implemented.");
-        } }      />
+        onViewModule={
+          openModulePreview
+        }
+      />
 
       {/* ======================================================
           MODULE PREVIEW
@@ -1782,6 +2251,7 @@ export default function TrainerLearning() {
         learningModuleId={
           selectedModule?.id ??
           selectedSection?.learningModuleId ??
+          manageModuleId ??
           ""
         }
 
@@ -1815,7 +2285,7 @@ export default function TrainerLearning() {
       />
 
       {/* ======================================================
-          DELETE
+          DELETE MODAL
       ====================================================== */}
 
       {showDelete && (

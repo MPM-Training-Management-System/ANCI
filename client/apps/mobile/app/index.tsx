@@ -14,15 +14,15 @@ export default function Index() {
     const initializeApp = async () => {
       try {
         console.log(
-          "================================"
+          "================================",
         );
 
         console.log(
-          "INITIALIZING ANCI"
+          "INITIALIZING ANCI",
         );
 
         console.log(
-          "================================"
+          "================================",
         );
 
         // =================================================
@@ -30,7 +30,7 @@ export default function Index() {
         // =================================================
 
         await new Promise((resolve) =>
-          setTimeout(resolve, 5000)
+          setTimeout(resolve, 5000),
         );
 
         if (!mounted) {
@@ -38,22 +38,65 @@ export default function Index() {
         }
 
         console.log(
-          "LOADING SCREEN FINISHED"
+          "LOADING SCREEN FINISHED",
         );
 
         // =================================================
-        // CHECK TOKEN
+        // CHECK EXISTING TOKEN
         // =================================================
 
         const token =
           await auth.getToken();
 
+        console.log(
+          "HAS EXISTING TOKEN:",
+          !!token,
+        );
+
+        if (!mounted) {
+          return;
+        }
+
         // =================================================
-        // CHECK USER
+        // EXISTING SESSION
+        // =================================================
+        //
+        // If a token already exists,
+        // go directly to the participant dashboard.
+        //
+        // No onboarding check.
+        // No login screen.
+        // No biometric check.
+        // No user check.
+        //
         // =================================================
 
-        const user =
-          await auth.getUser();
+        if (
+          token &&
+          token.trim().length > 0
+        ) {
+          console.log(
+            "EXISTING TOKEN FOUND",
+          );
+
+          console.log(
+            "DIRECTLY GOING TO PARTICIPANT DASHBOARD",
+          );
+
+          router.replace(
+            "/(tabs)",
+          );
+
+          return;
+        }
+
+        // =================================================
+        // NO EXISTING TOKEN
+        // =================================================
+
+        console.log(
+          "NO EXISTING TOKEN",
+        );
 
         // =================================================
         // CHECK ONBOARDING
@@ -63,18 +106,8 @@ export default function Index() {
           await auth.isOnboardingCompleted();
 
         console.log(
-          "HAS TOKEN:",
-          !!token
-        );
-
-        console.log(
-          "HAS USER:",
-          !!user
-        );
-
-        console.log(
           "ONBOARDING COMPLETED:",
-          onboardingCompleted
+          onboardingCompleted,
         );
 
         if (!mounted) {
@@ -82,158 +115,36 @@ export default function Index() {
         }
 
         // =================================================
-        // NO SESSION
+        // FIRST TIME USER
         // =================================================
 
-        if (!token || !user) {
+        if (!onboardingCompleted) {
           console.log(
-            "NO SAVED SESSION"
-          );
-
-          // -------------------------------------------------
-          // FIRST TIME USER
-          // -------------------------------------------------
-
-          if (!onboardingCompleted) {
-            console.log(
-              "FIRST TIME USER"
-            );
-
-            router.replace(
-              "/(onboarding)"
-            );
-
-            return;
-          }
-
-          // -------------------------------------------------
-          // RETURNING USER
-          // -------------------------------------------------
-
-          console.log(
-            "RETURNING USER → LOGIN"
+            "FIRST TIME USER → ONBOARDING",
           );
 
           router.replace(
-            "/(auth)/login"
+            "/(onboarding)",
           );
 
           return;
         }
 
         // =================================================
-        // ROLE CHECK
-        // =================================================
-
-        const role =
-          user.role ??
-          user.Role;
-
-        console.log(
-          "SAVED USER ROLE:",
-          role
-        );
-
-        if (
-          !role ||
-          role.toLowerCase() !==
-            "participant"
-        ) {
-          console.log(
-            "USER IS NOT PARTICIPANT"
-          );
-
-          await auth.logout();
-
-          if (!mounted) {
-            return;
-          }
-
-          router.replace(
-            "/(auth)/login"
-          );
-
-          return;
-        }
-
-        // =================================================
-        // ACTIVE CHECK
-        // =================================================
-
-        if (!user.isActive) {
-          console.log(
-            "ACCOUNT IS NOT ACTIVE"
-          );
-
-          await auth.logout();
-
-          if (!mounted) {
-            return;
-          }
-
-          router.replace(
-            "/(auth)/login"
-          );
-
-          return;
-        }
-
-        // =================================================
-        // VALID PARTICIPANT SESSION
+        // RETURNING USER WITHOUT SESSION
         // =================================================
 
         console.log(
-          "VALID PARTICIPANT SESSION"
-        );
-
-        // =================================================
-        // BIOMETRIC
-        // =================================================
-
-        const biometricEnabled =
-          await auth.isBiometricEnabled();
-
-        console.log(
-          "BIOMETRIC ENABLED:",
-          biometricEnabled
-        );
-
-        if (!mounted) {
-          return;
-        }
-
-        // =================================================
-        // BIOMETRIC LOGIN
-        // =================================================
-
-        if (biometricEnabled) {
-          console.log(
-            "BIOMETRIC LOGIN REQUIRED"
-          );
-
-          router.replace(
-            "/(auth)/login"
-          );
-
-          return;
-        }
-
-        // =================================================
-        // DIRECT DASHBOARD
-        // =================================================
-
-        console.log(
-          "GOING TO PARTICIPANT DASHBOARD"
+          "RETURNING USER WITHOUT TOKEN → LOGIN",
         );
 
         router.replace(
-          "/(tabs)"
+          "/(auth)/login",
         );
-
       } catch (error) {
         console.error(
           "APP INITIALIZATION ERROR:",
-          error
+          error,
         );
 
         if (!mounted) {
@@ -246,13 +157,17 @@ export default function Index() {
           // Ignore cleanup error.
         }
 
+        if (!mounted) {
+          return;
+        }
+
         router.replace(
-          "/(auth)/login"
+          "/(auth)/login",
         );
       }
     };
 
-    initializeApp();
+    void initializeApp();
 
     return () => {
       mounted = false;

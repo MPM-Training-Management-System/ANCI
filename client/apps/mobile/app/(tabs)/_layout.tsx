@@ -61,7 +61,7 @@ function AttendanceButton({
             styles.attendanceLabelActive,
         ]}
       >
-        Attend
+        QR
       </Text>
     </Pressable>
   );
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
 
     height: 68,
 
-    borderRadius: 22,
+    borderRadius: 23,
 
     backgroundColor: "#FFFFFF",
 
@@ -254,6 +254,7 @@ const styles = StyleSheet.create({
     paddingTop: 5,
 
     paddingBottom: 7,
+    margin: 15,
 
     overflow: "visible",
   },
@@ -275,7 +276,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 31,
 
-    backgroundColor: "#2563EB",
+    backgroundColor: "#002b5c",
 
     alignItems: "center",
 

@@ -1,5 +1,4 @@
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import type { jsPDF } from "jspdf";
 
 import type {
   AdminReportOverview,
@@ -14,21 +13,91 @@ import type {
   TrainingCompletionReport,
 } from "@repo/types";
 
-type ReportData =
+/* =========================================================
+   TYPES
+========================================================= */
+
+/*
+ * =========================================================
+ * GRADE CALCULATION REPORT
+ * =========================================================
+ *
+ * We intentionally define only the fields needed by the PDF.
+ *
+ * This means your actual TrainingGrade can contain more fields
+ * without causing a problem.
+ */
+
+export interface GradeCalculationReportItem {
+  participantName: string;
+
+  batchCode: string;
+
+  overallGrade: number;
+
+  isPassed: boolean;
+}
+
+export interface GradeCalculationReport {
+  grades: GradeCalculationReportItem[];
+}
+
+/* =========================================================
+   REPORT DATA
+========================================================= */
+
+export type ReportData =
   | AdminReportOverview
   | TrainingCompletionReport
   | EnrollmentReport
   | AttendanceReport
   | AssessmentResultsReport
+  | GradeCalculationReport
   | CertificateReport
   | TrainerReport
   | ServiceRequestReport;
 
-interface ExportReportPdfOptions {
+/* =========================================================
+   EXPORT OPTIONS
+========================================================= */
+
+export interface ExportReportPdfOptions {
   reportType: ReportType;
+
   report: ReportData;
+
   filter?: ReportFilter;
 }
+
+/*
+ * IMPORTANT
+ *
+ * DO NOT import jspdf at runtime here.
+ *
+ * This is only a TypeScript type import.
+ *
+ * The actual jsPDF constructor is passed from
+ * ReportPdfExporter.tsx.
+ */
+
+export type JsPdfConstructor = new (
+  options?: {
+    orientation?:
+      | "portrait"
+      | "landscape";
+
+    unit?: string;
+
+    format?:
+      | string
+      | number[];
+  }
+) => jsPDF;
+
+export type AutoTableFunction = (
+  doc: jsPDF,
+  options: Record<string, unknown>
+) => void;
 
 type PdfOrientation =
   | "portrait"
@@ -36,16 +105,32 @@ type PdfOrientation =
 
 interface TableOptions {
   head: string[][];
-  body: (string | number)[][];
+
+  body: (
+    | string
+    | number
+  )[][];
+
   orientation?: PdfOrientation;
+
   columnStyles?: Record<
     number,
     {
-      cellWidth?: number | "auto";
-      halign?: "left" | "center" | "right";
+      cellWidth?:
+        | number
+        | "auto";
+
+      halign?:
+        | "left"
+        | "center"
+        | "right";
     }
   >;
 }
+
+/* =========================================================
+   CONSTANTS
+========================================================= */
 
 const PAGE_MARGIN = 14;
 
@@ -56,21 +141,27 @@ const COMPANY_SUBTITLE =
   "Integrated Service and Training Management System";
 
 /* =========================================================
-   HELPERS
-   ========================================================= */
+   BASIC HELPERS
+========================================================= */
 
 function safeText(
-  value?: string | null
+  value?: unknown
 ): string {
   if (
     value === undefined ||
-    value === null ||
-    value.trim() === ""
+    value === null
   ) {
     return "—";
   }
 
-  return value;
+  const text =
+    String(value).trim();
+
+  if (!text) {
+    return "—";
+  }
+
+  return text;
 }
 
 function formatNumber(
@@ -84,7 +175,9 @@ function formatNumber(
     return "0";
   }
 
-  return value.toLocaleString("en-PH");
+  return value.toLocaleString(
+    "en-PH"
+  );
 }
 
 function formatPercentage(
@@ -108,9 +201,14 @@ function formatDate(
     return "—";
   }
 
-  const date = new Date(value);
+  const date =
+    new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
     return value;
   }
 
@@ -131,9 +229,14 @@ function formatDateTime(
     return "—";
   }
 
-  const date = new Date(value);
+  const date =
+    new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
     return value;
   }
 
@@ -157,20 +260,25 @@ function titleCase(
   }
 
   return value
-    .replace(/[-_]/g, " ")
+    .replace(
+      /[-_]/g,
+      " "
+    )
     .replace(
       /\w\S*/g,
       (word) =>
         word.charAt(0).toUpperCase() +
-        word.slice(1).toLowerCase()
+        word
+          .slice(1)
+          .toLowerCase()
     );
 }
 
 /* =========================================================
-   REPORT TITLE / FILENAME
-   ========================================================= */
+   REPORT TITLE
+========================================================= */
 
-function getReportTitle(
+export function getReportTitle(
   reportType: ReportType
 ): string {
   switch (reportType) {
@@ -189,6 +297,9 @@ function getReportTitle(
     case "assessment-results":
       return "Assessment Results Report";
 
+    case "grade-calculation":
+      return "Grade Calculation Report";
+
     case "certificates":
       return "Certificate Report";
 
@@ -203,30 +314,45 @@ function getReportTitle(
   }
 }
 
-function getFilename(
+/* =========================================================
+   FILE NAME
+========================================================= */
+
+export function getReportPdfFilename(
   reportType: ReportType
 ): string {
-  const date = new Date()
-    .toISOString()
-    .slice(0, 10);
+  const date =
+    new Date()
+      .toISOString()
+      .slice(0, 10);
 
   const title =
-    getReportTitle(reportType)
+    getReportTitle(
+      reportType
+    )
       .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "");
+      .replace(
+        /[^a-z0-9]+/g,
+        "-"
+      )
+      .replace(
+        /^-|-$/g,
+        ""
+      );
 
   return `anci-${title}-${date}.pdf`;
 }
 
 /* =========================================================
-   DOCUMENT
-   ========================================================= */
+   CREATE DOCUMENT
+========================================================= */
 
 function createDocument(
-  orientation: PdfOrientation = "landscape"
+  JsPDF: JsPdfConstructor,
+  orientation: PdfOrientation =
+    "landscape"
 ): jsPDF {
-  return new jsPDF({
+  return new JsPDF({
     orientation,
     unit: "mm",
     format: "a4",
@@ -235,7 +361,7 @@ function createDocument(
 
 /* =========================================================
    HEADER
-   ========================================================= */
+========================================================= */
 
 function addHeader(
   doc: jsPDF,
@@ -278,7 +404,9 @@ function addHeader(
   doc.setFontSize(12);
 
   doc.text(
-    getReportTitle(reportType),
+    getReportTitle(
+      reportType
+    ),
     PAGE_MARGIN,
     34
   );
@@ -294,7 +422,8 @@ function addHeader(
     `Generated: ${formatDateTime(
       new Date().toISOString()
     )}`,
-    pageWidth - PAGE_MARGIN,
+    pageWidth -
+      PAGE_MARGIN,
     34,
     {
       align: "right",
@@ -310,14 +439,15 @@ function addHeader(
   doc.line(
     PAGE_MARGIN,
     39,
-    pageWidth - PAGE_MARGIN,
+    pageWidth -
+      PAGE_MARGIN,
     39
   );
 }
 
 /* =========================================================
    FILTERS
-   ========================================================= */
+========================================================= */
 
 function addFilters(
   doc: jsPDF,
@@ -328,51 +458,74 @@ function addFilters(
     return startY;
   }
 
-  const filters: string[] = [];
+  const filters: string[] =
+    [];
 
-  if (filter.trainingProgramId) {
+  if (
+    filter.trainingProgramId
+  ) {
     filters.push(
-      `Training Program: ${filter.trainingProgramId}`
+      `Training Program: ${safeText(
+        filter.trainingProgramId
+      )}`
     );
   }
 
-  if (filter.trainingBatchId) {
+  if (
+    filter.trainingBatchId
+  ) {
     filters.push(
-      `Training Batch: ${filter.trainingBatchId}`
+      `Training Batch: ${safeText(
+        filter.trainingBatchId
+      )}`
     );
   }
 
-  if (filter.trainerProfileId) {
+  if (
+    filter.trainerProfileId
+  ) {
     filters.push(
-      `Trainer: ${filter.trainerProfileId}`
+      `Trainer: ${safeText(
+        filter.trainerProfileId
+      )}`
     );
   }
 
   if (filter.dateFrom) {
     filters.push(
-      `From: ${formatDate(filter.dateFrom)}`
+      `From: ${formatDate(
+        filter.dateFrom
+      )}`
     );
   }
 
   if (filter.dateTo) {
     filters.push(
-      `To: ${formatDate(filter.dateTo)}`
+      `To: ${formatDate(
+        filter.dateTo
+      )}`
     );
   }
 
   if (filter.status) {
     filters.push(
-      `Status: ${titleCase(filter.status)}`
+      `Status: ${titleCase(
+        filter.status
+      )}`
     );
   }
 
   if (filter.search) {
     filters.push(
-      `Search: ${filter.search}`
+      `Search: ${safeText(
+        filter.search
+      )}`
     );
   }
 
-  if (filters.length === 0) {
+  if (
+    filters.length === 0
+  ) {
     return startY;
   }
 
@@ -399,8 +552,11 @@ function addFilters(
 
   const lines =
     doc.splitTextToSize(
-      filters.join("   •   "),
-      pageWidth - PAGE_MARGIN * 2
+      filters.join(
+        "   •   "
+      ),
+      pageWidth -
+        PAGE_MARGIN * 2
     );
 
   doc.text(
@@ -418,27 +574,38 @@ function addFilters(
 
 /* =========================================================
    SUMMARY CARDS
-   ========================================================= */
+========================================================= */
 
 function addSummaryCards(
   doc: jsPDF,
   cards: Array<{
     label: string;
-    value: string | number;
+
+    value:
+      | string
+      | number;
   }>,
   startY: number
 ): number {
+  if (
+    cards.length === 0
+  ) {
+    return startY;
+  }
+
   const pageWidth =
     doc.internal.pageSize.getWidth();
 
   const availableWidth =
-    pageWidth - PAGE_MARGIN * 2;
+    pageWidth -
+    PAGE_MARGIN * 2;
 
   const gap = 4;
 
   const cardWidth =
     (availableWidth -
-      gap * (cards.length - 1)) /
+      gap *
+        (cards.length - 1)) /
     cards.length;
 
   const cardHeight = 18;
@@ -447,7 +614,8 @@ function addSummaryCards(
     (card, index) => {
       const x =
         PAGE_MARGIN +
-        index * (cardWidth + gap);
+        index *
+          (cardWidth + gap);
 
       doc.setFillColor(
         247,
@@ -473,7 +641,9 @@ function addSummaryCards(
       doc.setFontSize(7);
 
       doc.text(
-        card.label,
+        safeText(
+          card.label
+        ),
         x + 4,
         startY + 6
       );
@@ -486,85 +656,100 @@ function addSummaryCards(
       doc.setFontSize(11);
 
       doc.text(
-        String(card.value),
+        safeText(
+          card.value
+        ),
         x + 4,
         startY + 13
       );
     }
   );
 
-  return startY + cardHeight + 8;
+  return (
+    startY +
+    cardHeight +
+    8
+  );
 }
 
 /* =========================================================
    TABLE
-   ========================================================= */
+========================================================= */
 
 function addTable(
+  autoTable: AutoTableFunction,
   doc: jsPDF,
   options: TableOptions,
   startY: number
 ): number {
-  autoTable(doc, {
-    startY,
+  autoTable(
+    doc,
+    {
+      startY,
 
-    head: options.head,
+      head:
+        options.head,
 
-    body: options.body,
+      body:
+        options.body,
 
-    theme: "grid",
+      theme: "grid",
 
-    styles: {
-      font: "helvetica",
-      fontSize: 7,
-      cellPadding: 2.5,
-      overflow: "linebreak",
-      valign: "middle",
-      textColor: [
-        35,
-        45,
-        55,
-      ],
-      lineColor: [
-        220,
-        225,
-        230,
-      ],
-      lineWidth: 0.1,
-    },
+      styles: {
+        font: "helvetica",
+        fontSize: 7,
+        cellPadding: 2.5,
+        overflow:
+          "linebreak",
+        valign: "middle",
+        textColor: [
+          35,
+          45,
+          55,
+        ],
+        lineColor: [
+          220,
+          225,
+          230,
+        ],
+        lineWidth: 0.1,
+      },
 
-    headStyles: {
-      fontStyle: "bold",
-      fontSize: 7,
-      textColor: [
-        255,
-        255,
-        255,
-      ],
-      fillColor: [
-        0,
-        43,
-        92,
-      ],
-    },
+      headStyles: {
+        fontStyle: "bold",
+        fontSize: 7,
+        textColor: [
+          255,
+          255,
+          255,
+        ],
+        fillColor: [
+          0,
+          43,
+          92,
+        ],
+      },
 
-    alternateRowStyles: {
-      fillColor: [
-        250,
-        251,
-        252,
-      ],
-    },
+      alternateRowStyles: {
+        fillColor: [
+          250,
+          251,
+          252,
+        ],
+      },
 
-    margin: {
-      left: PAGE_MARGIN,
-      right: PAGE_MARGIN,
-      bottom: 18,
-    },
+      margin: {
+        left:
+          PAGE_MARGIN,
+        right:
+          PAGE_MARGIN,
+        bottom: 18,
+      },
 
-    columnStyles:
-      options.columnStyles,
-  });
+      columnStyles:
+        options.columnStyles,
+    }
+  );
 
   const table =
     (
@@ -573,7 +758,8 @@ function addTable(
           finalY: number;
         };
       }
-    ).lastAutoTable;
+    )
+      .lastAutoTable;
 
   return (
     table?.finalY ??
@@ -583,7 +769,7 @@ function addTable(
 
 /* =========================================================
    FOOTER
-   ========================================================= */
+========================================================= */
 
 function addFooter(
   doc: jsPDF
@@ -596,7 +782,9 @@ function addFooter(
     page <= pageCount;
     page++
   ) {
-    doc.setPage(page);
+    doc.setPage(
+      page
+    );
 
     const pageHeight =
       doc.internal.pageSize.getHeight();
@@ -613,7 +801,8 @@ function addFooter(
     doc.line(
       PAGE_MARGIN,
       pageHeight - 13,
-      pageWidth - PAGE_MARGIN,
+      pageWidth -
+        PAGE_MARGIN,
       pageHeight - 13
     );
 
@@ -632,7 +821,8 @@ function addFooter(
 
     doc.text(
       `Page ${page} of ${pageCount}`,
-      pageWidth - PAGE_MARGIN,
+      pageWidth -
+        PAGE_MARGIN,
       pageHeight - 8,
       {
         align: "right",
@@ -643,98 +833,126 @@ function addFooter(
 
 /* =========================================================
    OVERVIEW
-   ========================================================= */
+========================================================= */
 
 function generateOverviewPdf(
-  report: AdminReportOverview
+  JsPDF: JsPdfConstructor,
+  autoTable: AutoTableFunction,
+  report: AdminReportOverview,
+  filter?: ReportFilter
 ): jsPDF {
   const doc =
-    createDocument("landscape");
+    createDocument(
+      JsPDF,
+      "landscape"
+    );
 
   addHeader(
     doc,
     "overview"
   );
 
-  let y = 47;
+  let y =
+    addFilters(
+      doc,
+      filter,
+      44
+    );
 
-  y = addSummaryCards(
-    doc,
-    [
-      {
-        label: "Training Programs",
-        value:
-          report.totalTrainingPrograms,
-      },
-      {
-        label: "Training Batches",
-        value:
-          report.totalTrainingBatches,
-      },
-      {
-        label: "Participants",
-        value:
-          report.totalParticipants,
-      },
-      {
-        label: "Enrollments",
-        value:
-          report.totalEnrollments,
-      },
-      {
-        label: "Trainers",
-        value:
-          report.totalTrainers,
-      },
-      {
-        label: "Certificates",
-        value:
-          report.totalCertificates,
-      },
-    ],
-    y
-  );
+  y += 3;
 
-  y = addSummaryCards(
-    doc,
-    [
-      {
-        label: "Active Programs",
-        value:
-          report.activeTrainingPrograms,
-      },
-      {
-        label: "Active Enrollments",
-        value:
-          report.activeEnrollments,
-      },
-      {
-        label: "Attendance Rate",
-        value:
-          formatPercentage(
-            report.attendanceRate
-          ),
-      },
-      {
-        label: "Assessment Attempts",
-        value:
-          report.totalAssessmentAttempts,
-      },
-      {
-        label: "Active Services",
-        value:
-          report.activeServices,
-      },
-      {
-        label: "Service Requests",
-        value:
-          report.totalServiceRequests,
-      },
-    ],
-    y
-  );
+  y =
+    addSummaryCards(
+      doc,
+      [
+        {
+          label:
+            "Training Programs",
+          value:
+            report.totalTrainingPrograms,
+        },
+        {
+          label:
+            "Training Batches",
+          value:
+            report.totalTrainingBatches,
+        },
+        {
+          label:
+            "Participants",
+          value:
+            report.totalParticipants,
+        },
+        {
+          label:
+            "Enrollments",
+          value:
+            report.totalEnrollments,
+        },
+        {
+          label:
+            "Trainers",
+          value:
+            report.totalTrainers,
+        },
+        {
+          label:
+            "Certificates",
+          value:
+            report.totalCertificates,
+        },
+      ],
+      y
+    );
+
+  y =
+    addSummaryCards(
+      doc,
+      [
+        {
+          label:
+            "Active Programs",
+          value:
+            report.activeTrainingPrograms,
+        },
+        {
+          label:
+            "Active Enrollments",
+          value:
+            report.activeEnrollments,
+        },
+        {
+          label:
+            "Attendance Rate",
+          value:
+            formatPercentage(
+              report.attendanceRate
+            ),
+        },
+        {
+          label:
+            "Assessment Attempts",
+          value:
+            report.totalAssessmentAttempts,
+        },
+        {
+          label:
+            "Active Services",
+          value:
+            report.activeServices,
+        },
+        {
+          label:
+            "Service Requests",
+          value:
+            report.totalServiceRequests,
+        },
+      ],
+      y
+    );
 
   addTable(
+    autoTable,
     doc,
     {
       head: [
@@ -826,58 +1044,70 @@ function generateOverviewPdf(
 
 /* =========================================================
    TRAINING COMPLETION
-   ========================================================= */
+========================================================= */
 
 function generateTrainingCompletionPdf(
+  JsPDF: JsPdfConstructor,
+  autoTable: AutoTableFunction,
   report: TrainingCompletionReport,
   filter?: ReportFilter
 ): jsPDF {
   const doc =
-    createDocument("landscape");
+    createDocument(
+      JsPDF,
+      "landscape"
+    );
 
   addHeader(
     doc,
     "training-completion"
   );
 
-  let y = addFilters(
-    doc,
-    filter,
-    45
-  );
+  let y =
+    addFilters(
+      doc,
+      filter,
+      44
+    );
 
   y += 3;
 
-  y = addSummaryCards(
-    doc,
-    [
-      {
-        label: "Total Participants",
-        value:
-          report.totalParticipants,
-      },
-      {
-        label: "Completed",
-        value:
-          report.completedParticipants,
-      },
-      {
-        label: "Incomplete",
-        value:
-          report.incompleteParticipants,
-      },
-      {
-        label: "Completion Rate",
-        value:
-          formatPercentage(
-            report.completionRate
-          ),
-      },
-    ],
-    y
-  );
+  y =
+    addSummaryCards(
+      doc,
+      [
+        {
+          label:
+            "Total Participants",
+          value:
+            report.totalParticipants,
+        },
+        {
+          label:
+            "Completed",
+          value:
+            report.completedParticipants,
+        },
+        {
+          label:
+            "Incomplete",
+          value:
+            report.incompleteParticipants,
+        },
+        {
+          label:
+            "Completion Rate",
+          value:
+            formatPercentage(
+              report.completionRate
+            ),
+        },
+      ],
+      y
+    );
 
   addTable(
+    autoTable,
     doc,
     {
       head: [
@@ -901,27 +1131,21 @@ function generateTrainingCompletionPdf(
             safeText(
               item.participantName
             ),
-
             safeText(
               item.participantCode
             ),
-
             safeText(
               item.trainingProgramName
             ),
-
             safeText(
               item.batchCode
             ),
-
             safeText(
               item.trainerName
             ),
-
             formatPercentage(
               item.attendanceRate
             ),
-
             item.assessmentScore !==
                 null &&
             item.assessmentScore !==
@@ -930,15 +1154,12 @@ function generateTrainingCompletionPdf(
                   item.assessmentScore
                 )
               : "—",
-
             safeText(
               item.assessmentStatus
             ),
-
             safeText(
               item.completionStatus
             ),
-
             item.hasCertificate
               ? safeText(
                   item.certificateNumber
@@ -968,11 +1189,9 @@ function generateTrainingCompletionPdf(
         },
         5: {
           cellWidth: 18,
-          halign: "center",
         },
         6: {
           cellWidth: 20,
-          halign: "center",
         },
         7: {
           cellWidth: 23,
@@ -993,56 +1212,64 @@ function generateTrainingCompletionPdf(
 
 /* =========================================================
    ENROLLMENTS
-   ========================================================= */
+========================================================= */
 
 function generateEnrollmentPdf(
+  JsPDF: JsPdfConstructor,
+  autoTable: AutoTableFunction,
   report: EnrollmentReport,
   filter?: ReportFilter
 ): jsPDF {
   const doc =
-    createDocument("landscape");
+    createDocument(
+      JsPDF,
+      "landscape"
+    );
 
   addHeader(
     doc,
     "enrollments"
   );
 
-  let y = addFilters(
-    doc,
-    filter,
-    45
-  );
+  let y =
+    addFilters(
+      doc,
+      filter,
+      44
+    );
 
   y += 3;
 
-  y = addSummaryCards(
-    doc,
-    [
-      {
-        label: "Total",
-        value:
-          report.totalEnrollments,
-      },
-      {
-        label: "Approved",
-        value:
-          report.approvedEnrollments,
-      },
-      {
-        label: "Pending",
-        value:
-          report.pendingEnrollments,
-      },
-      {
-        label: "Rejected",
-        value:
-          report.rejectedEnrollments,
-      },
-    ],
-    y
-  );
+  y =
+    addSummaryCards(
+      doc,
+      [
+        {
+          label: "Total",
+          value:
+            report.totalEnrollments,
+        },
+        {
+          label: "Approved",
+          value:
+            report.approvedEnrollments,
+        },
+        {
+          label: "Pending",
+          value:
+            report.pendingEnrollments,
+        },
+        {
+          label: "Rejected",
+          value:
+            report.rejectedEnrollments,
+        },
+      ],
+      y
+    );
 
   addTable(
+    autoTable,
     doc,
     {
       head: [
@@ -1133,63 +1360,76 @@ function generateEnrollmentPdf(
 
 /* =========================================================
    ATTENDANCE
-   ========================================================= */
+========================================================= */
 
 function generateAttendancePdf(
+  JsPDF: JsPdfConstructor,
+  autoTable: AutoTableFunction,
   report: AttendanceReport,
   filter?: ReportFilter
 ): jsPDF {
   const doc =
-    createDocument("landscape");
+    createDocument(
+      JsPDF,
+      "landscape"
+    );
 
   addHeader(
     doc,
     "attendance"
   );
 
-  let y = addFilters(
-    doc,
-    filter,
-    45
-  );
+  let y =
+    addFilters(
+      doc,
+      filter,
+      44
+    );
 
   y += 3;
 
-  y = addSummaryCards(
-    doc,
-    [
-      {
-        label: "Total Records",
-        value:
-          report.totalRecords,
-      },
-      {
-        label: "Present",
-        value:
-          report.presentRecords,
-      },
-      {
-        label: "Absent",
-        value:
-          report.absentRecords,
-      },
-      {
-        label: "Late",
-        value:
-          report.lateRecords,
-      },
-      {
-        label: "Attendance Rate",
-        value:
-          formatPercentage(
-            report.attendanceRate
-          ),
-      },
-    ],
-    y
-  );
+  y =
+    addSummaryCards(
+      doc,
+      [
+        {
+          label:
+            "Total Records",
+          value:
+            report.totalRecords,
+        },
+        {
+          label:
+            "Present",
+          value:
+            report.presentRecords,
+        },
+        {
+          label:
+            "Absent",
+          value:
+            report.absentRecords,
+        },
+        {
+          label:
+            "Late",
+          value:
+            report.lateRecords,
+        },
+        {
+          label:
+            "Attendance Rate",
+          value:
+            formatPercentage(
+              report.attendanceRate
+            ),
+        },
+      ],
+      y
+    );
 
   addTable(
+    autoTable,
     doc,
     {
       head: [
@@ -1287,70 +1527,84 @@ function generateAttendancePdf(
 
 /* =========================================================
    ASSESSMENT RESULTS
-   ========================================================= */
+========================================================= */
 
 function generateAssessmentResultsPdf(
+  JsPDF: JsPdfConstructor,
+  autoTable: AutoTableFunction,
   report: AssessmentResultsReport,
   filter?: ReportFilter
 ): jsPDF {
   const doc =
-    createDocument("landscape");
+    createDocument(
+      JsPDF,
+      "landscape"
+    );
 
   addHeader(
     doc,
     "assessment-results"
   );
 
-  let y = addFilters(
-    doc,
-    filter,
-    45
-  );
+  let y =
+    addFilters(
+      doc,
+      filter,
+      44
+    );
 
   y += 3;
 
-  y = addSummaryCards(
-    doc,
-    [
-      {
-        label: "Total Attempts",
-        value:
-          report.totalAttempts,
-      },
-      {
-        label: "Passed",
-        value:
-          report.passedAttempts,
-      },
-      {
-        label: "Failed",
-        value:
-          report.failedAttempts,
-      },
-      {
-        label: "Pending",
-        value:
-          report.pendingAttempts,
-      },
-      {
-        label: "Average Score",
-        value:
-          formatPercentage(
-            report.averageScore
-          ),
-      },
-      {
-        label: "Pass Rate",
-        value:
-          formatPercentage(
-            report.passRate
-          ),
-      },
-    ],
-    y
-  );
+  y =
+    addSummaryCards(
+      doc,
+      [
+        {
+          label:
+            "Total Attempts",
+          value:
+            report.totalAttempts,
+        },
+        {
+          label:
+            "Passed",
+          value:
+            report.passedAttempts,
+        },
+        {
+          label:
+            "Failed",
+          value:
+            report.failedAttempts,
+        },
+        {
+          label:
+            "Pending",
+          value:
+            report.pendingAttempts,
+        },
+        {
+          label:
+            "Average Score",
+          value:
+            formatPercentage(
+              report.averageScore
+            ),
+        },
+        {
+          label:
+            "Pass Rate",
+          value:
+            formatPercentage(
+              report.passRate
+            ),
+        },
+      ],
+      y
+    );
 
   addTable(
+    autoTable,
     doc,
     {
       head: [
@@ -1433,19 +1687,15 @@ function generateAssessmentResultsPdf(
         },
         5: {
           cellWidth: 13,
-          halign: "center",
         },
         6: {
           cellWidth: 17,
-          halign: "center",
         },
         7: {
           cellWidth: 15,
-          halign: "center",
         },
         8: {
           cellWidth: 18,
-          halign: "center",
         },
         9: {
           cellWidth: 20,
@@ -1465,62 +1715,280 @@ function generateAssessmentResultsPdf(
 }
 
 /* =========================================================
+   GRADE CALCULATION
+========================================================= */
+
+function generateGradeCalculationPdf(
+  JsPDF: JsPdfConstructor,
+  autoTable: AutoTableFunction,
+  report: GradeCalculationReport,
+  filter?: ReportFilter
+): jsPDF {
+  const doc =
+    createDocument(
+      JsPDF,
+      "landscape"
+    );
+
+  /*
+   * ========================================================
+   * HEADER
+   * ========================================================
+   */
+
+  addHeader(
+    doc,
+    "grade-calculation"
+  );
+
+  /*
+   * ========================================================
+   * FILTERS
+   * ========================================================
+   */
+
+  let y =
+    addFilters(
+      doc,
+      filter,
+      44
+    );
+
+  y += 3;
+
+  /*
+   * ========================================================
+   * CALCULATE SUMMARY
+   * ========================================================
+   */
+
+  const grades =
+    report.grades ?? [];
+
+  const totalParticipants =
+    grades.length;
+
+  const passedCount =
+    grades.filter(
+      (grade) =>
+        grade.isPassed
+    ).length;
+
+  const failedCount =
+    totalParticipants -
+    passedCount;
+
+  const averageGrade =
+    totalParticipants > 0
+      ? grades.reduce(
+          (
+            total,
+            grade
+          ) =>
+            total +
+            Number(
+              grade.overallGrade ??
+                0
+            ),
+          0
+        ) /
+        totalParticipants
+      : 0;
+
+  /*
+   * ========================================================
+   * SUMMARY CARDS
+   * ========================================================
+   */
+
+  y =
+    addSummaryCards(
+      doc,
+      [
+        {
+          label:
+            "Total Participants",
+          value:
+            totalParticipants,
+        },
+        {
+          label:
+            "Passed",
+          value:
+            passedCount,
+        },
+        {
+          label:
+            "Failed",
+          value:
+            failedCount,
+        },
+        {
+          label:
+            "Average Grade",
+          value:
+            averageGrade.toFixed(
+              2
+            ),
+        },
+      ],
+      y
+    );
+
+  /*
+   * ========================================================
+   * GRADE TABLE
+   * ========================================================
+   */
+
+  addTable(
+    autoTable,
+    doc,
+    {
+      head: [
+        [
+          "#",
+          "Participant",
+          "Batch",
+          "Overall Grade",
+          "Result",
+        ],
+      ],
+
+      body:
+        grades.map(
+          (
+            grade,
+            index
+          ) => [
+            index + 1,
+
+            safeText(
+              grade.participantName
+            ),
+
+            safeText(
+              grade.batchCode
+            ),
+
+            Number(
+              grade.overallGrade ??
+                0
+            ).toFixed(2),
+
+            grade.isPassed
+              ? "Passed"
+              : "Failed",
+          ]
+        ),
+
+      orientation:
+        "landscape",
+
+      columnStyles: {
+        0: {
+          cellWidth: 12,
+          halign:
+            "center",
+        },
+
+        1: {
+          cellWidth: 70,
+        },
+
+        2: {
+          cellWidth: 40,
+        },
+
+        3: {
+          cellWidth: 45,
+          halign:
+            "center",
+        },
+
+        4: {
+          cellWidth: 35,
+          halign:
+            "center",
+        },
+      },
+    },
+    y
+  );
+
+  return doc;
+}
+
+/* =========================================================
    CERTIFICATES
-   ========================================================= */
+========================================================= */
 
 function generateCertificatePdf(
+  JsPDF: JsPdfConstructor,
+  autoTable: AutoTableFunction,
   report: CertificateReport,
   filter?: ReportFilter
 ): jsPDF {
   const doc =
-    createDocument("landscape");
+    createDocument(
+      JsPDF,
+      "landscape"
+    );
 
   addHeader(
     doc,
     "certificates"
   );
 
-  let y = addFilters(
-    doc,
-    filter,
-    45
-  );
+  let y =
+    addFilters(
+      doc,
+      filter,
+      44
+    );
 
   y += 3;
 
-  y = addSummaryCards(
-    doc,
-    [
-      {
-        label: "Total Certificates",
-        value:
-          report.totalCertificates,
-      },
-      {
-        label: "Completion",
-        value:
-          report.completionCertificates,
-      },
-      {
-        label: "Participation",
-        value:
-          report.participationCertificates,
-      },
-      {
-        label: "Active",
-        value:
-          report.activeCertificates,
-      },
-      {
-        label: "Revoked",
-        value:
-          report.revokedCertificates,
-      },
-    ],
-    y
-  );
+  y =
+    addSummaryCards(
+      doc,
+      [
+        {
+          label:
+            "Total Certificates",
+          value:
+            report.totalCertificates,
+        },
+        {
+          label:
+            "Completion",
+          value:
+            report.completionCertificates,
+        },
+        {
+          label:
+            "Participation",
+          value:
+            report.participationCertificates,
+        },
+        {
+          label:
+            "Active",
+          value:
+            report.activeCertificates,
+        },
+        {
+          label:
+            "Revoked",
+          value:
+            report.revokedCertificates,
+        },
+      ],
+      y
+    );
 
   addTable(
+    autoTable,
     doc,
     {
       head: [
@@ -1618,56 +2086,68 @@ function generateCertificatePdf(
 
 /* =========================================================
    TRAINERS
-   ========================================================= */
+========================================================= */
 
 function generateTrainerPdf(
+  JsPDF: JsPdfConstructor,
+  autoTable: AutoTableFunction,
   report: TrainerReport,
   filter?: ReportFilter
 ): jsPDF {
   const doc =
-    createDocument("landscape");
+    createDocument(
+      JsPDF,
+      "landscape"
+    );
 
   addHeader(
     doc,
     "trainers"
   );
 
-  let y = addFilters(
-    doc,
-    filter,
-    45
-  );
+  let y =
+    addFilters(
+      doc,
+      filter,
+      44
+    );
 
   y += 3;
 
-  y = addSummaryCards(
-    doc,
-    [
-      {
-        label: "Total Trainers",
-        value:
-          report.totalTrainers,
-      },
-      {
-        label: "Active Trainers",
-        value:
-          report.activeTrainers,
-      },
-      {
-        label: "Assignments",
-        value:
-          report.totalAssignments,
-      },
-      {
-        label: "Participants",
-        value:
-          report.totalParticipants,
-      },
-    ],
-    y
-  );
+  y =
+    addSummaryCards(
+      doc,
+      [
+        {
+          label:
+            "Total Trainers",
+          value:
+            report.totalTrainers,
+        },
+        {
+          label:
+            "Active Trainers",
+          value:
+            report.activeTrainers,
+        },
+        {
+          label:
+            "Assignments",
+          value:
+            report.totalAssignments,
+        },
+        {
+          label:
+            "Participants",
+          value:
+            report.totalParticipants,
+        },
+      ],
+      y
+    );
 
   addTable(
+    autoTable,
     doc,
     {
       head: [
@@ -1752,43 +2232,33 @@ function generateTrainerPdf(
         },
         3: {
           cellWidth: 15,
-          halign: "center",
         },
         4: {
           cellWidth: 20,
-          halign: "center",
         },
         5: {
           cellWidth: 18,
-          halign: "center",
         },
         6: {
           cellWidth: 15,
-          halign: "center",
         },
         7: {
           cellWidth: 15,
-          halign: "center",
         },
         8: {
           cellWidth: 15,
-          halign: "center",
         },
         9: {
           cellWidth: 20,
-          halign: "center",
         },
         10: {
           cellWidth: 18,
-          halign: "center",
         },
         11: {
           cellWidth: 18,
-          halign: "center",
         },
         12: {
           cellWidth: 18,
-          halign: "center",
         },
         13: {
           cellWidth: 18,
@@ -1803,61 +2273,74 @@ function generateTrainerPdf(
 
 /* =========================================================
    SERVICE REQUESTS
-   ========================================================= */
+========================================================= */
 
 function generateServiceRequestPdf(
+  JsPDF: JsPdfConstructor,
+  autoTable: AutoTableFunction,
   report: ServiceRequestReport,
   filter?: ReportFilter
 ): jsPDF {
   const doc =
-    createDocument("landscape");
+    createDocument(
+      JsPDF,
+      "landscape"
+    );
 
   addHeader(
     doc,
     "service-requests"
   );
 
-  let y = addFilters(
-    doc,
-    filter,
-    45
-  );
+  let y =
+    addFilters(
+      doc,
+      filter,
+      44
+    );
 
   y += 3;
 
-  y = addSummaryCards(
-    doc,
-    [
-      {
-        label: "Total Requests",
-        value:
-          report.totalRequests,
-      },
-      {
-        label: "Pending",
-        value:
-          report.pendingRequests,
-      },
-      {
-        label: "Approved",
-        value:
-          report.approvedRequests,
-      },
-      {
-        label: "Rejected",
-        value:
-          report.rejectedRequests,
-      },
-      {
-        label: "Reviewed",
-        value:
-          report.reviewedRequests,
-      },
-    ],
-    y
-  );
+  y =
+    addSummaryCards(
+      doc,
+      [
+        {
+          label:
+            "Total Requests",
+          value:
+            report.totalRequests,
+        },
+        {
+          label:
+            "Pending",
+          value:
+            report.pendingRequests,
+        },
+        {
+          label:
+            "Approved",
+          value:
+            report.approvedRequests,
+        },
+        {
+          label:
+            "Rejected",
+          value:
+            report.rejectedRequests,
+        },
+        {
+          label:
+            "Reviewed",
+          value:
+            report.reviewedRequests,
+        },
+      ],
+      y
+    );
 
   addTable(
+    autoTable,
     doc,
     {
       head: [
@@ -1959,166 +2442,175 @@ function generateServiceRequestPdf(
 
   return doc;
 }
+
 /* =========================================================
-   PUBLIC FUNCTION
-   ========================================================= */
+   BUILD REPORT
+========================================================= */
 
-function buildReportPdf({
-  reportType,
-  report,
-  filter,
-}: ExportReportPdfOptions): jsPDF {
-  let doc: jsPDF;
-
+export function buildReportPdf(
+  JsPDF: JsPdfConstructor,
+  autoTable: AutoTableFunction,
+  {
+    reportType,
+    report,
+    filter,
+  }: ExportReportPdfOptions
+): jsPDF {
   switch (reportType) {
     case "overview":
-      doc =
-        generateOverviewPdf(
-          report as AdminReportOverview
-        );
-      break;
+      return generateOverviewPdf(
+        JsPDF,
+        autoTable,
+        report as AdminReportOverview,
+        filter
+      );
 
     case "training-completion":
-      doc =
-        generateTrainingCompletionPdf(
-          report as TrainingCompletionReport,
-          filter
-        );
-      break;
+      return generateTrainingCompletionPdf(
+        JsPDF,
+        autoTable,
+        report as TrainingCompletionReport,
+        filter
+      );
 
     case "enrollments":
-      doc =
-        generateEnrollmentPdf(
-          report as EnrollmentReport,
-          filter
-        );
-      break;
+      return generateEnrollmentPdf(
+        JsPDF,
+        autoTable,
+        report as EnrollmentReport,
+        filter
+      );
 
     case "attendance":
-      doc =
-        generateAttendancePdf(
-          report as AttendanceReport,
-          filter
-        );
-      break;
+      return generateAttendancePdf(
+        JsPDF,
+        autoTable,
+        report as AttendanceReport,
+        filter
+      );
 
     case "assessment-results":
-      doc =
-        generateAssessmentResultsPdf(
-          report as AssessmentResultsReport,
-          filter
-        );
-      break;
+      return generateAssessmentResultsPdf(
+        JsPDF,
+        autoTable,
+        report as AssessmentResultsReport,
+        filter
+      );
+
+    /*
+     * ======================================================
+     * GRADE CALCULATION
+     * ======================================================
+     */
+
+    case "grade-calculation":
+      return generateGradeCalculationPdf(
+        JsPDF,
+        autoTable,
+        report as GradeCalculationReport,
+        filter
+      );
 
     case "certificates":
-      doc =
-        generateCertificatePdf(
-          report as CertificateReport,
-          filter
-        );
-      break;
+      return generateCertificatePdf(
+        JsPDF,
+        autoTable,
+        report as CertificateReport,
+        filter
+      );
 
     case "trainers":
-      doc =
-        generateTrainerPdf(
-          report as TrainerReport,
-          filter
-        );
-      break;
+      return generateTrainerPdf(
+        JsPDF,
+        autoTable,
+        report as TrainerReport,
+        filter
+      );
 
     case "service-requests":
-      doc =
-        generateServiceRequestPdf(
-          report as ServiceRequestReport,
-          filter
-        );
-      break;
+      return generateServiceRequestPdf(
+        JsPDF,
+        autoTable,
+        report as ServiceRequestReport,
+        filter
+      );
 
     default:
       throw new Error(
-        `Unsupported report type: ${reportType}`
+        `Unsupported report type: ${String(
+          reportType
+        )}`
       );
   }
+}
+
+/* =========================================================
+   GENERATE BLOB
+========================================================= */
+
+export function generateReportPdfBlob(
+  JsPDF: JsPdfConstructor,
+  autoTable: AutoTableFunction,
+  options: ExportReportPdfOptions
+): Blob {
+  const doc =
+    buildReportPdf(
+      JsPDF,
+      autoTable,
+      options
+    );
 
   addFooter(doc);
 
-  return doc;
-}
-
-/* =========================================================
-   GENERATE PDF BLOB
-   ========================================================= */
-
-/**
- * Generates the same PDF used by the Admin Reports page,
- * but returns it as a Blob instead of immediately downloading it.
- *
- * This is used when an Admin approves a Trainer report request.
- */
-export function generateReportPdfBlob({
-  reportType,
-  report,
-  filter,
-}: ExportReportPdfOptions): Blob {
-  const doc =
-    buildReportPdf({
-      reportType,
-      report,
-      filter,
-    });
-
-  return doc.output("blob");
-}
-
-/* =========================================================
-   GENERATE PDF ARRAY BUFFER
-   ========================================================= */
-
-/**
- * Optional helper for APIs/services that prefer binary data.
- */
-export function generateReportPdfArrayBuffer({
-  reportType,
-  report,
-  filter,
-}: ExportReportPdfOptions): ArrayBuffer {
-  const doc =
-    buildReportPdf({
-      reportType,
-      report,
-      filter,
-    });
-
-  return doc.output("arraybuffer");
-}
-
-/* =========================================================
-   DOWNLOAD PDF
-   ========================================================= */
-
-export function exportReportPdf({
-  reportType,
-  report,
-  filter,
-}: ExportReportPdfOptions): void {
-  const doc =
-    buildReportPdf({
-      reportType,
-      report,
-      filter,
-    });
-
-  doc.save(
-    getFilename(reportType)
+  return doc.output(
+    "blob"
   );
 }
 
 /* =========================================================
-   PDF FILENAME
-   ========================================================= */
+   GENERATE ARRAY BUFFER
+========================================================= */
 
-export function getReportPdfFilename(
-  reportType: ReportType
-): string {
-  return getFilename(reportType);
+export function generateReportPdfArrayBuffer(
+  JsPDF: JsPdfConstructor,
+  autoTable: AutoTableFunction,
+  options: ExportReportPdfOptions
+): ArrayBuffer {
+  const doc =
+    buildReportPdf(
+      JsPDF,
+      autoTable,
+      options
+    );
+
+  addFooter(doc);
+
+  return doc.output(
+    "arraybuffer"
+  );
+}
+
+/* =========================================================
+   EXPORT / DOWNLOAD
+========================================================= */
+
+export function exportReportPdf(
+  JsPDF: JsPdfConstructor,
+  autoTable: AutoTableFunction,
+  options: ExportReportPdfOptions
+): void {
+  const doc =
+    buildReportPdf(
+      JsPDF,
+      autoTable,
+      options
+    );
+
+  addFooter(doc);
+
+  doc.save(
+    getReportPdfFilename(
+      options.reportType
+    )
+  );
 }

@@ -1,6 +1,7 @@
 using System.Security.Claims;
 
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 using server.DTOs.Trainer;
@@ -25,14 +26,14 @@ public class AdminTrainerReportRequestsController
 
 
     // =========================================================
-    // GET ALL REPORT REQUESTS
+    // GET ALL TRAINER REPORT REQUESTS
     // =========================================================
 
     [HttpGet]
     public async Task<
         ActionResult<
             IReadOnlyList<AdminTrainerReportRequestDto>>>
-        GetAll()
+        GetAllRequests()
     {
         try
         {
@@ -54,16 +55,16 @@ public class AdminTrainerReportRequestsController
 
 
     // =========================================================
-    // APPROVE
+    // APPROVE + GENERATE REPORT
     // =========================================================
 
-    [HttpPost("{id:guid}/approve")]
+    [HttpPost("{id:guid}/approve-and-generate")]
+    [Consumes("multipart/form-data")]
     public async Task<
         ActionResult<AdminTrainerReportRequestDto>>
-        Approve(
+        ApproveAndGenerate(
             Guid id,
-            [FromBody]
-            ReviewTrainerReportRequestDto dto)
+            [FromForm] ReviewTrainerReportRequestDto dto)
     {
         try
         {
@@ -72,12 +73,22 @@ public class AdminTrainerReportRequestsController
 
             var result =
                 await _service
-                    .ApproveAsync(
+                    .ApproveAndGenerateAsync(
                         adminUserId,
                         id,
-                        dto);
+                        dto.File,
+                        dto.AdminRemarks);
 
             return Ok(result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(
+                StatusCodes.Status403Forbidden,
+                new
+                {
+                    message = ex.Message
+                });
         }
         catch (InvalidOperationException ex)
         {
@@ -91,7 +102,7 @@ public class AdminTrainerReportRequestsController
 
 
     // =========================================================
-    // REJECT
+    // REJECT REQUEST
     // =========================================================
 
     [HttpPost("{id:guid}/reject")]
@@ -116,6 +127,15 @@ public class AdminTrainerReportRequestsController
 
             return Ok(result);
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(
+                StatusCodes.Status403Forbidden,
+                new
+                {
+                    message = ex.Message
+                });
+        }
         catch (InvalidOperationException ex)
         {
             return BadRequest(
@@ -128,7 +148,7 @@ public class AdminTrainerReportRequestsController
 
 
     // =========================================================
-    // GET CURRENT USER ID
+    // GET ADMIN USER ID
     // =========================================================
 
     private Guid GetUserId()

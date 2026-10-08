@@ -693,7 +693,7 @@ public class AttendanceService : IAttendanceService
         // =====================================================
 
         var now =
-            DateTime.Now;
+            GetPhilippineNow();
 
         var today =
             DateOnly.FromDateTime(now);
@@ -936,7 +936,7 @@ public class AttendanceService : IAttendanceService
         // =====================================================
 
         var now =
-            DateTime.Now;
+            GetPhilippineNow();
 
         var today =
             DateOnly.FromDateTime(now);
@@ -1416,10 +1416,42 @@ public class AttendanceService : IAttendanceService
                 ManualAttendanceStatus.Open);
     }
 
-    // =========================================================
-    // PRIVATE HELPER
-    // Get session and verify assigned trainer.
-    // =========================================================
+  // =========================================================
+// PHILIPPINE TIME
+// =========================================================
+
+private static TimeZoneInfo GetPhilippineTimeZone()
+{
+    // Linux / Render / Azure
+    try
+    {
+        return TimeZoneInfo.FindSystemTimeZoneById(
+            "Asia/Manila");
+    }
+    catch (TimeZoneNotFoundException)
+    {
+        // Windows
+        return TimeZoneInfo.FindSystemTimeZoneById(
+            "Singapore Standard Time");
+    }
+}
+
+// =========================================================
+// GET CURRENT PHILIPPINE TIME
+// =========================================================
+
+private static DateTime GetPhilippineNow()
+{
+    var utcNow =
+        DateTime.UtcNow;
+
+    var philippinesTimeZone =
+        GetPhilippineTimeZone();
+
+    return TimeZoneInfo.ConvertTimeFromUtc(
+        utcNow,
+        philippinesTimeZone);
+}
 
     private async Task<AttendanceSession>
         GetSessionForTrainerAsync(

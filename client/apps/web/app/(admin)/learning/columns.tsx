@@ -3,89 +3,98 @@
 import type { ColumnDef } from "@tanstack/react-table";
 
 import type {
-  LearningMaterial,
+  LearningModule,
   TrainingBatch,
 } from "@repo/types";
 
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
   Badge,
+  Button,
 } from "@repo/ui/index";
 
+import {
+  Settings2,
+  Eye,
+  FileCog,
+  FileSearch,
+  Trash2,
+} from "lucide-react";
+
+// ============================================================
+// TABLE ROW
+// ============================================================
+
+export interface TrainerLearningModuleRow {
+  module: LearningModule;
+  batch: TrainingBatch | null;
+  lessonCount: number;
+}
 
 // ============================================================
 // TABLE META
 // ============================================================
 
-export interface LearningMaterialTableMeta {
-  batchMap: Map<string, TrainingBatch>;
+export interface TrainerLearningModuleTableMeta {
+  onManage: (
+    row: TrainerLearningModuleRow,
+  ) => void;
 
-  onView: (material: LearningMaterial) => void;
-  onPublish: (material: LearningMaterial) => void;
-  onDelete: (material: LearningMaterial) => void;
+  onOpenMaterial: (
+    row: TrainerLearningModuleRow,
+  ) => void;
+
+  onReplaceMaterial: (
+    row: TrainerLearningModuleRow,
+  ) => void;
+
+  onExtractMaterial: (
+    row: TrainerLearningModuleRow,
+  ) => void;
+
+  onDeleteModule: (
+    row: TrainerLearningModuleRow,
+  ) => void;
 }
-
-
-// ============================================================
-// MATERIAL TYPE
-// ============================================================
-
-type MaterialType =
-  | "PDF"
-  | "Presentation"
-  | "Document"
-  | "Video"
-  | "Activity"
-  | "Other";
-
 
 // ============================================================
 // COLUMNS
 // ============================================================
 
-export const columns: ColumnDef<LearningMaterial>[] = [
+export const columns: ColumnDef<TrainerLearningModuleRow>[] = [
 
-  /*
-   * ============================================================
-   * LEARNING MATERIAL
-   * ============================================================
-   */
+  // ==========================================================
+  // MODULE
+  // ==========================================================
 
   {
-    accessorKey: "title",
-    header: "Learning Material",
+    id: "module",
+
+    accessorFn: (row) =>
+      row.module.title,
+
+    header: "Module",
 
     cell: ({ row }) => {
-      const material = row.original;
-      const type = getMaterialType(
-        material.materialType,
-      );
-
-      const styles = getTypeStyles(type);
+      const module =
+        row.original.module;
 
       return (
         <div className="flex items-center gap-3">
 
-          {/* TYPE ICON */}
-          <div
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-[9px] font-bold ${styles}`}
-          >
-            {getTypeLabel(type)}
+          {/* MODULE NUMBER */}
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#dbe5ef] bg-[#f4f8fb] text-xs font-bold text-[#002b5c]">
+            {module.moduleNumber}
           </div>
 
-          {/* MATERIAL INFO */}
+          {/* MODULE INFO */}
           <div className="min-w-0">
 
-            <p className="max-w-[270px] truncate text-sm font-semibold text-gray-900">
-              {material.title}
+            <p className="max-w-[300px] truncate text-sm font-semibold text-gray-900">
+              {module.title}
             </p>
 
-            <p className="mt-0.5 max-w-[270px] truncate font-mono text-[10px] text-gray-400">
-              {material.fileName ?? "No file uploaded"}
+            <p className="mt-0.5 text-[10px] text-gray-400">
+              Module {module.moduleNumber}
             </p>
 
           </div>
@@ -95,75 +104,33 @@ export const columns: ColumnDef<LearningMaterial>[] = [
     },
   },
 
-
-  /*
-   * ============================================================
-   * TRAINING
-   * ============================================================
-   */
+  // ==========================================================
+  // TRAINING
+  // ==========================================================
 
   {
     id: "training",
+
     header: "Training",
 
-    accessorFn: (row) => row.trainingBatchId,
+    accessorFn: (row) =>
+      row.batch?.programName ?? "",
 
-    cell: ({ row, table }) => {
-      const material = row.original;
-
-      const meta =
-        table.options.meta as
-          | LearningMaterialTableMeta
-          | undefined;
-
+    cell: ({ row }) => {
       const batch =
-        meta?.batchMap.get(
-          material.trainingBatchId,
-        );
-
-      return (
-        <p className="max-w-[220px] text-xs font-semibold leading-5">
-          {batch?.programName ?? "Unknown Training"}
-        </p>
-      );
-    },
-  },
-
-
-  /*
-   * ============================================================
-   * BATCH
-   * ============================================================
-   */
-
-  {
-    accessorKey: "batchCode",
-    header: "Batch",
-
-    cell: ({ row, table }) => {
-      const material = row.original;
-
-      const meta =
-        table.options.meta as
-          | LearningMaterialTableMeta
-          | undefined;
-
-      const batch =
-        meta?.batchMap.get(
-          material.trainingBatchId,
-        );
+        row.original.batch;
 
       return (
         <div>
 
-          <p className="font-mono text-xs font-semibold text-gray-700">
-            {material.batchCode ??
-              batch?.batchCode ??
-              "—"}
+          <p className="max-w-[220px] truncate text-xs font-semibold text-gray-800">
+            {batch?.programName ??
+              "Unknown Training"}
           </p>
 
-          <p className="mt-0.5 text-[10px] text-gray-400">
-            {formatDate(material.createdAt)}
+          <p className="mt-0.5 font-mono text-[10px] text-gray-400">
+            {batch?.batchCode ??
+              "No batch"}
           </p>
 
         </div>
@@ -171,85 +138,106 @@ export const columns: ColumnDef<LearningMaterial>[] = [
     },
   },
 
-
-  /*
-   * ============================================================
-   * TYPE
-   * ============================================================
-   */
+  // ==========================================================
+  // LESSONS
+  // ==========================================================
 
   {
-    accessorKey: "materialType",
-    header: "Type",
+    id: "lessons",
+
+    header: "Lessons",
+
+    accessorFn: (row) =>
+      row.lessonCount,
 
     cell: ({ row }) => {
+      const count =
+        row.original.lessonCount;
+
       return (
         <span className="text-xs font-semibold text-gray-700">
-          {getMaterialType(
-            row.original.materialType,
-          )}
+          {count}{" "}
+          {count === 1
+            ? "lesson"
+            : "lessons"}
         </span>
       );
     },
   },
 
-
-  /*
-   * ============================================================
-   * STATUS
-   * ============================================================
-   */
+  // ==========================================================
+  // STATUS
+  // ==========================================================
 
   {
     id: "status",
+
     header: "Status",
 
-    accessorFn: (row) =>
-      row.isPublished
-        ? "Published"
-        : "Draft",
+    accessorFn: (row) => {
+      const module =
+        row.module;
+
+      const hasContent =
+        Boolean(
+          module.welcomeContent ||
+          module.learningObjectives ||
+          module.summary ||
+          module.keyTakeaways,
+        );
+
+      return hasContent
+        ? "Ready"
+        : "Draft";
+    },
 
     cell: ({ row }) => {
-      const published =
-        row.original.isPublished;
+      const module =
+        row.original.module;
+
+      const hasContent =
+        Boolean(
+          module.welcomeContent ||
+          module.learningObjectives ||
+          module.summary ||
+          module.keyTakeaways,
+        );
 
       return (
         <Badge
           variant={
-            published
+            hasContent
               ? "success"
               : "warning"
           }
         >
-          {published
-            ? "Published"
+          {hasContent
+            ? "Ready"
             : "Draft"}
         </Badge>
       );
     },
   },
 
-
-  /*
-   * ============================================================
-   * ACTIONS
-   * ============================================================
-   */
+  // ==========================================================
+  // ACTIONS
+  // ==========================================================
 
   {
     id: "actions",
 
-    header: "Actions",
+    header: "Action",
 
     enableSorting: false,
     enableColumnFilter: false,
 
-    cell: ({ row, table }) => {
-      const material = row.original;
-
+    cell: ({
+      row,
+      table,
+    }) => {
       const meta =
         table.options.meta as
-          | LearningMaterialTableMeta
+          | TrainerLearningModuleTableMeta
           | undefined;
 
       if (!meta) {
@@ -258,221 +246,59 @@ export const columns: ColumnDef<LearningMaterial>[] = [
 
       return (
         <div
-          className="flex items-center justify-end"
+          className="flex items-center justify-end gap-1"
           onClick={(event) => {
             event.stopPropagation();
           }}
         >
 
-          <DropdownMenu>
+          {/* ==================================================
+              MANAGE
+          ================================================== */}
 
-            <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9 gap-2 rounded-xl border-slate-200 px-3 text-xs font-semibold"
+            title="Manage module"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
 
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                }}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
-                aria-label={`Actions for ${material.title}`}
-              >
-                <span className="text-lg leading-none">
-                  ⋯
-                </span>
-              </button>
+              meta.onManage(
+                row.original,
+              );
+            }}
+          >
+            <Settings2 className="h-4 w-4" />
 
-            </DropdownMenuTrigger>
-
-
-            <DropdownMenuContent
-              align="end"
-              className="w-40"
-              onClick={(event) => {
-                event.stopPropagation();
-              }}
-            >
-
-              <DropdownMenuItem
-                onSelect={() => {
-                  meta.onView(material);
-                }}
-              >
-                View
-              </DropdownMenuItem>
+            Manage
+          </Button>
 
 
-              {!material.isPublished && (
-                <DropdownMenuItem
-                  onSelect={() => {
-                    meta.onPublish(material);
-                  }}
-                >
-                  Publish
-                </DropdownMenuItem>
-              )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-red-600 hover:bg-red-50 hover:text-red-700"
+            title="Delete module"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
 
+              meta.onDeleteModule(
+                row.original,
+              );
+            }}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
 
-              <DropdownMenuSeparator />
-
-
-              <DropdownMenuItem
-                onSelect={() => {
-                  meta.onDelete(material);
-                }}
-                className="text-red-600 focus:bg-red-50 focus:text-red-600"
-              >
-                Delete
-              </DropdownMenuItem>
-
-            </DropdownMenuContent>
-
-          </DropdownMenu>
+            Delete
+          </Button>
 
         </div>
       );
     },
   },
 ];
-
-
-// ============================================================
-// MATERIAL TYPE HELPERS
-// ============================================================
-
-function getMaterialType(
-  value: string,
-): MaterialType {
-
-  const type =
-    value
-      .trim()
-      .toLowerCase();
-
-  if (type === "pdf") {
-    return "PDF";
-  }
-
-  if (
-    type === "presentation" ||
-    type === "ppt" ||
-    type === "pptx"
-  ) {
-    return "Presentation";
-  }
-
-  if (
-    type === "document" ||
-    type === "doc" ||
-    type === "docx"
-  ) {
-    return "Document";
-  }
-
-  if (
-    type === "video" ||
-    type === "mp4"
-  ) {
-    return "Video";
-  }
-
-  if (type === "activity") {
-    return "Activity";
-  }
-
-  return "Other";
-}
-
-
-// ============================================================
-// TYPE LABEL
-// ============================================================
-
-function getTypeLabel(
-  type: MaterialType,
-) {
-
-  switch (type) {
-    case "PDF":
-      return "PDF";
-
-    case "Presentation":
-      return "PPT";
-
-    case "Document":
-      return "DOC";
-
-    case "Video":
-      return "VID";
-
-    case "Activity":
-      return "ACT";
-
-    default:
-      return "FILE";
-  }
-}
-
-
-// ============================================================
-// TYPE STYLES
-// ============================================================
-
-function getTypeStyles(
-  type: MaterialType,
-) {
-
-  switch (type) {
-    case "PDF":
-      return "bg-red-50 text-red-600 border-red-100";
-
-    case "Presentation":
-      return "bg-orange-50 text-orange-600 border-orange-100";
-
-    case "Document":
-      return "bg-blue-50 text-blue-600 border-blue-100";
-
-    case "Video":
-      return "bg-purple-50 text-purple-600 border-purple-100";
-
-    case "Activity":
-      return "bg-emerald-50 text-emerald-600 border-emerald-100";
-
-    default:
-      return "bg-gray-50 text-gray-600 border-gray-200";
-  }
-}
-
-
-// ============================================================
-// DATE
-// ============================================================
-
-function formatDate(
-  value: string | null | undefined,
-) {
-
-  if (!value) {
-    return "—";
-  }
-
-  const date =
-    new Date(value);
-
-  if (
-    Number.isNaN(
-      date.getTime(),
-    )
-  ) {
-    return value;
-  }
-
-  return date.toLocaleDateString(
-    "en-US",
-    {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    },
-  );
-}

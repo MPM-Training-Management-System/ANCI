@@ -467,10 +467,10 @@ export type ReportType =
   | "enrollments"
   | "attendance"
   | "assessment-results"
+  | "grade-calculation"
   | "certificates"
   | "trainers"
   | "service-requests";
-
 
 // =========================================================
 // COMMON REPORT STATUS VALUES

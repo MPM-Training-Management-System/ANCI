@@ -12,11 +12,11 @@ import type {
 } from "@repo/types";
 
 import type {
-  TrainerReportRequestApi,
+  AdminTrainerReportRequestApi,
 } from "@repo/api";
 
 export function useAdminTrainerReportRequests(
-  trainerReportRequestApi: TrainerReportRequestApi
+  trainerReportRequestApi: AdminTrainerReportRequestApi
 ) {
   const [
     requests,
@@ -39,7 +39,7 @@ export function useAdminTrainerReportRequests(
   ] = useState<string | null>(null);
 
   // =========================================================
-  // LOAD
+  // LOAD REQUESTS
   // =========================================================
 
   const loadRequests =
@@ -50,7 +50,7 @@ export function useAdminTrainerReportRequests(
 
         const response =
           await trainerReportRequestApi
-            .getAdminRequests();
+            .getAllRequests();
 
         setRequests(
           response ?? []
@@ -72,14 +72,15 @@ export function useAdminTrainerReportRequests(
     }, [trainerReportRequestApi]);
 
   // =========================================================
-  // APPROVE
+  // APPROVE AND GENERATE REPORT
   // =========================================================
 
-  const approveRequest =
+  const approveAndGenerate =
     useCallback(
       async (
         id: string,
-        payload: ReviewTrainerReportRequest
+        file: Blob,
+        adminRemarks?: string | null
       ) => {
         try {
           setProcessingId(id);
@@ -87,9 +88,10 @@ export function useAdminTrainerReportRequests(
 
           const updated =
             await trainerReportRequestApi
-              .approveRequest(
+              .approveAndGenerate(
                 id,
-                payload
+                file,
+                adminRemarks
               );
 
           setRequests(
@@ -105,14 +107,14 @@ export function useAdminTrainerReportRequests(
           return updated;
         } catch (err) {
           console.error(
-            "Failed to approve trainer report request:",
+            "Failed to approve and generate trainer report:",
             err
           );
 
           const message =
             err instanceof Error
               ? err.message
-              : "Failed to approve report request.";
+              : "Failed to approve and generate report.";
 
           setError(message);
 
@@ -125,7 +127,7 @@ export function useAdminTrainerReportRequests(
     );
 
   // =========================================================
-  // REJECT
+  // REJECT REQUEST
   // =========================================================
 
   const rejectRequest =
@@ -140,7 +142,7 @@ export function useAdminTrainerReportRequests(
 
           const updated =
             await trainerReportRequestApi
-              .rejectRequest(
+              .reject(
                 id,
                 payload
               );
@@ -185,6 +187,10 @@ export function useAdminTrainerReportRequests(
     void loadRequests();
   }, [loadRequests]);
 
+  // =========================================================
+  // RETURN
+  // =========================================================
+
   return {
     requests,
 
@@ -196,7 +202,7 @@ export function useAdminTrainerReportRequests(
 
     loadRequests,
 
-    approveRequest,
+    approveAndGenerate,
 
     rejectRequest,
   };

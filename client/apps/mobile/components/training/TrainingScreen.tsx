@@ -26,6 +26,7 @@ import {
 
 import type {
   TrainingBatch,
+  TrainingSession,
 } from "@repo/types";
 
 import {
@@ -42,7 +43,6 @@ import EnrollmentForm, {
 
 import EnrollmentReview from "./EnrollmentReview";
 import EnrollmentStatusCard from "./EnrollmentStatusCard";
-import TrainingSchedule from "./TrainingSchedule";
 
 // ==========================================================
 // SCREEN
@@ -53,11 +53,23 @@ type Screen =
   | "enrollment"
   | "active";
 
+// ==========================================================
+// FLOW
+// ==========================================================
+
 type Flow =
   | "none"
   | "details"
   | "form"
   | "review";
+
+// ==========================================================
+// ACTIVE SESSION VIEW
+// ==========================================================
+
+type ActiveSessionView =
+  | "upcoming"
+  | "completed";
 
 // ==========================================================
 // COMPONENT
@@ -71,22 +83,27 @@ export default function TrainingScreen() {
   const [
     screen,
     setScreen,
-  ] = useState<Screen>(
-    "available"
-  );
+  ] = useState<Screen>("available");
 
   const [
     flow,
     setFlow,
-  ] = useState<Flow>(
-    "none"
-  );
+  ] = useState<Flow>("none");
 
   const [
     selectedTrainingId,
     setSelectedTrainingId,
-  ] = useState<string | null>(
-    null
+  ] = useState<string | null>(null);
+
+  // ========================================================
+  // ACTIVE SESSION VIEW
+  // ========================================================
+
+  const [
+    activeSessionView,
+    setActiveSessionView,
+  ] = useState<ActiveSessionView>(
+    "upcoming"
   );
 
   // ========================================================
@@ -105,8 +122,6 @@ export default function TrainingScreen() {
 
   // ========================================================
   // TRAINING BATCHES
-  //
-  // GET /api/training-batches
   // ========================================================
 
   const {
@@ -120,9 +135,6 @@ export default function TrainingScreen() {
 
   // ========================================================
   // ENROLLMENTS
-  //
-  // GET /api/enrollments/me
-  // POST /api/enrollments
   // ========================================================
 
   const {
@@ -137,41 +149,18 @@ export default function TrainingScreen() {
   );
 
   // ========================================================
-  // HAS ACTIVE ENROLLMENT
-  // ========================================================
-
-  const hasActiveEnrollment =
-    useMemo(() => {
-      return enrollments.some(
-        (enrollment) => {
-          const status =
-            String(
-              enrollment.status
-            ).toLowerCase();
-
-          return (
-            status === "pending" ||
-            status === "documentsrequired" ||
-            status === "underreview" ||
-            status === "needscorrection" ||
-            status === "approved"
-          );
-        }
-      );
-    }, [enrollments]);
-
-  // ========================================================
   // LOAD MY ENROLLMENTS
   // ========================================================
 
   useEffect(() => {
-    refreshMyEnrollments()
-      .catch((error) => {
+    refreshMyEnrollments().catch(
+      (error) => {
         console.error(
           "FAILED TO LOAD MY ENROLLMENTS:",
           error
         );
-      });
+      }
+    );
   }, [
     refreshMyEnrollments,
   ]);
@@ -238,7 +227,7 @@ export default function TrainingScreen() {
     }, [enrollments]);
 
   // ========================================================
-  // OPEN TRAINING DETAILS
+  // OPEN TRAINING
   // ========================================================
 
   const openTraining = (
@@ -248,9 +237,7 @@ export default function TrainingScreen() {
       training.id
     );
 
-    setFlow(
-      "details"
-    );
+    setFlow("details");
   };
 
   // ========================================================
@@ -262,9 +249,7 @@ export default function TrainingScreen() {
       null
     );
 
-    setFlow(
-      "none"
-    );
+    setFlow("none");
   };
 
   // ========================================================
@@ -276,10 +261,6 @@ export default function TrainingScreen() {
       return;
     }
 
-    // ======================================================
-    // CHECK ACTIVE ENROLLMENT
-    // ======================================================
-
     const activeEnrollment =
       enrollments.find(
         (enrollment) => {
@@ -290,9 +271,12 @@ export default function TrainingScreen() {
 
           return (
             status === "pending" ||
-            status === "documentsrequired" ||
-            status === "underreview" ||
-            status === "needscorrection" ||
+            status ===
+              "documentsrequired" ||
+            status ===
+              "underreview" ||
+            status ===
+              "needscorrection" ||
             status === "approved"
           );
         }
@@ -338,7 +322,8 @@ export default function TrainingScreen() {
       }
 
       if (
-        status === "documentsrequired"
+        status ===
+        "documentsrequired"
       ) {
         Alert.alert(
           "Documents Required",
@@ -356,10 +341,6 @@ export default function TrainingScreen() {
       return;
     }
 
-    // ======================================================
-    // CHECK CAPACITY
-    // ======================================================
-
     if (
       selectedTraining.enrolledCount >=
       selectedTraining.capacity
@@ -372,13 +353,7 @@ export default function TrainingScreen() {
       return;
     }
 
-    // ======================================================
-    // OPEN FORM
-    // ======================================================
-
-    setFlow(
-      "form"
-    );
+    setFlow("form");
   };
 
   // ========================================================
@@ -388,13 +363,9 @@ export default function TrainingScreen() {
   const handleFormContinue = (
     data: EnrollmentFormData
   ) => {
-    setFormData(
-      data
-    );
+    setFormData(data);
 
-    setFlow(
-      "review"
-    );
+    setFlow("review");
   };
 
   // ========================================================
@@ -415,10 +386,6 @@ export default function TrainingScreen() {
       if (isSubmitting) {
         return;
       }
-
-      // =====================================================
-      // CHECK DUPLICATE ENROLLMENT
-      // =====================================================
 
       const existingEnrollment =
         enrollments.find(
@@ -485,10 +452,6 @@ export default function TrainingScreen() {
         return;
       }
 
-      // =====================================================
-      // CHECK CAPACITY
-      // =====================================================
-
       if (
         selectedTraining.enrolledCount >=
         selectedTraining.capacity
@@ -500,10 +463,6 @@ export default function TrainingScreen() {
 
         return;
       }
-
-      // =====================================================
-      // CHECK REQUIRED DOCUMENTS
-      // =====================================================
 
       if (
         !formData.documents ||
@@ -518,11 +477,6 @@ export default function TrainingScreen() {
       }
 
       try {
-        // ===================================================
-        // STEP 1
-        // CREATE ENROLLMENT
-        // ===================================================
-
         const enrollment =
           await createEnrollment({
             trainingBatchId:
@@ -534,11 +488,6 @@ export default function TrainingScreen() {
           enrollment.id
         );
 
-        // ===================================================
-        // STEP 2
-        // UPLOAD DOCUMENTS
-        // ===================================================
-
         for (
           const document
           of formData.documents
@@ -546,18 +495,10 @@ export default function TrainingScreen() {
           const uploadData =
             new FormData();
 
-          // -------------------------------------------------
-          // RequirementId
-          // -------------------------------------------------
-
           uploadData.append(
             "RequirementId",
             document.requirementId
           );
-
-          // -------------------------------------------------
-          // File
-          // -------------------------------------------------
 
           uploadData.append(
             "File",
@@ -574,39 +515,15 @@ export default function TrainingScreen() {
             } as any
           );
 
-          console.log(
-            "UPLOADING DOCUMENT:",
-            document.requirementName
-          );
-
           await enrollmentApi.uploadDocument(
             enrollment.id,
             uploadData
           );
-
-          console.log(
-            "DOCUMENT UPLOADED:",
-            document.requirementName
-          );
         }
-
-        // ===================================================
-        // STEP 3
-        // REFRESH ENROLLMENTS
-        // ===================================================
 
         await refreshMyEnrollments();
 
-        // ===================================================
-        // STEP 4
-        // REFRESH TRAINING BATCHES
-        // ===================================================
-
         await refresh();
-
-        // ===================================================
-        // SUCCESS
-        // ===================================================
 
         Alert.alert(
           "Enrollment Submitted",
@@ -620,18 +537,18 @@ export default function TrainingScreen() {
                   null
                 );
 
-                setFlow(
-                  "none"
-                );
+                setFlow("none");
 
                 setScreen(
                   "enrollment"
                 );
 
                 setFormData({
-                  participantName: "",
+                  participantName:
+                    "",
                   email: "",
-                  mobileNumber: "",
+                  mobileNumber:
+                    "",
                   documents: [],
                 });
               },
@@ -664,6 +581,7 @@ export default function TrainingScreen() {
       "Training Ready",
       `Opening ${
         enrollment.trainingTitle ??
+        enrollment.programName ??
         "your training"
       }.`
     );
@@ -682,17 +600,14 @@ export default function TrainingScreen() {
         training={
           selectedTraining
         }
-
         initialData={
           formData
         }
-
         onBack={() =>
           setFlow(
             "details"
           )
         }
-
         onContinue={
           handleFormContinue
         }
@@ -713,21 +628,15 @@ export default function TrainingScreen() {
         training={
           selectedTraining
         }
-
         formData={
           formData
         }
-
         onBack={() =>
-          setFlow(
-            "form"
-          )
+          setFlow("form")
         }
-
         onSubmit={
           handleSubmitEnrollment
         }
-
         isSubmitting={
           isSubmitting
         }
@@ -755,15 +664,12 @@ export default function TrainingScreen() {
         training={
           selectedTraining
         }
-
         alreadyEnrolled={
           alreadyEnrolled
         }
-
         onBack={
           backToMain
         }
-
         onEnroll={
           startEnrollment
         }
@@ -842,7 +748,6 @@ export default function TrainingScreen() {
           onPress={
             refresh
           }
-
           style={
             styles.retryButton
           }
@@ -868,22 +773,18 @@ export default function TrainingScreen() {
       style={
         styles.container
       }
-
       contentContainerStyle={
         styles.content
       }
-
       showsVerticalScrollIndicator={
         false
       }
-
       refreshControl={
         <RefreshControl
           refreshing={
             isLoading ||
             enrollmentsLoading
           }
-
           onRefresh={
             async () => {
               await Promise.all([
@@ -892,18 +793,16 @@ export default function TrainingScreen() {
               ]);
             }
           }
-
           tintColor="#2563EB"
-
           colors={[
             "#2563EB",
           ]}
         />
       }
     >
-      {/* ==========================================
+      {/* ==================================================
           HEADER
-      ========================================== */}
+      ================================================== */}
 
       <View
         style={
@@ -942,9 +841,9 @@ export default function TrainingScreen() {
         </View>
       </View>
 
-      {/* ==========================================
-          TABS
-      ========================================== */}
+      {/* ==================================================
+          MAIN TABS
+      ================================================== */}
 
       <View
         style={
@@ -956,11 +855,8 @@ export default function TrainingScreen() {
             screen ===
             "available"
           }
-
           icon="search-outline"
-
           label="Available"
-
           onPress={() =>
             setScreen(
               "available"
@@ -973,11 +869,8 @@ export default function TrainingScreen() {
             screen ===
             "enrollment"
           }
-
           icon="document-text-outline"
-
           label="My Enrollment"
-
           onPress={() =>
             setScreen(
               "enrollment"
@@ -990,22 +883,17 @@ export default function TrainingScreen() {
             screen ===
             "active"
           }
-
           icon="school-outline"
-
           label="Active"
-
           onPress={() =>
-            setScreen(
-              "active"
-            )
+            setScreen("active")
           }
         />
       </View>
 
-      {/* ==========================================
+      {/* ==================================================
           AVAILABLE
-      ========================================== */}
+      ================================================== */}
 
       {screen ===
         "available" && (
@@ -1061,11 +949,9 @@ export default function TrainingScreen() {
                   key={
                     batch.id
                   }
-
                   training={
                     batch
                   }
-
                   onPress={() =>
                     openTraining(
                       batch
@@ -1078,9 +964,9 @@ export default function TrainingScreen() {
         </>
       )}
 
-      {/* ==========================================
+      {/* ==================================================
           MY ENROLLMENT
-      ========================================== */}
+      ================================================== */}
 
       {screen ===
         "enrollment" && (
@@ -1126,11 +1012,9 @@ export default function TrainingScreen() {
                   key={
                     enrollment.id
                   }
-
                   enrollment={
                     enrollment
                   }
-
                   onOpenTraining={
                     openApprovedTraining
                   }
@@ -1141,9 +1025,9 @@ export default function TrainingScreen() {
         </>
       )}
 
-      {/* ==========================================
+      {/* ==================================================
           ACTIVE
-      ========================================== */}
+      ================================================== */}
 
       {screen ===
         "active" && (
@@ -1153,7 +1037,11 @@ export default function TrainingScreen() {
               styles.activeSectionHeader
             }
           >
-            <View style={styles.activeSectionHeaderText}>
+            <View
+              style={
+                styles.activeSectionHeaderText
+              }
+            >
               <Text
                 style={
                   styles.sectionTitle
@@ -1167,14 +1055,31 @@ export default function TrainingScreen() {
                   styles.sectionSubtitle
                 }
               >
-                Your approved training schedule.
+                View your upcoming and
+                completed sessions.
               </Text>
             </View>
 
-            {activeEnrollments.length > 0 && (
-              <View style={styles.activeStatusBadge}>
-                <View style={styles.activeStatusDot} />
-                <Text style={styles.activeStatusText}>ACTIVE</Text>
+            {activeEnrollments.length >
+              0 && (
+              <View
+                style={
+                  styles.activeStatusBadge
+                }
+              >
+                <View
+                  style={
+                    styles.activeStatusDot
+                  }
+                />
+
+                <Text
+                  style={
+                    styles.activeStatusText
+                  }
+                >
+                  ACTIVE
+                </Text>
               </View>
             )}
           </View>
@@ -1186,119 +1091,1279 @@ export default function TrainingScreen() {
               description="Once your enrollment is approved, your training will appear here."
             />
           ) : (
-            activeEnrollments.map(
-              (enrollment) => (
-                <View
-                  key={enrollment.id}
-                  style={styles.activeTrainingItem}
+            <>
+              {/* ========================================
+                  UPCOMING / COMPLETED TABS
+              ======================================== */}
+
+              <View
+                style={
+                  styles.sessionSegment
+                }
+              >
+                <Pressable
+                  onPress={() =>
+                    setActiveSessionView(
+                      "upcoming"
+                    )
+                  }
+                  style={[
+                    styles.sessionSegmentButton,
+                    activeSessionView ===
+                      "upcoming" &&
+                      styles.sessionSegmentButtonActive,
+                  ]}
                 >
-                  {/* APPROVED CARD */}
-                  <View style={styles.approvedCard}>
-                    <View style={styles.approvedHeader}>
-                      <View style={styles.approvedIcon}>
-                        <Ionicons
-                          name="checkmark"
-                          size={21}
-                          color="#16A34A"
-                        />
-                      </View>
+                  <Ionicons
+                    name="time-outline"
+                    size={14}
+                    color={
+                      activeSessionView ===
+                      "upcoming"
+                        ? "#2563EB"
+                        : "#94A3B8"
+                    }
+                  />
 
-                      <View style={styles.approvedInfo}>
-                        <Text style={styles.approvedLabel}>
-                          ENROLLMENT APPROVED
-                        </Text>
+                  <Text
+                    style={[
+                      styles.sessionSegmentText,
+                      activeSessionView ===
+                        "upcoming" &&
+                        styles.sessionSegmentTextActive,
+                    ]}
+                  >
+                    Upcoming
+                  </Text>
+                </Pressable>
 
-                        <Text
-                          style={styles.trainingName}
-                          numberOfLines={2}
-                        >
-                          {enrollment.programName ??
-                            enrollment.programName ??
-                            "Training Program"}
-                        </Text>
+                <Pressable
+                  onPress={() =>
+                    setActiveSessionView(
+                      "completed"
+                    )
+                  }
+                  style={[
+                    styles.sessionSegmentButton,
+                    activeSessionView ===
+                      "completed" &&
+                      styles.sessionSegmentButtonActive,
+                  ]}
+                >
+                  <Ionicons
+                    name="checkmark-circle-outline"
+                    size={14}
+                    color={
+                      activeSessionView ===
+                      "completed"
+                        ? "#16A34A"
+                        : "#94A3B8"
+                    }
+                  />
 
-                        <Text style={styles.batchCode}>
-                          Batch: {enrollment.batchCode ?? "N/A"}
-                        </Text>
-                      </View>
+                  <Text
+                    style={[
+                      styles.sessionSegmentText,
+                      activeSessionView ===
+                        "completed" &&
+                        styles.sessionSegmentTextCompleted,
+                    ]}
+                  >
+                    Completed
+                  </Text>
+                </Pressable>
+              </View>
 
-                      <View style={styles.activeCardBadge}>
-                        <View style={styles.activeCardDot} />
-                        <Text style={styles.activeCardBadgeText}>
-                          ACTIVE
-                        </Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.approvedStatusRow}>
-                      <View style={styles.approvedStatusItem}>
-                        <Ionicons
-                          name="shield-checkmark-outline"
-                          size={15}
-                          color="#16A34A"
-                        />
-                        <Text style={styles.approvedStatusText}>
-                          Approved
-                        </Text>
-                      </View>
-
-                      <View style={styles.approvedStatusItem}>
-                        <Ionicons
-                          name="checkmark-circle-outline"
-                          size={15}
-                          color="#16A34A"
-                        />
-                        <Text style={styles.approvedStatusText}>
-                          Ready for Training
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-
-                  {/* CALENDAR SECTION */}
-                  <View style={styles.calendarSection}>
-                    <View style={styles.calendarSectionHeader}>
-                      <View style={styles.calendarIcon}>
-                        <Ionicons
-                          name="calendar-outline"
-                          size={17}
-                          color="#2563EB"
-                        />
-                      </View>
-
-                      <View style={styles.calendarHeaderText}>
-                        <Text style={styles.calendarTitle}>
-                          Training Calendar
-                        </Text>
-
-                        <Text style={styles.calendarSubtitle}>
-                          View your scheduled training sessions
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* ==================================
-                        PARTICIPANT TRAINING SCHEDULE
-
-                        GET:
-                        /api/training-batches/
-                        {trainingBatchId}/
-                        schedule/participant
-                    ================================== */}
-
-                    <TrainingSchedule
-                      trainingBatchId={
-                        enrollment.trainingBatchId
-                      }
-                    />
-                  </View>
-                </View>
-              )
-            )
+              {activeEnrollments.map(
+                (enrollment) => (
+                  <ActiveTrainingCard
+                    key={
+                      enrollment.id
+                    }
+                    enrollment={
+                      enrollment
+                    }
+                    view={
+                      activeSessionView
+                    }
+                  />
+                )
+              )}
+            </>
           )}
         </>
       )}
     </ScrollView>
+  );
+}
+
+// ==========================================================
+// ACTIVE TRAINING CARD
+// ==========================================================
+
+function ActiveTrainingCard({
+  enrollment,
+  view,
+}: {
+  enrollment: any;
+  view: ActiveSessionView;
+}) {
+  const [
+    sessions,
+    setSessions,
+  ] = useState<TrainingSession[]>([]);
+
+  const [
+    isLoading,
+    setIsLoading,
+  ] = useState(true);
+
+  const [
+    error,
+    setError,
+  ] = useState<string | null>(
+    null
+  );
+
+  // ========================================================
+  // FETCH SCHEDULE
+  // ========================================================
+
+  const loadSessions =
+    React.useCallback(
+      async () => {
+        if (
+          !enrollment?.trainingBatchId
+        ) {
+          setSessions([]);
+          setIsLoading(false);
+          return;
+        }
+
+        try {
+          setIsLoading(true);
+          setError(null);
+
+          const result =
+            await trainingBatchApi.getParticipantSchedule(
+              enrollment.trainingBatchId
+            );
+
+          console.log(
+            "PARTICIPANT SCHEDULE FETCHED:",
+            {
+              trainingBatchId:
+                enrollment.trainingBatchId,
+              result,
+            }
+          );
+
+          setSessions(
+            Array.isArray(result)
+              ? result
+              : []
+          );
+        } catch (error) {
+          console.error(
+            "LOAD ACTIVE TRAINING SESSIONS ERROR:",
+            error
+          );
+
+          setSessions([]);
+
+          setError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load training sessions."
+          );
+        } finally {
+          setIsLoading(false);
+        }
+      },
+      [
+        enrollment?.trainingBatchId,
+      ]
+    );
+
+  useEffect(() => {
+    void loadSessions();
+  }, [loadSessions]);
+
+  // ========================================================
+  // BUILD LOCAL DATE + TIME
+  //
+  // IMPORTANT:
+  // sessionDate is DateOnly
+  // startTime/endTime are TimeOnly
+  //
+  // We do NOT use:
+  // new Date("2026-10-08")
+  //
+  // because that can cause timezone shifting.
+  // ========================================================
+
+  const buildDateTime = (
+    dateValue: string,
+    timeValue: string
+  ) => {
+    const rawDate =
+      String(
+        dateValue
+      ).slice(0, 10);
+
+    const [
+      year,
+      month,
+      day,
+    ] =
+      rawDate
+        .split("-")
+        .map(Number);
+
+    const [
+      hour = "0",
+      minute = "0",
+      secondRaw = "0",
+    ] =
+      String(
+        timeValue ??
+          "00:00:00"
+      ).split(":");
+
+    const second = Number(
+      String(
+        secondRaw
+      ).split(".")[0] || "0"
+    );
+
+    return new Date(
+      year,
+      month - 1,
+      day,
+      Number(hour),
+      Number(minute),
+      second
+    );
+  };
+
+  // ========================================================
+  // CLASSIFY SESSIONS
+  // ========================================================
+
+  const classifiedSessions =
+    useMemo(() => {
+      const now =
+        new Date();
+
+      return sessions
+        .map(
+          (session) => {
+            const start =
+              buildDateTime(
+                session.sessionDate,
+                session.startTime
+              );
+
+            const end =
+              buildDateTime(
+                session.sessionDate,
+                session.endTime
+              );
+
+            return {
+              session,
+              start,
+              end,
+            };
+          }
+        )
+        .filter(
+          (item) =>
+            !Number.isNaN(
+              item.start.getTime()
+            )
+        )
+        .sort(
+          (a, b) =>
+            a.start.getTime() -
+            b.start.getTime()
+        )
+        .map(
+          (item) => {
+            const isOngoing =
+              now >=
+                item.start &&
+              now <=
+                item.end;
+
+            const isCompleted =
+              now >
+              item.end;
+
+            return {
+              ...item,
+              isOngoing,
+              isCompleted,
+            };
+          }
+        );
+    }, [sessions]);
+
+  // ========================================================
+  // UPCOMING SESSION
+  //
+  // TODAY IS INCLUDED.
+  //
+  // Example:
+  //
+  // Today:
+  // 1:00 PM - 4:00 PM
+  //
+  // Current time:
+  // 11:00 AM
+  //
+  // => UPCOMING
+  //
+  // Current time:
+  // 2:00 PM
+  //
+  // => ONGOING
+  //
+  // Current time:
+  // 5:00 PM
+  //
+  // => COMPLETED
+  // ========================================================
+
+  const upcomingSession =
+    useMemo(() => {
+      const now =
+        new Date();
+
+      const next =
+        classifiedSessions.find(
+          (item) =>
+            item.end >= now
+        );
+
+      return (
+        next ?? null
+      );
+    }, [
+      classifiedSessions,
+    ]);
+
+  // ========================================================
+  // COMPLETED SESSIONS
+  // ========================================================
+
+  const completedSessions =
+    useMemo(() => {
+      return classifiedSessions
+        .filter(
+          (item) =>
+            item.isCompleted
+        )
+        .sort(
+          (a, b) =>
+            b.start.getTime() -
+            a.start.getTime()
+        );
+    }, [
+      classifiedSessions,
+    ]);
+
+  // ========================================================
+  // FORMAT DATE
+  // ========================================================
+
+  const formatDate =
+    (
+      value: string
+    ) => {
+      const rawDate =
+        String(
+          value
+        ).slice(0, 10);
+
+      const [
+        year,
+        month,
+        day,
+      ] =
+        rawDate
+          .split("-")
+          .map(Number);
+
+      const date =
+        new Date(
+          year,
+          month - 1,
+          day
+        );
+
+      return date.toLocaleDateString(
+        "en-US",
+        {
+          weekday:
+            "long",
+          month:
+            "long",
+          day:
+            "numeric",
+          year:
+            "numeric",
+        }
+      );
+    };
+
+  // ========================================================
+  // FORMAT TIME
+  // ========================================================
+
+  const formatTime =
+    (
+      value: string
+    ) => {
+      const [
+        hour = "0",
+        minute = "0",
+      ] =
+        String(
+          value ??
+            "00:00:00"
+        ).split(":");
+
+      const date =
+        new Date();
+
+      date.setHours(
+        Number(hour),
+        Number(minute),
+        0,
+        0
+      );
+
+      return date.toLocaleTimeString(
+        "en-US",
+        {
+          hour:
+            "numeric",
+          minute:
+            "2-digit",
+        }
+      );
+    };
+
+  // ========================================================
+  // LOADING
+  // ========================================================
+
+  if (isLoading) {
+    return (
+      <View
+        style={
+          styles.upcomingCard
+        }
+      >
+        <View
+          style={
+            styles.upcomingLoading
+          }
+        >
+          <ActivityIndicator
+            size="small"
+            color="#2563EB"
+          />
+
+          <Text
+            style={
+              styles.upcomingLoadingText
+            }
+          >
+            Loading sessions...
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  // ========================================================
+  // ERROR
+  // ========================================================
+
+  if (error) {
+    return (
+      <View
+        style={
+          styles.upcomingCard
+        }
+      >
+        <View
+          style={
+            styles.upcomingError
+          }
+        >
+          <Ionicons
+            name="alert-circle-outline"
+            size={20}
+            color="#DC2626"
+          />
+
+          <View
+            style={
+              styles.upcomingErrorContent
+            }
+          >
+            <Text
+              style={
+                styles.upcomingErrorTitle
+              }
+            >
+              Unable to load sessions
+            </Text>
+
+            <Text
+              style={
+                styles.upcomingErrorText
+              }
+            >
+              Please pull down to refresh.
+            </Text>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  // ========================================================
+  // APPROVED TRAINING CARD
+  // ========================================================
+
+  return (
+    <View
+      style={
+        styles.activeTrainingItem
+      }
+    >
+      {/* ==================================================
+          APPROVED TRAINING
+      ================================================== */}
+
+      <View
+        style={
+          styles.approvedCard
+        }
+      >
+        <View
+          style={
+            styles.approvedHeader
+          }
+        >
+          <View
+            style={
+              styles.approvedIcon
+            }
+          >
+            <Ionicons
+              name="checkmark"
+              size={21}
+              color="#16A34A"
+            />
+          </View>
+
+          <View
+            style={
+              styles.approvedInfo
+            }
+          >
+            <Text
+              style={
+                styles.approvedLabel
+              }
+            >
+              ENROLLMENT APPROVED
+            </Text>
+
+            <Text
+              style={
+                styles.trainingName
+              }
+              numberOfLines={2}
+            >
+              {enrollment.programName ??
+                enrollment.trainingTitle ??
+                "Training Program"}
+            </Text>
+
+            <Text
+              style={
+                styles.batchCode
+              }
+            >
+              Batch:{" "}
+              {enrollment.batchCode ??
+                "N/A"}
+            </Text>
+          </View>
+
+          <View
+            style={
+              styles.activeCardBadge
+            }
+          >
+            <View
+              style={
+                styles.activeCardDot
+              }
+            />
+
+            <Text
+              style={
+                styles.activeCardBadgeText
+              }
+            >
+              ACTIVE
+            </Text>
+          </View>
+        </View>
+
+        <View
+          style={
+            styles.approvedStatusRow
+          }
+        >
+          <View
+            style={
+              styles.approvedStatusItem
+            }
+          >
+            <Ionicons
+              name="shield-checkmark-outline"
+              size={15}
+              color="#16A34A"
+            />
+
+            <Text
+              style={
+                styles.approvedStatusText
+              }
+            >
+              Approved
+            </Text>
+          </View>
+
+          <View
+            style={
+              styles.approvedStatusItem
+            }
+          >
+            <Ionicons
+              name="school-outline"
+              size={15}
+              color="#2563EB"
+            />
+
+            <Text
+              style={
+                styles.approvedStatusText
+              }
+            >
+              Training Active
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {/* ==================================================
+          SESSION VIEW
+      ================================================== */}
+
+      {view === "upcoming" ? (
+        <View
+          style={
+            styles.upcomingSection
+          }
+        >
+          <View
+            style={
+              styles.upcomingSectionHeader
+            }
+          >
+            <View
+              style={
+                styles.upcomingSectionIcon
+              }
+            >
+              <Ionicons
+                name="time-outline"
+                size={17}
+                color="#2563EB"
+              />
+            </View>
+
+            <View
+              style={
+                styles.upcomingHeaderText
+              }
+            >
+              <Text
+                style={
+                  styles.upcomingTitle
+                }
+              >
+                Upcoming Session
+              </Text>
+
+              <Text
+                style={
+                  styles.upcomingSubtitle
+                }
+              >
+                Your next scheduled training session
+              </Text>
+            </View>
+          </View>
+
+          {!upcomingSession ? (
+            <View
+              style={
+                styles.noUpcomingCard
+              }
+            >
+              <View
+                style={
+                  styles.noUpcomingIcon
+                }
+              >
+                <Ionicons
+                  name="calendar-clear-outline"
+                  size={25}
+                  color="#94A3B8"
+                />
+              </View>
+
+              <Text
+                style={
+                  styles.noUpcomingTitle
+                }
+              >
+                No Upcoming Session
+              </Text>
+
+              <Text
+                style={
+                  styles.noUpcomingText
+                }
+              >
+                There are currently no
+                upcoming training sessions
+                scheduled for your batch.
+              </Text>
+            </View>
+          ) : (
+            <UpcomingSessionCard
+              session={
+                upcomingSession.session
+              }
+              isOngoing={
+                upcomingSession.isOngoing
+              }
+              formatDate={
+                formatDate
+              }
+              formatTime={
+                formatTime
+              }
+            />
+          )}
+        </View>
+      ) : (
+        <View
+          style={
+            styles.upcomingSection
+          }
+        >
+          <View
+            style={
+              styles.upcomingSectionHeader
+            }
+          >
+            <View
+              style={
+                styles.completedSectionIcon
+              }
+            >
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={17}
+                color="#16A34A"
+              />
+            </View>
+
+            <View
+              style={
+                styles.upcomingHeaderText
+              }
+            >
+              <Text
+                style={
+                  styles.upcomingTitle
+                }
+              >
+                Completed Sessions
+              </Text>
+
+              <Text
+                style={
+                  styles.upcomingSubtitle
+                }
+              >
+                Your completed training sessions
+              </Text>
+            </View>
+          </View>
+
+          {completedSessions.length ===
+          0 ? (
+            <View
+              style={
+                styles.noUpcomingCard
+              }
+            >
+              <View
+                style={
+                  styles.noUpcomingIcon
+                }
+              >
+                <Ionicons
+                  name="checkmark-circle-outline"
+                  size={25}
+                  color="#94A3B8"
+                />
+              </View>
+
+              <Text
+                style={
+                  styles.noUpcomingTitle
+                }
+              >
+                No Completed Sessions
+              </Text>
+
+              <Text
+                style={
+                  styles.noUpcomingText
+                }
+              >
+                Completed training sessions
+                will appear here.
+              </Text>
+            </View>
+          ) : (
+            completedSessions.map(
+              (item) => (
+                <CompletedSessionCard
+                  key={
+                    item.session.id
+                  }
+                  session={
+                    item.session
+                  }
+                  formatDate={
+                    formatDate
+                  }
+                  formatTime={
+                    formatTime
+                  }
+                />
+              )
+            )
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ==========================================================
+// UPCOMING SESSION CARD
+// ==========================================================
+
+function UpcomingSessionCard({
+  session,
+  isOngoing,
+  formatDate,
+  formatTime,
+}: {
+  session: TrainingSession;
+  isOngoing: boolean;
+  formatDate: (
+    value: string
+  ) => string;
+  formatTime: (
+    value: string
+  ) => string;
+}) {
+  return (
+    <View
+      style={
+        styles.upcomingCard
+      }
+    >
+      <View
+        style={
+          styles.upcomingCardHeader
+        }
+      >
+        <View
+          style={
+            styles.sessionNumberBadge
+          }
+        >
+          <Text
+            style={
+              styles.sessionNumberText
+            }
+          >
+            {session.sessionNumber ??
+              1}
+          </Text>
+        </View>
+
+        <View
+          style={
+            styles.upcomingCardHeaderText
+          }
+        >
+          <Text
+            style={
+              styles.upcomingCardLabel
+            }
+          >
+            TRAINING SESSION
+          </Text>
+
+          <Text
+            style={
+              styles.upcomingSessionTitle
+            }
+          >
+            Session{" "}
+            {session.sessionNumber ??
+              1}
+          </Text>
+        </View>
+
+        <View
+          style={
+            isOngoing
+              ? styles.ongoingBadge
+              : styles.todayBadge
+          }
+        >
+          <View
+            style={
+              isOngoing
+                ? styles.ongoingDot
+                : styles.todayDot
+            }
+          />
+
+          <Text
+            style={
+              isOngoing
+                ? styles.ongoingBadgeText
+                : styles.todayBadgeText
+            }
+          >
+            {isOngoing
+              ? "ONGOING"
+              : "UPCOMING"}
+          </Text>
+        </View>
+      </View>
+
+      <View
+        style={
+          styles.upcomingDetailRow
+        }
+      >
+        <View
+          style={
+            styles.upcomingDetailIcon
+          }
+        >
+          <Ionicons
+            name="calendar-outline"
+            size={17}
+            color="#2563EB"
+          />
+        </View>
+
+        <View
+          style={
+            styles.upcomingDetailContent
+          }
+        >
+          <Text
+            style={
+              styles.upcomingDetailLabel
+            }
+          >
+            DATE
+          </Text>
+
+          <Text
+            style={
+              styles.upcomingDetailValue
+            }
+          >
+            {formatDate(
+              session.sessionDate
+            )}
+          </Text>
+        </View>
+      </View>
+
+      <View
+        style={
+          styles.upcomingDetailRow
+        }
+      >
+        <View
+          style={
+            styles.upcomingDetailIcon
+          }
+        >
+          <Ionicons
+            name="time-outline"
+            size={17}
+            color="#2563EB"
+          />
+        </View>
+
+        <View
+          style={
+            styles.upcomingDetailContent
+          }
+        >
+          <Text
+            style={
+              styles.upcomingDetailLabel
+            }
+          >
+            TIME
+          </Text>
+
+          <Text
+            style={
+              styles.upcomingDetailValue
+            }
+          >
+            {formatTime(
+              session.startTime
+            )}{" "}
+            -{" "}
+            {formatTime(
+              session.endTime
+            )}
+          </Text>
+        </View>
+      </View>
+
+      <View
+        style={
+          styles.upcomingDetailRow
+        }
+      >
+        <View
+          style={
+            styles.upcomingDetailIcon
+          }
+        >
+          <Ionicons
+            name="hourglass-outline"
+            size={17}
+            color="#2563EB"
+          />
+        </View>
+
+        <View
+          style={
+            styles.upcomingDetailContent
+          }
+        >
+          <Text
+            style={
+              styles.upcomingDetailLabel
+            }
+          >
+            DURATION
+          </Text>
+
+          <Text
+            style={
+              styles.upcomingDetailValue
+            }
+          >
+            {session.durationHours}{" "}
+            hours
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// ==========================================================
+// COMPLETED SESSION CARD
+// ==========================================================
+
+function CompletedSessionCard({
+  session,
+  formatDate,
+  formatTime,
+}: {
+  session: TrainingSession;
+  formatDate: (
+    value: string
+  ) => string;
+  formatTime: (
+    value: string
+  ) => string;
+}) {
+  return (
+    <View
+      style={
+        styles.completedCard
+      }
+    >
+      <View
+        style={
+          styles.completedHeader
+        }
+      >
+        <View
+          style={
+            styles.completedNumberBadge
+          }
+        >
+          <Ionicons
+            name="checkmark"
+            size={17}
+            color="#16A34A"
+          />
+        </View>
+
+        <View
+          style={
+            styles.completedHeaderText
+          }
+        >
+          <Text
+            style={
+              styles.completedLabel
+            }
+          >
+            COMPLETED
+          </Text>
+
+          <Text
+            style={
+              styles.completedTitle
+            }
+          >
+            Session{" "}
+            {session.sessionNumber ??
+              1}
+          </Text>
+        </View>
+
+        <View
+          style={
+            styles.completedBadge
+          }
+        >
+          <Text
+            style={
+              styles.completedBadgeText
+            }
+          >
+            DONE
+          </Text>
+        </View>
+      </View>
+
+      <View
+        style={
+          styles.completedInfoRow
+        }
+      >
+        <Ionicons
+          name="calendar-outline"
+          size={15}
+          color="#64748B"
+        />
+
+        <Text
+          style={
+            styles.completedInfoText
+          }
+        >
+          {formatDate(
+            session.sessionDate
+          )}
+        </Text>
+      </View>
+
+      <View
+        style={
+          styles.completedInfoRow
+        }
+      >
+        <Ionicons
+          name="time-outline"
+          size={15}
+          color="#64748B"
+        />
+
+        <Text
+          style={
+            styles.completedInfoText
+          }
+        >
+          {formatTime(
+            session.startTime
+          )}{" "}
+          -{" "}
+          {formatTime(
+            session.endTime
+          )}
+        </Text>
+      </View>
+
+      <View
+        style={
+          styles.completedInfoRow
+        }
+      >
+        <Ionicons
+          name="hourglass-outline"
+          size={15}
+          color="#64748B"
+        />
+
+        <Text
+          style={
+            styles.completedInfoText
+          }
+        >
+          {session.durationHours}{" "}
+          hours
+        </Text>
+      </View>
+    </View>
   );
 }
 
@@ -1326,21 +2391,15 @@ function SegmentButton({
       onPress={
         onPress
       }
-
       style={[
         styles.segmentButton,
-
         active &&
           styles.segmentButtonActive,
       ]}
     >
       <Ionicons
-        name={
-          icon
-        }
-
+        name={icon}
         size={13}
-
         color={
           active
             ? "#2563EB"
@@ -1351,7 +2410,6 @@ function SegmentButton({
       <Text
         style={[
           styles.segmentText,
-
           active &&
             styles.segmentTextActive,
         ]}
@@ -1434,13 +2492,6 @@ const styles =
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-    },
-
-    eyebrow: {
-      fontSize: 7,
-      fontWeight: "900",
-      letterSpacing: 1.3,
-      color: "#2563EB",
     },
 
     headerTitle: {
@@ -1603,18 +2654,20 @@ const styles =
 
     emptyText: {
       marginTop: 5,
-
       textAlign: "center",
-
       fontSize: 8,
       lineHeight: 13,
-
       color: "#94A3B8",
     },
+
+    // ======================================================
+    // ACTIVE HEADER
+    // ======================================================
 
     activeSectionHeader: {
       paddingHorizontal: 20,
       marginBottom: 15,
+
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
@@ -1628,9 +2681,12 @@ const styles =
     activeStatusBadge: {
       flexDirection: "row",
       alignItems: "center",
+
       paddingHorizontal: 9,
       paddingVertical: 6,
+
       borderRadius: 999,
+
       backgroundColor: "#DCFCE7",
     },
 
@@ -1638,7 +2694,9 @@ const styles =
       width: 6,
       height: 6,
       borderRadius: 3,
+
       backgroundColor: "#16A34A",
+
       marginRight: 5,
     },
 
@@ -1653,20 +2711,81 @@ const styles =
       marginBottom: 8,
     },
 
+    // ======================================================
+    // SESSION SEGMENT
+    // ======================================================
+
+    sessionSegment: {
+      marginHorizontal: 20,
+      marginBottom: 15,
+
+      padding: 4,
+
+      borderRadius: 14,
+
+      backgroundColor: "#E2E8F0",
+
+      flexDirection: "row",
+    },
+
+    sessionSegmentButton: {
+      flex: 1,
+
+      minHeight: 36,
+
+      borderRadius: 10,
+
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+
+      gap: 5,
+    },
+
+    sessionSegmentButtonActive: {
+      backgroundColor: "#FFFFFF",
+    },
+
+    sessionSegmentText: {
+      fontSize: 8,
+      fontWeight: "800",
+      color: "#94A3B8",
+    },
+
+    sessionSegmentTextActive: {
+      color: "#2563EB",
+    },
+
+    sessionSegmentTextCompleted: {
+      color: "#16A34A",
+    },
+
+    // ======================================================
+    // APPROVED CARD
+    // ======================================================
+
     approvedCard: {
       marginHorizontal: 20,
+
       padding: 16,
+
       borderRadius: 20,
+
       backgroundColor: "#FFFFFF",
+
       borderWidth: 1,
       borderColor: "#DCFCE7",
+
       shadowColor: "#0F172A",
+
       shadowOffset: {
         width: 0,
         height: 3,
       },
+
       shadowOpacity: 0.05,
       shadowRadius: 8,
+
       elevation: 2,
     },
 
@@ -1679,7 +2798,9 @@ const styles =
       width: 45,
       height: 45,
       borderRadius: 14,
+
       backgroundColor: "#DCFCE7",
+
       alignItems: "center",
       justifyContent: "center",
     },
@@ -1687,31 +2808,6 @@ const styles =
     approvedInfo: {
       flex: 1,
       marginLeft: 11,
-    },
-
-    activeCardBadge: {
-      flexDirection: "row",
-      alignItems: "center",
-      paddingHorizontal: 8,
-      paddingVertical: 6,
-      borderRadius: 999,
-      backgroundColor: "#DCFCE7",
-      marginLeft: 8,
-    },
-
-    activeCardDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: "#16A34A",
-      marginRight: 5,
-    },
-
-    activeCardBadgeText: {
-      fontSize: 7,
-      fontWeight: "900",
-      color: "#15803D",
-      letterSpacing: 0.4,
     },
 
     approvedLabel: {
@@ -1735,12 +2831,47 @@ const styles =
       color: "#94A3B8",
     },
 
+    activeCardBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+
+      paddingHorizontal: 8,
+      paddingVertical: 6,
+
+      borderRadius: 999,
+
+      backgroundColor: "#DCFCE7",
+
+      marginLeft: 8,
+    },
+
+    activeCardDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+
+      backgroundColor: "#16A34A",
+
+      marginRight: 5,
+    },
+
+    activeCardBadgeText: {
+      fontSize: 7,
+      fontWeight: "900",
+      color: "#15803D",
+      letterSpacing: 0.4,
+    },
+
     approvedStatusRow: {
       marginTop: 14,
+
       paddingVertical: 10,
       paddingHorizontal: 10,
+
       borderRadius: 12,
+
       backgroundColor: "#F8FAFC",
+
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
@@ -1758,48 +2889,426 @@ const styles =
       color: "#64748B",
     },
 
-    calendarSection: {
+    // ======================================================
+    // UPCOMING SECTION
+    // ======================================================
+
+    upcomingSection: {
       marginTop: 18,
     },
 
-    calendarSectionHeader: {
+    upcomingSectionHeader: {
       marginHorizontal: 20,
       marginBottom: 10,
+
       flexDirection: "row",
       alignItems: "center",
     },
 
-    calendarIcon: {
+    upcomingSectionIcon: {
       width: 36,
       height: 36,
       borderRadius: 11,
+
       backgroundColor: "#EFF6FF",
+
       alignItems: "center",
       justifyContent: "center",
+
       marginRight: 9,
     },
 
-    calendarHeaderText: {
+    completedSectionIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 11,
+
+      backgroundColor: "#DCFCE7",
+
+      alignItems: "center",
+      justifyContent: "center",
+
+      marginRight: 9,
+    },
+
+    upcomingHeaderText: {
       flex: 1,
     },
 
-    calendarTitle: {
+    upcomingTitle: {
       fontSize: 13,
       fontWeight: "900",
       color: "#0F172A",
     },
 
-    calendarSubtitle: {
+    upcomingSubtitle: {
       marginTop: 2,
       fontSize: 7.5,
       color: "#94A3B8",
     },
 
-    calendarDivider: {
-      height: 1,
-      backgroundColor: "#F1F5F9",
-      marginTop: 14,
+    // ======================================================
+    // UPCOMING CARD
+    // ======================================================
+
+    upcomingCard: {
+      marginHorizontal: 20,
+
+      padding: 15,
+
+      borderRadius: 19,
+
+      backgroundColor: "#FFFFFF",
+
+      borderWidth: 1,
+      borderColor: "#DBEAFE",
+
+      shadowColor: "#0F172A",
+
+      shadowOffset: {
+        width: 0,
+        height: 3,
+      },
+
+      shadowOpacity: 0.04,
+      shadowRadius: 7,
+
+      elevation: 2,
     },
+
+    upcomingCardHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+
+      paddingBottom: 13,
+
+      borderBottomWidth: 1,
+      borderBottomColor: "#F1F5F9",
+    },
+
+    sessionNumberBadge: {
+      width: 42,
+      height: 42,
+      borderRadius: 13,
+
+      backgroundColor: "#EFF6FF",
+
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    sessionNumberText: {
+      fontSize: 14,
+      fontWeight: "900",
+      color: "#2563EB",
+    },
+
+    upcomingCardHeaderText: {
+      flex: 1,
+      marginLeft: 10,
+    },
+
+    upcomingCardLabel: {
+      fontSize: 6.5,
+      fontWeight: "900",
+      letterSpacing: 0.8,
+      color: "#94A3B8",
+    },
+
+    upcomingSessionTitle: {
+      marginTop: 3,
+      fontSize: 14,
+      fontWeight: "900",
+      color: "#0F172A",
+    },
+
+    todayBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+
+      paddingHorizontal: 8,
+      paddingVertical: 6,
+
+      borderRadius: 999,
+
+      backgroundColor: "#DCFCE7",
+
+      marginLeft: 8,
+    },
+
+    todayDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+
+      backgroundColor: "#16A34A",
+
+      marginRight: 5,
+    },
+
+    todayBadgeText: {
+      fontSize: 6.5,
+      fontWeight: "900",
+      color: "#15803D",
+      letterSpacing: 0.5,
+    },
+
+    ongoingBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+
+      paddingHorizontal: 8,
+      paddingVertical: 6,
+
+      borderRadius: 999,
+
+      backgroundColor: "#DBEAFE",
+
+      marginLeft: 8,
+    },
+
+    ongoingDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+
+      backgroundColor: "#2563EB",
+
+      marginRight: 5,
+    },
+
+    ongoingBadgeText: {
+      fontSize: 6.5,
+      fontWeight: "900",
+      color: "#1D4ED8",
+      letterSpacing: 0.5,
+    },
+
+    upcomingDetailRow: {
+      flexDirection: "row",
+      alignItems: "center",
+
+      marginTop: 13,
+    },
+
+    upcomingDetailIcon: {
+      width: 34,
+      height: 34,
+      borderRadius: 10,
+
+      backgroundColor: "#EFF6FF",
+
+      alignItems: "center",
+      justifyContent: "center",
+
+      marginRight: 10,
+    },
+
+    upcomingDetailContent: {
+      flex: 1,
+    },
+
+    upcomingDetailLabel: {
+      fontSize: 6.5,
+      fontWeight: "900",
+      letterSpacing: 0.7,
+      color: "#94A3B8",
+    },
+
+    upcomingDetailValue: {
+      marginTop: 2,
+      fontSize: 10,
+      fontWeight: "800",
+      color: "#334155",
+    },
+
+    // ======================================================
+    // NO UPCOMING
+    // ======================================================
+
+    noUpcomingCard: {
+      marginHorizontal: 20,
+
+      padding: 25,
+
+      borderRadius: 18,
+
+      backgroundColor: "#FFFFFF",
+
+      borderWidth: 1,
+      borderColor: "#E2E8F0",
+
+      alignItems: "center",
+    },
+
+    noUpcomingIcon: {
+      width: 52,
+      height: 52,
+      borderRadius: 17,
+
+      backgroundColor: "#F8FAFC",
+
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    noUpcomingTitle: {
+      marginTop: 10,
+      fontSize: 13,
+      fontWeight: "900",
+      color: "#334155",
+    },
+
+    noUpcomingText: {
+      marginTop: 5,
+
+      fontSize: 8.5,
+      lineHeight: 14,
+
+      textAlign: "center",
+
+      color: "#94A3B8",
+    },
+
+    // ======================================================
+    // COMPLETED CARD
+    // ======================================================
+
+    completedCard: {
+      marginHorizontal: 20,
+      marginBottom: 10,
+
+      padding: 15,
+
+      borderRadius: 18,
+
+      backgroundColor: "#FFFFFF",
+
+      borderWidth: 1,
+      borderColor: "#DCFCE7",
+    },
+
+    completedHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+
+    completedNumberBadge: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+
+      backgroundColor: "#DCFCE7",
+
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    completedHeaderText: {
+      flex: 1,
+      marginLeft: 10,
+    },
+
+    completedLabel: {
+      fontSize: 6.5,
+      fontWeight: "900",
+      letterSpacing: 0.7,
+      color: "#16A34A",
+    },
+
+    completedTitle: {
+      marginTop: 3,
+      fontSize: 13,
+      fontWeight: "900",
+      color: "#0F172A",
+    },
+
+    completedBadge: {
+      paddingHorizontal: 9,
+      paddingVertical: 6,
+
+      borderRadius: 999,
+
+      backgroundColor: "#DCFCE7",
+    },
+
+    completedBadgeText: {
+      fontSize: 6.5,
+      fontWeight: "900",
+      color: "#15803D",
+      letterSpacing: 0.5,
+    },
+
+    completedInfoRow: {
+      flexDirection: "row",
+      alignItems: "center",
+
+      marginTop: 11,
+
+      gap: 8,
+    },
+
+    completedInfoText: {
+      fontSize: 8.5,
+      fontWeight: "700",
+      color: "#64748B",
+    },
+
+    // ======================================================
+    // LOADING
+    // ======================================================
+
+    upcomingLoading: {
+      alignItems: "center",
+      justifyContent: "center",
+
+      paddingVertical: 18,
+    },
+
+    upcomingLoadingText: {
+      marginTop: 8,
+      fontSize: 8,
+      color: "#94A3B8",
+    },
+
+    // ======================================================
+    // ERROR
+    // ======================================================
+
+    upcomingError: {
+      flexDirection: "row",
+      alignItems: "center",
+
+      padding: 12,
+
+      borderRadius: 14,
+
+      backgroundColor: "#FEF2F2",
+
+      borderWidth: 1,
+      borderColor: "#FECACA",
+    },
+
+    upcomingErrorContent: {
+      flex: 1,
+      marginLeft: 8,
+    },
+
+    upcomingErrorTitle: {
+      fontSize: 9,
+      fontWeight: "800",
+      color: "#991B1B",
+    },
+
+    upcomingErrorText: {
+      marginTop: 2,
+      fontSize: 7.5,
+      color: "#B91C1C",
+    },
+
+    // ======================================================
+    // LOADING / ERROR
+    // ======================================================
 
     loadingContainer: {
       flex: 1,
@@ -1835,6 +3344,7 @@ const styles =
 
     retryButton: {
       marginTop: 18,
+
       paddingHorizontal: 20,
       paddingVertical: 10,
 

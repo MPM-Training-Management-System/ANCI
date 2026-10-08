@@ -2,7 +2,7 @@ export * from "./use-toast"
 export * from "./useVerifyOtp";
 export * from "./useSendOTp"
 export * from "./useLogin"
-export * from "./useMe"
+export * from "./useParticipant"
 export * from "./useTrainerApplication";
 export * from "./useTrainerMe"
 export * from "./useTrainingProgramDocuments";
@@ -33,3 +33,4 @@ export * from "./useReport";
 export * from "./useTrainerReportRequests";
 export * from "./useTrainerDashboard";
 export * from "./useAdminTrainerReportRequests";
+export * from "./useAdminReports";

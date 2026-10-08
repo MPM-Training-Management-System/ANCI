@@ -1,42 +1,32 @@
-import React from "react";
+import React, { useEffect } from "react";
 
 import {
-  useLocalSearchParams,
   router,
+  useLocalSearchParams,
 } from "expo-router";
 
-import LearningMaterialModules from "@/components/learning/material";
+import LearningScreen from "@/components/learning/LearningScreen";
 
 type Params = {
   materialId?: string | string[];
-  completedModuleId?: string | string[];
 };
 
 export default function LearningMaterialRoute() {
-  const params =
-    useLocalSearchParams<Params>();
+  const params = useLocalSearchParams<Params>();
 
-  const materialId =
-    Array.isArray(params.materialId)
-      ? params.materialId[0]
-      : params.materialId;
+  const materialId = Array.isArray(params.materialId)
+    ? params.materialId[0]
+    : params.materialId;
 
-  const completedModuleId =
-    Array.isArray(params.completedModuleId)
-      ? params.completedModuleId[0]
-      : params.completedModuleId;
+  useEffect(() => {
+    if (!materialId) {
+      router.back();
+    }
+  }, [materialId]);
 
   if (!materialId) {
-    router.back();
     return null;
   }
 
-  return (
-    <LearningMaterialModules
-      materialId={materialId}
-      completedModuleId={
-        completedModuleId
-      }
-    />
-  );
+  return <LearningScreen />;
 }

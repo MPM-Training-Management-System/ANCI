@@ -1,12 +1,11 @@
-import React, {
+import {
   useCallback,
-  useEffect,
   useMemo,
   useState,
 } from "react";
 
 import {
-  Alert,
+  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -15,12 +14,18 @@ import {
   View,
 } from "react-native";
 
+import { AppAlert } from "@repo/ui-mobile";
+
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useFocusEffect } from "expo-router";
 
 import ParticipantQrCard from "./ParticipantQrCard";
 
+import {
+  useAttendance,
+  useEnrollments,
+} from "@repo/hooks";
 
-import { useEnrollments } from "@repo/hooks";
 import {
   attendanceApi,
   enrollmentApi,
@@ -28,1646 +33,128 @@ import {
 } from "@/api/api";
 
 import type {
-  Enrollment,
   AttendanceRecordDto,
   TrainingSession,
 } from "@repo/types";
 
-// ============================================================
-// ATTENDANCE UI TYPE
-// ============================================================
-
-type AttendanceItem = {
-  id: string;
-  date: string;
-  mode: "Online" | "Face-to-Face";
-  timeIn: string | null;
-  timeOut: string | null;
-  attendanceStatus: string;
-  attendanceMethod: string | null;
-};
 
 // ============================================================
-// COMPONENT
+// TYPES
 // ============================================================
 
-export default function AttendanceScreen() {
-  // ============================================================
-  // ENROLLMENTS
-  // ============================================================
+type AttendanceRecordWithExtraFields =
+  AttendanceRecordDto & {
+    date?: string;
+    attendanceDate?: string;
+    sessionDate?: string;
+    createdAt?: string;
+    mode?: string;
+    trainingMode?: string;
+  };
 
-  const {
-    enrollments,
-    loadMyEnrollments,
-    isLoading: isLoadingEnrollments,
-    error: enrollmentError,
-  } = useEnrollments(enrollmentApi);
-
-  // ============================================================
-  // ATTENDANCE
-  // ============================================================
-
-  const [
-    attendance,
-    setAttendance,
-  ] = useState<AttendanceItem[]>([]);
-
-  const [
-    isLoadingAttendance,
-    setIsLoadingAttendance,
-  ] = useState(false);
-
-  // ============================================================
-  // REFRESH
-  // ============================================================
-
-  const [
-    isRefreshing,
-    setIsRefreshing,
-  ] = useState(false);
-
-  // ============================================================
-  // OPEN TRAINING SESSION
-  //
-  // This controls whether the trainer's training
-  // attendance session is currently open.
-  //
-  // QR scanning by trainer depends on this state.
-  //
-  // It does NOT automatically mean manual attendance
-  // is enabled.
-  // ============================================================
-
-  const [
-    openSessionId,
-    setOpenSessionId,
-  ] = useState<string | null>(null);
-
-  const [
-    isLoadingOpenSession,
-    setIsLoadingOpenSession,
-  ] = useState(false);
-
-  // ============================================================
-  // MANUAL ATTENDANCE
-  //
-  // Separate from session.
-  //
-  // Session OPEN + Manual OPEN
-  // = participant can Time In / Time Out.
-  // ============================================================
-
-  const [
-    manualAttendanceOpen,
-    setManualAttendanceOpen,
-  ] = useState(false);
-
-  // ============================================================
-  // MANUAL ATTENDANCE SUBMIT
-  // ============================================================
-
-  const [
-    isSubmittingAttendance,
-    setIsSubmittingAttendance,
-  ] = useState(false);
-
-  // ============================================================
-  // LOAD ENROLLMENTS
-  // ============================================================
-
-  useEffect(() => {
-    void loadMyEnrollments();
-  }, [
-    loadMyEnrollments,
-  ]);
-
-  // ============================================================
-  // CURRENT APPROVED ENROLLMENT
-  // ============================================================
-
-  const currentEnrollment =
-    useMemo(() => {
-      const list =
-        (enrollments ?? []) as Enrollment[];
-
-      return (
-        list.find(
-          item =>
-            String(
-              item.status
-            ).toLowerCase() ===
-            "approved"
-        ) ?? null
-      );
-    }, [
-      enrollments,
-    ]);
-
-  // ============================================================
-  // ENROLLMENT DATA
-  // ============================================================
-
-  const enrollmentId =
-    currentEnrollment?.id ?? null;
-
-  const batchId =
-    currentEnrollment?.trainingBatchId ??
-    null;
-
-  const attendanceToken =
-    currentEnrollment?.attendanceToken ??
-    null;
-
-  const [trainingSessions, setTrainingSessions] =
-    useState<TrainingSession[]>([]);
-
-  const [trainingSessionId, setTrainingSessionId] =
-    useState<string | null>(null);
-
-  const [isLoadingTrainingSession, setIsLoadingTrainingSession] =
-    useState(false);
-
-  const participantName =
-    currentEnrollment?.participant
-      ?.fullName ??
-    "Participant";
-
-  // ============================================================
-  // ATTENDANCE QR AVAILABLE
-  //
-  // IMPORTANT:
-  // QR display does NOT depend on an open session.
-  //
-  // The QR is permanent and belongs to the
-  // participant's approved enrollment.
-  // ============================================================
-
-  const hasAttendanceQr =
-    Boolean(
-      currentEnrollment &&
-        attendanceToken &&
-        String(
-          currentEnrollment.status
-        ).toLowerCase() ===
-          "approved"
-    );
-
-  // ============================================================
-  // LOAD TRAINING SCHEDULE / CURRENT SESSION
-  //
-  // Attendance requires both batchId and trainingSessionId.
-  // Resolve today's session first, then the next upcoming session,
-  // and finally the latest session if all sessions are past.
-  // ============================================================
-
-  const loadTrainingSession = useCallback(
-    async () => {
-      if (!batchId) {
-        setTrainingSessions([]);
-        setTrainingSessionId(null);
-        return null;
-      }
-
-      try {
-        setIsLoadingTrainingSession(true);
-
-        const result = await trainingBatchApi.getParticipantSchedule(batchId);
-        const sessions = Array.isArray(result) ? result : [];
-
-        setTrainingSessions(sessions);
-
-        const validSessions = sessions.filter(
-          session => Boolean(session?.id) && Boolean(session?.sessionDate),
-        );
-
-        if (validSessions.length === 0) {
-          setTrainingSessionId(null);
-          return null;
-        }
-
-        const now = new Date();
-        const todayKey = `${now.getFullYear()}-${String(
-          now.getMonth() + 1,
-        ).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-
-        const sessionDate = (session: TrainingSession) =>
-          new Date(session.sessionDate);
-
-        const dateKey = (session: TrainingSession) => {
-          const date = sessionDate(session);
-          if (Number.isNaN(date.getTime())) return null;
-          return `${date.getFullYear()}-${String(
-            date.getMonth() + 1,
-          ).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-        };
-
-        const sorted = [...validSessions].sort(
-          (a, b) => sessionDate(a).getTime() - sessionDate(b).getTime(),
-        );
-
-        const todaySessions = sorted.filter(
-          session => dateKey(session) === todayKey,
-        );
-
-        if (todaySessions.length > 0) {
-          const current =
-            todaySessions.find(
-              session => sessionDate(session).getTime() >= now.getTime(),
-            ) ?? todaySessions[0];
-
-          setTrainingSessionId(current.id);
-          return current.id;
-        }
-
-        const upcoming = sorted.find(
-          session => sessionDate(session).getTime() > now.getTime(),
-        );
-
-        if (upcoming) {
-          setTrainingSessionId(upcoming.id);
-          return upcoming.id;
-        }
-
-        const latest = sorted[sorted.length - 1];
-        setTrainingSessionId(latest?.id ?? null);
-        return latest?.id ?? null;
-      } catch (error) {
-        console.error("Failed to load training schedule:", error);
-        setTrainingSessions([]);
-        setTrainingSessionId(null);
-        return null;
-      } finally {
-        setIsLoadingTrainingSession(false);
-      }
-    },
-    [batchId],
-  );
-
-  // ============================================================
-  // LOAD OPEN SESSION
-  //
-  // Backend response:
-  //
-  // {
-  //   isOpen: boolean,
-  //   attendanceSessionId: string | null,
-  //   manualAttendanceOpen: boolean
-  // }
-  //
-  // ============================================================
-
-  const loadOpenAttendanceSession =
-    useCallback(
-      async () => {
-        if (!batchId) {
-          setOpenSessionId(null);
-          setManualAttendanceOpen(false);
-
-          return null;
-        }
-
-        try {
-          setIsLoadingOpenSession(true);
-
-          const resolvedSessionId =
-            trainingSessionId ??
-            await loadTrainingSession();
-
-          if (!resolvedSessionId) {
-            setOpenSessionId(null);
-            setManualAttendanceOpen(false);
-            return null;
-          }
-
-          const result =
-            await attendanceApi.getOpenSession(
-              batchId,
-              resolvedSessionId,
-            );
-
-          // ======================================================
-          // SESSION CLOSED
-          // ======================================================
-
-          if (
-            !result ||
-            !result.isOpen ||
-            !result.attendanceSessionId
-          ) {
-            setOpenSessionId(null);
-
-            // Manual attendance cannot be open
-            // if the training session is closed.
-            setManualAttendanceOpen(false);
-
-            return null;
-          }
-
-          // ======================================================
-          // SESSION OPEN
-          // ======================================================
-
-          setOpenSessionId(
-            result.attendanceSessionId
-          );
-
-          // ======================================================
-          // MANUAL ATTENDANCE STATE
-          // ======================================================
-
-          setManualAttendanceOpen(
-            Boolean(
-              result.manualAttendanceOpen
-            )
-          );
-
-          return result.attendanceSessionId;
-        } catch (error) {
-          console.error(
-            "Failed to load open attendance session:",
-            error
-          );
-
-          setOpenSessionId(null);
-          setManualAttendanceOpen(false);
-
-          return null;
-        } finally {
-          setIsLoadingOpenSession(false);
-        }
-      },
-      [
-        batchId,
-        trainingSessionId,
-        loadTrainingSession,
-      ]
-    );
-
-  // ============================================================
-  // SESSION STATE
-  // ============================================================
-
-  const isSessionOpen =
-    Boolean(openSessionId);
-
-  // ============================================================
-  // MANUAL ATTENDANCE STATE
-  //
-  // Even if backend accidentally returns manual=true
-  // while session is closed, manual attendance remains
-  // disabled on the client.
-  // ============================================================
-
-  const isManualAttendanceOpen =
-    isSessionOpen &&
-    manualAttendanceOpen;
-
-  // ============================================================
-  // LOAD ATTENDANCE RECORDS
-  // ============================================================
-
-  const loadAttendance =
-    useCallback(
-      async () => {
-        if (!batchId) {
-          setAttendance([]);
-
-          return;
-        }
-
-        try {
-          setIsLoadingAttendance(true);
-
-          const records =
-            await attendanceApi.getBatch(
-              batchId
-            );
-
-          const mapped: AttendanceItem[] =
-            (
-              records ?? []
-            ).map(
-              (
-                record: AttendanceRecordDto
-              ) => {
-                const rawRecord =
-                  record as AttendanceRecordDto & {
-                    date?: string;
-                    attendanceDate?: string;
-                    createdAt?: string;
-                    mode?: string;
-                  };
-
-                return {
-                  id:
-                    String(
-                      record.id
-                    ),
-
-                  date:
-                    rawRecord.date ??
-                    rawRecord.attendanceDate ??
-                    rawRecord.createdAt ??
-                    new Date().toISOString(),
-
-                  mode:
-                    rawRecord.mode ===
-                    "Online"
-                      ? "Online"
-                      : "Face-to-Face",
-
-                  timeIn:
-                    record.timeIn
-                      ? formatTime(
-                          record.timeIn
-                        )
-                      : null,
-
-                  timeOut:
-                    record.timeOut
-                      ? formatTime(
-                          record.timeOut
-                        )
-                      : null,
-
-                  attendanceStatus:
-                    record.status ??
-                    "Absent",
-
-                  attendanceMethod:
-                    record.method ??
-                    null,
-                };
-              }
-            );
-
-          setAttendance(mapped);
-        } catch (error) {
-          console.error(
-            "Failed to load attendance:",
-            error
-          );
-
-          setAttendance([]);
-        } finally {
-          setIsLoadingAttendance(false);
-        }
-      },
-      [
-        batchId,
-      ]
-    );
-
-  // ============================================================
-  // INITIAL DATA LOAD
-  //
-  // No automatic polling.
-  //
-  // Session state is loaded:
-  // - when enrollment/batch becomes available
-  // - when user manually refreshes
-  // - after Time In
-  // - after Time Out
-  // ============================================================
-
-  useEffect(() => {
-    if (!batchId) {
-      setAttendance([]);
-      setOpenSessionId(null);
-      setManualAttendanceOpen(false);
-
-      return;
-    }
-
-    void loadAttendance();
-    void loadTrainingSession();
-  }, [
-    batchId,
-    loadAttendance,
-    loadTrainingSession,
-  ]);
-
-  useEffect(() => {
-    if (!batchId || !trainingSessionId) {
-      setOpenSessionId(null);
-      setManualAttendanceOpen(false);
-      return;
-    }
-
-    void loadOpenAttendanceSession();
-  }, [
-    batchId,
-    trainingSessionId,
-    loadOpenAttendanceSession,
-  ]);
-
-  // ============================================================
-  // MANUAL REFRESH
-  //
-  // This is the ONLY refresh button behavior.
-  //
-  // No 5-second / 5-minute polling.
-  // ============================================================
-
-  const handleRefresh =
-    useCallback(
-      async () => {
-        try {
-          setIsRefreshing(true);
-
-          await loadMyEnrollments();
-          await loadTrainingSession();
-
-          await Promise.all([
-            loadAttendance(),
-            loadOpenAttendanceSession(),
-          ]);
-        } catch (error) {
-          console.error(
-            "Attendance refresh failed:",
-            error
-          );
-        } finally {
-          setIsRefreshing(false);
-        }
-      },
-      [
-        loadAttendance,
-        loadOpenAttendanceSession,
-        loadMyEnrollments,
-        loadTrainingSession,
-      ]
-    );
-
-  // ============================================================
-  // TODAY ATTENDANCE
-  // ============================================================
-
-  const today =
-    useMemo(() => {
-      if (
-        attendance.length ===
-        0
-      ) {
-        return null;
-      }
-
-      const now =
-        new Date();
-
-      const currentDate =
-        `${now.getFullYear()}-${String(
-          now.getMonth() + 1
-        ).padStart(2, "0")}-${String(
-          now.getDate()
-        ).padStart(2, "0")}`;
-
-      const todayRecord =
-        attendance.find(
-          item => {
-            const itemDate =
-              new Date(
-                item.date
-              );
-
-            if (
-              Number.isNaN(
-                itemDate.getTime()
-              )
-            ) {
-              return false;
-            }
-
-            const itemDateString =
-              `${itemDate.getFullYear()}-${String(
-                itemDate.getMonth() + 1
-              ).padStart(2, "0")}-${String(
-                itemDate.getDate()
-              ).padStart(2, "0")}`;
-
-            return (
-              itemDateString ===
-              currentDate
-            );
-          }
-        );
-
-      return (
-        todayRecord ??
-        attendance.find(
-          item =>
-            item.timeIn ||
-            item.timeOut
-        ) ??
-        attendance[0]
-      );
-    }, [
-      attendance,
-    ]);
-
-  // ============================================================
-  // TIME IN
-  //
-  // Manual attendance requires:
-  //
-  // Session OPEN
-  // +
-  // Manual Attendance OPEN
-  //
-  // ============================================================
-
-  const handleTimeIn =
-    async () => {
-      if (!enrollmentId) {
-        Alert.alert(
-          "No Enrollment",
-          "You do not have an approved training enrollment."
-        );
-
-        return;
-      }
-
-      // ========================================================
-      // MANUAL ATTENDANCE MUST BE OPEN
-      // ========================================================
-
-      if (!isManualAttendanceOpen) {
-        Alert.alert(
-          "Manual Attendance Closed",
-          isSessionOpen
-            ? "Your trainer has not opened manual attendance yet."
-            : "Your trainer has not opened the attendance session yet."
-        );
-
-        return;
-      }
-
-      // ========================================================
-      // ALREADY TIME IN
-      // ========================================================
-
-      if (today?.timeIn) {
-        Alert.alert(
-          "Already Timed In",
-          `You already timed in at ${today.timeIn}.`
-        );
-
-        return;
-      }
-
-      try {
-        setIsSubmittingAttendance(
-          true
-        );
-
-        // ======================================================
-        // USE CURRENT SESSION ID
-        // ======================================================
-
-        const sessionId =
-          openSessionId;
-
-        if (!sessionId) {
-          Alert.alert(
-            "Attendance Closed",
-            "The attendance session is no longer open."
-          );
-
-          return;
-        }
-
-        // ======================================================
-        // SUBMIT
-        // ======================================================
-
-        await attendanceApi.manual({
-          attendanceSessionId:
-            sessionId,
-
-          action:
-            "TimeIn",
-        });
-
-        // ======================================================
-        // REFRESH DATA AFTER ACTION
-        //
-        // This is an intentional request because the participant
-        // just changed attendance.
-        // ======================================================
-
-        await loadAttendance();
-
-        await loadOpenAttendanceSession();
-
-        Alert.alert(
-          "Time In Successful",
-          "Your Time In has been recorded."
-        );
-      } catch (error) {
-        console.error(
-          "Time In failed:",
-          error
-        );
-
-        Alert.alert(
-          "Time In Failed",
-          getErrorMessage(
-            error,
-            "Unable to record your Time In."
-          )
-        );
-      } finally {
-        setIsSubmittingAttendance(
-          false
-        );
-      }
-    };
-
-  // ============================================================
-  // TIME OUT
-  //
-  // Manual attendance requires:
-  //
-  // Session OPEN
-  // +
-  // Manual Attendance OPEN
-  //
-  // ============================================================
-
-  const handleTimeOut =
-    async () => {
-      if (!enrollmentId) {
-        Alert.alert(
-          "No Enrollment",
-          "You do not have an approved training enrollment."
-        );
-
-        return;
-      }
-
-      // ========================================================
-      // TIME IN REQUIRED
-      // ========================================================
-
-      if (!today?.timeIn) {
-        Alert.alert(
-          "Time In Required",
-          "You need to Time In before you can Time Out."
-        );
-
-        return;
-      }
-
-      // ========================================================
-      // ALREADY TIME OUT
-      // ========================================================
-
-      if (today.timeOut) {
-        Alert.alert(
-          "Already Timed Out",
-          `You already timed out at ${today.timeOut}.`
-        );
-
-        return;
-      }
-
-      // ========================================================
-      // MANUAL ATTENDANCE MUST BE OPEN
-      // ========================================================
-
-      if (!isManualAttendanceOpen) {
-        Alert.alert(
-          "Manual Attendance Closed",
-          isSessionOpen
-            ? "Your trainer has closed manual attendance."
-            : "Your trainer has closed the attendance session."
-        );
-
-        return;
-      }
-
-      try {
-        setIsSubmittingAttendance(
-          true
-        );
-
-        // ======================================================
-        // USE CURRENT SESSION
-        // ======================================================
-
-        const sessionId =
-          openSessionId;
-
-        if (!sessionId) {
-          Alert.alert(
-            "Attendance Closed",
-            "The attendance session is no longer open."
-          );
-
-          return;
-        }
-
-        // ======================================================
-        // SUBMIT
-        // ======================================================
-
-        await attendanceApi.manual({
-          attendanceSessionId:
-            sessionId,
-
-          action:
-            "TimeOut",
-        });
-
-        // ======================================================
-        // REFRESH AFTER ACTION
-        // ======================================================
-
-        await loadAttendance();
-
-        await loadOpenAttendanceSession();
-
-        Alert.alert(
-          "Time Out Successful",
-          "Your Time Out has been recorded."
-        );
-      } catch (error) {
-        console.error(
-          "Time Out failed:",
-          error
-        );
-
-        Alert.alert(
-          "Time Out Failed",
-          getErrorMessage(
-            error,
-            "Unable to record your Time Out."
-          )
-        );
-      } finally {
-        setIsSubmittingAttendance(
-          false
-        );
-      }
-    };
-
-  // ============================================================
-  // QR INFORMATION
-  // ============================================================
-
-  // ============================================================
-  // STATUS
-  // ============================================================
-
-
-  // ============================================================
-  // LOADING
-  // ============================================================
-
-  if (
-    isLoadingEnrollments ||
-    isLoadingAttendance ||
-    isLoadingTrainingSession
-  ) {
-    return (
-      <ScrollView
-        style={
-          styles.container
-        }
-        contentContainerStyle={
-          styles.emptyContainer
-        }
-      >
-        <View
-          style={
-            styles.emptyIcon
-          }
-        >
-          <Ionicons
-            name="sync-outline"
-            size={30}
-            color="#2563EB"
-          />
-        </View>
-
-        <Text
-          style={
-            styles.emptyTitle
-          }
-        >
-          Loading Attendance
-        </Text>
-
-        <Text
-          style={
-            styles.emptyText
-          }
-        >
-          Loading your enrollment and
-          attendance information...
-        </Text>
-      </ScrollView>
-    );
-  }
-
-  // ============================================================
-  // ENROLLMENT ERROR
-  // ============================================================
-
-  if (
-    enrollmentError &&
-    !currentEnrollment
-  ) {
-    return (
-      <ScrollView
-        style={
-          styles.container
-        }
-        contentContainerStyle={
-          styles.emptyContainer
-        }
-      >
-        <View
-          style={
-            styles.emptyIcon
-          }
-        >
-          <Ionicons
-            name="alert-circle-outline"
-            size={30}
-            color="#DC2626"
-          />
-        </View>
-
-        <Text
-          style={
-            styles.emptyTitle
-          }
-        >
-          Unable to Load Enrollment
-        </Text>
-
-        <Text
-          style={
-            styles.emptyText
-          }
-        >
-          {String(
-            enrollmentError
-          )}
-        </Text>
-
-        <Pressable
-          style={
-            styles.retryButton
-          }
-          onPress={() =>
-            void loadMyEnrollments()
-          }
-        >
-          <Text
-            style={
-              styles.retryButtonText
-            }
-          >
-            Retry
-          </Text>
-        </Pressable>
-      </ScrollView>
-    );
-  }
-
-  // ============================================================
-  // NO APPROVED ENROLLMENT
-  // ============================================================
-
-  if (!currentEnrollment) {
-    return (
-      <ScrollView
-        style={
-          styles.container
-        }
-        contentContainerStyle={
-          styles.emptyContainer
-        }
-      >
-        <View
-          style={
-            styles.emptyIcon
-          }
-        >
-          <Ionicons
-            name="school-outline"
-            size={30}
-            color="#94A3B8"
-          />
-        </View>
-
-        <Text
-          style={
-            styles.emptyTitle
-          }
-        >
-          No Approved Enrollment
-        </Text>
-
-        <Text
-          style={
-            styles.emptyText
-          }
-        >
-          Your permanent attendance QR will
-          appear here after your training
-          enrollment has been approved.
-        </Text>
-      </ScrollView>
-    );
-  }
-
-  // ============================================================
-  // RENDER
-  // ============================================================
-
-  return (
-    <ScrollView
-      style={
-        styles.container
-      }
-      contentContainerStyle={
-        styles.content
-      }
-      showsVerticalScrollIndicator={
-        false
-      }
-      refreshControl={
-        <RefreshControl
-          refreshing={
-            isRefreshing
-          }
-          onRefresh={
-            handleRefresh
-          }
-        />
-      }
-    >
-      {/* ======================================================
-          HEADER
-      ====================================================== */}
-
-      <View
-        style={
-          styles.header
-        }
-      >
-        <View>
-          <Text
-            style={
-              styles.title
-            }
-          >
-            Attendance
-          </Text>
-
-          <Text
-            style={
-              styles.subtitle
-            }
-          >
-            Manage your training attendance.
-          </Text>
-        </View>
-
-        {/* ====================================================
-            MANUAL REFRESH BUTTON
-        ==================================================== */}
-
-        <Pressable
-          onPress={() =>
-            void handleRefresh()
-          }
-          disabled={
-            isRefreshing ||
-            isLoadingOpenSession ||
-            isLoadingTrainingSession ||
-            isSubmittingAttendance
-          }
-          style={[
-            styles.refreshButton,
-            (
-              isRefreshing ||
-              isLoadingOpenSession ||
-              isSubmittingAttendance
-            )
-              ? styles.refreshButtonDisabled
-              : null,
-          ]}
-        >
-          <Ionicons
-            name="refresh-outline"
-            size={19}
-            color="#2563EB"
-          />
-        </Pressable>
-      </View>
-
-      {/* ======================================================
-          TRAINING
-      ====================================================== */}
-
-      <View
-        style={
-          styles.trainingCard
-        }
-      >
-        <View
-          style={
-            styles.trainingIcon
-          }
-        >
-          <Ionicons
-            name="school-outline"
-            size={19}
-            color="#2563EB"
-          />
-        </View>
-
-        <View
-          style={
-            styles.trainingContent
-          }
-        >
-          <Text
-            style={
-              styles.trainingLabel
-            }
-          >
-            TRAINING
-          </Text>
-
-          <Text
-            style={
-              styles.trainingName
-            }
-          >
-            {currentEnrollment.programName}
-          </Text>
-
-          <Text
-            style={
-              styles.trainingBatch
-            }
-          >
-            Batch{" "}
-            {currentEnrollment.batchCode}
-          </Text>
-        </View>
-      </View>
-            
-     
-            {/* ======================================================
-          ATTENDANCE QR
-          ====================================================== */}
-
-      <View
-        style={
-          styles.section
-        }
-      >
-        {hasAttendanceQr ? (
-          <>
-            <ParticipantQrCard
-              participantCode={
-                attendanceToken!
-              }
-              participantName={
-                participantName
-              }
-              sessionOpen={
-                isSessionOpen
-              }
-            />
-           
-          </>
-        ) : (
-          <View
-            style={
-              styles.qrUnavailable
-            }
-          >
-            <View
-              style={
-                styles.qrUnavailableIcon
-              }
-            >
-              <Ionicons
-                name="qr-code-outline"
-                size={25}
-                color="#94A3B8"
-              />
-            </View>
-
-            <Text
-              style={
-                styles.qrUnavailableTitle
-              }
-            >
-              Attendance QR Unavailable
-            </Text>
-
-            <Text
-              style={
-                styles.qrUnavailableText
-              }
-            >
-              Your permanent attendance QR will
-              appear once your approved enrollment
-              has an attendance token.
-            </Text>
-          </View>
-        )}
-      </View>
-
-      {/* ======================================================
-          MANUAL ATTENDANCE
-      ====================================================== */}
-
-      <View
-        style={
-          styles.manualAttendanceCard
-        }
-      >
-        <View
-          style={
-            styles.manualAttendanceHeader
-          }
-        >
-          <View
-            style={[
-              styles.manualAttendanceIcon,
-              isManualAttendanceOpen
-                ? styles.manualOpenIcon
-                : styles.manualClosedIcon,
-            ]}
-          >
-            <Ionicons
-              name="time-outline"
-              size={20}
-              color={
-                isManualAttendanceOpen
-                  ? "#16A34A"
-                  : "#64748B"
-              }
-            />
-          </View>
-
-          <View
-            style={
-              styles.manualAttendanceHeaderText
-            }
-          >
-            <Text
-              style={
-                styles.manualAttendanceLabel
-              }
-            >
-              MANUAL ATTENDANCE
-            </Text>
-
-            <Text
-              style={
-                styles.manualAttendanceTitle
-              }
-            >
-              {isManualAttendanceOpen
-                ? "Manual Attendance is Open"
-                : "Manual Attendance is Closed"}
-            </Text>
-
-            <Text
-              style={
-                styles.manualAttendanceDescription
-              }
-            >
-              {isManualAttendanceOpen
-                ? "You can now use Time In and Time Out."
-                : isSessionOpen
-                ? "Wait for your trainer to open manual attendance."
-                : "Manual attendance becomes available after the trainer starts the session."}
-            </Text>
-          </View>
-
-          <View
-            style={[
-              styles.manualBadge,
-              isManualAttendanceOpen
-                ? styles.manualBadgeOpen
-                : styles.manualBadgeClosed,
-            ]}
-          >
-            <Text
-              style={[
-                styles.manualBadgeText,
-                isManualAttendanceOpen
-                  ? styles.manualBadgeTextOpen
-                  : styles.manualBadgeTextClosed,
-              ]}
-            >
-              {isManualAttendanceOpen
-                ? "OPEN"
-                : "CLOSED"}
-            </Text>
-          </View>
-        </View>
-
-        {/* ====================================================
-            MANUAL ACTIONS
-        ==================================================== */}
-
-        <View
-          style={
-            styles.manualAttendanceActions
-          }
-        >
-          {/* TIME IN */}
-
-          <Pressable
-            style={[
-              styles.manualButton,
-              styles.timeInButton,
-              (
-                !isManualAttendanceOpen ||
-                Boolean(today?.timeIn) ||
-                isSubmittingAttendance
-              )
-                ? styles.manualButtonDisabled
-                : null,
-            ]}
-            onPress={
-              handleTimeIn
-            }
-            disabled={
-              !isManualAttendanceOpen ||
-              Boolean(today?.timeIn) ||
-              isSubmittingAttendance
-            }
-          >
-            <Ionicons
-              name="log-in-outline"
-              size={19}
-              color="#FFFFFFF"
-            />
-
-            <Text
-              style={
-                styles.manualButtonText
-              }
-            >
-              {today?.timeIn
-                ? `Timed In ${today.timeIn}`
-                : "Time In"}
-            </Text>
-          </Pressable>
-
-          {/* TIME OUT */}
-
-          <Pressable
-            style={[
-              styles.manualButton,
-              styles.timeOutButton,
-              (
-                !isManualAttendanceOpen ||
-                !today?.timeIn ||
-                Boolean(today?.timeOut) ||
-                isSubmittingAttendance
-              )
-                ? styles.manualButtonDisabled
-                : null,
-            ]}
-            onPress={
-              handleTimeOut
-            }
-            disabled={
-              !isManualAttendanceOpen ||
-              !today?.timeIn ||
-              Boolean(today?.timeOut) ||
-              isSubmittingAttendance
-            }
-          >
-            <Ionicons
-              name="log-out-outline"
-              size={19}
-              color="#FFFFFFF"
-            />
-
-            <Text
-              style={
-                styles.manualButtonText
-              }
-            >
-              {today?.timeOut
-                ? `Timed Out ${today.timeOut}`
-                : "Time Out"}
-            </Text>
-          </Pressable>
-        </View>
-      </View>
-
- 
-
-      {today && (
-        <View
-          style={
-            styles.section
-          }
-        >
-         
-        </View>
-      )}
-
-  
-
-      {today && (
-        <View
-          style={
-            styles.currentStatusCard
-          }
-        >
-          <View
-            style={[
-              styles.currentStatusIcon,
-              today.timeIn
-                ? styles.currentStatusActive
-                : styles.currentStatusWaiting,
-            ]}
-          >
-            <Ionicons
-              name={
-                today.timeIn
-                  ? "checkmark"
-                  : "time-outline"
-              }
-              size={17}
-              color={
-                today.timeIn
-                  ? "#16A34A"
-                  : "#D97706"
-              }
-            />
-          </View>
-
-        
-           
-        
-        </View>
-      )}
-
-
-
-      {today?.mode ===
-        "Online" && (
-        <View
-          style={
-            styles.section
-          }
-        >
-          <View
-            style={
-              styles.onlineInfo
-            }
-          >
-            <View
-              style={
-                styles.onlineIcon
-              }
-            >
-              <Ionicons
-                name="globe-outline"
-                size={20}
-                color="#2563EB"
-              />
-            </View>
-
-            <View
-              style={
-                styles.onlineContent
-              }
-            >
-              <Text
-                style={
-                  styles.onlineTitle
-                }
-              >
-                Online Attendance
-              </Text>
-
-              <Text
-                style={
-                  styles.onlineText
-                }
-              >
-                When your trainer opens manual
-                attendance, you can record your
-                Time In and Time Out directly
-                from this screen.
-              </Text>
-            </View>
-          </View>
-        </View>
-      )}
-
-      {/* ======================================================
-          SUMMARY
-      ====================================================== */}
-
-      {today && (
-        <View
-          style={
-            styles.section
-          }
-        >
-       
-        </View>
-      )}
-
-      {/* ======================================================
-          HISTORY
-      ====================================================== */}
-
-      {attendance.length >
-        0 && (
-        <View
-          style={
-            styles.section
-          }
-        >
-          
-        </View>
-      )}
-
-      {/* ======================================================
-          INFORMATION
-      ====================================================== */}
-
-      <View
-        style={
-          styles.info
-        }
-      >
-        <Ionicons
-          name="shield-checkmark-outline"
-          size={17}
-          color="#2563EB"
-        />
-
-        <Text
-          style={
-            styles.infoText
-          }
-        >
-          Your attendance QR is permanent and
-          belongs to your approved enrollment.
-          Your trainer scans the QR during
-          face-to-face training. Manual Time In
-          and Time Out are available only when
-          your trainer opens manual attendance.
-        </Text>
-      </View>
-    </ScrollView>
-  );
-}
 
 // ============================================================
-// ERROR MESSAGE
+// HELPERS
 // ============================================================
 
 function getErrorMessage(
-  error: unknown,
-  fallback: string
-): string {
-  if (
-    error instanceof Error &&
-    error.message
-  ) {
+  error: unknown
+): string | null {
+  if (!error) {
+    return null;
+  }
+
+  if (error instanceof Error) {
     return error.message;
   }
 
-  if (
-    typeof error === "string" &&
-    error.trim()
-  ) {
-    return error;
-  }
-
-  return fallback;
+  return String(error);
 }
 
-// ============================================================
-// FORMAT TIME
-// ============================================================
 
-function formatTime(
+function getRecordDate(
+  record: AttendanceRecordDto
+): string {
+  const item =
+    record as AttendanceRecordWithExtraFields;
+
+  return (
+    item.attendanceDate ??
+    item.sessionDate ??
+    item.date ??
+    item.createdAt ??
+    ""
+  );
+}
+
+
+function getRecordMode(
+  record: AttendanceRecordDto
+): string {
+  const item =
+    record as AttendanceRecordWithExtraFields;
+
+  const mode =
+    item.mode ??
+    item.trainingMode ??
+    "";
+
+  if (
+    String(mode).toLowerCase() ===
+    "online"
+  ) {
+    return "Online";
+  }
+
+  if (
+    String(mode).toLowerCase() ===
+      "face-to-face" ||
+    String(mode).toLowerCase() ===
+      "face to face"
+  ) {
+    return "Face-to-Face";
+  }
+
+  return mode || "Training Session";
+}
+
+
+function formatDate(
   value: string
 ): string {
+  if (!value) {
+    return "Date unavailable";
+  }
+
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return value;
+  }
+
+  return date.toLocaleDateString(
+    "en-US",
+    {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }
+  );
+}
+
+
+function formatTime(
+  value: string | null
+): string {
+  if (!value) {
+    return "--";
+  }
+
   const date =
     new Date(value);
 
@@ -1688,669 +175,3329 @@ function formatTime(
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8FAFC",
-  },
 
-  content: {
-    paddingTop: 22,
-    paddingBottom: 48,
-  },
+function getStatusLabel(
+  status: string | null | undefined
+): string {
+  switch (
+    String(status ?? "").toLowerCase()
+  ) {
+    case "present":
+      return "Present";
 
-  // ==========================================================
-  // HEADER
-  // ==========================================================
+    case "late":
+      return "Late";
 
-  header: {
-    paddingHorizontal: 20,
-    marginBottom: 18,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
+    case "absent":
+      return "Absent";
 
-  title: {
-    marginTop: 4,
-    fontSize: 28,
-    fontWeight: "800",
-    letterSpacing: -0.7,
-    color: "#0F172A",
-  },
+    case "timeinonly":
+      return "Time In Only";
 
-  subtitle: {
-    marginTop: 3,
-    fontSize: 11,
-    color: "#64748B",
-  },
+    case "timeoutonly":
+      return "Time Out Only";
 
-  headerIcon: {
-    width: 43,
-    height: 43,
-    borderRadius: 14,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    default:
+      return status || "No Status";
+  }
+}
 
-  refreshButton: {
-    width: 43,
-    height: 43,
-    borderRadius: 14,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#DBEAFE",
-    alignItems: "center",
-    justifyContent: "center",
-  },
 
-  refreshButtonDisabled: {
-    opacity: 0.45,
-  },
+function getStatusIcon(
+  status: string | null | undefined
+): keyof typeof Ionicons.glyphMap {
+  switch (
+    String(status ?? "").toLowerCase()
+  ) {
+    case "present":
+      return "checkmark-circle";
+
+    case "late":
+      return "time";
+
+    case "absent":
+      return "close-circle";
+
+    case "timeinonly":
+      return "log-in-outline";
+
+    case "timeoutonly":
+      return "log-out-outline";
+
+    default:
+      return "information-circle-outline";
+  }
+}
+
+
+// ============================================================
+// SCREEN
+// ============================================================
+
+export default function AttendanceScreen() {
 
   // ==========================================================
-  // TRAINING
+  // ENROLLMENTS
   // ==========================================================
 
-  trainingCard: {
-    marginHorizontal: 20,
-    marginBottom: 18,
+  const {
+    enrollments,
+    loadMyEnrollments,
+    isLoading:
+      isLoadingEnrollments,
+    error:
+      enrollmentError,
+  } = useEnrollments(
+    enrollmentApi
+  );
 
-    paddingHorizontal: 15,
-    paddingVertical: 14,
-
-    minHeight: 70,
-
-    borderRadius: 18,
-
-    backgroundColor: "#FFFFFF",
-
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  trainingIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: "#EFF6FF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  trainingContent: {
-    flex: 1,
-    marginLeft: 12,
-    paddingRight: 4,
-  },
-
-  trainingLabel: {
-    fontSize: 5.5,
-    fontWeight: "900",
-    letterSpacing: 0.8,
-    color: "#94A3B8",
-  },
-
-  trainingName: {
-    marginTop: 3,
-    fontSize: 10,
-    fontWeight: "800",
-    color: "#334155",
-  },
-
-  trainingBatch: {
-    marginTop: 3,
-    fontSize: 7,
-    color: "#64748B",
-  },
 
   // ==========================================================
-  // SESSION
+  // APP ALERT
   // ==========================================================
 
-  sessionStatusCard: {
-    marginHorizontal: 20,
-    marginBottom: 18,
+  const [
+    appAlert,
+    setAppAlert,
+  ] = useState({
+    visible: false,
+    type:
+      "info" as
+        | "success"
+        | "error"
+        | "warning"
+        | "info",
+    title: "",
+    message: "",
+    confirmText: "OK",
+    showCancel: false,
+  });
 
-    paddingHorizontal: 15,
-    paddingVertical: 14,
+  const [
+    alertAction,
+    setAlertAction,
+  ] = useState<
+    (() => void) | null
+  >(null);
 
-    minHeight: 68,
 
-    borderRadius: 18,
+  const showAlert = (
+    title: string,
+    message: string,
+    type:
+      | "success"
+      | "error"
+      | "warning"
+      | "info" = "info",
+    confirmText = "OK",
+    onConfirm?: () => void
+  ) => {
+    setAlertAction(
+      () =>
+        onConfirm ??
+        null
+    );
 
-    backgroundColor: "#FFFFFF",
+    setAppAlert({
+      visible: true,
+      type,
+      title,
+      message,
+      confirmText,
+      showCancel: false,
+    });
+  };
 
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
 
-    flexDirection: "row",
-    alignItems: "center",
-  },
+  const closeAlert = () => {
+    const action =
+      alertAction;
 
-  sessionStatusIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    setAlertAction(null);
 
-  openIcon: {
-    backgroundColor: "#DCFCE7",
-  },
+    setAppAlert(
+      (prev) => ({
+        ...prev,
+        visible: false,
+      })
+    );
 
-  closedIcon: {
-    backgroundColor: "#F1F5F9",
-  },
+    action?.();
+  };
 
-  sessionStatusContent: {
-    flex: 1,
-    marginLeft: 10,
-    paddingRight: 6,
-  },
-
-  sessionStatusLabel: {
-    fontSize: 5.5,
-    fontWeight: "900",
-    letterSpacing: 0.8,
-    color: "#94A3B8",
-  },
-
-  sessionStatusTitle: {
-    marginTop: 3,
-    fontSize: 9,
-    fontWeight: "800",
-    color: "#334155",
-  },
-
-  sessionStatusText: {
-    marginTop: 3,
-    fontSize: 6.5,
-    lineHeight: 10,
-    color: "#94A3B8",
-  },
-
-  openBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 999,
-  },
-
-  openBadgeActive: {
-    backgroundColor: "#DCFCE7",
-  },
-
-  openBadgeClosed: {
-    backgroundColor: "#F1F5F9",
-  },
-
-  openBadgeText: {
-    fontSize: 5.5,
-    fontWeight: "900",
-  },
-
-  openBadgeTextActive: {
-    color: "#15803D",
-  },
-
-  openBadgeTextClosed: {
-    color: "#64748B",
-  },
 
   // ==========================================================
-  // MANUAL ATTENDANCE
+  // ATTENDANCE HOOK
   // ==========================================================
 
-  manualAttendanceCard: {
-    marginHorizontal: 20,
-    marginTop: 2,
-    marginBottom: 18,
+  const {
+    batchAttendance,
 
-    padding: 16,
+    openSessionId,
+    manualAttendanceOpen,
 
-    borderRadius: 18,
+    isLoadingOpenSession,
+    openSessionError,
 
-    backgroundColor: "#FFFFFF",
+    loadOpenAttendanceSession,
+    refreshOpenAttendanceSession,
 
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
+    loadBatchAttendance,
+    refreshBatchAttendance,
 
-  manualAttendanceHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
+    manualAttendance,
+    isSubmitting,
 
-  manualAttendanceIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    error:
+      attendanceError,
+  } = useAttendance(
+    attendanceApi
+  );
 
-  manualOpenIcon: {
-    backgroundColor: "#DCFCE7",
-  },
-
-  manualClosedIcon: {
-    backgroundColor: "#F1F5F9",
-  },
-
-  manualAttendanceHeaderText: {
-    flex: 1,
-    marginLeft: 11,
-    paddingRight: 5,
-  },
-
-  manualAttendanceLabel: {
-    fontSize: 5.5,
-    fontWeight: "900",
-    letterSpacing: 0.8,
-    color: "#94A3B8",
-  },
-
-  manualAttendanceTitle: {
-    marginTop: 3,
-    fontSize: 10,
-    fontWeight: "800",
-    color: "#334155",
-  },
-
-  manualAttendanceDescription: {
-    marginTop: 3,
-    fontSize: 7,
-    lineHeight: 11,
-    color: "#64748B",
-  },
-
-  manualBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 999,
-  },
-
-  manualBadgeOpen: {
-    backgroundColor: "#DCFCE7",
-  },
-
-  manualBadgeClosed: {
-    backgroundColor: "#F1F5F9",
-  },
-
-  manualBadgeText: {
-    fontSize: 5.5,
-    fontWeight: "900",
-  },
-
-  manualBadgeTextOpen: {
-    color: "#15803D",
-  },
-
-  manualBadgeTextClosed: {
-    color: "#64748B",
-  },
-
-  manualAttendanceActions: {
-    marginTop: 16,
-
-    flexDirection: "row",
-    gap: 10,
-  },
-
-  manualButton: {
-    flex: 1,
-    minHeight: 46,
-
-    borderRadius: 12,
-
-    alignItems: "center",
-    justifyContent: "center",
-
-    flexDirection: "row",
-    gap: 7,
-  },
-
-  timeInButton: {
-    backgroundColor: "#16A34A",
-  },
-
-  timeOutButton: {
-    backgroundColor: "#2563EB",
-  },
-
-  manualButtonDisabled: {
-    opacity: 0.35,
-  },
-
-  manualButtonText: {
-    color: "#FFFFFF",
-    fontSize: 8,
-    fontWeight: "800",
-  },
 
   // ==========================================================
-  // CURRENT STATUS
+  // LOCAL STATE
   // ==========================================================
 
-  currentStatusCard: {
-    marginHorizontal: 20,
+  const [
+    trainingSessions,
+    setTrainingSessions,
+  ] = useState<TrainingSession[]>(
+    []
+  );
 
-    marginTop: 2,
-    marginBottom: 18,
+  const [
+    trainingSessionId,
+    setTrainingSessionId,
+  ] = useState<string | null>(
+    null
+  );
 
-    paddingHorizontal: 14,
-    paddingVertical: 13,
+  const [
+    isLoadingSchedule,
+    setIsLoadingSchedule,
+  ] = useState(false);
 
-    minHeight: 64,
+  const [
+    trainingSessionError,
+    setTrainingSessionError,
+  ] = useState<Error | null>(
+    null
+  );
 
-    borderRadius: 16,
+  const [
+    isRefreshing,
+    setIsRefreshing,
+  ] = useState(false);
 
-    backgroundColor: "#FFFFFF",
+  const [
+    expandedHistoryId,
+    setExpandedHistoryId,
+  ] = useState<string | null>(
+    null
+  );
 
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  currentStatusIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 11,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  currentStatusActive: {
-    backgroundColor: "#DCFCE7",
-  },
-
-  currentStatusWaiting: {
-    backgroundColor: "#FEF3C7",
-  },
-
-  currentStatusContent: {
-    marginLeft: 9,
-    flex: 1,
-  },
-
-  currentStatusLabel: {
-    fontSize: 5.5,
-    fontWeight: "900",
-    letterSpacing: 0.6,
-    color: "#94A3B8",
-  },
-
-  currentStatusValue: {
-    marginTop: 3,
-    fontSize: 8,
-    fontWeight: "800",
-    color: "#334155",
-  },
 
   // ==========================================================
-  // SECTION
+  // APPROVED ENROLLMENT
   // ==========================================================
 
-  section: {
-    marginTop: 18,
-    width: "100%",
-  },
+  const approvedEnrollment =
+    useMemo(() => {
+      return enrollments.find(
+        (enrollment) => {
+          const status =
+            String(
+              enrollment.status ?? ""
+            ).toLowerCase();
+
+          return (
+            status === "approved" ||
+            status === "active"
+          );
+        }
+      );
+    }, [
+      enrollments,
+    ]);
+
 
   // ==========================================================
-  // QR NOTICE
+  // IDS
   // ==========================================================
 
-  howToUseCard: {
-    marginHorizontal: 20,
-    marginTop: 14,
+  const enrollmentId =
+    approvedEnrollment?.id ??
+    null;
 
-    paddingHorizontal: 14,
-    paddingVertical: 13,
+  const batchId =
+    approvedEnrollment?.trainingBatchId ??
+    null;
 
-    borderRadius: 16,
-
-    backgroundColor: "#EFF6FF",
-
-    borderWidth: 1,
-    borderColor: "#BFDBFE",
-
-    flexDirection: "row",
-    alignItems: "flex-start",
-  },
-
-  howToUseIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-
-    backgroundColor: "#DBEAFE",
-
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  howToUseContent: {
-    flex: 1,
-    marginLeft: 10,
-    paddingRight: 2,
-  },
-
-  howToUseTitle: {
-    fontSize: 9,
-    fontWeight: "800",
-    color: "#1D4ED8",
-  },
-
-  howToUseStep: {
-    marginTop: 4,
-    fontSize: 7,
-    lineHeight: 11,
-    color: "#475569",
-  },
 
   // ==========================================================
-  // QR UNAVAILABLE
+  // PARTICIPANT INFO
   // ==========================================================
 
-  qrUnavailable: {
-    marginHorizontal: 20,
+  const participantName =
+    approvedEnrollment?.participant
+      ?.fullName ??
+    "Participant";
 
-    paddingHorizontal: 20,
-    paddingVertical: 22,
+  const participantCode =
+    approvedEnrollment?.attendanceToken ??
+    "";
 
-    borderRadius: 18,
-
-    backgroundColor: "#FFFFFF",
-
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-
-    alignItems: "center",
-  },
-
-  qrUnavailableIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-
-    backgroundColor: "#F1F5F9",
-
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  qrUnavailableTitle: {
-    marginTop: 11,
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#334155",
-    textAlign: "center",
-  },
-
-  qrUnavailableText: {
-    marginTop: 6,
-    textAlign: "center",
-    fontSize: 8,
-    lineHeight: 13,
-    color: "#94A3B8",
-  },
 
   // ==========================================================
-  // ONLINE
+  // LOAD ALL ATTENDANCE DATA
+  //
+  // IMPORTANT:
+  // This is now the MAIN fetching function.
+  //
+  // Every time the Attendance screen becomes focused,
+  // this function runs again.
   // ==========================================================
 
-  onlineInfo: {
-    marginHorizontal: 20,
+  const loadAllAttendanceData =
+    useCallback(
+      async () => {
+        try {
+          console.log(
+            "========================================"
+          );
 
-    paddingHorizontal: 15,
-    paddingVertical: 14,
+          console.log(
+            "ATTENDANCE SCREEN - AUTO FETCH START"
+          );
 
-    borderRadius: 18,
+          console.log(
+            "========================================"
+          );
 
-    backgroundColor: "#EEF4FF",
 
-    borderWidth: 1,
-    borderColor: "#DBEAFE",
+          // ==================================================
+          // 1. LOAD ENROLLMENTS
+          // ==================================================
 
-    flexDirection: "row",
-    gap: 11,
-  },
+          const currentEnrollments =
+            await loadMyEnrollments();
 
-  onlineIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
 
-    backgroundColor: "#DBEAFE",
+          // ==================================================
+          // 2. FIND APPROVED / ACTIVE ENROLLMENT
+          // ==================================================
 
-    alignItems: "center",
-    justifyContent: "center",
-  },
+          const approved =
+            currentEnrollments.find(
+              (enrollment) => {
+                const status =
+                  String(
+                    enrollment.status ??
+                      ""
+                  ).toLowerCase();
 
-  onlineContent: {
-    flex: 1,
-    paddingRight: 2,
-  },
+                return (
+                  status ===
+                    "approved" ||
+                  status ===
+                    "active"
+                );
+              }
+            );
 
-  onlineTitle: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#1E40AF",
-  },
 
-  onlineText: {
-    marginTop: 5,
-    fontSize: 8,
-    lineHeight: 14,
-    color: "#475569",
-  },
+          const currentBatchId =
+            approved
+              ?.trainingBatchId ??
+            null;
+
+
+          // ==================================================
+          // NO APPROVED TRAINING
+          // ==================================================
+
+          if (!currentBatchId) {
+            setTrainingSessions(
+              []
+            );
+
+            setTrainingSessionId(
+              null
+            );
+
+            console.log(
+              "ATTENDANCE SCREEN - NO APPROVED TRAINING"
+            );
+
+            return;
+          }
+
+
+          // ==================================================
+          // 3. LOAD PARTICIPANT SCHEDULE
+          // ==================================================
+
+          setIsLoadingSchedule(
+            true
+          );
+
+          setTrainingSessionError(
+            null
+          );
+
+
+          const schedule =
+            await trainingBatchApi
+              .getParticipantSchedule(
+                currentBatchId
+              );
+
+
+          const sessions =
+            Array.isArray(
+              schedule
+            )
+              ? schedule
+              : [];
+
+
+          setTrainingSessions(
+            sessions
+          );
+
+
+          console.log(
+            "========================================"
+          );
+
+          console.log(
+            "PARTICIPANT SCHEDULE LOADED"
+          );
+
+          console.log(
+            "batchId:",
+            currentBatchId
+          );
+
+          console.log(
+            "number of sessions:",
+            sessions.length
+          );
+
+          console.log(
+            "========================================"
+          );
+
+
+          // ==================================================
+          // 4. FIND ACTUALLY OPEN ATTENDANCE SESSION
+          // ==================================================
+
+          let selectedSessionId:
+            string | null = null;
+
+
+          if (
+            sessions.length > 0
+          ) {
+
+            console.log(
+              "CHECKING ALL TRAINING SESSIONS..."
+            );
+
+
+            const openSessionResults =
+              await Promise.all(
+                sessions.map(
+                  async (
+                    session
+                  ) => {
+                    try {
+
+                      const result =
+                        await attendanceApi
+                          .getOpenSession(
+                            currentBatchId,
+                            session.id
+                          );
+
+
+                      console.log(
+                        "ATTENDANCE SESSION CHECK",
+                        {
+                          trainingSessionId:
+                            session.id,
+
+                          isOpen:
+                            result?.isOpen,
+
+                          attendanceSessionId:
+                            result?.attendanceSessionId,
+
+                          manualAttendanceOpen:
+                            result?.manualAttendanceOpen,
+                        }
+                      );
+
+
+                      return {
+                        session,
+                        result,
+                      };
+
+                    } catch (
+                      error
+                    ) {
+
+                      console.log(
+                        "FAILED TO CHECK ATTENDANCE SESSION",
+                        {
+                          trainingSessionId:
+                            session.id,
+
+                          error,
+                        }
+                      );
+
+
+                      return {
+                        session,
+                        result:
+                          null,
+                      };
+                    }
+                  }
+                )
+              );
+
+
+            // =================================================
+            // FIND OPEN SESSION
+            // =================================================
+
+            const activeSession =
+              openSessionResults.find(
+                (item) =>
+                  item.result
+                    ?.isOpen ===
+                    true &&
+                  Boolean(
+                    item.result
+                      ?.attendanceSessionId
+                  )
+              );
+
+
+            if (
+              activeSession
+            ) {
+
+              selectedSessionId =
+                activeSession
+                  .session.id;
+
+
+              console.log(
+                "========================================"
+              );
+
+              console.log(
+                "ACTIVE ATTENDANCE SESSION FOUND"
+              );
+
+              console.log(
+                "trainingSessionId:",
+                selectedSessionId
+              );
+
+              console.log(
+                "attendanceSessionId:",
+                activeSession
+                  .result
+                  ?.attendanceSessionId
+              );
+
+              console.log(
+                "manualAttendanceOpen:",
+                activeSession
+                  .result
+                  ?.manualAttendanceOpen
+              );
+
+              console.log(
+                "========================================"
+              );
+
+            } else {
+
+              // ===============================================
+              // NO OPEN SESSION
+              // FIND FALLBACK SESSION
+              // ===============================================
+
+              const now =
+                new Date();
+
+
+              // ===============================================
+              // TODAY
+              // ===============================================
+
+              const today =
+                sessions.find(
+                  (session) => {
+
+                    if (
+                      !session.sessionDate
+                    ) {
+                      return false;
+                    }
+
+
+                    const date =
+                      new Date(
+                        session.sessionDate
+                      );
+
+
+                    return (
+                      date.getFullYear() ===
+                        now.getFullYear() &&
+                      date.getMonth() ===
+                        now.getMonth() &&
+                      date.getDate() ===
+                        now.getDate()
+                    );
+                  }
+                );
+
+
+              // ===============================================
+              // UPCOMING
+              // ===============================================
+
+              const upcoming =
+                sessions
+                  .filter(
+                    (
+                      session
+                    ) => {
+
+                      if (
+                        !session.sessionDate
+                      ) {
+                        return false;
+                      }
+
+
+                      return (
+                        new Date(
+                          session.sessionDate
+                        ).getTime() >=
+                        now.getTime()
+                      );
+                    }
+                  )
+                  .sort(
+                    (
+                      a,
+                      b
+                    ) =>
+                      new Date(
+                        a.sessionDate
+                      ).getTime() -
+                      new Date(
+                        b.sessionDate
+                      ).getTime()
+                  )[0];
+
+
+              // ===============================================
+              // LATEST
+              // ===============================================
+
+              const latest =
+                [
+                  ...sessions,
+                ].sort(
+                  (
+                    a,
+                    b
+                  ) =>
+                    new Date(
+                      b.sessionDate
+                    ).getTime() -
+                    new Date(
+                      a.sessionDate
+                    ).getTime()
+                )[0];
+
+
+              const selected =
+                today ??
+                upcoming ??
+                latest;
+
+
+              selectedSessionId =
+                selected?.id ??
+                null;
+
+
+              console.log(
+                "========================================"
+              );
+
+              console.log(
+                "NO OPEN ATTENDANCE SESSION"
+              );
+
+              console.log(
+                "Fallback trainingSessionId:",
+                selectedSessionId
+              );
+
+              console.log(
+                "========================================"
+              );
+            }
+          }
+
+
+          // ==================================================
+          // SAVE SELECTED TRAINING SESSION
+          // ==================================================
+
+          setTrainingSessionId(
+            selectedSessionId
+          );
+
+
+          // ==================================================
+          // SCHEDULE LOADING FINISHED
+          // ==================================================
+
+          setIsLoadingSchedule(
+            false
+          );
+
+
+          // ==================================================
+          // 5. LOAD ATTENDANCE RECORDS
+          // ==================================================
+
+          console.log(
+            "LOADING BATCH ATTENDANCE..."
+          );
+
+
+          await loadBatchAttendance(
+            currentBatchId
+          );
+
+
+          // ==================================================
+          // 6. LOAD OPEN ATTENDANCE SESSION
+          // ==================================================
+
+          if (
+            selectedSessionId
+          ) {
+
+            console.log(
+              "LOADING OPEN ATTENDANCE SESSION..."
+            );
+
+
+            await loadOpenAttendanceSession(
+              currentBatchId,
+              selectedSessionId
+            );
+          }
+
+
+          console.log(
+            "========================================"
+          );
+
+          console.log(
+            "ATTENDANCE SCREEN - AUTO FETCH COMPLETE"
+          );
+
+          console.log(
+            "batchId:",
+            currentBatchId
+          );
+
+          console.log(
+            "trainingSessionId:",
+            selectedSessionId
+          );
+
+          console.log(
+            "========================================"
+          );
+
+        } catch (
+          error
+        ) {
+
+          console.log(
+            "========================================"
+          );
+
+          console.log(
+            "ATTENDANCE SCREEN AUTO FETCH ERROR"
+          );
+
+          console.log(
+            error
+          );
+
+          console.log(
+            "========================================"
+          );
+
+
+          const normalized =
+            error instanceof Error
+              ? error
+              : new Error(
+                  "Failed to load attendance data."
+                );
+
+
+          setTrainingSessionError(
+            normalized
+          );
+
+        } finally {
+
+          setIsLoadingSchedule(
+            false
+          );
+        }
+      },
+      [
+        loadMyEnrollments,
+        loadBatchAttendance,
+        loadOpenAttendanceSession,
+      ]
+    );
+
 
   // ==========================================================
-  // INFO
+  // AUTO FETCH WHEN SCREEN IS FOCUSED
+  //
+  // THIS IS THE MAIN FIX.
   // ==========================================================
 
-  info: {
-    marginHorizontal: 20,
-    marginTop: 20,
+  useFocusEffect(
+    useCallback(
+      () => {
+        console.log(
+          "========================================"
+        );
 
-    paddingHorizontal: 14,
-    paddingVertical: 13,
+        console.log(
+          "ATTENDANCE SCREEN FOCUSED"
+        );
 
-    borderRadius: 16,
+        console.log(
+          "FETCHING LATEST ATTENDANCE DATA..."
+        );
 
-    backgroundColor: "#F8FAFC",
+        console.log(
+          "========================================"
+        );
 
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
+        void loadAllAttendanceData();
+      },
+      [
+        loadAllAttendanceData,
+      ]
+    )
+  );
 
-    flexDirection: "row",
-    alignItems: "flex-start",
-
-    gap: 9,
-  },
-
-  infoText: {
-    flex: 1,
-    fontSize: 8,
-    lineHeight: 14,
-    color: "#64748B",
-  },
-
-  // ==========================================================
-  // RETRY
-  // ==========================================================
-
-  retryButton: {
-    marginTop: 15,
-
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-
-    borderRadius: 10,
-
-    backgroundColor: "#2563EB",
-  },
-
-  retryButtonText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    fontWeight: "700",
-  },
 
   // ==========================================================
-  // EMPTY
+  // CURRENT ATTENDANCE
   // ==========================================================
 
-  emptyContainer: {
-    flexGrow: 1,
+  const todayAttendance =
+    useMemo(() => {
 
-    alignItems: "center",
-    justifyContent: "center",
+      if (
+        !batchAttendance.length
+      ) {
 
-    paddingHorizontal: 30,
-    paddingVertical: 30,
-  },
+        console.log(
+          "MOBILE - NO ATTENDANCE RECORDS"
+        );
 
-  emptyIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 20,
+        return null;
+      }
 
-    backgroundColor: "#E2E8F0",
 
-    alignItems: "center",
-    justifyContent: "center",
-  },
+      console.log(
+        "========================================"
+      );
 
-  emptyTitle: {
-    marginTop: 14,
+      console.log(
+        "MOBILE - CURRENT ATTENDANCE RECORD"
+      );
 
-    fontSize: 15,
-    fontWeight: "800",
+      console.log(
+        "attendance records:",
+        batchAttendance
+      );
 
-    color: "#334155",
 
-    textAlign: "center",
-  },
+      // ------------------------------------------------------
+      // Get latest attendance record with Time In.
+      // ------------------------------------------------------
 
-  emptyText: {
-    marginTop: 6,
+      const recordsWithTimeIn =
+        batchAttendance.filter(
+          (record) =>
+            Boolean(
+              record.timeIn
+            )
+        );
 
-    textAlign: "center",
 
-    fontSize: 9,
-    lineHeight: 14,
+      const currentRecord =
+        [
+          ...recordsWithTimeIn,
+        ].sort(
+          (
+            a,
+            b
+          ) => {
 
-    color: "#94A3B8",
-  },
-});
+            const timeA =
+              a.timeIn
+                ? new Date(
+                    a.timeIn
+                  ).getTime()
+                : 0;
+
+
+            const timeB =
+              b.timeIn
+                ? new Date(
+                    b.timeIn
+                  ).getTime()
+                : 0;
+
+
+            return (
+              timeB - timeA
+            );
+          }
+        )[0] ??
+        null;
+
+
+      console.log(
+        "found record:",
+        currentRecord
+      );
+
+      console.log(
+        "timeIn:",
+        currentRecord?.timeIn
+      );
+
+      console.log(
+        "timeOut:",
+        currentRecord?.timeOut
+      );
+
+      console.log(
+        "hasTimeIn:",
+        Boolean(
+          currentRecord?.timeIn
+        )
+      );
+
+      console.log(
+        "hasTimeOut:",
+        Boolean(
+          currentRecord?.timeOut
+        )
+      );
+
+      console.log(
+        "========================================"
+      );
+
+
+      return currentRecord;
+
+    }, [
+      batchAttendance,
+    ]);
+
+
+  // ==========================================================
+  // HISTORY
+  // ==========================================================
+
+  const history =
+    useMemo(() => {
+
+      return batchAttendance
+        .filter(
+          (record) =>
+            Boolean(
+              record.timeIn &&
+                record.timeOut
+            )
+        )
+        .sort(
+          (
+            a,
+            b
+          ) => {
+
+            const dateA =
+              new Date(
+                getRecordDate(
+                  a
+                )
+              ).getTime();
+
+
+            const dateB =
+              new Date(
+                getRecordDate(
+                  b
+                )
+              ).getTime();
+
+
+            return (
+              dateB -
+              dateA
+            );
+          }
+        );
+
+    }, [
+      batchAttendance,
+    ]);
+
+
+  // ==========================================================
+  // SUMMARY
+  // ==========================================================
+
+  const attendanceSummary =
+    useMemo(() => {
+
+      const completed =
+        batchAttendance.filter(
+          (record) =>
+            Boolean(
+              record.timeIn &&
+                record.timeOut
+            )
+        );
+
+
+      const present =
+        completed.filter(
+          (record) =>
+            String(
+              record.status
+            ).toLowerCase() ===
+            "present"
+        ).length;
+
+
+      const late =
+        completed.filter(
+          (record) =>
+            String(
+              record.status
+            ).toLowerCase() ===
+            "late"
+        ).length;
+
+
+      const absent =
+        completed.filter(
+          (record) =>
+            String(
+              record.status
+            ).toLowerCase() ===
+            "absent"
+        ).length;
+
+
+      return {
+        total:
+          completed.length,
+
+        present,
+
+        late,
+
+        absent,
+      };
+
+    }, [
+      batchAttendance,
+    ]);
+
+
+  // ==========================================================
+  // SESSION STATE
+  // ==========================================================
+
+  const isSessionOpen =
+    Boolean(
+      openSessionId
+    );
+
+
+  const isManualAttendanceOpen =
+    Boolean(
+      openSessionId &&
+        manualAttendanceOpen
+    );
+
+
+  const hasTimedIn =
+    Boolean(
+      todayAttendance?.timeIn
+    );
+
+
+  const hasTimedOut =
+    Boolean(
+      todayAttendance?.timeOut
+    );
+
+
+  const canTimeIn =
+    Boolean(
+      enrollmentId &&
+        openSessionId &&
+        manualAttendanceOpen &&
+        !hasTimedIn &&
+        !isSubmitting
+    );
+
+
+  const canTimeOut =
+    Boolean(
+      enrollmentId &&
+        openSessionId &&
+        hasTimedIn &&
+        !hasTimedOut &&
+        !isSubmitting
+    );
+
+
+  // ==========================================================
+  // ERROR
+  // ==========================================================
+
+  const rawError =
+    attendanceError ??
+    enrollmentError ??
+    openSessionError ??
+    trainingSessionError ??
+    null;
+
+
+  const errorMessage =
+    getErrorMessage(
+      rawError
+    );
+
+
+  // ==========================================================
+  // TIME IN
+  // ==========================================================
+
+  const handleTimeIn =
+    useCallback(
+      async () => {
+
+        if (
+          !enrollmentId
+        ) {
+
+          showAlert(
+            "Unable to Time In",
+            "Your enrollment could not be found."
+          );
+
+          return;
+        }
+
+
+        if (
+          !openSessionId
+        ) {
+
+          showAlert(
+            "Attendance Closed",
+            "The attendance session is currently closed."
+          );
+
+          return;
+        }
+
+
+        if (
+          !manualAttendanceOpen
+        ) {
+
+          showAlert(
+            "Manual Attendance Closed",
+            "The trainer has not opened manual attendance yet."
+          );
+
+          return;
+        }
+
+
+        if (
+          todayAttendance?.timeIn
+        ) {
+
+          showAlert(
+            "Already Timed In",
+            "You have already recorded your Time In."
+          );
+
+          return;
+        }
+
+
+        try {
+
+          console.log(
+            "========================================"
+          );
+
+          console.log(
+            "MOBILE - SUBMITTING TIME IN"
+          );
+
+          console.log(
+            "attendanceSessionId:",
+            openSessionId
+          );
+
+          console.log(
+            "enrollmentId:",
+            enrollmentId
+          );
+
+          console.log(
+            "manualAttendanceOpen:",
+            manualAttendanceOpen
+          );
+
+          console.log(
+            "========================================"
+          );
+
+
+          await manualAttendance({
+            attendanceSessionId:
+              openSessionId,
+
+            action:
+              "TimeIn",
+          });
+
+
+          console.log(
+            "TIME IN SUCCESSFUL"
+          );
+
+
+          // --------------------------------------------------
+          // REFRESH ATTENDANCE RECORDS
+          // --------------------------------------------------
+
+          if (
+            batchId
+          ) {
+
+            await refreshBatchAttendance(
+              batchId
+            );
+          }
+
+
+          // --------------------------------------------------
+          // REFRESH OPEN SESSION
+          // --------------------------------------------------
+
+          if (
+            batchId &&
+            trainingSessionId
+          ) {
+
+            await refreshOpenAttendanceSession(
+              batchId,
+              trainingSessionId
+            );
+          }
+
+
+          console.log(
+            "ATTENDANCE DATA REFRESHED"
+          );
+
+
+          showAlert(
+            "Time In Successful",
+            "Your attendance Time In has been recorded.",
+            "success"
+          );
+
+        } catch (
+          err
+        ) {
+
+          console.log(
+            "TIME IN ERROR:",
+            err
+          );
+
+
+          showAlert(
+            "Time In Failed",
+            getErrorMessage(
+              err
+            ) ??
+              "Unable to record your Time In.",
+            "error"
+          );
+        }
+
+      },
+      [
+        enrollmentId,
+        openSessionId,
+        manualAttendanceOpen,
+        todayAttendance,
+        manualAttendance,
+        batchId,
+        trainingSessionId,
+        refreshBatchAttendance,
+        refreshOpenAttendanceSession,
+      ]
+    );
+
+
+  // ==========================================================
+  // TIME OUT
+  // ==========================================================
+
+  const handleTimeOut =
+    useCallback(
+      async () => {
+
+        console.log(
+          "========================================"
+        );
+
+        console.log(
+          "MOBILE - TIME OUT PRESSED"
+        );
+
+        console.log(
+          "enrollmentId:",
+          enrollmentId
+        );
+
+        console.log(
+          "openSessionId:",
+          openSessionId
+        );
+
+        console.log(
+          "manualAttendanceOpen:",
+          manualAttendanceOpen
+        );
+
+        console.log(
+          "todayAttendance:",
+          todayAttendance
+        );
+
+        console.log(
+          "timeIn:",
+          todayAttendance?.timeIn
+        );
+
+        console.log(
+          "timeOut:",
+          todayAttendance?.timeOut
+        );
+
+        console.log(
+          "========================================"
+        );
+
+
+        if (
+          !enrollmentId
+        ) {
+
+          showAlert(
+            "Unable to Time Out",
+            "Your enrollment could not be found."
+          );
+
+          return;
+        }
+
+
+        if (
+          !openSessionId
+        ) {
+
+          showAlert(
+            "Attendance Closed",
+            "The attendance session is currently closed."
+          );
+
+          return;
+        }
+
+
+        if (
+          !manualAttendanceOpen
+        ) {
+
+          showAlert(
+            "Manual Attendance Closed",
+            "The trainer has not opened manual attendance."
+          );
+
+          return;
+        }
+
+
+        if (
+          !todayAttendance?.timeIn
+        ) {
+
+          showAlert(
+            "Time In Required",
+            "You must Time In before recording Time Out."
+          );
+
+          return;
+        }
+
+
+        if (
+          todayAttendance.timeOut
+        ) {
+
+          showAlert(
+            "Already Timed Out",
+            "You have already recorded your Time Out."
+          );
+
+          return;
+        }
+
+
+        try {
+
+          console.log(
+            "SUBMITTING TIME OUT..."
+          );
+
+
+          await manualAttendance({
+            attendanceSessionId:
+              openSessionId,
+
+            action:
+              "TimeOut",
+          });
+
+
+          console.log(
+            "TIME OUT API SUCCESSFUL"
+          );
+
+
+          // --------------------------------------------------
+          // REFRESH ATTENDANCE RECORD
+          // --------------------------------------------------
+
+          if (
+            batchId
+          ) {
+
+            await refreshBatchAttendance(
+              batchId
+            );
+          }
+
+
+          // --------------------------------------------------
+          // REFRESH SESSION
+          // --------------------------------------------------
+
+          if (
+            batchId &&
+            trainingSessionId
+          ) {
+
+            await refreshOpenAttendanceSession(
+              batchId,
+              trainingSessionId
+            );
+          }
+
+
+          console.log(
+            "TIME OUT DATA REFRESHED"
+          );
+
+
+          showAlert(
+            "Time Out Successful",
+            "Your attendance Time Out has been recorded.",
+            "success"
+          );
+
+        } catch (
+          err
+        ) {
+
+          console.log(
+            "TIME OUT ERROR:",
+            err
+          );
+
+
+          showAlert(
+            "Time Out Failed",
+            getErrorMessage(
+              err
+            ) ??
+              "Unable to record your Time Out.",
+            "error"
+          );
+        }
+
+      },
+      [
+        enrollmentId,
+        openSessionId,
+        manualAttendanceOpen,
+        todayAttendance,
+        manualAttendance,
+        batchId,
+        trainingSessionId,
+        refreshBatchAttendance,
+        refreshOpenAttendanceSession,
+      ]
+    );
+
+
+  // ==========================================================
+  // PULL TO REFRESH
+  // ==========================================================
+
+  const handleRefresh =
+    useCallback(
+      async () => {
+
+        setIsRefreshing(
+          true
+        );
+
+
+        try {
+
+          await loadAllAttendanceData();
+
+        } finally {
+
+          setIsRefreshing(
+            false
+          );
+        }
+
+      },
+      [
+        loadAllAttendanceData,
+      ]
+    );
+
+
+  // ==========================================================
+  // LOADING
+  // ==========================================================
+
+  const isInitialLoading =
+    isLoadingEnrollments ||
+    isLoadingSchedule;
+
+
+  // ==========================================================
+  // RENDER
+  // ==========================================================
+
+  return (
+    <ScrollView
+      style={
+        styles.container
+      }
+      contentContainerStyle={
+        styles.contentContainer
+      }
+      refreshControl={
+        <RefreshControl
+          refreshing={
+            isRefreshing
+          }
+          onRefresh={
+            handleRefresh
+          }
+        />
+      }
+      showsVerticalScrollIndicator={
+        false
+      }
+    >
+
+      {/* ======================================================
+          HEADER
+      ====================================================== */}
+
+      <View
+        style={
+          styles.header
+        }
+      >
+
+        <View
+          style={
+            styles.headerIcon
+          }
+        >
+          <Ionicons
+            name="qr-code-outline"
+            size={26}
+            color="#FFFFFF"
+          />
+        </View>
+
+
+        <View
+          style={
+            styles.headerTextContainer
+          }
+        >
+
+          <Text
+            style={
+              styles.headerTitle
+            }
+          >
+            Attendance
+          </Text>
+
+
+          <Text
+            style={
+              styles.headerSubtitle
+            }
+          >
+            Track your training attendance
+          </Text>
+
+        </View>
+
+      </View>
+
+
+      {/* ======================================================
+          LOADING
+      ====================================================== */}
+
+      {isInitialLoading && (
+        <View
+          style={
+            styles.loadingCard
+          }
+        >
+
+          <ActivityIndicator
+            size="small"
+            color="#002B5C"
+          />
+
+
+          <Text
+            style={
+              styles.loadingText
+            }
+          >
+            Loading attendance...
+          </Text>
+
+        </View>
+      )}
+
+
+      {/* ======================================================
+          ERROR
+      ====================================================== */}
+
+      {errorMessage && (
+        <View
+          style={
+            styles.errorCard
+          }
+        >
+
+          <Ionicons
+            name="alert-circle-outline"
+            size={22}
+            color="#B42318"
+          />
+
+
+          <View
+            style={
+              styles.errorContent
+            }
+          >
+
+            <Text
+              style={
+                styles.errorTitle
+              }
+            >
+              Attendance Error
+            </Text>
+
+
+            <Text
+              style={
+                styles.errorText
+              }
+            >
+              {errorMessage}
+            </Text>
+
+          </View>
+
+        </View>
+      )}
+
+
+      {/* ======================================================
+          NO APPROVED ENROLLMENT
+      ====================================================== */}
+
+      {!isInitialLoading &&
+        !approvedEnrollment && (
+          <View
+            style={
+              styles.emptyCard
+            }
+          >
+
+            <Ionicons
+              name="school-outline"
+              size={42}
+              color="#002B5C"
+            />
+
+
+            <Text
+              style={
+                styles.emptyTitle
+              }
+            >
+              No Approved Training
+            </Text>
+
+
+            <Text
+              style={
+                styles.emptyText
+              }
+            >
+              You currently do not have an approved
+              training enrollment.
+            </Text>
+
+          </View>
+        )}
+
+
+      {/* ======================================================
+          APPROVED ENROLLMENT CONTENT
+      ====================================================== */}
+
+      {approvedEnrollment && (
+        <>
+
+          {/* ==================================================
+              CURRENT ATTENDANCE
+          ================================================== */}
+
+          <View
+            style={
+              styles.section
+            }
+          >
+
+            <Text
+              style={
+                styles.sectionTitle
+              }
+            >
+              Current Attendance
+            </Text>
+
+
+            <View
+              style={
+                styles.statusCard
+              }
+            >
+
+              <View
+                style={
+                  styles.statusIconContainer
+                }
+              >
+
+                <Ionicons
+                  name={
+                    todayAttendance
+                      ? getStatusIcon(
+                          todayAttendance.status
+                        )
+                      : "calendar-outline"
+                  }
+                  size={28}
+                  color="#002B5C"
+                />
+
+              </View>
+
+
+              <View
+                style={
+                  styles.statusContent
+                }
+              >
+
+                <Text
+                  style={
+                    styles.statusTitle
+                  }
+                >
+                  {todayAttendance
+                    ? getStatusLabel(
+                        todayAttendance.status
+                      )
+                    : "No Attendance Record"}
+                </Text>
+
+
+                <Text
+                  style={
+                    styles.statusSubtitle
+                  }
+                >
+                  {todayAttendance
+                    ? `${formatDate(
+                        getRecordDate(
+                          todayAttendance
+                        )
+                      )} • ${getRecordMode(
+                        todayAttendance
+                      )}`
+                    : "No attendance record has been recorded for today."}
+                </Text>
+
+
+                {todayAttendance && (
+                  <View
+                    style={
+                      styles.timeRow
+                    }
+                  >
+
+                    <View
+                      style={
+                        styles.timeItem
+                      }
+                    >
+
+                      <Ionicons
+                        name="log-in-outline"
+                        size={16}
+                        color="#3B7597"
+                      />
+
+
+                      <View>
+                        <Text
+                          style={
+                            styles.timeLabel
+                          }
+                        >
+                          Time In
+                        </Text>
+
+
+                        <Text
+                          style={
+                            styles.timeValue
+                          }
+                        >
+                          {formatTime(
+                            todayAttendance.timeIn
+                          )}
+                        </Text>
+                      </View>
+
+                    </View>
+
+
+                    <View
+                      style={
+                        styles.timeItem
+                      }
+                    >
+
+                      <Ionicons
+                        name="log-out-outline"
+                        size={16}
+                        color="#3B7597"
+                      />
+
+
+                      <View>
+                        <Text
+                          style={
+                            styles.timeLabel
+                          }
+                        >
+                          Time Out
+                        </Text>
+
+
+                        <Text
+                          style={
+                            styles.timeValue
+                          }
+                        >
+                          {formatTime(
+                            todayAttendance.timeOut
+                          )}
+                        </Text>
+                      </View>
+
+                    </View>
+
+                  </View>
+                )}
+
+              </View>
+
+            </View>
+
+          </View>
+
+
+          {/* ==================================================
+              SESSION STATUS
+          ================================================== */}
+
+          <View
+            style={
+              styles.sessionStatusCard
+            }
+          >
+
+            <View
+              style={
+                styles.sessionStatusLeft
+              }
+            >
+
+              <View
+                style={[
+                  styles.statusDot,
+                  {
+                    backgroundColor:
+                      isSessionOpen
+                        ? "#12B76A"
+                        : "#98A2B3",
+                  },
+                ]}
+              />
+
+
+              <View>
+
+                <Text
+                  style={
+                    styles.sessionStatusTitle
+                  }
+                >
+                  Attendance Session
+                </Text>
+
+
+                <Text
+                  style={
+                    styles.sessionStatusSubtitle
+                  }
+                >
+                  {isLoadingOpenSession
+                    ? "Checking session..."
+                    : isSessionOpen
+                      ? manualAttendanceOpen
+                        ? "Open • Manual attendance enabled"
+                        : "Open • QR scanning available"
+                      : "Closed"}
+                </Text>
+
+              </View>
+
+            </View>
+
+
+            <Text
+              style={[
+                styles.sessionStatusBadge,
+                {
+                  color:
+                    isSessionOpen
+                      ? "#027A48"
+                      : "#667085",
+                },
+              ]}
+            >
+              {isSessionOpen
+                ? "OPEN"
+                : "CLOSED"}
+            </Text>
+
+          </View>
+
+
+          {/* ==================================================
+              PARTICIPANT QR
+          ================================================== */}
+
+          <View
+            style={
+              styles.section
+            }
+          >
+
+            <Text
+              style={
+                styles.sectionTitle
+              }
+            >
+              My Attendance QR
+            </Text>
+
+
+            {participantCode ? (
+              <ParticipantQrCard
+                participantCode={
+                  participantCode
+                }
+                participantName={
+                  participantName
+                }
+              />
+            ) : (
+              <View
+                style={
+                  styles.qrUnavailableCard
+                }
+              >
+
+                <Ionicons
+                  name="qr-code-outline"
+                  size={38}
+                  color="#98A2B3"
+                />
+
+
+                <Text
+                  style={
+                    styles.qrUnavailableTitle
+                  }
+                >
+                  Attendance QR Unavailable
+                </Text>
+
+
+                <Text
+                  style={
+                    styles.qrUnavailableText
+                  }
+                >
+                  Your participant code could not
+                  be loaded.
+                </Text>
+
+              </View>
+            )}
+
+          </View>
+
+
+          {/* ==================================================
+              MANUAL ATTENDANCE
+          ================================================== */}
+
+          <View
+            style={
+              styles.section
+            }
+          >
+
+            <View
+              style={
+                styles.sectionHeaderRow
+              }
+            >
+
+              <Text
+                style={
+                  styles.sectionTitle
+                }
+              >
+                Manual Attendance
+              </Text>
+
+
+              <View
+                style={[
+                  styles.manualBadge,
+                  {
+                    backgroundColor:
+                      isManualAttendanceOpen
+                        ? "#ECFDF3"
+                        : "#F2F4F7",
+                  },
+                ]}
+              >
+
+                <Text
+                  style={[
+                    styles.manualBadgeText,
+                    {
+                      color:
+                        isManualAttendanceOpen
+                          ? "#027A48"
+                          : "#667085",
+                    },
+                  ]}
+                >
+                  {isManualAttendanceOpen
+                    ? "OPEN"
+                    : "CLOSED"}
+                </Text>
+
+              </View>
+
+            </View>
+
+
+            <View
+              style={
+                styles.manualCard
+              }
+            >
+
+              <Text
+                style={
+                  styles.manualDescription
+                }
+              >
+                Time In and Time Out are available
+                only when the trainer opens manual
+                attendance.
+              </Text>
+
+
+              <View
+                style={
+                  styles.manualButtons
+                }
+              >
+
+                <Pressable
+                  onPress={
+                    handleTimeIn
+                  }
+                  disabled={
+                    !canTimeIn
+                  }
+                  style={[
+                    styles.attendanceButton,
+                    styles.timeInButton,
+                    !canTimeIn &&
+                      styles.disabledButton,
+                  ]}
+                >
+
+                  {isSubmitting ? (
+                    <ActivityIndicator
+                      size="small"
+                      color="#FFFFFF"
+                    />
+                  ) : (
+                    <Ionicons
+                      name="log-in-outline"
+                      size={20}
+                      color="#FFFFFF"
+                    />
+                  )}
+
+
+                  <Text
+                    style={
+                      styles.buttonText
+                    }
+                  >
+                    Time In
+                  </Text>
+
+                </Pressable>
+
+
+                <Pressable
+                  onPress={
+                    handleTimeOut
+                  }
+                  disabled={
+                    !canTimeOut
+                  }
+                  style={[
+                    styles.attendanceButton,
+                    styles.timeOutButton,
+                    !canTimeOut &&
+                      styles.disabledButton,
+                  ]}
+                >
+
+                  {isSubmitting ? (
+                    <ActivityIndicator
+                      size="small"
+                      color="#FFFFFF"
+                    />
+                  ) : (
+                    <Ionicons
+                      name="log-out-outline"
+                      size={20}
+                      color="#FFFFFF"
+                    />
+                  )}
+
+
+                  <Text
+                    style={
+                      styles.buttonText
+                    }
+                  >
+                    Time Out
+                  </Text>
+
+                </Pressable>
+
+              </View>
+
+
+              {!isManualAttendanceOpen && (
+                <Text
+                  style={
+                    styles.disabledReason
+                  }
+                >
+                  Manual attendance is currently
+                  closed by the trainer.
+                </Text>
+              )}
+
+
+              {todayAttendance?.timeIn &&
+                !todayAttendance?.timeOut && (
+                  <Text
+                    style={
+                      styles.disabledReason
+                    }
+                  >
+                    You have already timed in.
+                    Time Out when manual attendance
+                    is available.
+                  </Text>
+                )}
+
+
+              {todayAttendance?.timeOut && (
+                <Text
+                  style={
+                    styles.completedReason
+                  }
+                >
+                  Your attendance for today is
+                  complete.
+                </Text>
+              )}
+
+            </View>
+
+          </View>
+
+
+          {/* ==================================================
+              SUMMARY
+          ================================================== */}
+
+          <View
+            style={
+              styles.section
+            }
+          >
+
+            <Text
+              style={
+                styles.sectionTitle
+              }
+            >
+              Attendance Summary
+            </Text>
+
+
+            <View
+              style={
+                styles.summaryGrid
+              }
+            >
+
+              <View
+                style={
+                  styles.summaryCard
+                }
+              >
+
+                <Text
+                  style={
+                    styles.summaryValue
+                  }
+                >
+                  {
+                    attendanceSummary.total
+                  }
+                </Text>
+
+
+                <Text
+                  style={
+                    styles.summaryLabel
+                  }
+                >
+                  Completed
+                </Text>
+
+              </View>
+
+
+              <View
+                style={
+                  styles.summaryCard
+                }
+              >
+
+                <Text
+                  style={
+                    styles.summaryValue
+                  }
+                >
+                  {
+                    attendanceSummary.present
+                  }
+                </Text>
+
+
+                <Text
+                  style={
+                    styles.summaryLabel
+                  }
+                >
+                  Present
+                </Text>
+
+              </View>
+
+
+              <View
+                style={
+                  styles.summaryCard
+                }
+              >
+
+                <Text
+                  style={
+                    styles.summaryValue
+                  }
+                >
+                  {
+                    attendanceSummary.late
+                  }
+                </Text>
+
+
+                <Text
+                  style={
+                    styles.summaryLabel
+                  }
+                >
+                  Late
+                </Text>
+
+              </View>
+
+
+              <View
+                style={
+                  styles.summaryCard
+                }
+              >
+
+                <Text
+                  style={
+                    styles.summaryValue
+                  }
+                >
+                  {
+                    attendanceSummary.absent
+                  }
+                </Text>
+
+
+                <Text
+                  style={
+                    styles.summaryLabel
+                  }
+                >
+                  Absent
+                </Text>
+
+              </View>
+
+            </View>
+
+          </View>
+
+
+          {/* ==================================================
+              HISTORY
+          ================================================== */}
+
+          <View
+            style={
+              styles.section
+            }
+          >
+
+            <View
+              style={
+                styles.sectionHeaderRow
+              }
+            >
+
+              <Text
+                style={
+                  styles.sectionTitle
+                }
+              >
+                Attendance History
+              </Text>
+
+
+              <Text
+                style={
+                  styles.historyCount
+                }
+              >
+                {history.length}
+              </Text>
+
+            </View>
+
+
+            {history.length === 0 ? (
+
+              <View
+                style={
+                  styles.historyEmpty
+                }
+              >
+
+                <Ionicons
+                  name="time-outline"
+                  size={34}
+                  color="#98A2B3"
+                />
+
+
+                <Text
+                  style={
+                    styles.historyEmptyTitle
+                  }
+                >
+                  No completed attendance
+                </Text>
+
+
+                <Text
+                  style={
+                    styles.historyEmptyText
+                  }
+                >
+                  Completed Time In and Time Out
+                  records will appear here.
+                </Text>
+
+              </View>
+
+            ) : (
+
+              history.map(
+                (record) => {
+
+                  const isExpanded =
+                    expandedHistoryId ===
+                    record.id;
+
+
+                  return (
+                    <Pressable
+                      key={
+                        record.id
+                      }
+                      onPress={() =>
+                        setExpandedHistoryId(
+                          isExpanded
+                            ? null
+                            : record.id
+                        )
+                      }
+                      style={
+                        styles.historyItem
+                      }
+                    >
+
+                      <View
+                        style={
+                          styles.historyMainRow
+                        }
+                      >
+
+                        <View
+                          style={
+                            styles.historyIcon
+                          }
+                        >
+
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={22}
+                            color="#027A48"
+                          />
+
+                        </View>
+
+
+                        <View
+                          style={
+                            styles.historyMainContent
+                          }
+                        >
+
+                          <Text
+                            style={
+                              styles.historyDate
+                            }
+                          >
+                            {formatDate(
+                              getRecordDate(
+                                record
+                              )
+                            )}
+                          </Text>
+
+
+                          <Text
+                            style={
+                              styles.historyMode
+                            }
+                          >
+                            {getRecordMode(
+                              record
+                            )}
+                          </Text>
+
+                        </View>
+
+
+                        <Ionicons
+                          name={
+                            isExpanded
+                              ? "chevron-up"
+                              : "chevron-down"
+                          }
+                          size={20}
+                          color="#667085"
+                        />
+
+                      </View>
+
+
+                      {isExpanded && (
+                        <View
+                          style={
+                            styles.historyDetails
+                          }
+                        >
+
+                          <View
+                            style={
+                              styles.historyDetailRow
+                            }
+                          >
+
+                            <Text
+                              style={
+                                styles.historyDetailLabel
+                              }
+                            >
+                              Time In
+                            </Text>
+
+
+                            <Text
+                              style={
+                                styles.historyDetailValue
+                              }
+                            >
+                              {formatTime(
+                                record.timeIn
+                              )}
+                            </Text>
+
+                          </View>
+
+
+                          <View
+                            style={
+                              styles.historyDetailRow
+                            }
+                          >
+
+                            <Text
+                              style={
+                                styles.historyDetailLabel
+                              }
+                            >
+                              Time Out
+                            </Text>
+
+
+                            <Text
+                              style={
+                                styles.historyDetailValue
+                              }
+                            >
+                              {formatTime(
+                                record.timeOut
+                              )}
+                            </Text>
+
+                          </View>
+
+
+                          <View
+                            style={
+                              styles.historyDetailRow
+                            }
+                          >
+
+                            <Text
+                              style={
+                                styles.historyDetailLabel
+                              }
+                            >
+                              Status
+                            </Text>
+
+
+                            <Text
+                              style={
+                                styles.historyDetailValue
+                              }
+                            >
+                              {getStatusLabel(
+                                record.status
+                              )}
+                            </Text>
+
+                          </View>
+
+
+                          <View
+                            style={
+                              styles.historyDetailRow
+                            }
+                          >
+
+                            <Text
+                              style={
+                                styles.historyDetailLabel
+                              }
+                            >
+                              Method
+                            </Text>
+
+
+                            <Text
+                              style={
+                                styles.historyDetailValue
+                              }
+                            >
+                              {record.method ||
+                                "Manual"}
+                            </Text>
+
+                          </View>
+
+                        </View>
+                      )}
+
+                    </Pressable>
+                  );
+                }
+              )
+
+            )}
+
+          </View>
+
+        </>
+      )}
+
+
+      {/* ======================================================
+          BOTTOM SPACING
+      ====================================================== */}
+
+      <View
+        style={
+          styles.bottomSpacing
+        }
+      />
+
+
+      {/* ======================================================
+          APP ALERT
+      ====================================================== */}
+
+      <AppAlert
+        visible={
+          appAlert.visible
+        }
+        type={
+          appAlert.type
+        }
+        title={
+          appAlert.title
+        }
+        message={
+          appAlert.message
+        }
+        confirmText={
+          appAlert.confirmText
+        }
+        onConfirm={
+          closeAlert
+        }
+        showCancel={
+          false
+        }
+      />
+
+    </ScrollView>
+  );
+}
+
+
+// ============================================================
+// STYLES
+// ============================================================
+
+const styles =
+  StyleSheet.create({
+
+    // --------------------------------------------------------
+    // CONTAINER
+    // --------------------------------------------------------
+
+    container: {
+      flex: 1,
+      backgroundColor:
+        "#F7F9FB",
+    },
+
+    contentContainer: {
+      paddingHorizontal: 16,
+      paddingTop: 48,
+      paddingBottom: 80,
+    },
+
+
+    // --------------------------------------------------------
+    // HEADER
+    // --------------------------------------------------------
+
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 20,
+    },
+
+    headerIcon: {
+      width: 52,
+      height: 52,
+      borderRadius: 16,
+      backgroundColor:
+        "#002B5C",
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 12,
+    },
+
+    headerTextContainer: {
+      flex: 1,
+    },
+
+    headerTitle: {
+      fontSize: 24,
+      fontWeight: "800",
+      color: "#002B5C",
+    },
+
+    headerSubtitle: {
+      marginTop: 3,
+      fontSize: 13,
+      color: "#667085",
+    },
+
+
+    // --------------------------------------------------------
+    // LOADING
+    // --------------------------------------------------------
+
+    loadingCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 16,
+    },
+
+    loadingText: {
+      marginLeft: 10,
+      fontSize: 14,
+      color: "#667085",
+    },
+
+
+    // --------------------------------------------------------
+    // ERROR
+    // --------------------------------------------------------
+
+    errorCard: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      backgroundColor:
+        "#FEF3F2",
+      borderWidth: 1,
+      borderColor:
+        "#FDA29B",
+      borderRadius: 16,
+      padding: 14,
+      marginBottom: 16,
+    },
+
+    errorContent: {
+      flex: 1,
+      marginLeft: 10,
+    },
+
+    errorTitle: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: "#B42318",
+      marginBottom: 3,
+    },
+
+    errorText: {
+      fontSize: 13,
+      lineHeight: 19,
+      color: "#912018",
+    },
+
+
+    // --------------------------------------------------------
+    // EMPTY
+    // --------------------------------------------------------
+
+    emptyCard: {
+      alignItems: "center",
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 20,
+      padding: 30,
+      marginBottom: 20,
+    },
+
+    emptyTitle: {
+      marginTop: 12,
+      fontSize: 18,
+      fontWeight: "800",
+      color: "#002B5C",
+    },
+
+    emptyText: {
+      marginTop: 6,
+      fontSize: 13,
+      lineHeight: 19,
+      textAlign: "center",
+      color: "#667085",
+    },
+
+
+    // --------------------------------------------------------
+    // SECTION
+    // --------------------------------------------------------
+
+    section: {
+      marginBottom: 20,
+    },
+
+    sectionHeaderRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent:
+        "space-between",
+      marginBottom: 10,
+    },
+
+    sectionTitle: {
+      fontSize: 17,
+      fontWeight: "800",
+      color: "#002B5C",
+      marginBottom: 10,
+    },
+
+
+    // --------------------------------------------------------
+    // CURRENT STATUS
+    // --------------------------------------------------------
+
+    statusCard: {
+      flexDirection: "row",
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 20,
+      padding: 16,
+    },
+
+    statusIconContainer: {
+      width: 50,
+      height: 50,
+      borderRadius: 15,
+      backgroundColor:
+        "#EEF4F8",
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 12,
+    },
+
+    statusContent: {
+      flex: 1,
+    },
+
+    statusTitle: {
+      fontSize: 16,
+      fontWeight: "800",
+      color: "#002B5C",
+    },
+
+    statusSubtitle: {
+      marginTop: 4,
+      fontSize: 12,
+      color: "#667085",
+    },
+
+    timeRow: {
+      flexDirection: "row",
+      marginTop: 14,
+      gap: 20,
+    },
+
+    timeItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 7,
+    },
+
+    timeLabel: {
+      fontSize: 10,
+      color: "#98A2B3",
+    },
+
+    timeValue: {
+      marginTop: 1,
+      fontSize: 13,
+      fontWeight: "700",
+      color: "#344054",
+    },
+
+
+    // --------------------------------------------------------
+    // SESSION STATUS
+    // --------------------------------------------------------
+
+    sessionStatusCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent:
+        "space-between",
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 16,
+      padding: 15,
+      marginBottom: 20,
+    },
+
+    sessionStatusLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      flex: 1,
+    },
+
+    statusDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      marginRight: 10,
+    },
+
+    sessionStatusTitle: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: "#344054",
+    },
+
+    sessionStatusSubtitle: {
+      marginTop: 2,
+      fontSize: 11,
+      color: "#667085",
+    },
+
+    sessionStatusBadge: {
+      fontSize: 11,
+      fontWeight: "800",
+    },
+
+
+    // --------------------------------------------------------
+    // QR
+    // --------------------------------------------------------
+
+    qrUnavailableCard: {
+      alignItems: "center",
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 20,
+      padding: 26,
+    },
+
+    qrUnavailableTitle: {
+      marginTop: 10,
+      fontSize: 15,
+      fontWeight: "700",
+      color: "#344054",
+    },
+
+    qrUnavailableText: {
+      marginTop: 5,
+      fontSize: 12,
+      lineHeight: 18,
+      textAlign: "center",
+      color: "#667085",
+    },
+
+
+    // --------------------------------------------------------
+    // MANUAL ATTENDANCE
+    // --------------------------------------------------------
+
+    manualBadge: {
+      borderRadius: 999,
+      paddingHorizontal: 9,
+      paddingVertical: 5,
+    },
+
+    manualBadgeText: {
+      fontSize: 10,
+      fontWeight: "800",
+    },
+
+    manualCard: {
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 20,
+      padding: 16,
+    },
+
+    manualDescription: {
+      fontSize: 13,
+      lineHeight: 19,
+      color: "#667085",
+      marginBottom: 15,
+    },
+
+    manualButtons: {
+      flexDirection: "row",
+      gap: 10,
+    },
+
+    attendanceButton: {
+      flex: 1,
+      minHeight: 48,
+      borderRadius: 13,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 7,
+    },
+
+    timeInButton: {
+      backgroundColor:
+        "#002B5C",
+    },
+
+    timeOutButton: {
+      backgroundColor:
+        "#3B7597",
+    },
+
+    disabledButton: {
+      opacity: 0.4,
+    },
+
+    buttonText: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: "#FFFFFF",
+    },
+
+    disabledReason: {
+      marginTop: 12,
+      fontSize: 11,
+      lineHeight: 17,
+      color: "#98A2B3",
+      textAlign: "center",
+    },
+
+    completedReason: {
+      marginTop: 12,
+      fontSize: 11,
+      lineHeight: 17,
+      color: "#027A48",
+      textAlign: "center",
+      fontWeight: "600",
+    },
+
+
+    // --------------------------------------------------------
+    // SUMMARY
+    // --------------------------------------------------------
+
+    summaryGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 10,
+    },
+
+    summaryCard: {
+      width: "48%",
+      flexGrow: 1,
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 16,
+      padding: 16,
+    },
+
+    summaryValue: {
+      fontSize: 23,
+      fontWeight: "800",
+      color: "#002B5C",
+    },
+
+    summaryLabel: {
+      marginTop: 3,
+      fontSize: 11,
+      color: "#667085",
+    },
+
+
+    // --------------------------------------------------------
+    // HISTORY
+    // --------------------------------------------------------
+
+    historyCount: {
+      minWidth: 26,
+      height: 26,
+      borderRadius: 13,
+      backgroundColor:
+        "#EEF4F8",
+      textAlign: "center",
+      textAlignVertical:
+        "center",
+      paddingTop: 5,
+      fontSize: 11,
+      fontWeight: "800",
+      color: "#002B5C",
+    },
+
+    historyEmpty: {
+      alignItems: "center",
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 20,
+      padding: 26,
+    },
+
+    historyEmptyTitle: {
+      marginTop: 9,
+      fontSize: 14,
+      fontWeight: "700",
+      color: "#344054",
+    },
+
+    historyEmptyText: {
+      marginTop: 5,
+      fontSize: 12,
+      lineHeight: 18,
+      textAlign: "center",
+      color: "#667085",
+    },
+
+    historyItem: {
+      backgroundColor:
+        "#FFFFFF",
+      borderRadius: 16,
+      padding: 14,
+      marginBottom: 10,
+    },
+
+    historyMainRow: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+
+    historyIcon: {
+      width: 38,
+      height: 38,
+      borderRadius: 12,
+      backgroundColor:
+        "#ECFDF3",
+      alignItems: "center",
+      justifyContent:
+        "center",
+      marginRight: 10,
+    },
+
+    historyMainContent: {
+      flex: 1,
+    },
+
+    historyDate: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: "#344054",
+    },
+
+    historyMode: {
+      marginTop: 3,
+      fontSize: 11,
+      color: "#667085",
+    },
+
+    historyDetails: {
+      marginTop: 14,
+      paddingTop: 13,
+      borderTopWidth: 1,
+      borderTopColor:
+        "#EAECF0",
+    },
+
+    historyDetailRow: {
+      flexDirection: "row",
+      justifyContent:
+        "space-between",
+      paddingVertical: 5,
+    },
+
+    historyDetailLabel: {
+      fontSize: 12,
+      color: "#667085",
+    },
+
+    historyDetailValue: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: "#344054",
+    },
+
+
+    // --------------------------------------------------------
+    // BOTTOM
+    // --------------------------------------------------------
+
+    bottomSpacing: {
+      height: 30,
+    },
+  });
