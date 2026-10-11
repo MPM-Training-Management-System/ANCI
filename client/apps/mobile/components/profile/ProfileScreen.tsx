@@ -4,11 +4,13 @@ import React, {
   useState,
 } from "react";
 
+
 import {
   ActivityIndicator,
   Alert,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -24,6 +26,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 
+
 import {
   useForgotPassword,
   useParticipant,
@@ -34,12 +37,13 @@ import {
 } from "@repo/ui-mobile";
 
 import type {
-  UpdateParticipantProfile,
+  UpdateParticipantProfile, Certificate
 } from "@repo/types";
 
 import {
   participantProfileApi,
   authAPIs,
+  certificateApi,
 } from "@/api/api";
 
 import { auth } from "@/api/auth";
@@ -88,9 +92,17 @@ export default function ProfileScreen() {
   const [isLoggingOut, setIsLoggingOut] =
     useState(false);
 
-  // =====================================================
-  // PROFILE IMAGE
-  // =====================================================
+  const [isCertificatesVisible, setIsCertificatesVisible] =
+  useState(false);
+
+const [certificates, setCertificates] =
+  useState<Certificate[]>([]);
+
+const [isCertificatesLoading, setIsCertificatesLoading] =
+  useState(false);
+
+const [certificateError, setCertificateError] =
+  useState("");
 
   const [isUploadingImage, setIsUploadingImage] =
     useState(false);
@@ -150,25 +162,60 @@ export default function ProfileScreen() {
       refreshProfile().catch(() => {});
     }
   }, [profile, refreshProfile]);
+// =====================================================
+// MY CERTIFICATES
+// =====================================================
+// =====================================================
+// MY CERTIFICATES
+// =====================================================
 
-  // =====================================================
-  // REFRESH
-  // =====================================================
+const handleOpenCertificates = useCallback(() => {
+  router.push("/certificates/[id]");
+}, [router]);
+const handleRefreshCertificates = useCallback(async () => {
+  setIsCertificatesLoading(true);
+  setCertificateError("");
 
-  const handleRefresh = useCallback(
-    async () => {
-      try {
-        setRefreshing(true);
-        await refreshProfile();
-      } catch {
-        // Error handled by hook.
-      } finally {
-        setRefreshing(false);
-      }
-    },
-    [refreshProfile]
-  );
+  try {
+    const result = await certificateApi.getMyCertificates();
+    setCertificates(result ?? []);
+  } catch (err: unknown) {
+    console.error("Failed to refresh certificates:", err);
 
+    setCertificateError(
+      err instanceof Error
+        ? err.message
+        : "Unable to refresh your certificates.",
+    );
+  } finally {
+    setIsCertificatesLoading(false);
+  }
+}, []);
+const handleViewCertificate = useCallback(
+  (certificateId: string | number | undefined | null) => {
+    if (
+      certificateId === undefined ||
+      certificateId === null ||
+      String(certificateId).trim() === ""
+    ) {
+      Alert.alert(
+        "Certificate Unavailable",
+        "The certificate ID is missing.",
+      );
+      return;
+    }
+
+    setIsCertificatesVisible(false);
+
+    router.push({
+      pathname: "/certificates/[id]",
+      params: {
+        id: String(certificateId),
+      },
+    });
+  },
+  [router],
+);
   // =====================================================
   // INITIALS
   // =====================================================
@@ -742,6 +789,10 @@ export default function ProfileScreen() {
     );
   }
 
+  function handleRefresh(): void {
+    throw new Error("Function not implemented.");
+  }
+
   // =====================================================
   // MAIN SCREEN
   // =====================================================
@@ -765,9 +816,7 @@ export default function ProfileScreen() {
           />
         }
       >
-        {/* =========================================== */}
-        {/* HEADER */}
-        {/* =========================================== */}
+ 
 
         <View
           style={styles.header}
@@ -976,6 +1025,13 @@ export default function ProfileScreen() {
               }
             />
 
+            <AccountItem
+  icon="ribbon-outline"
+  title="My Certificates"
+  onPress={handleOpenCertificates}
+/>
+
+
             {/* HELP & SUPPORT */}
 
             <AccountItem
@@ -992,26 +1048,11 @@ export default function ProfileScreen() {
               }
             />
 
-            {/* ACCOUNT EMAIL */}
 
-            <AccountItem
-              icon="mail-outline"
-              title="Account Email"
-              value={
-                profile.email
-              }
-              showChevron={false}
-            />
-
-            <View
-              style={
-                styles.divider
-              }
-            />
-
+        
             {/* ACCOUNT STATUS */}
 
-            <AccountItem
+            {/* <AccountItem
               icon="shield-checkmark-outline"
               title="Account Status"
               value={
@@ -1021,6 +1062,11 @@ export default function ProfileScreen() {
               status
               showChevron={false}
             />
+
+            <View style={styles.divider} /> */}
+
+
+
 
             <View
               style={
@@ -1681,10 +1727,7 @@ export default function ProfileScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* ================================================= */}
-      {/* LOGOUT PROCESSING OVERLAY */}
-      {/* ================================================= */}
-
+     
       {isLoggingOut && (
         <View
           style={
@@ -1722,6 +1765,8 @@ export default function ProfileScreen() {
     </View>
   );
 }
+
+
 
 // =====================================================
 // ACCOUNT ITEM

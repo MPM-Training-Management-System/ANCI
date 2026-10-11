@@ -1959,43 +1959,33 @@ export default function ParticipantDashboard() {
     participantAssessments,
   ]);
 
-  /* ============================================================
-     LOAD PROGRESS WHEN BATCH CHANGES
-  ============================================================ */
 
-  useEffect(() => {
-    if (!currentTrainingBatchId) {
-      setModuleCompletion({
+
+useEffect(() => {
+  if (!currentTrainingBatchId) {
+    setModuleCompletion((previous) => {
+      if (
+        previous.completed === 0 &&
+        previous.total === 0
+      ) {
+        return previous;
+      }
+
+      return {
         completed: 0,
         total: 0,
-      });
+      };
+    });
 
-      progressLoadedForBatchRef.current =
-        null;
+    progressLoadedForBatchRef.current = null;
+    return;
+  }
 
-      return;
-    }
-
-    void loadDashboardProgress(
-      currentTrainingBatchId,
-    );
-  }, [
-    currentTrainingBatchId,
-    loadDashboardProgress,
-  ]);
-
-  useEffect(() => {
-    if (!currentTrainingBatchId || courseCompletionPercentage < 100) {
-      setParticipantAssessments([]);
-      return;
-    }
-
-    void loadAssessments(currentTrainingBatchId);
-  }, [
-    currentTrainingBatchId,
-    
-    loadAssessments,
-  ]);
+  void loadDashboardProgress(currentTrainingBatchId);
+}, [
+  currentTrainingBatchId,
+  loadDashboardProgress,
+]);
 
   /* ============================================================
      SERVICE SCROLL

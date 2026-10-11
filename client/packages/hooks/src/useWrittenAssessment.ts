@@ -1,13 +1,12 @@
 import {
   useCallback,
+  useMemo,
   useState,
 } from "react";
 
 import type {
   AdminAssessmentQuestion,
-  AdminAssessmentChoice,
   AssessmentAttempt,
-  AssessmentQuestion,
   AssessmentResult,
   AssessmentRetakeRequest,
   CreateAssessmentChoiceRequest,
@@ -29,12 +28,15 @@ import {
   WrittenAssessmentApi,
 } from "@repo/api";
 
-export function useWrittenAssessment(
-  api: ApiClient,
-) {
-  const assessmentApi =
-    new WrittenAssessmentApi(api);
+export function useWrittenAssessment(api: ApiClient) {
+  // =========================================================
+  // API INSTANCE
+  // =========================================================
 
+  const assessmentApi = useMemo(
+    () => new WrittenAssessmentApi(api),
+    [api],
+  );
 
   // =========================================================
   // STATE
@@ -46,11 +48,9 @@ export function useWrittenAssessment(
   const [assessment, setAssessment] =
     useState<WrittenAssessment | null>(null);
 
-  // ADMIN QUESTIONS
   const [questions, setQuestions] =
     useState<AdminAssessmentQuestion[]>([]);
 
-  // PARTICIPANT
   const [
     participantAssessment,
     setParticipantAssessment,
@@ -62,19 +62,16 @@ export function useWrittenAssessment(
   const [results, setResults] =
     useState<AssessmentResult[]>([]);
 
-    // PARTICIPANT - RETAKE REQUESTS
-const [retakeRequests, setRetakeRequests] =
-  useState<AssessmentRetakeRequest[]>([]);
+  const [retakeRequests, setRetakeRequests] =
+    useState<AssessmentRetakeRequest[]>([]);
 
-    const [trainerSubmissions, setTrainerSubmissions] =
-  useState<TrainerAssessmentSubmission[]>([]);
+  const [trainerSubmissions, setTrainerSubmissions] =
+    useState<TrainerAssessmentSubmission[]>([]);
 
-  const [isLoading, setIsLoading] =
-    useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const [error, setError] =
     useState<string | null>(null);
-
 
   // =========================================================
   // COMMON
@@ -84,52 +81,54 @@ const [retakeRequests, setRetakeRequests] =
     setError(null);
   }, []);
 
-const loadTrainerAssessments = useCallback(
-  async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
+  // =========================================================
+  // TRAINER - ASSESSMENTS
+  // =========================================================
 
-      const data =
-        await assessmentApi.getTrainerAssessments();
+  const loadTrainerAssessments = useCallback(
+    async (): Promise<WrittenAssessment[]> => {
+      try {
+        setIsLoading(true);
+        setError(null);
 
-      const normalized =
-        Array.isArray(data)
+        const data =
+          await assessmentApi.getTrainerAssessments();
+
+        const normalized = Array.isArray(data)
           ? data
           : [];
 
-      setAssessments(normalized);
+        setAssessments(normalized);
 
-      return normalized;
-    } catch (error) {
-      console.error(
-        "LOAD TRAINER ASSESSMENTS ERROR:",
-        error,
-      );
+        return normalized;
+      } catch (err) {
+        console.error(
+          "LOAD TRAINER ASSESSMENTS ERROR:",
+          err,
+        );
 
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Unable to load your assessments.";
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Unable to load your assessments.";
 
-      setError(message);
-      setAssessments([]);
+        setError(message);
+        setAssessments([]);
 
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  },
-  [],
-);
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [assessmentApi],
+  );
+
   // =========================================================
-  // ADMIN - ASSESSMENT
+  // ADMIN - ASSESSMENTS
   // =========================================================
 
   const loadByBatchId = useCallback(
-    async (
-      trainingBatchId: string,
-    ) => {
+    async (trainingBatchId: string) => {
       setIsLoading(true);
       setError(null);
 
@@ -149,115 +148,16 @@ const loadTrainerAssessments = useCallback(
             : "Failed to load written assessments.";
 
         setError(message);
-
         throw err;
       } finally {
         setIsLoading(false);
       }
     },
-    [api],
+    [assessmentApi],
   );
-
-  // =========================================================
-// TRAINER - ASSESSMENT SUBMISSIONS
-// =========================================================
-
-const loadTrainerSubmissions = useCallback(
-  async (
-    assessmentId: string,
-  ): Promise<TrainerAssessmentSubmission[]> => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const data =
-        await assessmentApi.getTrainerSubmissions(
-          assessmentId,
-        );
-
-      setTrainerSubmissions(data);
-
-      return data;
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Failed to load assessment submissions.";
-
-      setError(message);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  },
-  [api],
-);
-
-const loadTrainerSubmission = useCallback(
-  async (
-    attemptId: string,
-  ): Promise<TrainerAssessmentSubmission> => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const data =
-        await assessmentApi.getTrainerSubmission(
-          attemptId,
-        );
-
-      return data;
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Failed to load assessment submission.";
-
-      setError(message);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  },
-  [api],
-);
-
-const loadByBatchIdParticipantAssessment =
-  useCallback(
-    async (
-      trainingBatchId: string,
-    ): Promise<ParticipantAssessment[]> => {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const data =
-          await assessmentApi.getParticipantAssessmentsByBatch(
-            trainingBatchId,
-          );
-
-        return data;
-      } catch (err) {
-        const message =
-          err instanceof Error
-            ? err.message
-            : "Failed to load participant assessments.";
-
-        setError(message);
-
-        throw err;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [api],
-  );
-
 
   const loadById = useCallback(
-    async (
-      id: string,
-    ) => {
+    async (id: string) => {
       setIsLoading(true);
       setError(null);
 
@@ -275,15 +175,13 @@ const loadByBatchIdParticipantAssessment =
             : "Failed to load written assessment.";
 
         setError(message);
-
         throw err;
       } finally {
         setIsLoading(false);
       }
     },
-    [api],
+    [assessmentApi],
   );
-
 
   const createAssessment = useCallback(
     async (
@@ -298,7 +196,7 @@ const loadByBatchIdParticipantAssessment =
 
         setAssessment(data);
 
-        setAssessments(current => [
+        setAssessments((current) => [
           ...current,
           data,
         ]);
@@ -311,15 +209,13 @@ const loadByBatchIdParticipantAssessment =
             : "Failed to create written assessment.";
 
         setError(message);
-
         throw err;
       } finally {
         setIsLoading(false);
       }
     },
-    [api],
+    [assessmentApi],
   );
-
 
   const updateAssessment = useCallback(
     async (
@@ -331,18 +227,13 @@ const loadByBatchIdParticipantAssessment =
 
       try {
         const data =
-          await assessmentApi.update(
-            id,
-            request,
-          );
+          await assessmentApi.update(id, request);
 
         setAssessment(data);
 
-        setAssessments(current =>
-          current.map(item =>
-            item.id === id
-              ? data
-              : item,
+        setAssessments((current) =>
+          current.map((item) =>
+            item.id === id ? data : item,
           ),
         );
 
@@ -354,35 +245,29 @@ const loadByBatchIdParticipantAssessment =
             : "Failed to update written assessment.";
 
         setError(message);
-
         throw err;
       } finally {
         setIsLoading(false);
       }
     },
-    [api],
+    [assessmentApi],
   );
 
-
   const deleteAssessment = useCallback(
-    async (
-      id: string,
-    ) => {
+    async (id: string) => {
       setIsLoading(true);
       setError(null);
 
       try {
         await assessmentApi.delete(id);
 
-        setAssessments(current =>
-          current.filter(
-            item => item.id !== id,
-          ),
+        setAssessments((current) =>
+          current.filter((item) => item.id !== id),
         );
 
-        if (assessment?.id === id) {
-          setAssessment(null);
-        }
+        setAssessment((current) =>
+          current?.id === id ? null : current,
+        );
       } catch (err) {
         const message =
           err instanceof Error
@@ -390,15 +275,13 @@ const loadByBatchIdParticipantAssessment =
             : "Failed to delete written assessment.";
 
         setError(message);
-
         throw err;
       } finally {
         setIsLoading(false);
       }
     },
-    [api, assessment?.id],
+    [assessmentApi],
   );
-
 
   const setPublished = useCallback(
     async (
@@ -417,11 +300,9 @@ const loadByBatchIdParticipantAssessment =
 
         setAssessment(data);
 
-        setAssessments(current =>
-          current.map(item =>
-            item.id === id
-              ? data
-              : item,
+        setAssessments((current) =>
+          current.map((item) =>
+            item.id === id ? data : item,
           ),
         );
 
@@ -433,24 +314,113 @@ const loadByBatchIdParticipantAssessment =
             : "Failed to update publication status.";
 
         setError(message);
-
         throw err;
       } finally {
         setIsLoading(false);
       }
     },
-    [api],
+    [assessmentApi],
   );
 
+  // =========================================================
+  // TRAINER - ASSESSMENT SUBMISSIONS
+  // =========================================================
+
+  const loadTrainerSubmissions = useCallback(
+    async (
+      assessmentId: string,
+    ): Promise<TrainerAssessmentSubmission[]> => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const data =
+          await assessmentApi.getTrainerSubmissions(
+            assessmentId,
+          );
+
+        setTrainerSubmissions(data);
+
+        return data;
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Failed to load assessment submissions.";
+
+        setError(message);
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [assessmentApi],
+  );
+
+  const loadTrainerSubmission = useCallback(
+    async (
+      attemptId: string,
+    ): Promise<TrainerAssessmentSubmission> => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        return await assessmentApi.getTrainerSubmission(
+          attemptId,
+        );
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Failed to load assessment submission.";
+
+        setError(message);
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [assessmentApi],
+  );
+
+  // =========================================================
+  // PARTICIPANT - ASSESSMENTS BY BATCH
+  // =========================================================
+
+  const loadByBatchIdParticipantAssessment =
+    useCallback(
+      async (
+        trainingBatchId: string,
+      ): Promise<ParticipantAssessment[]> => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+          return await assessmentApi
+            .getParticipantAssessmentsByBatch(
+              trainingBatchId,
+            );
+        } catch (err) {
+          const message =
+            err instanceof Error
+              ? err.message
+              : "Failed to load participant assessments.";
+
+          setError(message);
+          throw err;
+        } finally {
+          setIsLoading(false);
+        }
+      },
+      [assessmentApi],
+    );
 
   // =========================================================
   // ADMIN - QUESTIONS
   // =========================================================
 
   const loadQuestions = useCallback(
-    async (
-      assessmentId: string,
-    ) => {
+    async (assessmentId: string) => {
       setIsLoading(true);
       setError(null);
 
@@ -470,15 +440,13 @@ const loadByBatchIdParticipantAssessment =
             : "Failed to load assessment questions.";
 
         setError(message);
-
         throw err;
       } finally {
         setIsLoading(false);
       }
     },
-    [api],
+    [assessmentApi],
   );
-
 
   const createQuestion = useCallback(
     async (
@@ -493,14 +461,10 @@ const loadByBatchIdParticipantAssessment =
             request,
           );
 
-        setQuestions(current =>
-          [
-            ...current,
-            data,
-          ].sort(
+        setQuestions((current) =>
+          [...current, data].sort(
             (a, b) =>
-              a.questionNumber -
-              b.questionNumber,
+              a.questionNumber - b.questionNumber,
           ),
         );
 
@@ -512,15 +476,13 @@ const loadByBatchIdParticipantAssessment =
             : "Failed to create assessment question.";
 
         setError(message);
-
         throw err;
       } finally {
         setIsLoading(false);
       }
     },
-    [api],
+    [assessmentApi],
   );
-
 
   const updateQuestion = useCallback(
     async (
@@ -537,17 +499,14 @@ const loadByBatchIdParticipantAssessment =
             request,
           );
 
-        setQuestions(current =>
+        setQuestions((current) =>
           current
-            .map(item =>
-              item.id === questionId
-                ? data
-                : item,
+            .map((item) =>
+              item.id === questionId ? data : item,
             )
             .sort(
               (a, b) =>
-                a.questionNumber -
-                b.questionNumber,
+                a.questionNumber - b.questionNumber,
             ),
         );
 
@@ -559,20 +518,16 @@ const loadByBatchIdParticipantAssessment =
             : "Failed to update assessment question.";
 
         setError(message);
-
         throw err;
       } finally {
         setIsLoading(false);
       }
     },
-    [api],
+    [assessmentApi],
   );
 
-
   const deleteQuestion = useCallback(
-    async (
-      questionId: string,
-    ) => {
+    async (questionId: string) => {
       setIsLoading(true);
       setError(null);
 
@@ -581,9 +536,9 @@ const loadByBatchIdParticipantAssessment =
           questionId,
         );
 
-        setQuestions(current =>
+        setQuestions((current) =>
           current.filter(
-            item => item.id !== questionId,
+            (item) => item.id !== questionId,
           ),
         );
       } catch (err) {
@@ -593,15 +548,13 @@ const loadByBatchIdParticipantAssessment =
             : "Failed to delete assessment question.";
 
         setError(message);
-
         throw err;
       } finally {
         setIsLoading(false);
       }
     },
-    [api],
+    [assessmentApi],
   );
-
 
   // =========================================================
   // ADMIN - AI QUESTION GENERATION
@@ -624,14 +577,10 @@ const loadByBatchIdParticipantAssessment =
             questionCount,
           );
 
-        setQuestions(current =>
-          [
-            ...current,
-            ...generatedQuestions,
-          ].sort(
+        setQuestions((current) =>
+          [...current, ...generatedQuestions].sort(
             (a, b) =>
-              a.questionNumber -
-              b.questionNumber,
+              a.questionNumber - b.questionNumber,
           ),
         );
 
@@ -643,35 +592,29 @@ const loadByBatchIdParticipantAssessment =
             : "Failed to generate questions from document.";
 
         setError(message);
-
         throw err;
       } finally {
         setIsLoading(false);
       }
     },
-    [api],
+    [assessmentApi],
   );
-
 
   // =========================================================
   // ADMIN - CHOICES
   // =========================================================
 
   const createChoice = useCallback(
-    async (
-      request: CreateAssessmentChoiceRequest,
-    ) => {
+    async (request: CreateAssessmentChoiceRequest) => {
       setIsLoading(true);
       setError(null);
 
       try {
         const data =
-          await assessmentApi.createChoice(
-            request,
-          );
+          await assessmentApi.createChoice(request);
 
-        setQuestions(current =>
-          current.map(question => {
+        setQuestions((current) =>
+          current.map((question) => {
             if (
               question.id !==
               request.assessmentQuestionId
@@ -681,14 +624,12 @@ const loadByBatchIdParticipantAssessment =
 
             return {
               ...question,
-
               choices: [
                 ...question.choices,
                 data,
               ].sort(
                 (a, b) =>
-                  a.displayOrder -
-                  b.displayOrder,
+                  a.displayOrder - b.displayOrder,
               ),
             };
           }),
@@ -702,15 +643,13 @@ const loadByBatchIdParticipantAssessment =
             : "Failed to create assessment choice.";
 
         setError(message);
-
         throw err;
       } finally {
         setIsLoading(false);
       }
     },
-    [api],
+    [assessmentApi],
   );
-
 
   const updateChoice = useCallback(
     async (
@@ -727,20 +666,16 @@ const loadByBatchIdParticipantAssessment =
             request,
           );
 
-        setQuestions(current =>
-          current.map(question => ({
+        setQuestions((current) =>
+          current.map((question) => ({
             ...question,
-
             choices: question.choices
-              .map(choice =>
-                choice.id === choiceId
-                  ? data
-                  : choice,
+              .map((choice) =>
+                choice.id === choiceId ? data : choice,
               )
               .sort(
                 (a, b) =>
-                  a.displayOrder -
-                  b.displayOrder,
+                  a.displayOrder - b.displayOrder,
               ),
           })),
         );
@@ -753,37 +688,28 @@ const loadByBatchIdParticipantAssessment =
             : "Failed to update assessment choice.";
 
         setError(message);
-
         throw err;
       } finally {
         setIsLoading(false);
       }
     },
-    [api],
+    [assessmentApi],
   );
 
-
   const deleteChoice = useCallback(
-    async (
-      choiceId: string,
-    ) => {
+    async (choiceId: string) => {
       setIsLoading(true);
       setError(null);
 
       try {
-        await assessmentApi.deleteChoice(
-          choiceId,
-        );
+        await assessmentApi.deleteChoice(choiceId);
 
-        setQuestions(current =>
-          current.map(question => ({
+        setQuestions((current) =>
+          current.map((question) => ({
             ...question,
-
-            choices:
-              question.choices.filter(
-                choice =>
-                  choice.id !== choiceId,
-              ),
+            choices: question.choices.filter(
+              (choice) => choice.id !== choiceId,
+            ),
           })),
         );
       } catch (err) {
@@ -793,59 +719,49 @@ const loadByBatchIdParticipantAssessment =
             : "Failed to delete assessment choice.";
 
         setError(message);
-
         throw err;
       } finally {
         setIsLoading(false);
       }
     },
-    [api],
+    [assessmentApi],
   );
 
-
   // =========================================================
-  // PARTICIPANT
+  // PARTICIPANT - ASSESSMENT
   // =========================================================
 
-  const loadParticipantAssessment =
-    useCallback(
-      async (
-        assessmentId: string,
-      ) => {
-        setIsLoading(true);
-        setError(null);
+  const loadParticipantAssessment = useCallback(
+    async (assessmentId: string) => {
+      setIsLoading(true);
+      setError(null);
 
-        try {
-          const data =
-            await assessmentApi
-              .getParticipantAssessment(
-                assessmentId,
-              );
+      try {
+        const data =
+          await assessmentApi.getParticipantAssessment(
+            assessmentId,
+          );
 
-          setParticipantAssessment(data);
+        setParticipantAssessment(data);
 
-          return data;
-        } catch (err) {
-          const message =
-            err instanceof Error
-              ? err.message
-              : "Failed to load assessment.";
+        return data;
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Failed to load assessment.";
 
-          setError(message);
-
-          throw err;
-        } finally {
-          setIsLoading(false);
-        }
-      },
-      [api],
-    );
-
+        setError(message);
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [assessmentApi],
+  );
 
   const startAttempt = useCallback(
-    async (
-      writtenAssessmentId: string,
-    ) => {
+    async (writtenAssessmentId: string) => {
       setIsLoading(true);
       setError(null);
 
@@ -865,28 +781,22 @@ const loadByBatchIdParticipantAssessment =
             : "Failed to start assessment.";
 
         setError(message);
-
         throw err;
       } finally {
         setIsLoading(false);
       }
     },
-    [api],
+    [assessmentApi],
   );
 
-
   const loadAttempt = useCallback(
-    async (
-      attemptId: string,
-    ) => {
+    async (attemptId: string) => {
       setIsLoading(true);
       setError(null);
 
       try {
         const data =
-          await assessmentApi.getAttempt(
-            attemptId,
-          );
+          await assessmentApi.getAttempt(attemptId);
 
         setAttempt(data);
 
@@ -898,30 +808,24 @@ const loadByBatchIdParticipantAssessment =
             : "Failed to load assessment attempt.";
 
         setError(message);
-
         throw err;
       } finally {
         setIsLoading(false);
       }
     },
-    [api],
+    [assessmentApi],
   );
 
-
   const submitAttempt = useCallback(
-    async (
-      request: SubmitAssessmentRequest,
-    ) => {
+    async (request: SubmitAssessmentRequest) => {
       setIsLoading(true);
       setError(null);
 
       try {
         const data =
-          await assessmentApi.submitAttempt(
-            request,
-          );
+          await assessmentApi.submitAttempt(request);
 
-        setResults(current => [
+        setResults((current) => [
           data,
           ...current,
         ]);
@@ -936,20 +840,16 @@ const loadByBatchIdParticipantAssessment =
             : "Failed to submit assessment.";
 
         setError(message);
-
         throw err;
       } finally {
         setIsLoading(false);
       }
     },
-    [api],
+    [assessmentApi],
   );
 
-
   const loadMyResults = useCallback(
-    async (
-      assessmentId: string,
-    ) => {
+    async (assessmentId: string) => {
       setIsLoading(true);
       setError(null);
 
@@ -969,157 +869,144 @@ const loadByBatchIdParticipantAssessment =
             : "Failed to load assessment results.";
 
         setError(message);
-
         throw err;
       } finally {
         setIsLoading(false);
       }
     },
-    [api],
+    [assessmentApi],
   );
-// =========================================================
-// PARTICIPANT - RETAKE REQUEST
-// =========================================================
 
-const requestRetake = useCallback(
-  async (
-    request: CreateAssessmentRetakeRequest,
-  ): Promise<AssessmentRetakeRequest> => {
-    setIsLoading(true);
-    setError(null);
+  // =========================================================
+  // PARTICIPANT - RETAKE REQUESTS
+  // =========================================================
 
-    try {
-      const data =
-        await assessmentApi.requestRetake(
-          request,
-        );
+  const requestRetake = useCallback(
+    async (
+      request: CreateAssessmentRetakeRequest,
+    ): Promise<AssessmentRetakeRequest> => {
+      setIsLoading(true);
+      setError(null);
 
-      setRetakeRequests(current => [
-        data,
-        ...current,
-      ]);
+      try {
+        const data =
+          await assessmentApi.requestRetake(request);
 
-      return data;
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Failed to submit retake request.";
+        setRetakeRequests((current) => [
+          data,
+          ...current,
+        ]);
 
-      setError(message);
+        return data;
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Failed to submit retake request.";
 
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  },
-  [api],
-);
+        setError(message);
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [assessmentApi],
+  );
 
+  const loadMyRetakeRequests = useCallback(
+    async (): Promise<AssessmentRetakeRequest[]> => {
+      setIsLoading(true);
+      setError(null);
 
-const loadMyRetakeRequests = useCallback(
-  async (): Promise<AssessmentRetakeRequest[]> => {
-    setIsLoading(true);
-    setError(null);
+      try {
+        const data =
+          await assessmentApi.getMyRetakeRequests();
 
-    try {
-      const data =
-        await assessmentApi
-          .getMyRetakeRequests();
+        setRetakeRequests(data);
 
-      setRetakeRequests(data);
+        return data;
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Failed to load retake requests.";
 
-      return data;
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Failed to load retake requests.";
+        setError(message);
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [assessmentApi],
+  );
 
-      setError(message);
+  // =========================================================
+  // ADMIN - RETAKE REQUESTS
+  // =========================================================
 
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  },
-  [api],
-);
+  const loadRetakeRequests = useCallback(
+    async (): Promise<AssessmentRetakeRequest[]> => {
+      setIsLoading(true);
+      setError(null);
 
-// =========================================================
-// ADMIN - RETAKE REQUESTS
-// =========================================================
+      try {
+        const data =
+          await assessmentApi.getRetakeRequests();
 
-const loadRetakeRequests = useCallback(
-  async (): Promise<AssessmentRetakeRequest[]> => {
-    setIsLoading(true);
-    setError(null);
+        setRetakeRequests(data);
 
-    try {
-      const data =
-        await assessmentApi
-          .getRetakeRequests();
+        return data;
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Failed to load retake requests.";
 
-      setRetakeRequests(data);
+        setError(message);
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [assessmentApi],
+  );
 
-      return data;
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Failed to load retake requests.";
+  const reviewRetakeRequest = useCallback(
+    async (
+      requestId: string,
+      request: ReviewAssessmentRetakeRequest,
+    ): Promise<AssessmentRetakeRequest> => {
+      setIsLoading(true);
+      setError(null);
 
-      setError(message);
-
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  },
-  [api],
-);
-
-
-const reviewRetakeRequest = useCallback(
-  async (
-    requestId: string,
-    request: ReviewAssessmentRetakeRequest,
-  ): Promise<AssessmentRetakeRequest> => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const data =
-        await assessmentApi
-          .reviewRetakeRequest(
+      try {
+        const data =
+          await assessmentApi.reviewRetakeRequest(
             requestId,
             request,
           );
 
-      setRetakeRequests(current =>
-        current.map(item =>
-          item.id === requestId
-            ? data
-            : item,
-        ),
-      );
+        setRetakeRequests((current) =>
+          current.map((item) =>
+            item.id === requestId ? data : item,
+          ),
+        );
 
-      return data;
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Failed to review retake request.";
+        return data;
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Failed to review retake request.";
 
-      setError(message);
-
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  },
-  [api],
-);
+        setError(message);
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [assessmentApi],
+  );
 
   // =========================================================
   // RESET
@@ -1132,34 +1019,34 @@ const reviewRetakeRequest = useCallback(
     setParticipantAssessment(null);
     setAttempt(null);
     setResults([]);
+    setRetakeRequests([]);
+    setTrainerSubmissions([]);
     setError(null);
     setIsLoading(false);
-    setRetakeRequests([]);
   }, []);
-
 
   // =========================================================
   // RETURN
   // =========================================================
 
   return {
-    // state
+    // State
     assessments,
     assessment,
     questions,
-
     participantAssessment,
     attempt,
     results,
-
+    retakeRequests,
+    trainerSubmissions,
     isLoading,
     error,
 
-    // common
+    // Common
     clearError,
     reset,
 
-    // admin assessment
+    // Admin assessments
     loadByBatchId,
     loadById,
     createAssessment,
@@ -1167,40 +1054,39 @@ const reviewRetakeRequest = useCallback(
     deleteAssessment,
     setPublished,
 
-    // admin questions
+    // Trainer assessments
+    loadTrainerAssessments,
+    loadTrainerSubmissions,
+    loadTrainerSubmission,
+
+    // Admin questions
     loadQuestions,
     createQuestion,
     updateQuestion,
     deleteQuestion,
 
-    // AI generation
+    // AI question generation
     generateFromDocument,
 
-    trainerSubmissions,
-loadTrainerSubmissions,
-loadTrainerSubmission,
-  loadTrainerAssessments,
-
-    // admin choices
+    // Admin choices
     createChoice,
     updateChoice,
     deleteChoice,
 
-   // participant
-loadParticipantAssessment,
-startAttempt,
-loadAttempt,
-submitAttempt,
-loadMyResults,
-loadByBatchIdParticipantAssessment,
+    // Participant assessments
+    loadParticipantAssessment,
+    loadByBatchIdParticipantAssessment,
+    startAttempt,
+    loadAttempt,
+    submitAttempt,
+    loadMyResults,
 
-// participant - retake
-retakeRequests,
-requestRetake,
-loadMyRetakeRequests,
+    // Participant retake requests
+    requestRetake,
+    loadMyRetakeRequests,
 
-// admin - retake
-loadRetakeRequests,
-reviewRetakeRequest,
+    // Admin retake requests
+    loadRetakeRequests,
+    reviewRetakeRequest,
   };
 }

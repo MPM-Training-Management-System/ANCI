@@ -24,9 +24,9 @@ import type {
   TrainingProgramRequirement,
 } from "@repo/types";
 
-import { enrollmentApi, participantApi } from "@/api/api";
+import { enrollmentApi, participantProfileApi } from "@/api/api";
 
-import { useMe } from "@repo/hooks";
+import { useParticipant } from "@repo/hooks";
 
 
 // =========================================================
@@ -89,8 +89,8 @@ export default function EnrollmentForm({
     profile,
     isLoading,
     error,
-    refetch,
-  } = useMe(participantApi);
+    
+  } = useParticipant(participantProfileApi);
 
 
   // =======================================================
@@ -656,9 +656,7 @@ export default function EnrollmentForm({
 
 
         <Pressable
-          onPress={
-            refetch
-          }
+         
 
           style={
             styles.retryButton

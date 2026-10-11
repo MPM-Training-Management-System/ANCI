@@ -1,19 +1,22 @@
-import { useRouter, useSegments } from "expo-router";
-import { useEffect, useState } from "react";
+
 import {
-  ActivityIndicator,
-  View,
-} from "react-native";
+  useRootNavigationState,
+  useRouter,
+  useSegments,
+} from "expo-router";
+
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
 
 import { auth } from "@/api/auth";
 
-export function AuthGuard({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function AuthGuard() {
   const router = useRouter();
   const segments = useSegments();
+  const rootNavigationState = useRootNavigationState();
 
   const [isCheckingAuth, setIsCheckingAuth] =
     useState(true);
@@ -21,75 +24,86 @@ export function AuthGuard({
   const [isAuthenticated, setIsAuthenticated] =
     useState(false);
 
-  /*
-   * =========================================================
-   * CHECK AUTHENTICATION
-   * =========================================================
-   *
-   * This checks the SecureStore for the current JWT.
-   */
-  const checkAuthentication = async () => {
-    try {
-      const authenticated =
-        await auth.isAuthenticated();
+  // =========================================================
+  // ROUTE DETECTION
+  // =========================================================
 
-      console.log(
-        "AUTH GUARD - AUTHENTICATED:",
-        authenticated,
-      );
+  const isAuthRoute = segments.some(
+    (segment) =>
+      segment === "login" ||
+      segment === "register" ||
+      segment === "otp-verification"
+  );
 
-      setIsAuthenticated(authenticated);
-    } catch (error) {
-      console.error(
-        "AUTH GUARD ERROR:",
-        error,
-      );
+  const isOnboardingRoute = segments.some(
+    (segment) => segment === "(onboarding)"
+  );
 
-      setIsAuthenticated(false);
-    }
-  };
+  const isTabsRoute = segments.some(
+    (segment) => segment === "(tabs)"
+  );
 
-  /*
-   * =========================================================
-   * INITIAL AUTH CHECK
-   * =========================================================
-   */
-  useEffect(() => {
-    let mounted = true;
+  // =========================================================
+  // CHECK AUTHENTICATION
+  // =========================================================
 
-    const initializeAuth = async () => {
+  const checkAuthentication = useCallback(
+    async () => {
       try {
-        console.log(
-          "================================",
-        );
-
-        console.log(
-          "AUTH GUARD INITIALIZING",
-        );
-
-        console.log(
-          "================================",
-        );
-
         const authenticated =
           await auth.isAuthenticated();
 
-        console.log(
-          "AUTH GUARD INITIAL AUTH:",
-          authenticated,
+        setIsAuthenticated((previous) =>
+          previous === authenticated
+            ? previous
+            : authenticated
         );
+
+        return authenticated;
+      } catch (error) {
+        console.error(
+          "AUTH GUARD CHECK ERROR:",
+          error
+        );
+
+        setIsAuthenticated((previous) =>
+          previous === false ? previous : false
+        );
+
+        return false;
+      }
+    },
+    []
+  );
+
+  // =========================================================
+  // INITIAL AUTH CHECK
+  // =========================================================
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function initializeAuth() {
+      try {
+        console.log("AUTH GUARD: Initializing...");
+
+        const authenticated =
+          await auth.isAuthenticated();
 
         if (!mounted) {
           return;
         }
 
-        setIsAuthenticated(
-          authenticated,
+        setIsAuthenticated(authenticated);
+
+        console.log(
+          "AUTH GUARD: Authenticated:",
+          authenticated
         );
       } catch (error) {
         console.error(
           "AUTH GUARD INITIALIZATION ERROR:",
-          error,
+          error
         );
 
         if (mounted) {
@@ -100,7 +114,7 @@ export function AuthGuard({
           setIsCheckingAuth(false);
         }
       }
-    };
+    }
 
     void initializeAuth();
 
@@ -109,13 +123,10 @@ export function AuthGuard({
     };
   }, []);
 
-  /*
-   * =========================================================
-   * PERIODIC TOKEN CHECK
-   * =========================================================
-   *
-   * Check every 10 seconds whether the JWT is still valid.
-   */
+  // =========================================================
+  // PERIODIC SESSION CHECK
+  // =========================================================
+
   useEffect(() => {
     if (isCheckingAuth) {
       return;
@@ -128,167 +139,77 @@ export function AuthGuard({
     return () => {
       clearInterval(interval);
     };
-  }, [isCheckingAuth]);
+  }, [
+    isCheckingAuth,
+    checkAuthentication,
+  ]);
 
-  /*
-   * =========================================================
-   * NAVIGATION
-   * =========================================================
-   */
+  // =========================================================
+  // NAVIGATION
+  // =========================================================
+
   useEffect(() => {
-    if (isCheckingAuth) {
+    // Wait for both authentication and navigation to be ready.
+    if (
+      isCheckingAuth ||
+      !rootNavigationState?.key
+    ) {
       return;
     }
 
-    const currentSegment =
-      segments[0];
-
-    const isAuthRoute =
-      currentSegment === "(auth)";
-
-    const isOnboardingRoute =
-      currentSegment === "(onboarding)";
-
-    const isTabsRoute =
-      currentSegment === "(tabs)";
-
-    console.log(
-      "================================",
-    );
-
-    console.log(
-      "AUTH GUARD NAVIGATION CHECK",
-    );
-
-    console.log(
-      "AUTHENTICATED:",
+    console.log("AUTH GUARD ROUTE CHECK", {
       isAuthenticated,
-    );
+      isAuthRoute,
+      isOnboardingRoute,
+      isTabsRoute,
+      segments,
+    });
 
-    console.log(
-      "CURRENT SEGMENT:",
-      currentSegment,
-    );
+    // -------------------------------------------------------
+    // NOT AUTHENTICATED
+    // -------------------------------------------------------
 
-    console.log(
-      "================================",
-    );
-
-    /*
-     * =======================================================
-     * NOT AUTHENTICATED
-     * =======================================================
-     */
     if (!isAuthenticated) {
-      /*
-       * Allow login/register routes.
-       */
+      // Login, registration, and OTP are public routes.
       if (isAuthRoute) {
         return;
       }
 
-      /*
-       * Allow onboarding.
-       */
+      // Allow onboarding without a session.
       if (isOnboardingRoute) {
         return;
       }
 
-      /*
-       * Anything else requires authentication.
-       */
-      if (!isTabsRoute) {
-        console.log(
-          "AUTH GUARD → LOGIN",
-        );
-
-        router.replace(
-          "/(auth)/login",
-        );
-      }
-
+      // Do not redirect if already on the login route.
+      router.replace("/(auth)/login");
       return;
     }
 
-    /*
-     * =======================================================
-     * AUTHENTICATED
-     * =======================================================
-     *
-     * If the user already has a valid token but is currently
-     * on the login/register route, send them directly to tabs.
-     */
-    if (
-      isAuthenticated &&
-      isAuthRoute
-    ) {
-      console.log(
-        "AUTH GUARD → USER AUTHENTICATED",
-      );
+    // -------------------------------------------------------
+    // AUTHENTICATED
+    // -------------------------------------------------------
 
-      console.log(
-        "AUTH GUARD → REDIRECTING TO TABS",
-      );
-
-      router.replace(
-        "/(tabs)",
-      );
-
+    // Send authenticated users away from public auth screens.
+    if (isAuthRoute || isOnboardingRoute) {
+      router.replace("/(tabs)");
       return;
     }
 
-    /*
-     * =======================================================
-     * AUTHENTICATED + ONBOARDING
-     * =======================================================
-     *
-     * An authenticated user should not stay on onboarding.
-     */
-    if (
-      isAuthenticated &&
-      isOnboardingRoute
-    ) {
-      console.log(
-        "AUTH GUARD → AUTHENTICATED USER",
-      );
-
-      console.log(
-        "AUTH GUARD → REDIRECTING TO TABS",
-      );
-
-      router.replace(
-        "/(tabs)",
-      );
-
+    // An authenticated user already in tabs needs no redirect.
+    if (isTabsRoute) {
       return;
     }
   }, [
     isAuthenticated,
     isCheckingAuth,
-    segments,
+    isAuthRoute,
+    isOnboardingRoute,
+    isTabsRoute,
+    rootNavigationState?.key,
     router,
+    segments,
   ]);
 
-  /*
-   * =========================================================
-   * LOADING
-   * =========================================================
-   */
-  if (isCheckingAuth) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <ActivityIndicator
-          size="large"
-        />
-      </View>
-    );
-  }
-
-  return <>{children}</>;
+  // AuthGuard does not wrap or replace the root navigator.
+  return null;
 }
