@@ -11,4 +11,6 @@ export const CertificateEndpoints = {
 
   verify: (verificationCode: string) =>
     `/api/certificate/verify/${verificationCode}`,
+
+   myCertificates: () => "/api/certificate/my-certificates",
 };

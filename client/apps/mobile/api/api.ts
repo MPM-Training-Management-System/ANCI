@@ -9,7 +9,8 @@ import {
   LearningProgressApi,
   WrittenAssessmentApi,
   AuthAPIs,
-  ServiceApi
+  ServiceApi,
+  CertificateApi
 } from "@repo/api";
 
 import { auth } from "./auth";
@@ -27,6 +28,9 @@ export const participantProfileApi =
 
   export const authAPIs =
   new AuthAPIs(apiClient);
+
+   export const certificateApi =
+  new CertificateApi(apiClient);
 
   
 

@@ -41,6 +41,15 @@ export class CertificateApi {
     );
   }
 
+  async getMyCertificates(): Promise<Certificate[]> {
+  return this.api.request<Certificate[]>(
+    CertificateEndpoints.myCertificates(),
+    {
+      method: "GET",
+    }
+  );
+}
+
   // =========================================================
   // GENERATE CERTIFICATES
   // =========================================================
