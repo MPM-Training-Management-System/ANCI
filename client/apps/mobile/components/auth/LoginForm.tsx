@@ -136,7 +136,7 @@ export default function LoginForm() {
       if (!response?.token || !response?.user) {
         showAlert(
           "Login Failed",
-          "Invalid login response from the server.",
+          "Email and Password are Incorrect.",
           "error"
         );
         return;

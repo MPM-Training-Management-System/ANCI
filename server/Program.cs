@@ -160,6 +160,10 @@ builder.Services.AddScoped<PasswordService>();
 builder.Services.AddMemoryCache();
 
 builder.Services.AddHttpClient();
+builder.Services.AddSingleton<
+    ICacheService,
+    CacheService
+>();
 
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>

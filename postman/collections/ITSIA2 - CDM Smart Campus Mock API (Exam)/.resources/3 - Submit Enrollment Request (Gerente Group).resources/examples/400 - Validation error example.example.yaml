@@ -1,0 +1,28 @@
+$kind: http-example
+request:
+  url: "{{baseUrl}}/enrollments"
+  method: POST
+  headers:
+    Content-Type: application/json
+    Accept: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "studentId": "",
+        "term": "1st Semester AY 2026-2027",
+        "courseCodes": []
+      }
+response:
+  statusCode: 400
+  statusText: Bad Request
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "error": "VALIDATION_ERROR",
+        "message": "studentId and at least one courseCode are required."
+      }
+order: 2000

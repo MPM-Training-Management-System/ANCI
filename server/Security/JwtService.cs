@@ -65,7 +65,7 @@ public class JwtService
             );
 
         var expiresAt =
-            DateTime.UtcNow.AddHours(1);
+            DateTime.UtcNow.AddHours(24);
 
         var claims =
             new List<Claim>

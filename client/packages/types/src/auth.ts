@@ -1,4 +1,6 @@
+
 export interface RegisterRequest {
+  // Personal Information
   fullName?: string;
 
   firstName: string;
@@ -11,8 +13,10 @@ export interface RegisterRequest {
   birthDate: string;
   address: string;
   gender: string;
-   googleIdToken?: string;
 
+  googleIdToken?: string;
+
+  // Profile Image
   profileImage?: {
     uri: string;
     name: string;
@@ -20,6 +24,36 @@ export interface RegisterRequest {
   };
 
   password: string;
+
+  // Educational Information
+  highestEducationalAttainment?: string | null;
+  educationalStatus?: string | null;
+  schoolName?: string | null;
+  courseOrDegree?: string | null;
+  fieldOfStudy?: string | null;
+  yearGraduated?: number | null;
+
+  // Employment Information
+  employmentStatus?: string | null;
+  companyName?: string | null;
+  jobTitle?: string | null;
+  industry?: string | null;
+  yearsOfWorkExperience?: number | null;
+
+  // Valid ID Information
+  validIdType?: string | null;
+  validIdNumber?: string | null;
+
+  validIdImage?: {
+    uri: string;
+    name: string;
+    type: string;
+  };
+
+  // Emergency Contact
+  emergencyContactName?: string | null;
+  emergencyContactNumber?: string | null;
+  emergencyContactRelationship?: string | null;
 }
 
 export interface RegisterResponse {

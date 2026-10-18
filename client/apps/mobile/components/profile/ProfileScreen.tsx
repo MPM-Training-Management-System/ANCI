@@ -114,16 +114,42 @@ const [certificateError, setCertificateError] =
   const [isEditProfileVisible, setIsEditProfileVisible] =
     useState(false);
 
-  const [profileForm, setProfileForm] =
-    useState<UpdateParticipantProfile>({
-      firstName: "",
-      middleName: "",
-      lastName: "",
-      mobileNumber: "",
-      birthDate: "",
-      address: "",
-      gender: "",
-    });
+ 
+type ParticipantProfileForm = Omit<
+  UpdateParticipantProfile,
+  "yearGraduated" | "yearsOfWorkExperience"
+> & {
+  yearGraduated: string;
+  yearsOfWorkExperience: string;
+};
+
+const [profileForm, setProfileForm] =
+  useState<ParticipantProfileForm>({
+    firstName: "",
+    middleName: "",
+    lastName: "",
+    mobileNumber: "",
+    birthDate: "",
+    address: "",
+    gender: "",
+
+    highestEducationalAttainment: "",
+    educationalStatus: "",
+    schoolName: "",
+    courseOrDegree: "",
+    fieldOfStudy: "",
+    yearGraduated: "",
+
+    employmentStatus: "",
+    companyName: "",
+    jobTitle: "",
+    industry: "",
+    yearsOfWorkExperience: "",
+
+    emergencyContactName: "",
+    emergencyContactNumber: "",
+    emergencyContactRelationship: "",
+  });
 
   // =====================================================
   // CHANGE PASSWORD
@@ -322,41 +348,56 @@ const handleViewCertificate = useCallback(
       }
     }, [updateProfileImage]);
 
-  // =====================================================
-  // EDIT PROFILE
-  // =====================================================
+ 
+const openEditProfile = useCallback(() => {
+  if (!profile) {
+    return;
+  }
 
-  const openEditProfile = useCallback(() => {
-    if (!profile) {
-      return;
-    }
+  setProfileForm({
+    firstName: profile.firstName ?? "",
+    middleName: profile.middleName ?? "",
+    lastName: profile.lastName ?? "",
+    mobileNumber: profile.mobileNumber ?? "",
+    birthDate: profile.birthDate
+      ? String(profile.birthDate).slice(0, 10)
+      : "",
+    address: profile.address ?? "",
+    gender: profile.gender ?? "",
 
-    setProfileForm({
-      firstName:
-        profile.firstName ?? "",
+    highestEducationalAttainment:
+      profile.highestEducationalAttainment ?? "",
+    educationalStatus:
+      profile.educationalStatus ?? "",
+    schoolName: profile.schoolName ?? "",
+    courseOrDegree: profile.courseOrDegree ?? "",
+    fieldOfStudy: profile.fieldOfStudy ?? "",
+    yearGraduated:
+      profile.yearGraduated != null
+        ? String(profile.yearGraduated)
+        : "",
 
-      middleName:
-        profile.middleName ?? "",
+    employmentStatus: profile.employmentStatus ?? "",
+    companyName: profile.companyName ?? "",
+    jobTitle: profile.jobTitle ?? "",
+    industry: profile.industry ?? "",
+    yearsOfWorkExperience:
+      profile.yearsOfWorkExperience != null
+        ? String(profile.yearsOfWorkExperience)
+        : "",
 
-      lastName:
-        profile.lastName ?? "",
+    emergencyContactName:
+      profile.emergencyContactName ?? "",
+    emergencyContactNumber:
+      profile.emergencyContactNumber ?? "",
+    emergencyContactRelationship:
+      profile.emergencyContactRelationship ?? "",
+  });
 
-      mobileNumber:
-        profile.mobileNumber ?? "",
+  setIsEditProfileVisible(true);
+}, [profile]);
 
-      birthDate:
-        profile.birthDate ?? "",
-
-      address:
-        profile.address ?? "",
-
-      gender:
-        profile.gender ?? "",
-    });
-
-    setIsEditProfileVisible(true);
-  }, [profile]);
-
+  
   const closeEditProfile = useCallback(() => {
     if (isSubmitting) {
       return;
@@ -365,82 +406,123 @@ const handleViewCertificate = useCallback(
     setIsEditProfileVisible(false);
   }, [isSubmitting]);
 
-  const updateProfileField = useCallback(
-    (
-      field: keyof UpdateParticipantProfile,
-      value: string
-    ) => {
-      setProfileForm((current) => ({
-        ...current,
-        [field]: value,
-      }));
-    },
-    []
-  );
+ 
+const updateProfileField = useCallback(
+  (field: keyof ParticipantProfileForm, value: string) => {
+    setProfileForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  },
+  [],
+);
 
-  const handleSaveProfile = useCallback(
-    async () => {
-      if (!profile) {
-        return;
-      }
+const handleSaveProfile = useCallback(async () => {
+  if (!profile) {
+    return;
+  }
 
-      if (
-        !profileForm.firstName.trim() ||
-        !profileForm.lastName.trim()
-      ) {
-        Alert.alert(
-          "Incomplete Information",
-          "First name and last name are required."
-        );
+  if (
+    !profileForm.firstName.trim() ||
+    !profileForm.lastName.trim()
+  ) {
+    Alert.alert(
+      "Incomplete Information",
+      "First name and last name are required.",
+    );
+    return;
+  }
 
-        return;
-      }
+  const yearGraduatedText = profileForm.yearGraduated.trim();
+  const experienceText =
+    profileForm.yearsOfWorkExperience.trim();
 
-      try {
-        await updateMyProfile({
-          firstName:
-            profileForm.firstName.trim(),
+  const yearGraduated =
+    yearGraduatedText === ""
+      ? null
+      : Number(yearGraduatedText);
 
-          middleName:
-            profileForm.middleName.trim(),
+  const yearsOfWorkExperience =
+    experienceText === ""
+      ? null
+      : Number(experienceText);
 
-          lastName:
-            profileForm.lastName.trim(),
+  if (
+    yearGraduated !== null &&
+    (!Number.isInteger(yearGraduated) ||
+      yearGraduated < 1900 ||
+      yearGraduated > new Date().getFullYear())
+  ) {
+    Alert.alert(
+      "Invalid Year",
+      "Please enter a valid graduation year.",
+    );
+    return;
+  }
 
-          mobileNumber:
-            profileForm.mobileNumber.trim(),
+  if (
+    yearsOfWorkExperience !== null &&
+    (!Number.isFinite(yearsOfWorkExperience) ||
+      yearsOfWorkExperience < 0 ||
+      yearsOfWorkExperience > 100)
+  ) {
+    Alert.alert(
+      "Invalid Work Experience",
+      "Please enter a valid number of years.",
+    );
+    return;
+  }
 
-          birthDate:
-            profileForm.birthDate.trim(),
+  try {
+    await updateMyProfile({
+      firstName: profileForm.firstName.trim(),
+      middleName: profileForm.middleName?.trim() ?? "",
+      lastName: profileForm.lastName.trim(),
+      mobileNumber: profileForm.mobileNumber?.trim() ?? "",
+      birthDate: profileForm.birthDate?.trim() ?? "",
+      address: profileForm.address?.trim() ?? "",
+      gender: profileForm.gender?.trim() ?? "",
 
-          address:
-            profileForm.address.trim(),
+      highestEducationalAttainment:
+        profileForm.highestEducationalAttainment?.trim() ?? "",
+      educationalStatus:
+        profileForm.educationalStatus?.trim() ?? "",
+      schoolName: profileForm.schoolName?.trim() ?? "",
+      courseOrDegree: profileForm.courseOrDegree?.trim() ?? "",
+      fieldOfStudy: profileForm.fieldOfStudy?.trim() ?? "",
+      yearGraduated,
 
-          gender:
-            profileForm.gender.trim(),
-        });
+      employmentStatus:
+        profileForm.employmentStatus?.trim() ?? "",
+      companyName: profileForm.companyName?.trim() ?? "",
+      jobTitle: profileForm.jobTitle?.trim() ?? "",
+      industry: profileForm.industry?.trim() ?? "",
+      yearsOfWorkExperience,
 
-        setIsEditProfileVisible(false);
+      emergencyContactName:
+        profileForm.emergencyContactName?.trim() ?? "",
+      emergencyContactNumber:
+        profileForm.emergencyContactNumber?.trim() ?? "",
+      emergencyContactRelationship:
+        profileForm.emergencyContactRelationship?.trim() ?? "",
+    });
 
-        Alert.alert(
-          "Profile Updated",
-          "Your profile information has been updated successfully."
-        );
-      } catch (err) {
-        Alert.alert(
-          "Update Failed",
-          err instanceof Error
-            ? err.message
-            : "Unable to update your profile."
-        );
-      }
-    },
-    [
-      profile,
-      profileForm,
-      updateMyProfile,
-    ]
-  );
+    setIsEditProfileVisible(false);
+
+    Alert.alert(
+      "Profile Updated",
+      "Your profile information has been updated successfully.",
+    );
+  } catch (err) {
+    Alert.alert(
+      "Update Failed",
+      err instanceof Error
+        ? err.message
+        : "Unable to update your profile.",
+    );
+  }
+}, [profile, profileForm, updateMyProfile]);
+
 
   // =====================================================
   // CHANGE PASSWORD
@@ -1241,7 +1323,7 @@ const handleViewCertificate = useCallback(
               <InputField
                 label="Middle Name"
                 value={
-                  profileForm.middleName
+                  profileForm.middleName ?? ""
                 }
                 onChangeText={(value) =>
                   updateProfileField(
@@ -1269,7 +1351,7 @@ const handleViewCertificate = useCallback(
               <InputField
                 label="Mobile Number"
                 value={
-                  profileForm.mobileNumber
+                  profileForm.mobileNumber ?? ""
                 }
                 onChangeText={(value) =>
                   updateProfileField(
@@ -1284,7 +1366,7 @@ const handleViewCertificate = useCallback(
               <InputField
                 label="Birth Date"
                 value={
-                  profileForm.birthDate
+                  profileForm.birthDate ?? ""
                 }
                 onChangeText={(value) =>
                   updateProfileField(
@@ -1298,7 +1380,7 @@ const handleViewCertificate = useCallback(
               <InputField
                 label="Address"
                 value={
-                  profileForm.address
+                  profileForm.address ?? ""
                 }
                 onChangeText={(value) =>
                   updateProfileField(
@@ -1313,7 +1395,7 @@ const handleViewCertificate = useCallback(
               <InputField
                 label="Gender"
                 value={
-                  profileForm.gender
+                  profileForm.gender ?? ""
                 }
                 onChangeText={(value) =>
                   updateProfileField(
@@ -1323,6 +1405,160 @@ const handleViewCertificate = useCallback(
                 }
                 placeholder="Enter gender"
               />
+              
+{/* ============================================== */}
+{/* EDUCATIONAL BACKGROUND */}
+{/* ============================================== */}
+
+<Text style={styles.editSectionTitle}>
+  Educational Background
+</Text>
+
+<InputField
+  label="Highest Educational Attainment"
+  value={profileForm.highestEducationalAttainment ?? ""}
+  onChangeText={(value) =>
+    updateProfileField("highestEducationalAttainment", value)
+  }
+  placeholder="e.g. College Graduate"
+/>
+
+<InputField
+  label="Educational Status"
+  value={profileForm.educationalStatus ?? ""}
+  onChangeText={(value) =>
+    updateProfileField("educationalStatus", value)
+  }
+  placeholder="e.g. Graduated, Undergraduate, Currently Studying"
+/>
+
+<InputField
+  label="School Name"
+  value={profileForm.schoolName ?? ""}
+  onChangeText={(value) =>
+    updateProfileField("schoolName", value)
+  }
+  placeholder="Enter school or university"
+/>
+
+<InputField
+  label="Course or Degree"
+  value={profileForm.courseOrDegree ?? ""}
+  onChangeText={(value) =>
+    updateProfileField("courseOrDegree", value)
+  }
+  placeholder="e.g. BS Information Technology"
+/>
+
+<InputField
+  label="Field of Study"
+  value={profileForm.fieldOfStudy ?? ""}
+  onChangeText={(value) =>
+    updateProfileField("fieldOfStudy", value)
+  }
+  placeholder="e.g. Information Technology"
+/>
+
+<InputField
+  label="Year Graduated"
+  value={profileForm.yearGraduated ?? ""}
+  onChangeText={(value) =>
+    updateProfileField("yearGraduated", value)
+  }
+  placeholder="e.g. 2025"
+  keyboardType="number-pad"
+/>
+
+{/* ============================================== */}
+{/* EMPLOYMENT INFORMATION */}
+{/* ============================================== */}
+
+<Text style={styles.editSectionTitle}>
+  Employment Information
+</Text>
+
+<InputField
+  label="Employment Status"
+  value={profileForm.employmentStatus ?? ""}
+  onChangeText={(value) =>
+    updateProfileField("employmentStatus", value)
+  }
+  placeholder="e.g. Employed, Unemployed, Self-employed"
+/>
+
+<InputField
+  label="Company Name"
+  value={profileForm.companyName ?? ""}
+  onChangeText={(value) =>
+    updateProfileField("companyName", value)
+  }
+  placeholder="Enter company name"
+/>
+
+<InputField
+  label="Job Title"
+  value={profileForm.jobTitle ?? ""}
+  onChangeText={(value) =>
+    updateProfileField("jobTitle", value)
+  }
+  placeholder="e.g. Software Developer"
+/>
+
+<InputField
+  label="Industry"
+  value={profileForm.industry ?? ""}
+  onChangeText={(value) =>
+    updateProfileField("industry", value)
+  }
+  placeholder="e.g. Information Technology"
+/>
+
+<InputField
+  label="Years of Work Experience"
+  value={profileForm.yearsOfWorkExperience ?? ""}
+  onChangeText={(value) =>
+    updateProfileField("yearsOfWorkExperience", value)
+  }
+  placeholder="e.g. 2"
+  keyboardType="decimal-pad"
+/>
+
+{/* ============================================== */}
+{/* EMERGENCY CONTACT */}
+{/* ============================================== */}
+
+<Text style={styles.editSectionTitle}>
+  Emergency Contact
+</Text>
+
+<InputField
+  label="Contact Person's Full Name"
+  value={profileForm.emergencyContactName ?? ""}
+  onChangeText={(value) =>
+    updateProfileField("emergencyContactName", value)
+  }
+  placeholder="Enter full name"
+/>
+
+<InputField
+  label="Emergency Contact Number"
+  value={profileForm.emergencyContactNumber ?? ""}
+  onChangeText={(value) =>
+    updateProfileField("emergencyContactNumber", value)
+  }
+  placeholder="Enter contact number"
+  keyboardType="phone-pad"
+/>
+
+<InputField
+  label="Relationship to Participant"
+  value={profileForm.emergencyContactRelationship ?? ""}
+  onChangeText={(value) =>
+    updateProfileField("emergencyContactRelationship", value)
+  }
+  placeholder="e.g. Parent, Spouse, Sibling"
+/>
+
 
               <View
                 style={
@@ -2578,4 +2814,18 @@ const styles = StyleSheet.create({
     color: "#64748B",
     textAlign: "center",
   },
+  
+editSectionTitle: {
+  marginTop: 10,
+  marginBottom: 16,
+  paddingBottom: 10,
+  borderBottomWidth: 1,
+  borderBottomColor: "#E2E8F0",
+  fontSize: 14,
+  fontWeight: "800",
+  color: "#002b5c",
+},
+
+
+
 });

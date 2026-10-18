@@ -1,3 +1,4 @@
+
 import { ApiClient } from "../api/client";
 import { AuthEndpoints } from "./AuthEndpoints";
 
@@ -19,6 +20,12 @@ import type {
   GoogleLoginResponse,
 } from "@repo/types";
 
+type RegistrationImage = {
+  uri: string;
+  name: string;
+  type: string;
+};
+
 export class AuthAPIs {
   constructor(private readonly api: ApiClient) {}
 
@@ -37,6 +44,10 @@ export class AuthAPIs {
       }
     );
   }
+
+  // ==========================================
+  // GOOGLE LOGIN
+  // ==========================================
 
   async googleLogin(
     request: GoogleLoginRequest
@@ -57,295 +68,224 @@ export class AuthAPIs {
   async register(
     request: RegisterRequest
   ): Promise<RegisterResponse> {
+    const formData = new FormData();
+
+    // Append non-empty text and numeric values.
+    const appendValue = (
+      key: string,
+      value: string | number | null | undefined
+    ) => {
+      if (
+        value !== null &&
+        value !== undefined &&
+        String(value).trim() !== ""
+      ) {
+        formData.append(key, String(value));
+      }
+    };
+
+    // Append Expo / React Native image objects.
+    const appendImage = (
+      key: string,
+      image?: RegistrationImage | null
+    ) => {
+      if (!image) return;
+
+      formData.append(
+        key,
+        {
+          uri: image.uri,
+          name: image.name,
+          type: image.type,
+        } as unknown as Blob
+      );
+    };
+
+    // ------------------------------------------
+    // GOOGLE AUTHENTICATION
+    // ------------------------------------------
+
+    appendValue("GoogleIdToken", request.googleIdToken);
+
+    // ------------------------------------------
+    // PERSONAL INFORMATION
+    // ------------------------------------------
+
+    appendValue("FirstName", request.firstName);
+    appendValue("MiddleName", request.middleName);
+    appendValue("LastName", request.lastName);
+
+    appendValue("Email", request.email);
+    appendValue("MobileNumber", request.mobileNumber);
+    appendValue("BirthDate", request.birthDate);
+    appendValue("Address", request.address);
+    appendValue("Gender", request.gender);
+    appendValue("Password", request.password);
+
+    // ------------------------------------------
+    // EDUCATIONAL INFORMATION
+    // ------------------------------------------
+
+    appendValue(
+      "HighestEducationalAttainment",
+      request.highestEducationalAttainment
+    );
+
+    appendValue(
+      "EducationalStatus",
+      request.educationalStatus
+    );
+
+    appendValue("SchoolName", request.schoolName);
+    appendValue("CourseOrDegree", request.courseOrDegree);
+    appendValue("FieldOfStudy", request.fieldOfStudy);
+    appendValue("YearGraduated", request.yearGraduated);
+
+    // ------------------------------------------
+    // EMPLOYMENT INFORMATION
+    // ------------------------------------------
+
+    appendValue("EmploymentStatus", request.employmentStatus);
+    appendValue("CompanyName", request.companyName);
+    appendValue("JobTitle", request.jobTitle);
+    appendValue("Industry", request.industry);
+
+    appendValue(
+      "YearsOfWorkExperience",
+      request.yearsOfWorkExperience
+    );
+
+    // ------------------------------------------
+    // VALID ID INFORMATION
+    // ------------------------------------------
+
+    appendValue("ValidIdType", request.validIdType);
+    appendValue("ValidIdNumber", request.validIdNumber);
+
+    appendImage("ValidIdImage", request.validIdImage);
+
+    // ------------------------------------------
+    // EMERGENCY CONTACT
+    // ------------------------------------------
+
+    appendValue(
+      "EmergencyContactName",
+      request.emergencyContactName
+    );
+
+    appendValue(
+      "EmergencyContactNumber",
+      request.emergencyContactNumber
+    );
+
+    appendValue(
+      "EmergencyContactRelationship",
+      request.emergencyContactRelationship
+    );
+
+    // ------------------------------------------
+    // PROFILE IMAGE
+    // ------------------------------------------
+
+    appendImage("ProfileImage", request.profileImage);
+
+    // ------------------------------------------
+    // SEND REGISTRATION REQUEST
+    // ------------------------------------------
+
     return this.api.request<RegisterResponse>(
       AuthEndpoints.register(),
       {
         method: "POST",
-        body: request,
+        body: formData,
       }
     );
   }
 
   // ==========================================
-// TRAINER REGISTRATION
-// ==========================================
+  // TRAINER REGISTRATION
+  // ==========================================
 
-async registerTrainer(
-  request: RegisterTrainerRequest
-): Promise<RegisterResponse> {
+  async registerTrainer(
+    request: RegisterTrainerRequest
+  ): Promise<RegisterResponse> {
+    const formData = new FormData();
 
-  console.log(
-    "================================="
-  );
+    const appendValue = (
+      key: string,
+      value: string | number | null | undefined
+    ) => {
+      if (
+        value !== null &&
+        value !== undefined &&
+        String(value).trim() !== ""
+      ) {
+        formData.append(key, String(value));
+      }
+    };
 
-  console.log(
-    "AUTH APIS - REGISTER TRAINER"
-  );
+    appendValue("GoogleIdToken", request.GoogleIdToken);
+    appendValue("FirstName", request.FirstName);
+    appendValue("MiddleName", request.MiddleName);
+    appendValue("LastName", request.LastName);
+    appendValue("Suffix", request.Suffix);
+    appendValue("BirthDate", request.BirthDate);
+    appendValue("Address", request.Address);
+    appendValue("Gender", request.Gender);
+    appendValue("Email", request.Email);
+    appendValue("MobileNumber", request.MobileNumber);
+    appendValue("Password", request.Password);
 
-  console.log(
-    "GoogleIdToken received:",
-    request.GoogleIdToken
-      ? `FOUND (${request.GoogleIdToken.length} chars)`
-      : "MISSING"
-  );
+    appendValue("Specialization", request.Specialization);
+    appendValue("ProfessionalTitle", request.ProfessionalTitle);
+    appendValue("CurrentOrganization", request.CurrentOrganization);
+    appendValue("Bio", request.Bio);
+    appendValue("YearsOfExperience", request.YearsOfExperience);
 
-  console.log(
-    "GoogleIdToken raw:",
-    request.GoogleIdToken
-      ? request.GoogleIdToken.substring(0, 30) + "..."
-      : "NULL"
-  );
-
-  console.log(
-    "Email:",
-    request.Email
-  );
-
-  console.log(
-    "ProfileImage:",
-    request.ProfileImage
-      ? request.ProfileImage.name
-      : "NO LOCAL IMAGE"
-  );
-
-  console.log(
-    "================================="
-  );
-
-  const formData = new FormData();
-
-  // ==========================================================
-  // GOOGLE AUTHENTICATION
-  // ==========================================================
-
-  if (
-    request.GoogleIdToken &&
-    request.GoogleIdToken.trim().length > 0
-  ) {
-    formData.append(
-      "GoogleIdToken",
-      request.GoogleIdToken.trim()
-    );
-  }
-
-  // ==========================================================
-  // PERSONAL INFORMATION
-  // ==========================================================
-
-  formData.append(
-    "FirstName",
-    request.FirstName
-  );
-
-  if (request.MiddleName) {
-    formData.append(
-      "MiddleName",
-      request.MiddleName
-    );
-  }
-
-  formData.append(
-    "LastName",
-    request.LastName
-  );
-
-  if (request.Suffix) {
-    formData.append(
-      "Suffix",
-      request.Suffix
-    );
-  }
-
-  if (request.BirthDate) {
-    formData.append(
-      "BirthDate",
-      request.BirthDate
-    );
-  }
-
-  formData.append(
-    "Address",
-    request.Address
-  );
-
-  formData.append(
-    "Gender",
-    request.Gender
-  );
-
-  // ==========================================================
-  // ACCOUNT INFORMATION
-  // ==========================================================
-
-  formData.append(
-    "Email",
-    request.Email
-  );
-
-  if (request.MobileNumber) {
-    formData.append(
-      "MobileNumber",
-      request.MobileNumber
-    );
-  }
-
-  formData.append(
-    "Password",
-    request.Password
-  );
-
-  // ==========================================================
-  // PROFESSIONAL INFORMATION
-  // ==========================================================
-
-  formData.append(
-    "Specialization",
-    request.Specialization
-  );
-
-  if (request.ProfessionalTitle) {
-    formData.append(
-      "ProfessionalTitle",
-      request.ProfessionalTitle
-    );
-  }
-
-  if (request.CurrentOrganization) {
-    formData.append(
-      "CurrentOrganization",
-      request.CurrentOrganization
-    );
-  }
-
-  if (request.Bio) {
-    formData.append(
-      "Bio",
-      request.Bio
-    );
-  }
-
-  if (
-    request.YearsOfExperience !== null &&
-    request.YearsOfExperience !== undefined
-  ) {
-    formData.append(
-      "YearsOfExperience",
-      String(request.YearsOfExperience)
-    );
-  }
-
-  // ==========================================================
-  // PROFESSIONAL LICENSE
-  // ==========================================================
-
-  if (request.ProfessionalLicenseNumber) {
-    formData.append(
+    appendValue(
       "ProfessionalLicenseNumber",
       request.ProfessionalLicenseNumber
     );
-  }
 
-  if (request.ProfessionalLicenseType) {
-    formData.append(
+    appendValue(
       "ProfessionalLicenseType",
       request.ProfessionalLicenseType
     );
-  }
 
-  if (request.ProfessionalLicenseExpirationDate) {
-    formData.append(
+    appendValue(
       "ProfessionalLicenseExpirationDate",
       request.ProfessionalLicenseExpirationDate
     );
-  }
 
-  // ==========================================================
-  // PROFILE IMAGE
-  // ==========================================================
-
-  if (request.ProfileImage) {
-    formData.append(
-      "ProfileImage",
-      request.ProfileImage
-    );
-  }
-
-  // ==========================================================
-  // EDUCATIONS
-  // ==========================================================
-
-  if (request.Educations) {
-    formData.append(
-      "Educations",
-      JSON.stringify(request.Educations)
-    );
-  }
-
-  // ==========================================================
-  // CERTIFICATIONS
-  // ==========================================================
-
-  if (request.Certifications) {
-    formData.append(
-      "Certifications",
-      JSON.stringify(request.Certifications)
-    );
-  }
-
-  // ==========================================================
-  // VERIFY FORMDATA BEFORE API CLIENT
-  // ==========================================================
-
-  console.log(
-    "================================="
-  );
-
-  console.log(
-    "FINAL FORMDATA BEFORE API CLIENT"
-  );
-
-  console.log(
-    "Has GoogleIdToken:",
-    formData.has("GoogleIdToken")
-  );
-
-  console.log(
-    "GoogleIdToken:",
-    formData.get("GoogleIdToken")
-      ? "FOUND"
-      : "MISSING"
-  );
-
-  console.log(
-    "================================="
-  );
-
-  for (
-    const [key, value]
-    of formData.entries()
-  ) {
-    if (key === "GoogleIdToken") {
-      console.log(
-        key,
-        typeof value === "string"
-          ? `FOUND (${value.length} chars)`
-          : "INVALID"
+    if (request.ProfileImage) {
+      formData.append(
+        "ProfileImage",
+        request.ProfileImage
       );
     }
-  }
 
-  // ==========================================================
-  // SEND REQUEST
-  // ==========================================================
-
-  return this.api.request<RegisterResponse>(
-    AuthEndpoints.registerTrainer(),
-    {
-      method: "POST",
-      body: formData,
+    if (request.Educations) {
+      formData.append(
+        "Educations",
+        JSON.stringify(request.Educations)
+      );
     }
-  );
-}
+
+    if (request.Certifications) {
+      formData.append(
+        "Certifications",
+        JSON.stringify(request.Certifications)
+      );
+    }
+
+    return this.api.request<RegisterResponse>(
+      AuthEndpoints.registerTrainer(),
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
+  }
 
   // ==========================================
   // EMAIL VERIFICATION

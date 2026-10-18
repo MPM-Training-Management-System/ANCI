@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -7,48 +8,54 @@ import {
 } from "react";
 
 import {
+  Activity,
+  ArrowRight,
   Bell,
+  BriefcaseBusiness,
+  CalendarDays,
+  Check,
   CheckCircle2,
   ChevronRight,
   CircleUserRound,
+  Clock3,
   Eye,
   EyeOff,
   KeyRound,
   Loader2,
   LockKeyhole,
   Mail,
+  MapPin,
+  Phone,
   RefreshCw,
   Save,
   ShieldCheck,
+  Sparkles,
   UserRound,
   X,
 } from "lucide-react";
 
-import type {
-  UpdateTrainerProfileRequest,
-} from "@repo/types";
+import type { UpdateTrainerProfileRequest } from "@repo/types";
 
-import {
-  authAPIs,
-  trainerApi,
-} from "@/lib/api";
+import { authAPIs, trainerApi } from "@/lib/api";
 
 import {
   useForgotPassword,
   useTrainerMe,
 } from "@repo/hooks";
-
+import { PageSection } from "@repo/ui/index";
 
 // ============================================================
 // HELPERS
 // ============================================================
 
-function formatDate(
-  value?: string | null
-) {
-  if (!value) {
-    return "Not provided";
-  }
+const inputClass =
+  "w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#3B7597] focus:ring-4 focus:ring-[#3B7597]/10 disabled:cursor-not-allowed disabled:bg-slate-50";
+
+const labelClass =
+  "mb-2 block text-sm font-semibold text-slate-700";
+
+function formatDate(value?: string | null) {
+  if (!value) return "Not provided";
 
   const date = new Date(value);
 
@@ -56,37 +63,26 @@ function formatDate(
     return value;
   }
 
-  return date.toLocaleDateString(
-    "en-US",
-    {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    }
-  );
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
-function formatStatus(
-  status?: string | null
-) {
-  if (!status) {
-    return "Unknown";
-  }
+function getInitials(first?: string | null, last?: string | null) {
+  const initials =
+    `${first?.trim()?.[0] ?? ""}${last?.trim()?.[0] ?? ""}`
+      .toUpperCase();
 
-  return status
-    .replace(/([a-z])([A-Z])/g, "$1 $2");
+  return initials || "T";
 }
-
 
 // ============================================================
 // PAGE
 // ============================================================
 
 export default function TrainerSettingsPage() {
-  // ==========================================================
-  // TRAINER PROFILE
-  // ==========================================================
-
   const {
     profile,
     isLoading,
@@ -99,193 +95,95 @@ export default function TrainerSettingsPage() {
     resetUpdateState,
   } = useTrainerMe(trainerApi);
 
-
-  // ==========================================================
-  // PASSWORD
-  // ==========================================================
-
   const {
     forgotPassword,
     verifyResetOtp,
     resetPassword,
     isLoading: isPasswordLoading,
     error: passwordError,
-    success: passwordSuccess,
     reset: resetPasswordState,
   } = useForgotPassword(authAPIs);
 
+  // ----------------------------------------------------------
+  // MODAL STATE
+  // ----------------------------------------------------------
 
-  // ==========================================================
-  // UI STATE
-  // ==========================================================
+  const [isEditProfileOpen, setIsEditProfileOpen] =
+    useState(false);
 
-  const [
-    isEditProfileOpen,
-    setIsEditProfileOpen,
-  ] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] =
+    useState(false);
 
-  const [
-    isPasswordModalOpen,
-    setIsPasswordModalOpen,
-  ] = useState(false);
-
-  const [
-    passwordStep,
-    setPasswordStep,
-  ] = useState<
+  const [passwordStep, setPasswordStep] = useState<
     "email" | "otp" | "password" | "success"
   >("email");
 
-  const [
-    showNewPassword,
-    setShowNewPassword,
-  ] = useState(false);
+  // ----------------------------------------------------------
+  // PASSWORD FORM
+  // ----------------------------------------------------------
 
-  const [
-    showConfirmPassword,
-    setShowConfirmPassword,
-  ] = useState(false);
+  const [email, setEmail] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
-  const [
-    email,
-    setEmail,
-  ] = useState("");
+  const [showNewPassword, setShowNewPassword] =
+    useState(false);
 
-  const [
-    otpCode,
-    setOtpCode,
-  ] = useState("");
+  const [showConfirmPassword, setShowConfirmPassword] =
+    useState(false);
 
-  const [
-    newPassword,
-    setNewPassword,
-  ] = useState("");
+  // ----------------------------------------------------------
+  // PROFILE FORM
+  // ----------------------------------------------------------
 
-  const [
-    confirmPassword,
-    setConfirmPassword,
-  ] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [middleName, setMiddleName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [address, setAddress] = useState("");
+  const [gender, setGender] = useState("");
+  const [mobileNumber, setMobileNumber] = useState("");
+  const [specialization, setSpecialization] = useState("");
+  const [bio, setBio] = useState("");
+  const [yearsOfExperience, setYearsOfExperience] =
+    useState("");
 
-  const [
-    notifications,
-    setNotifications,
-  ] = useState({
+  // These preferences are local UI state until a backend
+  // notification-preferences endpoint is connected.
+  const [notifications, setNotifications] = useState({
     email: true,
     reminders: true,
     announcements: true,
   });
 
-
-  // ==========================================================
-  // EDIT FORM STATE
-  // ==========================================================
-
-  const [
-    firstName,
-    setFirstName,
-  ] = useState("");
-
-  const [
-    middleName,
-    setMiddleName,
-  ] = useState("");
-
-  const [
-    lastName,
-    setLastName,
-  ] = useState("");
-
-  const [
-    birthDate,
-    setBirthDate,
-  ] = useState("");
-
-  const [
-    address,
-    setAddress,
-  ] = useState("");
-
-  const [
-    gender,
-    setGender,
-  ] = useState("");
-
-  const [
-    mobileNumber,
-    setMobileNumber,
-  ] = useState("");
-
-  const [
-    specialization,
-    setSpecialization,
-  ] = useState("");
-
-  const [
-    bio,
-    setBio,
-  ] = useState("");
-
-  const [
-    yearsOfExperience,
-    setYearsOfExperience,
-  ] = useState("");
-
-
-  // ==========================================================
-  // DERIVED DATA
-  // ==========================================================
+  // ----------------------------------------------------------
+  // PROFILE DISPLAY DATA
+  // ----------------------------------------------------------
 
   const displayName =
-    profile?.fullName?.trim() ||
-    "Trainer";
+    profile?.fullName?.trim() || "Trainer";
 
   const profileEmail =
-    profile?.email?.trim() ||
-    "No email available";
+    profile?.email?.trim() || "No email available";
 
-  const profileImage =
-    profile?.profileImageUrl ||
-    null;
+  const profileImage = profile?.profileImageUrl || null;
 
-  const initials = useMemo(() => {
-    const first =
-      profile?.firstName?.trim()?.charAt(0) ||
-      "";
+  const initials = useMemo(
+    () => getInitials(profile?.firstName, profile?.lastName),
+    [profile?.firstName, profile?.lastName]
+  );
 
-    const last =
-      profile?.lastName?.trim()?.charAt(0) ||
-      "";
-
-    const value =
-      `${first}${last}`.toUpperCase();
-
-    return value || "T";
-  }, [
-    profile?.firstName,
-    profile?.lastName,
-  ]);
-
-
-  // ==========================================================
-  // SYNC PROFILE → EDIT FORM
-  // ==========================================================
+  // ----------------------------------------------------------
+  // SYNC PROFILE TO FORM
+  // ----------------------------------------------------------
 
   useEffect(() => {
-    if (!profile) {
-      return;
-    }
+    if (!profile) return;
 
-    setFirstName(
-      profile.firstName ?? ""
-    );
-
-    setMiddleName(
-      profile.middleName ?? ""
-    );
-
-    setLastName(
-      profile.lastName ?? ""
-    );
+    setFirstName(profile.firstName ?? "");
+    setMiddleName(profile.middleName ?? "");
+    setLastName(profile.lastName ?? "");
 
     setBirthDate(
       profile.birthDate
@@ -293,909 +191,747 @@ export default function TrainerSettingsPage() {
         : ""
     );
 
-    setAddress(
-      profile.address ?? ""
-    );
-
-    setGender(
-      profile.gender ?? ""
-    );
-
-    setMobileNumber(
-      profile.mobileNumber ?? ""
-    );
-
-    setSpecialization(
-      profile.specialization ?? ""
-    );
-
-    setBio(
-      profile.bio ?? ""
-    );
+    setAddress(profile.address ?? "");
+    setGender(profile.gender ?? "");
+    setMobileNumber(profile.mobileNumber ?? "");
+    setSpecialization(profile.specialization ?? "");
+    setBio(profile.bio ?? "");
 
     setYearsOfExperience(
-      profile.yearsOfExperience !== null &&
-      profile.yearsOfExperience !== undefined
+      profile.yearsOfExperience != null
         ? String(profile.yearsOfExperience)
         : ""
     );
   }, [profile]);
 
+  // ----------------------------------------------------------
+  // OPEN / CLOSE PROFILE MODAL
+  // ----------------------------------------------------------
 
-  // ==========================================================
-  // OPEN EDIT PROFILE
-  // ==========================================================
-
-  const openEditProfile = () => {
+  function openEditProfile() {
     resetUpdateState();
-
-    if (profile) {
-      setFirstName(
-        profile.firstName ?? ""
-      );
-
-      setMiddleName(
-        profile.middleName ?? ""
-      );
-
-      setLastName(
-        profile.lastName ?? ""
-      );
-
-      setBirthDate(
-        profile.birthDate
-          ? profile.birthDate.substring(0, 10)
-          : ""
-      );
-
-      setAddress(
-        profile.address ?? ""
-      );
-
-      setGender(
-        profile.gender ?? ""
-      );
-
-      setMobileNumber(
-        profile.mobileNumber ?? ""
-      );
-
-      setSpecialization(
-        profile.specialization ?? ""
-      );
-
-      setBio(
-        profile.bio ?? ""
-      );
-
-      setYearsOfExperience(
-        profile.yearsOfExperience !== null &&
-        profile.yearsOfExperience !== undefined
-          ? String(
-              profile.yearsOfExperience
-            )
-          : ""
-      );
-    }
-
     setIsEditProfileOpen(true);
-  };
+  }
 
-
-  // ==========================================================
-  // CLOSE EDIT PROFILE
-  // ==========================================================
-
-  const closeEditProfile = () => {
-    if (isUpdating) {
-      return;
-    }
+  function closeEditProfile() {
+    if (isUpdating) return;
 
     setIsEditProfileOpen(false);
     resetUpdateState();
-  };
+  }
 
+  // ----------------------------------------------------------
+  // UPDATE PROFILE
+  // ----------------------------------------------------------
 
-  // ==========================================================
-  // SAVE PROFILE
-  // ==========================================================
+  async function handleUpdateProfile() {
+    resetUpdateState();
 
-  const handleUpdateProfile =
-    async () => {
-      resetUpdateState();
+    const parsedYears =
+      yearsOfExperience.trim() === ""
+        ? undefined
+        : Number(yearsOfExperience);
 
-      const parsedYears =
-        yearsOfExperience.trim() === ""
-          ? undefined
-          : Number(yearsOfExperience);
+    if (
+      parsedYears !== undefined &&
+      (!Number.isFinite(parsedYears) ||
+        parsedYears < 0 ||
+        parsedYears > 100)
+    ) {
+      return;
+    }
 
-      if (
-        parsedYears !== undefined &&
-        (
-          Number.isNaN(parsedYears) ||
-          parsedYears < 0 ||
-          parsedYears > 100
-        )
-      ) {
-        return;
-      }
+    if (!firstName.trim() || !lastName.trim()) {
+      return;
+    }
 
-      const payload:
-        UpdateTrainerProfileRequest = {
-          firstName:
-            firstName.trim() || undefined,
-
-          middleName:
-            middleName.trim() || undefined,
-
-          lastName:
-            lastName.trim() || undefined,
-
-          birthDate:
-            birthDate || null,
-
-          address:
-            address.trim() || undefined,
-
-          gender:
-            gender.trim() || undefined,
-
-          mobileNumber:
-            mobileNumber.trim() || undefined,
-
-          specialization:
-            specialization.trim() || undefined,
-
-          bio:
-            bio.trim() || undefined,
-
-          yearsOfExperience:
-            parsedYears,
-        };
-
-      const updated =
-        await updateProfile(
-          payload
-        );
-
-      if (updated) {
-        setIsEditProfileOpen(false);
-      }
+    const payload: UpdateTrainerProfileRequest = {
+      firstName: firstName.trim(),
+      middleName: middleName.trim() || undefined,
+      lastName: lastName.trim(),
+      birthDate: birthDate || null,
+      address: address.trim() || undefined,
+      gender: gender.trim() || undefined,
+      mobileNumber: mobileNumber.trim() || undefined,
+      specialization: specialization.trim() || undefined,
+      bio: bio.trim() || undefined,
+      yearsOfExperience: parsedYears,
     };
 
+    const updated = await updateProfile(payload);
 
-  // ==========================================================
-  // OPEN PASSWORD MODAL
-  // ==========================================================
+    if (updated) {
+      setIsEditProfileOpen(false);
+    }
+  }
 
-  const openPasswordModal = () => {
+  // ----------------------------------------------------------
+  // PASSWORD MODAL
+  // ----------------------------------------------------------
+
+  function openPasswordModal() {
     resetPasswordState();
 
-    setEmail(
-      profile?.email ?? ""
-    );
-
+    setEmail(profile?.email ?? "");
     setOtpCode("");
     setNewPassword("");
     setConfirmPassword("");
-
     setPasswordStep("email");
-
     setShowNewPassword(false);
     setShowConfirmPassword(false);
 
     setIsPasswordModalOpen(true);
-  };
+  }
 
-
-  // ==========================================================
-  // CLOSE PASSWORD MODAL
-  // ==========================================================
-
-  const closePasswordModal = () => {
-    if (isPasswordLoading) {
-      return;
-    }
+  function closePasswordModal() {
+    if (isPasswordLoading) return;
 
     setIsPasswordModalOpen(false);
-
     resetPasswordState();
 
-    setEmail(
-      profile?.email ?? ""
-    );
-
+    setEmail(profile?.email ?? "");
     setOtpCode("");
     setNewPassword("");
     setConfirmPassword("");
-
     setPasswordStep("email");
-
     setShowNewPassword(false);
     setShowConfirmPassword(false);
-  };
+  }
 
+  async function handleSendOtp() {
+    if (!email.trim()) return;
 
-  // ==========================================================
-  // SEND OTP
-  // ==========================================================
+    const response = await forgotPassword({
+      email: email.trim(),
+    });
 
-  const handleSendOtp =
-    async () => {
-      if (!email.trim()) {
-        return;
-      }
+    if (response?.success) {
+      setPasswordStep("otp");
+    }
+  }
 
-      const response =
-        await forgotPassword({
-          email: email.trim(),
-        });
+  async function handleVerifyOtp() {
+    if (!email.trim() || !otpCode.trim()) return;
 
-      if (response?.success) {
-        setPasswordStep("otp");
-      }
-    };
+    const response = await verifyResetOtp({
+      email: email.trim(),
+      otpCode: otpCode.trim(),
+    });
 
+    if (response?.success) {
+      setPasswordStep("password");
+    }
+  }
 
-  // ==========================================================
-  // VERIFY OTP
-  // ==========================================================
+  async function handleResetPassword() {
+    if (
+      !email.trim() ||
+      !otpCode.trim() ||
+      !newPassword ||
+      !confirmPassword ||
+      newPassword !== confirmPassword
+    ) {
+      return;
+    }
 
-  const handleVerifyOtp =
-    async () => {
-      if (!email.trim() || !otpCode.trim()) {
-        return;
-      }
+    const response = await resetPassword({
+      email: email.trim(),
+      otpCode: otpCode.trim(),
+      newPassword,
+      confirmPassword,
+    });
 
-      const response =
-        await verifyResetOtp({
-          email: email.trim(),
-          otpCode: otpCode.trim(),
-        });
-
-      if (response?.success) {
-        setPasswordStep("password");
-      }
-    };
-
-
-  // ==========================================================
-  // RESET PASSWORD
-  // ==========================================================
-
-  const handleResetPassword =
-    async () => {
-      if (
-        !email.trim() ||
-        !otpCode.trim() ||
-        !newPassword ||
-        !confirmPassword
-      ) {
-        return;
-      }
-
-      if (
-        newPassword !==
-        confirmPassword
-      ) {
-        return;
-      }
-
-      const response =
-        await resetPassword({
-          email: email.trim(),
-          otpCode: otpCode.trim(),
-          newPassword,
-          confirmPassword,
-        });
-
-      if (response?.success) {
-        setPasswordStep("success");
-      }
-    };
-
+    if (response?.success) {
+      setPasswordStep("success");
+    }
+  }
 
   // ==========================================================
   // RENDER
   // ==========================================================
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-[#f4f7fb] text-slate-800">
+      <div className="mx-auto max-w-360 px-4 py-6 sm:px-6 lg:px-8 lg:py-9">
 
-        {/* =====================================================
-            HEADER
-        ====================================================== */}
+       <PageSection
+       className="mb-5"
+       title="Account Settings"
+       description=" Manage your personal information, professional
+              profile, and account security in one place."
+              actions={
+                 <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={isLoading}
+            className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-[#3B7597]/40 hover:bg-slate-50 disabled:opacity-50 sm:self-auto"
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${
+                isLoading ? "animate-spin" : ""
+              }`}
+            />
+            Refresh Profile
+          </button>
+              }
+       ></PageSection>
 
-        <div className="mb-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
-              <ShieldCheck className="h-6 w-6" />
-            </div>
+       
 
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                Settings
-              </h1>
+        <section className="relative mb-8 overflow-hidden rounded-3xl bg-[#0d2142] shadow-lg shadow-slate-900/5">
+          <div className="absolute inset-0 bg-gradient-to-br from-[#0d2142] via-[#123d65] to-[#3B7597]" />
 
-              <p className="text-sm text-gray-500">
-                Manage your trainer profile,
-                password, and preferences.
-              </p>
-            </div>
-          </div>
-        </div>
+          <div className="absolute -right-12 -top-28 h-72 w-72 rounded-full border border-white/10" />
+          <div className="absolute -right-2 -top-16 h-52 w-52 rounded-full border border-white/10" />
+          <div className="absolute -bottom-28 right-1/3 h-60 w-60 rounded-full bg-cyan-300/10 blur-3xl" />
 
-
-        {/* =====================================================
-            PROFILE CARD
-        ====================================================== */}
-
-        <section className="mb-6 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-
-          <div className="h-24 bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600" />
-
-          <div className="px-5 pb-5 sm:px-6">
-            <div className="-mt-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-
-              <div className="flex items-end gap-4">
-
-                {/* PROFILE IMAGE */}
-
-                <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full border-4 border-white bg-blue-100 shadow-sm ring-1 ring-gray-200">
-
+          <div className="relative flex flex-col gap-6 p-6 sm:p-8 lg:flex-row lg:items-center lg:justify-between lg:p-10">
+            <div className="flex flex-col items-start gap-5 sm:flex-row sm:items-center">
+              <div className="relative shrink-0">
+                <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl border-2 border-white/30 bg-white/10 text-3xl font-bold text-white shadow-xl sm:h-28 sm:w-28">
                   {isLoading ? (
-                    <div className="h-full w-full animate-pulse bg-gray-200" />
+                    <Loader2 className="h-8 w-8 animate-spin" />
                   ) : profileImage ? (
                     <img
                       src={profileImage}
                       alt={displayName}
                       className="h-full w-full object-cover"
                       onError={(event) => {
-                        event.currentTarget.style.display =
-                          "none";
+                        event.currentTarget.style.display = "none";
                       }}
                     />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-blue-100 text-blue-700">
-                      <span className="text-xl font-bold">
-                        {initials}
-                      </span>
-                    </div>
+                    initials
                   )}
-
                 </div>
 
-
-                {/* PROFILE NAME */}
-
-                <div className="pb-1">
-                  <h2 className="text-xl font-bold text-gray-900">
-                    {isLoading
-                      ? "Loading..."
-                      : displayName}
-                  </h2>
-
-                  <div className="mt-1 flex flex-wrap items-center gap-2">
-                    <span className="flex items-center gap-1 text-sm text-gray-500">
-                      <Mail className="h-3.5 w-3.5" />
-                      {profileEmail}
-                    </span>
-
-                    {profile?.isActive && (
-                      <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">
-                        Active
-                      </span>
-                    )}
-                  </div>
-                </div>
-
+                <span
+                  className={`absolute -bottom-2 -right-2 flex h-7 w-7 items-center justify-center rounded-full border-4 border-[#123d65] ${
+                    profile?.isActive
+                      ? "bg-emerald-400"
+                      : "bg-slate-400"
+                  }`}
+                  title={profile?.isActive ? "Active" : "Inactive"}
+                >
+                  {profile?.isActive ? (
+                    <Check className="h-3.5 w-3.5 text-[#0d2142]" />
+                  ) : (
+                    <Clock3 className="h-3 w-3 text-white" />
+                  )}
+                </span>
               </div>
 
+              <div className="min-w-0">
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white/90">
+                    Trainer Account
+                  </span>
 
-              {/* REFRESH */}
+                  {profile?.isActive && (
+                    <span className="rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-semibold text-emerald-200">
+                      Active
+                    </span>
+                  )}
+                </div>
 
-              <button
-                type="button"
-                onClick={() => refetch()}
-                disabled={isLoading}
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <RefreshCw
-                  className={`h-4 w-4 ${
-                    isLoading
-                      ? "animate-spin"
-                      : ""
-                  }`}
-                />
+                <h2 className="break-words text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                  {isLoading ? "Loading profile..." : displayName}
+                </h2>
 
-                Refresh
-              </button>
+                <p className="mt-2 flex items-center gap-2 break-all text-sm text-blue-100/80">
+                  <Mail className="h-4 w-4 shrink-0" />
+                  {profileEmail}
+                </p>
 
+                <p className="mt-2 flex items-center gap-2 text-sm text-blue-100/70">
+                  <BriefcaseBusiness className="h-4 w-4 shrink-0" />
+                  {profile?.specialization || "Professional Trainer"}
+                </p>
+              </div>
             </div>
+
+            <button
+              type="button"
+              onClick={openEditProfile}
+              disabled={isLoading || !profile}
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#0d2142] shadow-lg transition hover:bg-blue-50 disabled:opacity-50"
+            >
+              <UserRound className="h-4 w-4" />
+              Edit Profile
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="relative grid grid-cols-1 divide-y divide-white/10 border-t border-white/10 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+            <HeroStat
+              icon={<BriefcaseBusiness className="h-4 w-4" />}
+              label="Specialization"
+              value={profile?.specialization || "Not specified"}
+            />
+
+            <HeroStat
+              icon={<Activity className="h-4 w-4" />}
+              label="Experience"
+              value={
+                profile?.yearsOfExperience != null
+                  ? `${profile.yearsOfExperience} ${
+                      profile.yearsOfExperience === 1
+                        ? "year"
+                        : "years"
+                    }`
+                  : "Not provided"
+              }
+            />
+
+            <HeroStat
+              icon={<ShieldCheck className="h-4 w-4" />}
+              label="Account Status"
+              value={profile?.isActive ? "Active Account" : "Inactive Account"}
+            />
           </div>
         </section>
 
-
-        {/* =====================================================
-            ERROR
-        ====================================================== */}
+        {/* PROFILE ERROR */}
 
         {error && (
-          <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <div className="mb-6 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             <X className="mt-0.5 h-5 w-5 shrink-0" />
-
             <div>
-              <p className="font-semibold">
-                Unable to load profile
-              </p>
-
-              <p className="mt-1">
-                {error}
-              </p>
+              <p className="font-bold">Unable to load your profile</p>
+              <p className="mt-1">{error}</p>
+              <button
+                type="button"
+                onClick={() => refetch()}
+                className="mt-2 font-semibold underline underline-offset-2"
+              >
+                Try again
+              </button>
             </div>
           </div>
         )}
 
+        {/* MAIN CONTENT */}
 
-        {/* =====================================================
-            MAIN GRID
-        ====================================================== */}
+        <div className="grid items-start gap-7 xl:grid-cols-[minmax(0,1fr)_340px]">
 
-        <div className="grid gap-6 lg:grid-cols-3">
+          {/* LEFT COLUMN */}
 
-          {/* ===================================================
-              LEFT / MAIN
-          ==================================================== */}
+          <div className="min-w-0 space-y-7">
 
-          <div className="space-y-6 lg:col-span-2">
+            {/* PROFILE INFORMATION */}
 
-            {/* =================================================
-                ACCOUNT
-            ================================================== */}
+            <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-900/[0.02]">
+              <SectionHeader
+                icon={<CircleUserRound className="h-5 w-5" />}
+                title="Personal Information"
+                description="Your personal and contact details."
+                action={
+                  <button
+                    type="button"
+                    onClick={openEditProfile}
+                    className="text-sm font-bold text-[#3B7597] transition hover:text-[#0d2142]"
+                  >
+                    Edit
+                  </button>
+                }
+              />
 
-            <section className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+              {isLoading ? (
+                <div className="grid gap-6 p-6 sm:grid-cols-2">
+                  {[1, 2, 3, 4].map((item) => (
+                    <div key={item} className="animate-pulse">
+                      <div className="h-3 w-24 rounded bg-slate-200" />
+                      <div className="mt-3 h-5 w-40 max-w-full rounded bg-slate-100" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid gap-x-8 gap-y-7 p-5 sm:grid-cols-2 sm:p-7">
+                  <InfoItem
+                    icon={<UserRound />}
+                    label="Full Name"
+                    value={displayName}
+                  />
 
-              <div className="border-b border-gray-100 px-5 py-4 sm:px-6">
-                <div className="flex items-center gap-3">
-                  <CircleUserRound className="h-5 w-5 text-blue-600" />
+                  <InfoItem
+                    icon={<Mail />}
+                    label="Email Address"
+                    value={profileEmail}
+                  />
 
-                  <div>
-                    <h3 className="font-semibold text-gray-900">
-                      Account
-                    </h3>
+                  <InfoItem
+                    icon={<Phone />}
+                    label="Mobile Number"
+                    value={profile?.mobileNumber || "Not provided"}
+                  />
 
-                    <p className="text-xs text-gray-500">
-                      Manage your trainer information.
+                  <InfoItem
+                    icon={<CalendarDays />}
+                    label="Date of Birth"
+                    value={formatDate(profile?.birthDate)}
+                  />
+
+                  <InfoItem
+                    icon={<UserRound />}
+                    label="Gender"
+                    value={profile?.gender || "Not provided"}
+                  />
+
+                  <InfoItem
+                    icon={<MapPin />}
+                    label="Address"
+                    value={profile?.address || "Not provided"}
+                  />
+                </div>
+              )}
+            </section>
+
+            {/* PROFESSIONAL PROFILE */}
+
+            <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-900/[0.02]">
+              <SectionHeader
+                icon={<BriefcaseBusiness className="h-5 w-5" />}
+                title="Professional Profile"
+                description="Your experience, expertise, and trainer biography."
+                action={
+                  <button
+                    type="button"
+                    onClick={openEditProfile}
+                    className="text-sm font-bold text-[#3B7597] transition hover:text-[#0d2142]"
+                  >
+                    Edit
+                  </button>
+                }
+              />
+
+              <div className="space-y-6 p-5 sm:p-7">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-4">
+                    <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-[#24577f]">
+                      <BriefcaseBusiness className="h-5 w-5" />
+                    </div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Specialization
+                    </p>
+                    <p className="mt-2 break-words text-base font-bold text-[#0d2142]">
+                      {profile?.specialization || "Not specified"}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-4">
+                    <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-100 text-cyan-800">
+                      <Activity className="h-5 w-5" />
+                    </div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Years of Experience
+                    </p>
+                    <p className="mt-2 text-base font-bold text-[#0d2142]">
+                      {profile?.yearsOfExperience != null
+                        ? `${profile.yearsOfExperience} ${
+                            profile.yearsOfExperience === 1
+                              ? "year"
+                              : "years"
+                          }`
+                        : "Not provided"}
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="mb-3 flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-[#3B7597]" />
+                    <h4 className="text-sm font-bold text-slate-800">
+                      About Me
+                    </h4>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-100 bg-white p-4 sm:p-5">
+                    <p className="whitespace-pre-wrap break-words text-sm leading-7 text-slate-600">
+                      {profile?.bio?.trim() ||
+                        "You haven't added a professional biography yet. Add a short introduction about your background, expertise, and training experience."}
                     </p>
                   </div>
                 </div>
               </div>
+            </section>
 
+            {/* ACCOUNT ACTIONS */}
 
-              <div className="divide-y divide-gray-100">
+            <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-900/[0.02]">
+              <SectionHeader
+                icon={<LockKeyhole className="h-5 w-5" />}
+                title="Account & Security"
+                description="Manage your sign-in credentials and account protection."
+              />
 
-                {/* PROFILE */}
-
-                <button
-                  type="button"
-                  onClick={openEditProfile}
-                  className="flex w-full items-center justify-between px-5 py-4 text-left transition hover:bg-gray-50 sm:px-6"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                      <UserRound className="h-5 w-5" />
-                    </div>
-
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        Profile Information
-                      </p>
-
-                      <p className="text-sm text-gray-500">
-                        Update your personal and professional information.
-                      </p>
-                    </div>
-                  </div>
-
-                  <ChevronRight className="h-5 w-5 text-gray-400" />
-                </button>
-
-
-                {/* PASSWORD */}
-
+              <div className="p-5 sm:p-7">
                 <button
                   type="button"
                   onClick={openPasswordModal}
-                  className="flex w-full items-center justify-between px-5 py-4 text-left transition hover:bg-gray-50 sm:px-6"
+                  className="group flex w-full items-center gap-4 rounded-xl border border-slate-200 p-4 text-left transition hover:border-[#3B7597]/40 hover:bg-slate-50 sm:p-5"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
-                      <KeyRound className="h-5 w-5" />
-                    </div>
-
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        Change Password
-                      </p>
-
-                      <p className="text-sm text-gray-500">
-                        Change your account password using email verification.
-                      </p>
-                    </div>
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600 transition group-hover:bg-violet-100">
+                    <KeyRound className="h-5 w-5" />
                   </div>
 
-                  <ChevronRight className="h-5 w-5 text-gray-400" />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-slate-800">
+                      Change Password
+                    </p>
+                    <p className="mt-1 text-sm leading-5 text-slate-500">
+                      Verify your email and create a new password.
+                    </p>
+                  </div>
+
+                  <ChevronRight className="h-5 w-5 shrink-0 text-slate-400 transition group-hover:translate-x-1 group-hover:text-[#3B7597]" />
                 </button>
 
-              </div>
-            </section>
-
-
-            {/* =================================================
-                PROFILE SUMMARY
-            ================================================== */}
-
-            <section className="rounded-2xl border border-gray-200 bg-white shadow-sm">
-
-              <div className="border-b border-gray-100 px-5 py-4 sm:px-6">
-                <h3 className="font-semibold text-gray-900">
-                  Profile Information
-                </h3>
-
-                <p className="mt-1 text-xs text-gray-500">
-                  Your current trainer information.
-                </p>
-              </div>
-
-
-              <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
-
-                <InfoItem
-                  label="Full Name"
-                  value={displayName}
-                />
-
-                <InfoItem
-                  label="Email"
-                  value={profileEmail}
-                />
-
-                <InfoItem
-                  label="Mobile Number"
-                  value={
-                    profile?.mobileNumber ||
-                    "Not provided"
-                  }
-                />
-
-                <InfoItem
-                  label="Gender"
-                  value={
-                    profile?.gender ||
-                    "Not provided"
-                  }
-                />
-
-                <InfoItem
-                  label="Birth Date"
-                  value={formatDate(
-                    profile?.birthDate
-                  )}
-                />
-
-                <InfoItem
-                  label="Years of Experience"
-                  value={
-                    profile?.yearsOfExperience !==
-                      null &&
-                    profile?.yearsOfExperience !==
-                      undefined
-                      ? `${profile.yearsOfExperience} year${
-                          profile.yearsOfExperience === 1
-                            ? ""
-                            : "s"
-                        }`
-                      : "Not provided"
-                  }
-                />
-
-                <InfoItem
-                  label="Specialization"
-                  value={
-                    profile?.specialization ||
-                    "Not provided"
-                  }
-                />
-
-                <InfoItem
-                  label="Address"
-                  value={
-                    profile?.address ||
-                    "Not provided"
-                  }
-                />
-
-                <div className="sm:col-span-2">
-                  <InfoItem
-                    label="Bio"
-                    value={
-                      profile?.bio ||
-                      "No bio provided."
-                    }
-                  />
-                </div>
-
-              </div>
-            </section>
-
-          </div>
-
-
-          {/* ===================================================
-              RIGHT
-          ==================================================== */}
-
-          <div className="space-y-6">
-
-            {/* =================================================
-                NOTIFICATIONS
-            ================================================== */}
-
-            <section className="rounded-2xl border border-gray-200 bg-white shadow-sm">
-
-              <div className="border-b border-gray-100 px-5 py-4">
-                <div className="flex items-center gap-3">
-                  <Bell className="h-5 w-5 text-blue-600" />
-
+                <div className="mt-4 flex items-start gap-3 rounded-xl bg-emerald-50/80 p-4">
+                  <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
                   <div>
-                    <h3 className="font-semibold text-gray-900">
-                      Notifications
-                    </h3>
-
-                    <p className="text-xs text-gray-500">
-                      Manage notification preferences.
+                    <p className="text-sm font-bold text-emerald-900">
+                      Protect your account
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-emerald-800/80">
+                      Never share your password or email verification
+                      codes with anyone.
                     </p>
                   </div>
                 </div>
               </div>
+            </section>
+          </div>
 
+          {/* RIGHT SIDEBAR */}
 
-              <div className="space-y-4 p-5">
+          <aside className="space-y-6">
 
+            {/* ACCOUNT STATUS */}
+
+            <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-900/[0.02]">
+              <SectionHeader
+                icon={<ShieldCheck className="h-5 w-5" />}
+                title="Account Status"
+                description="Your current account information."
+              />
+
+              <div className="space-y-5 p-5">
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`flex h-11 w-11 items-center justify-center rounded-xl ${
+                      profile?.isActive
+                        ? "bg-emerald-50 text-emerald-600"
+                        : "bg-amber-50 text-amber-600"
+                    }`}
+                  >
+                    {profile?.isActive ? (
+                      <CheckCircle2 className="h-5 w-5" />
+                    ) : (
+                      <Clock3 className="h-5 w-5" />
+                    )}
+                  </span>
+
+                  <div>
+                    <p className="text-sm font-bold text-slate-800">
+                      {profile?.isActive ? "Active Account" : "Inactive Account"}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {profile?.isActive
+                        ? "Your trainer account is active."
+                        : "Some trainer features may be unavailable."}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-100 pt-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Activation Date
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-slate-700">
+                    {formatDate(profile?.activatedAt)}
+                  </p>
+                </div>
+
+                <div className="border-t border-slate-100 pt-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Account Role
+                  </p>
+                  <p className="mt-2 inline-flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 text-sm font-bold text-[#24577f]">
+                    <BriefcaseBusiness className="h-4 w-4" />
+                    Trainer
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            {/* NOTIFICATIONS */}
+
+            <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-900/[0.02]">
+              <SectionHeader
+                icon={<Bell className="h-5 w-5" />}
+                title="Notifications"
+                description="Manage your notification preferences."
+              />
+
+              <div className="divide-y divide-slate-100 px-5">
                 <ToggleRow
                   label="Email Notifications"
-                  description="Receive important account updates."
+                  description="Important account updates."
                   checked={notifications.email}
                   onChange={(checked) =>
-                    setNotifications(
-                      (current) => ({
-                        ...current,
-                        email: checked,
-                      })
-                    )
+                    setNotifications((current) => ({
+                      ...current,
+                      email: checked,
+                    }))
                   }
                 />
 
                 <ToggleRow
                   label="Training Reminders"
-                  description="Receive reminders for upcoming sessions."
+                  description="Upcoming training sessions."
                   checked={notifications.reminders}
                   onChange={(checked) =>
-                    setNotifications(
-                      (current) => ({
-                        ...current,
-                        reminders: checked,
-                      })
-                    )
+                    setNotifications((current) => ({
+                      ...current,
+                      reminders: checked,
+                    }))
                   }
                 />
 
                 <ToggleRow
                   label="Announcements"
-                  description="Receive system announcements."
+                  description="System announcements."
                   checked={notifications.announcements}
                   onChange={(checked) =>
-                    setNotifications(
-                      (current) => ({
-                        ...current,
-                        announcements: checked,
-                      })
-                    )
+                    setNotifications((current) => ({
+                      ...current,
+                      announcements: checked,
+                    }))
                   }
                 />
+              </div>
 
+              <div className="border-t border-slate-100 bg-slate-50/70 px-5 py-3">
+                <p className="text-xs leading-5 text-slate-500">
+                  Notification switches are currently local
+                  preferences and are not saved to the backend.
+                </p>
               </div>
             </section>
 
+            {/* QUICK ACTION */}
 
-            {/* =================================================
-                SECURITY
-            ================================================== */}
+            <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0d2142] to-[#24577f] p-5 text-white shadow-lg shadow-blue-950/10">
+              <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full border border-white/10" />
+              <div className="absolute -right-2 -top-2 h-20 w-20 rounded-full border border-white/10" />
 
-            <section className="rounded-2xl border border-gray-200 bg-white shadow-sm">
-
-              <div className="border-b border-gray-100 px-5 py-4">
-                <div className="flex items-center gap-3">
-                  <LockKeyhole className="h-5 w-5 text-purple-600" />
-
-                  <div>
-                    <h3 className="font-semibold text-gray-900">
-                      Security
-                    </h3>
-
-                    <p className="text-xs text-gray-500">
-                      Protect your account.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-
-              <div className="p-5">
-
-                <div className="rounded-xl bg-gray-50 p-4">
-                  <div className="flex items-start gap-3">
-                    <ShieldCheck className="mt-0.5 h-5 w-5 text-green-600" />
-
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">
-                        Account Security
-                      </p>
-
-                      <p className="mt-1 text-xs leading-5 text-gray-500">
-                        Keep your password private and update it regularly.
-                      </p>
-                    </div>
-                  </div>
+              <div className="relative">
+                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-white/10">
+                  <UserRound className="h-5 w-5" />
                 </div>
 
+                <h3 className="text-lg font-bold">
+                  Keep your profile updated
+                </h3>
+
+                <p className="mt-2 text-sm leading-6 text-blue-100/80">
+                  Make sure your contact details and professional
+                  information are accurate.
+                </p>
 
                 <button
                   type="button"
-                  onClick={openPasswordModal}
-                  className="mt-4 flex w-full items-center justify-between rounded-lg border border-gray-200 px-4 py-3 text-left transition hover:bg-gray-50"
+                  onClick={openEditProfile}
+                  className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-white transition hover:text-cyan-200"
                 >
-                  <span className="flex items-center gap-3">
-                    <KeyRound className="h-4 w-4 text-gray-500" />
-
-                    <span className="text-sm font-medium text-gray-700">
-                      Change Password
-                    </span>
-                  </span>
-
-                  <ChevronRight className="h-4 w-4 text-gray-400" />
+                  Update profile
+                  <ArrowRight className="h-4 w-4" />
                 </button>
-
               </div>
             </section>
-
-
-            {/* =================================================
-                ACCOUNT STATUS
-            ================================================== */}
-
-            <section className="rounded-2xl border border-gray-200 bg-white shadow-sm">
-
-              <div className="border-b border-gray-100 px-5 py-4">
-                <h3 className="font-semibold text-gray-900">
-                  Account Status
-                </h3>
-              </div>
-
-              <div className="space-y-4 p-5">
-
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                    Account
-                  </p>
-
-                  <div className="mt-2 flex items-center gap-2">
-                    <span
-                      className={`h-2.5 w-2.5 rounded-full ${
-                        profile?.isActive
-                          ? "bg-green-500"
-                          : "bg-gray-400"
-                      }`}
-                    />
-
-                    <span className="text-sm font-medium text-gray-700">
-                      {profile?.isActive
-                        ? "Active"
-                        : "Inactive"}
-                    </span>
-                  </div>
-                </div>
-
-
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                    Activated
-                  </p>
-
-                  <p className="mt-1 text-sm text-gray-700">
-                    {formatDate(
-                      profile?.activatedAt
-                    )}
-                  </p>
-                </div>
-
-              </div>
-            </section>
-
-          </div>
+          </aside>
         </div>
+
+        {/* FOOTER */}
+
+        <footer className="mt-8 flex flex-col gap-2 border-t border-slate-200 pt-5 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+          <p>ACE NextGen Consultancy Inc.</p>
+          <p>Trainer Account Settings</p>
+        </footer>
       </div>
 
-
-      {/* ========================================================
+      {/* ======================================================
           EDIT PROFILE MODAL
-      ========================================================= */}
+      ====================================================== */}
 
       {isEditProfileOpen && (
-        <ModalOverlay
-          onClose={closeEditProfile}
-        >
-          <div className="w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
-
-            {/* HEADER */}
-
-            <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4 sm:px-6">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">
-                  Edit Profile
-                </h2>
-
-                <p className="mt-1 text-sm text-gray-500">
-                  Update your trainer information.
-                </p>
+        <ModalOverlay onClose={closeEditProfile}>
+          <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-5 sm:px-7">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-[#24577f]">
+                  <UserRound className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-[#0d2142]">
+                    Edit Profile
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-500 sm:text-sm">
+                    Update your personal and professional details.
+                  </p>
+                </div>
               </div>
 
               <button
                 type="button"
                 onClick={closeEditProfile}
                 disabled={isUpdating}
-                className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 disabled:opacity-50"
+                aria-label="Close edit profile"
+                className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-
-            {/* BODY */}
-
-            <div className="max-h-[70vh] overflow-y-auto p-5 sm:p-6">
-
+            <div className="overflow-y-auto p-5 sm:p-7">
               {updateError && (
-                <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                  <p className="font-semibold">
-                    Unable to update profile
-                  </p>
-
-                  <p className="mt-1">
-                    {updateError}
-                  </p>
+                <div className="mb-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                  <X className="mt-0.5 h-5 w-5 shrink-0" />
+                  <div>
+                    <p className="font-bold">Unable to update profile</p>
+                    <p className="mt-1">{updateError}</p>
+                  </div>
                 </div>
               )}
 
               {updateSuccess && (
-                <div className="mb-5 flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
-                  <CheckCircle2 className="h-5 w-5" />
-
-                  <span>
-                    Profile updated successfully.
-                  </span>
+                <div className="mb-5 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+                  <div>
+                    <p className="font-bold">Profile updated successfully</p>
+                    <p className="mt-1 text-xs">
+                      Your changes have been saved.
+                    </p>
+                  </div>
                 </div>
               )}
 
+              <div className="mb-6 rounded-xl bg-slate-50 p-4">
+                <p className="text-sm font-bold text-slate-800">
+                  Personal Details
+                </p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  Enter your name and contact information.
+                </p>
+              </div>
 
               <div className="grid gap-5 sm:grid-cols-2">
-
                 <FormField
                   label="First Name"
                   value={firstName}
                   onChange={setFirstName}
                   placeholder="Enter first name"
+                  required
                 />
 
                 <FormField
@@ -1210,146 +946,122 @@ export default function TrainerSettingsPage() {
                   value={lastName}
                   onChange={setLastName}
                   placeholder="Enter last name"
+                  required
                 />
-
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
-                    Birth Date
-                  </label>
-
-                  <input
-                    type="date"
-                    value={birthDate}
-                    onChange={(event) =>
-                      setBirthDate(
-                        event.target.value
-                      )
-                    }
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
-                </div>
-
 
                 <FormField
                   label="Mobile Number"
                   value={mobileNumber}
                   onChange={setMobileNumber}
                   placeholder="Enter mobile number"
+                  type="tel"
                 />
 
-
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
-                    Gender
-                  </label>
-
-                  <select
-                    value={gender}
-                    onChange={(event) =>
-                      setGender(
-                        event.target.value
-                      )
-                    }
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  >
-                    <option value="">
-                      Select gender
-                    </option>
-
-                    <option value="Male">
-                      Male
-                    </option>
-
-                    <option value="Female">
-                      Female
-                    </option>
-
-                    <option value="Other">
-                      Other
-                    </option>
-                  </select>
+                  <label className={labelClass}>Birth Date</label>
+                  <input
+                    type="date"
+                    value={birthDate}
+                    max={new Date().toISOString().split("T")[0]}
+                    onChange={(event) => setBirthDate(event.target.value)}
+                    className={inputClass}
+                  />
                 </div>
 
+                <div>
+                  <label className={labelClass}>Gender</label>
+                  <select
+                    value={gender}
+                    onChange={(event) => setGender(event.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="">Select gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
 
+              <div className="mb-6 mt-8 rounded-xl bg-slate-50 p-4">
+                <p className="text-sm font-bold text-slate-800">
+                  Professional Details
+                </p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  Describe your area of expertise and experience.
+                </p>
+              </div>
+
+              <div className="space-y-5">
                 <FormField
                   label="Specialization"
                   value={specialization}
                   onChange={setSpecialization}
                   placeholder="e.g. Mediation, Leadership"
+                  required
                 />
 
-
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                  <label className={labelClass}>
                     Years of Experience
                   </label>
-
                   <input
                     type="number"
                     min={0}
                     max={100}
+                    step={1}
                     value={yearsOfExperience}
                     onChange={(event) =>
-                      setYearsOfExperience(
-                        event.target.value
-                      )
+                      setYearsOfExperience(event.target.value)
                     }
-                    placeholder="0"
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    placeholder="Enter years of experience"
+                    className={inputClass}
                   />
+                  {yearsOfExperience !== "" &&
+                    (!Number.isFinite(Number(yearsOfExperience)) ||
+                      Number(yearsOfExperience) < 0 ||
+                      Number(yearsOfExperience) > 100 ||
+                      !Number.isInteger(Number(yearsOfExperience))) && (
+                      <p className="mt-2 text-xs text-red-600">
+                        Enter a whole number from 0 to 100.
+                      </p>
+                    )}
                 </div>
 
-
-                <div className="sm:col-span-2">
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
-                    Address
-                  </label>
-
+                <div>
+                  <label className={labelClass}>Address</label>
                   <textarea
                     value={address}
-                    onChange={(event) =>
-                      setAddress(
-                        event.target.value
-                      )
-                    }
+                    onChange={(event) => setAddress(event.target.value)}
                     rows={3}
-                    placeholder="Enter your address"
-                    className="w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    placeholder="Enter your complete address"
+                    className={`${inputClass} resize-y`}
                   />
                 </div>
 
-
-                <div className="sm:col-span-2">
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
-                    Bio
-                  </label>
-
+                <div>
+                  <label className={labelClass}>Professional Biography</label>
                   <textarea
                     value={bio}
-                    onChange={(event) =>
-                      setBio(
-                        event.target.value
-                      )
-                    }
+                    onChange={(event) => setBio(event.target.value)}
                     rows={5}
-                    placeholder="Tell us about yourself and your professional experience."
-                    className="w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    maxLength={2000}
+                    placeholder="Describe your professional background, expertise, and training experience..."
+                    className={`${inputClass} resize-y`}
                   />
+                  <p className="mt-2 text-right text-xs text-slate-400">
+                    {bio.length}/2000 characters
+                  </p>
                 </div>
-
               </div>
             </div>
 
-
-            {/* FOOTER */}
-
-            <div className="flex flex-col-reverse gap-3 border-t border-gray-200 bg-gray-50 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
-
+            <div className="flex flex-col-reverse gap-3 border-t border-slate-100 bg-slate-50/80 px-5 py-4 sm:flex-row sm:justify-end sm:px-7">
               <button
                 type="button"
                 onClick={closeEditProfile}
                 disabled={isUpdating}
-                className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-600 transition hover:bg-slate-100 disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -1359,14 +1071,20 @@ export default function TrainerSettingsPage() {
                 onClick={handleUpdateProfile}
                 disabled={
                   isUpdating ||
-                  !specialization.trim()
+                  !firstName.trim() ||
+                  !lastName.trim() ||
+                  !specialization.trim() ||
+                  (yearsOfExperience.trim() !== "" &&
+                    (!Number.isInteger(Number(yearsOfExperience)) ||
+                      Number(yearsOfExperience) < 0 ||
+                      Number(yearsOfExperience) > 100))
                 }
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0d2142] px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#16365f] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isUpdating ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Saving...
+                    Saving Changes...
                   </>
                 ) : (
                   <>
@@ -1375,217 +1093,193 @@ export default function TrainerSettingsPage() {
                   </>
                 )}
               </button>
-
             </div>
-
           </div>
         </ModalOverlay>
       )}
 
-
-      {/* ========================================================
-          PASSWORD MODAL
-      ========================================================= */}
+      {/* ======================================================
+          CHANGE PASSWORD MODAL
+      ====================================================== */}
 
       {isPasswordModalOpen && (
-        <ModalOverlay
-          onClose={closePasswordModal}
-        >
-          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <ModalOverlay onClose={closePasswordModal}>
+          <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <div className="relative overflow-hidden bg-[#0d2142] px-6 py-6 text-white">
+              <div className="absolute -right-8 -top-12 h-36 w-36 rounded-full border border-white/10" />
+              <div className="absolute -right-2 -top-6 h-24 w-24 rounded-full border border-white/10" />
 
-            {/* HEADER */}
-
-            <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
-
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 text-purple-600">
-                  <KeyRound className="h-5 w-5" />
-                </div>
-
+              <div className="relative flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="font-bold text-gray-900">
+                  <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-white/10">
+                    <KeyRound className="h-5 w-5" />
+                  </div>
+                  <h2 className="text-xl font-bold">
                     Change Password
                   </h2>
-
-                  <p className="text-xs text-gray-500">
-                    Securely update your password.
+                  <p className="mt-1 text-sm leading-5 text-blue-100/80">
+                    Secure your account with a new password.
                   </p>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={closePasswordModal}
+                  disabled={isPasswordLoading}
+                  aria-label="Close change password"
+                  className="rounded-lg p-2 text-white/70 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+                >
+                  <X className="h-5 w-5" />
+                </button>
               </div>
-
-              <button
-                type="button"
-                onClick={closePasswordModal}
-                disabled={isPasswordLoading}
-                className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
-              >
-                <X className="h-5 w-5" />
-              </button>
-
             </div>
 
-
-            {/* PROGRESS */}
-
             {passwordStep !== "success" && (
-              <div className="border-b border-gray-100 px-5 py-4">
-
+              <div className="border-b border-slate-100 px-6 py-5">
                 <div className="flex items-center">
-
                   <PasswordStepIndicator
                     number="1"
                     label="Email"
-                    active={
-                      passwordStep === "email"
-                    }
-                    completed={
-                      passwordStep !== "email"
-                    }
+                    active={passwordStep === "email"}
+                    completed={passwordStep !== "email"}
                   />
-
-                  <div className="h-px flex-1 bg-gray-200" />
-
+                  <div
+                    className={`mx-2 h-px flex-1 ${
+                      passwordStep !== "email"
+                        ? "bg-emerald-400"
+                        : "bg-slate-200"
+                    }`}
+                  />
                   <PasswordStepIndicator
                     number="2"
-                    label="OTP"
-                    active={
-                      passwordStep === "otp"
-                    }
+                    label="Verify"
+                    active={passwordStep === "otp"}
                     completed={
                       passwordStep === "password"
                     }
                   />
-
-                  <div className="h-px flex-1 bg-gray-200" />
-
+                  <div
+                    className={`mx-2 h-px flex-1 ${
+                      passwordStep === "password"
+                        ? "bg-emerald-400"
+                        : "bg-slate-200"
+                    }`}
+                  />
                   <PasswordStepIndicator
                     number="3"
                     label="Password"
-                    active={
-                      passwordStep === "password"
-                    }
+                    active={passwordStep === "password"}
                     completed={false}
                   />
-
                 </div>
               </div>
             )}
 
-
-            {/* BODY */}
-
-            <div className="p-5">
-
+            <div className="p-6">
               {passwordError && (
-                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-3 text-sm leading-5 text-red-700">
                   {passwordError}
                 </div>
               )}
 
-
-              {/* EMAIL */}
+              {/* EMAIL STEP */}
 
               {passwordStep === "email" && (
-                <div>
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void handleSendOtp();
+                  }}
+                >
+                  <h3 className="font-bold text-slate-900">
+                    Verify your email
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    We'll send a verification code to your
+                    registered email address.
+                  </p>
 
-                  <div className="mb-5">
-                    <h3 className="font-semibold text-gray-900">
-                      Verify your email
-                    </h3>
-
-                    <p className="mt-1 text-sm leading-5 text-gray-500">
-                      Enter your account email and we'll send you a verification code.
-                    </p>
-                  </div>
-
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
-                    Email Address
-                  </label>
-
-                  <div className="relative">
-                    <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(event) =>
-                        setEmail(
-                          event.target.value
-                        )
-                      }
-                      placeholder="you@example.com"
-                      className="w-full rounded-lg border border-gray-300 py-2.5 pl-10 pr-3 text-sm outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
-                    />
+                  <div className="mt-5">
+                    <label className={labelClass}>
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="email"
+                        autoComplete="email"
+                        required
+                        value={email}
+                        onChange={(event) => setEmail(event.target.value)}
+                        placeholder="you@example.com"
+                        className={`${inputClass} pl-11`}
+                      />
+                    </div>
                   </div>
 
                   <button
-                    type="button"
-                    onClick={handleSendOtp}
-                    disabled={
-                      isPasswordLoading ||
-                      !email.trim()
-                    }
-                    className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-purple-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    type="submit"
+                    disabled={isPasswordLoading || !email.trim()}
+                    className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#0d2142] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#16365f] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {isPasswordLoading ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Sending...
+                        Sending Code...
                       </>
                     ) : (
-                      "Send Verification Code"
+                      <>
+                        Send Verification Code
+                        <ArrowRight className="h-4 w-4" />
+                      </>
                     )}
                   </button>
-
-                </div>
+                </form>
               )}
 
-
-              {/* OTP */}
+              {/* OTP STEP */}
 
               {passwordStep === "otp" && (
-                <div>
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void handleVerifyOtp();
+                  }}
+                >
+                  <h3 className="font-bold text-slate-900">
+                    Enter verification code
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    Enter the code sent to{" "}
+                    <span className="break-all font-semibold text-slate-700">
+                      {email}
+                    </span>
+                    .
+                  </p>
 
-                  <div className="mb-5">
-                    <h3 className="font-semibold text-gray-900">
-                      Enter verification code
-                    </h3>
-
-                    <p className="mt-1 text-sm leading-5 text-gray-500">
-                      We sent a verification code to{" "}
-                      <span className="font-medium text-gray-700">
-                        {email}
-                      </span>
-                    </p>
+                  <div className="mt-5">
+                    <label className={labelClass}>
+                      Verification Code
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={10}
+                      required
+                      value={otpCode}
+                      onChange={(event) =>
+                        setOtpCode(event.target.value)
+                      }
+                      placeholder="Enter your code"
+                      className={`${inputClass} text-center text-lg font-bold tracking-[0.3em]`}
+                    />
                   </div>
 
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
-                    Verification Code
-                  </label>
-
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    maxLength={10}
-                    value={otpCode}
-                    onChange={(event) =>
-                      setOtpCode(
-                        event.target.value
-                      )
-                    }
-                    placeholder="Enter OTP"
-                    className="w-full rounded-lg border border-gray-300 px-3 py-3 text-center text-lg font-semibold tracking-[0.35em] outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
-                  />
-
                   <button
-                    type="button"
-                    onClick={handleVerifyOtp}
-                    disabled={
-                      isPasswordLoading ||
-                      !otpCode.trim()
-                    }
-                    className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-purple-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    type="submit"
+                    disabled={isPasswordLoading || !otpCode.trim()}
+                    className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#0d2142] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#16365f] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {isPasswordLoading ? (
                       <>
@@ -1599,216 +1293,287 @@ export default function TrainerSettingsPage() {
 
                   <button
                     type="button"
-                    onClick={() =>
-                      setPasswordStep("email")
-                    }
+                    onClick={() => {
+                      setPasswordStep("email");
+                      setOtpCode("");
+                      resetPasswordState();
+                    }}
                     disabled={isPasswordLoading}
-                    className="mt-3 w-full text-sm font-medium text-gray-500 hover:text-gray-700"
+                    className="mt-4 w-full text-sm font-semibold text-slate-500 transition hover:text-[#24577f] disabled:opacity-50"
                   >
                     Use a different email
                   </button>
-
-                </div>
+                </form>
               )}
 
-
-              {/* NEW PASSWORD */}
+              {/* NEW PASSWORD STEP */}
 
               {passwordStep === "password" && (
-                <div>
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void handleResetPassword();
+                  }}
+                >
+                  <h3 className="font-bold text-slate-900">
+                    Create a new password
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    Choose a password that you don't use for
+                    other accounts.
+                  </p>
 
-                  <div className="mb-5">
-                    <h3 className="font-semibold text-gray-900">
-                      Create a new password
-                    </h3>
+                  <div className="mt-5">
+                    <label className={labelClass}>
+                      New Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showNewPassword ? "text" : "password"}
+                        autoComplete="new-password"
+                        minLength={8}
+                        required
+                        value={newPassword}
+                        onChange={(event) =>
+                          setNewPassword(event.target.value)
+                        }
+                        placeholder="Enter new password"
+                        className={`${inputClass} pr-12`}
+                      />
+                      <button
+                        type="button"
+                        aria-label={
+                          showNewPassword
+                            ? "Hide new password"
+                            : "Show new password"
+                        }
+                        onClick={() =>
+                          setShowNewPassword((current) => !current)
+                        }
+                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                      >
+                        {showNewPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
 
-                    <p className="mt-1 text-sm leading-5 text-gray-500">
-                      Choose a strong password for your account.
+                  <div className="mt-4">
+                    <label className={labelClass}>
+                      Confirm Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={
+                          showConfirmPassword
+                            ? "text"
+                            : "password"
+                        }
+                        autoComplete="new-password"
+                        required
+                        value={confirmPassword}
+                        onChange={(event) =>
+                          setConfirmPassword(event.target.value)
+                        }
+                        placeholder="Confirm new password"
+                        className={`${inputClass} pr-12 ${
+                          confirmPassword &&
+                          confirmPassword !== newPassword
+                            ? "border-red-300 focus:border-red-400 focus:ring-red-100"
+                            : ""
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        aria-label={
+                          showConfirmPassword
+                            ? "Hide confirm password"
+                            : "Show confirm password"
+                        }
+                        onClick={() =>
+                          setShowConfirmPassword((current) => !current)
+                        }
+                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+
+                    {confirmPassword &&
+                      confirmPassword !== newPassword && (
+                        <p className="mt-2 text-xs font-medium text-red-600">
+                          Passwords do not match.
+                        </p>
+                      )}
+                  </div>
+
+                  <div className="mt-4 rounded-xl bg-slate-50 p-3">
+                    <p className="text-xs leading-5 text-slate-500">
+                      Use at least 8 characters, or follow any
+                      stronger password requirements configured
+                      by your backend.
                     </p>
                   </div>
 
-
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
-                    New Password
-                  </label>
-
-                  <div className="relative">
-                    <input
-                      type={
-                        showNewPassword
-                          ? "text"
-                          : "password"
-                      }
-                      value={newPassword}
-                      onChange={(event) =>
-                        setNewPassword(
-                          event.target.value
-                        )
-                      }
-                      placeholder="Enter new password"
-                      className="w-full rounded-lg border border-gray-300 py-2.5 pl-3 pr-11 text-sm outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setShowNewPassword(
-                          (current) =>
-                            !current
-                        )
-                      }
-                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-gray-400 hover:text-gray-600"
-                    >
-                      {showNewPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </button>
-                  </div>
-
-
-                  <label className="mb-2 mt-4 block text-sm font-medium text-gray-700">
-                    Confirm Password
-                  </label>
-
-                  <div className="relative">
-                    <input
-                      type={
-                        showConfirmPassword
-                          ? "text"
-                          : "password"
-                      }
-                      value={confirmPassword}
-                      onChange={(event) =>
-                        setConfirmPassword(
-                          event.target.value
-                        )
-                      }
-                      placeholder="Confirm new password"
-                      className="w-full rounded-lg border border-gray-300 py-2.5 pl-3 pr-11 text-sm outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setShowConfirmPassword(
-                          (current) =>
-                            !current
-                        )
-                      }
-                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-gray-400 hover:text-gray-600"
-                    >
-                      {showConfirmPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </button>
-                  </div>
-
-
-                  {confirmPassword &&
-                    newPassword !==
-                      confirmPassword && (
-                      <p className="mt-2 text-xs text-red-600">
-                        Passwords do not match.
-                      </p>
-                    )}
-
-
                   <button
-                    type="button"
-                    onClick={
-                      handleResetPassword
-                    }
+                    type="submit"
                     disabled={
                       isPasswordLoading ||
-                      !newPassword ||
+                      newPassword.length < 8 ||
                       !confirmPassword ||
-                      newPassword !==
-                        confirmPassword
+                      newPassword !== confirmPassword
                     }
-                    className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-purple-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#0d2142] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#16365f] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {isPasswordLoading ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Updating...
+                        Updating Password...
                       </>
                     ) : (
-                      "Update Password"
+                      <>
+                        <LockKeyhole className="h-4 w-4" />
+                        Update Password
+                      </>
                     )}
                   </button>
-
-                </div>
+                </form>
               )}
 
-
-              {/* SUCCESS */}
+              {/* SUCCESS STEP */}
 
               {passwordStep === "success" && (
                 <div className="py-5 text-center">
-
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-green-600">
-                    <CheckCircle2 className="h-7 w-7" />
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                    <CheckCircle2 className="h-9 w-9" />
                   </div>
 
-                  <h3 className="mt-4 text-lg font-bold text-gray-900">
-                    Password Updated
+                  <h3 className="mt-5 text-xl font-bold text-slate-900">
+                    Password Updated!
                   </h3>
 
-                  <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-gray-500">
+                  <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-slate-500">
                     Your password has been updated successfully.
-                    You can now use your new password the next time you sign in.
+                    Use your new password the next time you sign in.
                   </p>
 
                   <button
                     type="button"
                     onClick={closePasswordModal}
-                    className="mt-6 w-full rounded-lg bg-purple-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-purple-700"
+                    className="mt-6 w-full rounded-xl bg-[#0d2142] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#16365f]"
                   >
                     Done
                   </button>
-
                 </div>
               )}
-
             </div>
-
           </div>
         </ModalOverlay>
       )}
-
-    </div>
+    </main>
   );
 }
 
-
 // ============================================================
-// INFO ITEM
+// HERO STAT
 // ============================================================
 
-function InfoItem({
+function HeroStat({
+  icon,
   label,
   value,
 }: {
+  icon: React.ReactNode;
   label: string;
   value: string;
 }) {
   return (
-    <div>
-      <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-        {label}
-      </p>
-
-      <p className="mt-1 break-words text-sm font-medium text-gray-800">
-        {value}
-      </p>
+    <div className="flex items-center gap-3 px-6 py-4">
+      <span className="text-blue-200/80">{icon}</span>
+      <div className="min-w-0">
+        <p className="text-xs font-medium text-blue-100/60">
+          {label}
+        </p>
+        <p className="mt-1 break-words text-sm font-bold text-white">
+          {value}
+        </p>
+      </div>
     </div>
   );
 }
 
+// ============================================================
+// SECTION HEADER
+// ============================================================
+
+function SectionHeader({
+  icon,
+  title,
+  description,
+  action,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 border-b border-slate-100 px-5 py-5 sm:px-7">
+      <div className="flex min-w-0 items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#eaf2f8] text-[#24577f]">
+          {icon}
+        </div>
+        <div className="min-w-0 pt-0.5">
+          <h3 className="font-bold text-[#0d2142]">
+            {title}
+          </h3>
+          <p className="mt-1 text-xs leading-5 text-slate-500 sm:text-sm">
+            {description}
+          </p>
+        </div>
+      </div>
+
+      {action && <div className="shrink-0">{action}</div>}
+    </div>
+  );
+}
+
+// ============================================================
+// INFORMATION ITEM
+// ============================================================
+
+function InfoItem({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex min-w-0 gap-3">
+      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-400">
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+          {label}
+        </p>
+        <p className="mt-1.5 break-words text-sm font-semibold leading-6 text-slate-700">
+          {value}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 // ============================================================
 // FORM FIELD
@@ -1819,36 +1584,39 @@ function FormField({
   value,
   onChange,
   placeholder,
+  type = "text",
+  required = false,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  type?: string;
+  required?: boolean;
 }) {
   return (
     <div>
-      <label className="mb-2 block text-sm font-medium text-gray-700">
+      <label className={labelClass}>
         {label}
+        {required && (
+          <span className="ml-1 text-red-500">*</span>
+        )}
       </label>
 
       <input
-        type="text"
+        type={type}
         value={value}
-        onChange={(event) =>
-          onChange(
-            event.target.value
-          )
-        }
+        required={required}
+        onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+        className={inputClass}
       />
     </div>
   );
 }
 
-
 // ============================================================
-// TOGGLE ROW
+// NOTIFICATION TOGGLE
 // ============================================================
 
 function ToggleRow({
@@ -1863,13 +1631,12 @@ function ToggleRow({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4">
-      <div>
-        <p className="text-sm font-medium text-gray-800">
+    <div className="flex items-center justify-between gap-4 py-5">
+      <div className="min-w-0">
+        <p className="text-sm font-bold text-slate-800">
           {label}
         </p>
-
-        <p className="mt-0.5 text-xs leading-5 text-gray-500">
+        <p className="mt-1 text-xs leading-5 text-slate-500">
           {description}
         </p>
       </div>
@@ -1878,20 +1645,15 @@ function ToggleRow({
         type="button"
         role="switch"
         aria-checked={checked}
-        onClick={() =>
-          onChange(!checked)
-        }
-        className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition ${
-          checked
-            ? "bg-blue-600"
-            : "bg-gray-300"
+        aria-label={label}
+        onClick={() => onChange(!checked)}
+        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+          checked ? "bg-[#24577f]" : "bg-slate-300"
         }`}
       >
         <span
-          className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition ${
-            checked
-              ? "left-6"
-              : "left-1"
+          className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-all ${
+            checked ? "left-6" : "left-1"
           }`}
         />
       </button>
@@ -1899,9 +1661,8 @@ function ToggleRow({
   );
 }
 
-
 // ============================================================
-// PASSWORD STEP INDICATOR
+// PASSWORD STEP
 // ============================================================
 
 function PasswordStepIndicator({
@@ -1916,38 +1677,37 @@ function PasswordStepIndicator({
   completed: boolean;
 }) {
   return (
-    <div className="flex shrink-0 flex-col items-center gap-1.5">
-
+    <div className="flex min-w-0 flex-col items-center gap-2">
       <div
-        className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+        className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition ${
           completed
-            ? "bg-green-600 text-white"
+            ? "bg-emerald-500 text-white"
             : active
-              ? "bg-purple-600 text-white"
-              : "bg-gray-100 text-gray-400"
+              ? "bg-[#0d2142] text-white"
+              : "bg-slate-100 text-slate-400"
         }`}
       >
         {completed ? (
-          <CheckCircle2 className="h-4 w-4" />
+          <Check className="h-4 w-4" />
         ) : (
           number
         )}
       </div>
 
       <span
-        className={`text-[10px] font-medium ${
+        className={`text-[11px] font-semibold ${
           active
-            ? "text-purple-600"
-            : "text-gray-400"
+            ? "text-[#0d2142]"
+            : completed
+              ? "text-emerald-600"
+              : "text-slate-400"
         }`}
       >
         {label}
       </span>
-
     </div>
   );
 }
-
 
 // ============================================================
 // MODAL OVERLAY
@@ -1962,12 +1722,9 @@ function ModalOverlay({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-999 flex items-center justify-center overflow-y-auto bg-[#071426]/60 p-3 backdrop-blur-sm sm:p-6"
       onMouseDown={(event) => {
-        if (
-          event.target ===
-          event.currentTarget
-        ) {
+        if (event.target === event.currentTarget) {
           onClose();
         }
       }}

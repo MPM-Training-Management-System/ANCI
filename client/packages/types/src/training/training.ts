@@ -458,3 +458,25 @@ export interface UpdateLearningSectionRequest {
   mediaUrl?: string | null;
   displayOrder: number;
 }
+
+
+
+export interface CreateManualTrainingSessionRequest {
+  sessionNumber: number;
+  sessionDate: string; // YYYY-MM-DD
+  startTime: string;   // HH:mm:ss
+  endTime: string;     // HH:mm:ss
+  durationHours: number;
+}
+
+export interface CreateManualTrainingScheduleRequest {
+  trainingBatchId: string;
+  sessions: CreateManualTrainingSessionRequest[];
+}
+
+// ==========================================
+// MANUAL TRAINING SCHEDULE RESPONSE
+// ==========================================
+
+export type CreateManualTrainingScheduleResponse =
+  TrainingSession[];

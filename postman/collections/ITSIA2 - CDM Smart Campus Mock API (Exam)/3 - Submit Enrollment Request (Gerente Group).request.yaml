@@ -1,0 +1,19 @@
+$kind: http-request
+url: "{{baseUrl}}/enrollments"
+method: POST
+headers:
+  Content-Type: application/json
+  Accept: application/json
+body:
+  type: json
+  content: |-
+    {
+      "studentId": "2026001",
+      "term": "1st Semester AY 2026-2027",
+      "courseCodes": [
+        "ITSIA2",
+        "ITIASEC2"
+      ]
+    }
+examples: .resources/3 - Submit Enrollment Request (Gerente Group).resources/examples
+order: 3000

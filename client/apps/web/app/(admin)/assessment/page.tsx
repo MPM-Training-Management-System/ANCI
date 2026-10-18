@@ -35,6 +35,7 @@ import {
   Button,
   DataTable,
   PageSection,
+  StatCard,
 } from "@repo/ui/index";
 
 import {
@@ -108,9 +109,6 @@ function getInitials(name?: string | null) {
   ).toUpperCase();
 }
 
-/* =========================================================
-   PAGE
-========================================================= */
 
 export default function TrainerAssessmentsPage() {
   const {
@@ -416,7 +414,7 @@ export default function TrainerAssessmentsPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl space-y-6">
+      <div className="mx-auto max-w-7xl space-y-2">
 
       
 
@@ -427,7 +425,7 @@ export default function TrainerAssessmentsPage() {
             type="button"
             onClick={loadPage}
             disabled={activeLoading}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex  items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <RefreshCw
               className={
@@ -443,58 +441,50 @@ export default function TrainerAssessmentsPage() {
 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
-        
-
+      
         </div>
 
-        {/* =================================================
-            TYPE TABS
-        ================================================= */}
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
+<div className="rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
+  <div className="grid grid-cols-1 gap-1 sm:grid-cols-3">
+    <button
+      type="button"
+      onClick={() => setAssessmentType("written")}
+      className={
+        assessmentType === "written"
+          ? "!rounded-xl !bg-[#002b5c] !px-4 !py-3 !text-sm !font-semibold !text-white shadow-sm transition-colors hover:!bg-[#0d2142]"
+          : "!rounded-xl !bg-white !px-4 !py-3 !text-sm !font-semibold !text-slate-700 shadow-sm transition-colors hover:!bg-slate-100 hover:!text-[#002b5c]"
+      }
+    >
+      Written Assessment
+    </button>
 
-          <div className="grid grid-cols-1 gap-1 sm:grid-cols-3">
+    <button
+      type="button"
+      onClick={() => setAssessmentType("practical")}
+      className={
+        assessmentType === "practical"
+          ? "!rounded-xl !bg-[#002b5c] !px-4 !py-3 !text-sm !font-semibold !text-white shadow-sm transition-colors hover:!bg-[#0d2142]"
+          : "!rounded-xl !bg-white !px-4 !py-3 !text-sm !font-semibold !text-slate-700 shadow-sm transition-colors hover:!bg-slate-100 hover:!text-[#002b5c]"
+      }
+    >
+      Practical Assessment
+    </button>
 
-  <Button
-    type="button"
-    onClick={() => setAssessmentType("written")}
-    className={
-      assessmentType === "written"
-        ? "rounded-xl !bg-[#002b5c] px-4 py-3 text-sm font-semibold !text-white shadow-sm transition hover:!bg-[#0d2142]"
-        : "rounded-xl !bg-white px-4 py-3 text-sm font-semibold !text-black shadow-sm transition hover:!bg-[#eef4f8] hover:!text-black"
-    }
-  >
-    Written Assessment
-  </Button>
+    <button
+      type="button"
+      onClick={() => setAssessmentType("participation")}
+      className={
+        assessmentType === "participation"
+          ? "!rounded-xl !bg-[#002b5c] !px-4 !py-3 !text-sm !font-semibold !text-white shadow-sm transition-colors hover:!bg-[#0d2142]"
+          : "!rounded-xl !bg-white !px-4 !py-3 !text-sm !font-semibold !text-slate-700 shadow-sm transition-colors hover:!bg-slate-100 hover:!text-[#002b5c]"
+      }
+    >
+      Active Participation
+    </button>
+  </div>
+</div>
 
-  <Button
-    type="button"
-    onClick={() => setAssessmentType("practical")}
-    className={
-      assessmentType === "practical"
-        ? "rounded-xl !bg-[#002b5c] px-4 py-3 text-sm font-semibold !text-white shadow-sm transition hover:!bg-[#0d2142]"
-        : "rounded-xl !bg-white px-4 py-3 text-sm font-semibold !text-black shadow-sm transition hover:!bg-[#eef4f8] hover:!text-black"
-    }
-  >
-    Practical Assessment
-  </Button>
-
-  <Button
-    type="button"
-    onClick={() => setAssessmentType("participation")}
-    className={
-      assessmentType === "participation"
-        ? "rounded-xl !bg-[#002b5c] px-4 py-3 text-sm font-semibold !text-white shadow-sm transition hover:!bg-[#0d2142]"
-        : "rounded-xl !bg-white px-4 py-3 text-sm font-semibold !text-black shadow-sm transition hover:!bg-[#eef4f8] hover:!text-black"
-    }
-  >
-    Active Participation
-  </Button>
-
-
-          </div>
-
-        </div>
 
         {/* =================================================
             ERROR
@@ -758,104 +748,57 @@ function WrittenAssessmentSection({
   return (
     <div className="space-y-6">
 
-      {/* TRAINING INFO */}
-
-      {assessment && (
-        <AssessmentInfoCard
-          title={
-            assessment.title
-          }
-          batchCode={
-            assessment.batchCode
-          }
-          published={
-            assessment.isPublished
-          }
-          icon={
-            <FileText className="h-6 w-6 text-slate-700" />
-          }
-          meta={
-            <>
-              <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
-                <FileText className="h-3.5 w-3.5" />
-
-                {assessment.questionCount ??
-                  0}{" "}
-                questions
-              </span>
-
-              <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
-                <CalendarDays className="h-3.5 w-3.5" />
-
-                Created{" "}
-                {formatDate(
-                  assessment.createdAt,
-                )}
-              </span>
-            </>
-          }
-        />
-      )}
+   
 
       {/* STATS */}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
         <StatCard
+        variant="primary"
           icon={
-            <Users className="h-5 w-5" />
+            Users 
           }
-          label="Participants"
+          title="Participants"
           value={
             totalParticipants
           }
         />
 
         <StatCard
+        variant="success"
           icon={
-            <CheckCircle2 className="h-5 w-5" />
+            CheckCircle2 
           }
-          label="Passed"
+          title="Passed"
           value={
             passedParticipants
           }
         />
 
         <StatCard
+        variant="danger"
           icon={
-            <CircleAlert className="h-5 w-5" />
+            CircleAlert 
           }
-          label="Failed"
+          title="Failed"
           value={
             failedParticipants
           }
         />
 
         <StatCard
-          icon={
-            <FileText className="h-5 w-5" />
-          }
-          label="Average Score"
+        variant="primary"
+          icon={FileText}
+          title="Average Score"
           value={`${averageScore.toFixed(
-            1,
-          )}%`}
-        />
+            1
+          )}%`}        />
 
       </div>
 
-      {/* TABLE */}
+    
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-
-        <div className="border-b border-slate-200 px-5 py-4">
-          <h2 className="text-base font-bold text-slate-900">
-            Participant Submissions
-          </h2>
-
-          <p className="mt-1 text-sm text-slate-500">
-            Review participant written assessment submissions.
-          </p>
-        </div>
 
         {isLoading ? (
           <LoadingRows />
@@ -870,6 +813,7 @@ function WrittenAssessmentSection({
           />
         ) : (
           <DataTable
+        
             columns={
               writtenColumns
             }
@@ -879,7 +823,6 @@ function WrittenAssessmentSection({
 
       </div>
 
-    </div>
   );
 }
 
@@ -926,55 +869,7 @@ function PracticalAssessmentSection({
   return (
     <div className="space-y-6">
 
-      {/* INFO */}
-
-      {assessment && (
-        <AssessmentInfoCard
-          title={
-            assessment.title
-          }
-          batchCode={
-            participants[0]
-              ?.batchCode
-          }
-          published={
-            assessment.isPublished
-          }
-          icon={
-            <ClipboardCheck className="h-6 w-6 text-slate-700" />
-          }
-          meta={
-            <>
-              <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
-                <ClipboardCheck className="h-3.5 w-3.5" />
-
-                {
-                  assessment.criteria
-                    .length
-                }{" "}
-                criteria
-              </span>
-
-              <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
-                Passing{" "}
-                {
-                  assessment.passingPercentage
-                }
-                %
-              </span>
-
-              <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
-                <CalendarDays className="h-3.5 w-3.5" />
-
-                Created{" "}
-                {formatDate(
-                  assessment.createdAt,
-                )}
-              </span>
-            </>
-          }
-        />
-      )}
+     
 
       {!assessment &&
         !isLoading && (
@@ -1002,40 +897,44 @@ function PracticalAssessmentSection({
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
             <StatCard
+            variant="primary"
               icon={
-                <Users className="h-5 w-5" />
+                Users 
               }
-              label="Participants"
+              title="Participants"
               value={
                 participants.length
               }
             />
 
             <StatCard
+            variant="success"
               icon={
-                <ClipboardCheck className="h-5 w-5" />
+                ClipboardCheck 
               }
-              label="Evaluated"
+              title="Evaluated"
               value={
                 evaluatedCount
               }
             />
 
             <StatCard
+            variant="success"
               icon={
-                <CheckCircle2 className="h-5 w-5" />
+                CheckCircle2 
               }
-              label="Passed"
+              title="Passed"
               value={
                 passedCount
               }
             />
 
             <StatCard
+            variant="primary"
               icon={
-                <FileText className="h-5 w-5" />
+                FileText
               }
-              label="Average Score"
+              title="Average Score"
               value={`${averageScore.toFixed(
                 1,
               )}%`}
@@ -1156,43 +1055,104 @@ function ActiveParticipationSection({
   return (
     <div className="space-y-6">
 
-      {/* =================================================
-          PARTICIPATION HEADER
-      ================================================= */}
+      {batch && (
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <StatCard
+            variant="primary"
+              icon={
+                Users 
+              }
+              title="Participants"
+              value={
+                totalParticipants
+              }
+            />
 
-        <div className="flex flex-col gap-5">
+            <StatCard
+            variant="success"
+              icon={
+                MessageCircle 
+              }
+              title="Recited This Session"
+              value={
+                recordedCount
+              }
+            />
 
-          <div className="flex items-start gap-4">
+            <StatCard
+            variant="success"
+              icon={
+                CheckCircle2
+              }
+              title="Requirement Completed"
+              value={
+                completedCount
+              }
+            />
 
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-100">
-              <MessageCircle className="h-6 w-6 text-slate-700" />
-            </div>
-
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Active Participation
-              </p>
-
-              <h2 className="mt-1 text-xl font-bold text-slate-900">
-                Recitation Records
-              </h2>
-
-              <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
-                Record one recitation per participant for each training session.
-                Recitations are accumulated throughout the training.
-              </p>
-            </div>
+            <StatCard
+            variant="warning"
+              icon={
+                ClipboardCheck
+              }
+              title="Required Recitations"
+              value={
+                required || "—"
+              }
+            />
 
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Training Session
-            </label>
+          {actionError && (
+            <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
 
-            <select
+              <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+
+              <div>
+                <p className="text-sm font-semibold text-red-800">
+                  Participation action failed
+                </p>
+
+                <p className="mt-1 text-sm text-red-700">
+                  {actionError}
+                </p>
+              </div>
+
+            </div>
+          )}
+
+        
+
+            {isLoading ? (
+              <LoadingRows />
+            ) : participants.length ===
+              0 ? (
+              <EmptyState
+                icon={
+                  <Users className="h-7 w-7 text-slate-400" />
+                }
+                title={
+                  session
+                    ? "No approved participants"
+                    : "Select a training session"
+                }
+                description={
+                  session
+                    ? "Approved participants for this training session will appear here."
+                    : "Select a training session to load participants."
+                }
+              />
+            ) : (
+              <DataTable
+                columns={
+                  participationColumns
+                }
+                data={
+                  tableData
+                }
+                toolbar={  <select
               value={
                 selectedSessionId
               }
@@ -1228,227 +1188,11 @@ function ActiveParticipationSection({
                   </option>
                 ),
               )}
-            </select>
-          </div>
-
-        </div>
-
-      </div>
-
-      {/* =================================================
-          SELECTED TRAINING
-      ================================================= */}
-
-      {batch && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-
-            <div>
-
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Selected Training
-              </p>
-
-              <h2 className="mt-1 text-lg font-bold text-slate-900">
-                {batch.batchCode ||
-                  "Training Batch"}
-              </h2>
-
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-
-                {batch.location && (
-                  <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                    {
-                      batch.location
-                    }
-                  </span>
-                )}
-
-                {batch.startDate && (
-                  <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
-                    <CalendarDays className="h-3.5 w-3.5" />
-
-                    {formatDate(
-                      batch.startDate,
-                    )}
-
-                    {batch.endDate
-                      ? ` – ${formatDate(
-                          batch.endDate,
-                        )}`
-                      : ""}
-                  </span>
-                )}
-
-              </div>
-
-            </div>
-
-            <div className="rounded-xl bg-slate-50 px-5 py-4 text-right">
-
-              <p className="text-xs text-slate-400">
-                Required Recitations
-              </p>
-
-              <p className="mt-1 text-2xl font-bold text-slate-900">
-                {required ||
-                  "—"}
-              </p>
-
-              <p className="mt-0.5 text-xs text-slate-500">
-                For the entire training
-              </p>
-
-            </div>
-
-          </div>
-
-          {session && (
-            <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
-
-              <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                Session{" "}
-                {session.sessionNumber ??
-                  "—"}
-              </span>
-
-              <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
-                <CalendarDays className="h-3.5 w-3.5" />
-
-                {formatDate(
-                  session.sessionDate,
-                )}
-              </span>
-
-              {(session.startTime ||
-                session.endTime) && (
-                <span className="text-xs text-slate-500">
-                  {session.startTime ||
-                    "—"}{" "}
-                  {session.endTime
-                    ? `– ${session.endTime}`
-                    : ""}
-                </span>
-              )}
-
-            </div>
-          )}
-
-        </div>
-      )}
-
-      {/* =================================================
-          STATS + TABLE
-      ================================================= */}
-
-      {batch && (
-        <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-
-            <StatCard
-              icon={
-                <Users className="h-5 w-5" />
-              }
-              label="Participants"
-              value={
-                totalParticipants
-              }
-            />
-
-            <StatCard
-              icon={
-                <MessageCircle className="h-5 w-5" />
-              }
-              label="Recited This Session"
-              value={
-                recordedCount
-              }
-            />
-
-            <StatCard
-              icon={
-                <CheckCircle2 className="h-5 w-5" />
-              }
-              label="Requirement Completed"
-              value={
-                completedCount
-              }
-            />
-
-            <StatCard
-              icon={
-                <ClipboardCheck className="h-5 w-5" />
-              }
-              label="Required Recitations"
-              value={
-                required || "—"
-              }
-            />
-
-          </div>
-
-          {actionError && (
-            <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
-
-              <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
-
-              <div>
-                <p className="text-sm font-semibold text-red-800">
-                  Participation action failed
-                </p>
-
-                <p className="mt-1 text-sm text-red-700">
-                  {actionError}
-                </p>
-              </div>
-
-            </div>
-          )}
-
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-
-            <div className="border-b border-slate-200 px-5 py-4">
-              <h2 className="text-base font-bold text-slate-900">
-                Participant Participation
-              </h2>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Record recitation for the selected session and monitor cumulative progress.
-              </p>
-            </div>
-
-            {isLoading ? (
-              <LoadingRows />
-            ) : participants.length ===
-              0 ? (
-              <EmptyState
-                icon={
-                  <Users className="h-7 w-7 text-slate-400" />
-                }
-                title={
-                  session
-                    ? "No approved participants"
-                    : "Select a training session"
-                }
-                description={
-                  session
-                    ? "Approved participants for this training session will appear here."
-                    : "Select a training session to load participants."
-                }
-              />
-            ) : (
-              <DataTable
-                columns={
-                  participationColumns
-                }
-                data={
-                  tableData
-                }
+            </select>}
               />
             )}
 
-          </div>
+         
         </>
       )}
 
@@ -2254,121 +1998,7 @@ function PracticalResultModal({
   );
 }
 
-/* =========================================================
-   ASSESSMENT INFO
-========================================================= */
 
-function AssessmentInfoCard({
-  title,
-  batchCode,
-  published,
-  icon,
-  meta,
-}: {
-  title: string;
-  batchCode?: string | null;
-  published: boolean;
-  icon: ReactNode;
-  meta: ReactNode;
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-
-        <div className="flex items-start gap-4">
-
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-100">
-            {icon}
-          </div>
-
-          <div>
-
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Assigned Assessment
-            </p>
-
-            <h2 className="mt-1 text-xl font-bold text-slate-900">
-              {title}
-            </h2>
-
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-
-              {batchCode && (
-                <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                  {batchCode}
-                </span>
-              )}
-
-              {meta}
-
-            </div>
-
-          </div>
-
-        </div>
-
-        <span
-          className={
-            published
-              ? "inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700"
-              : "inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700"
-          }
-        >
-          {published
-            ? "Published"
-            : "Draft"}
-        </span>
-
-      </div>
-
-    </div>
-  );
-}
-
-/* =========================================================
-   STAT CARD
-========================================================= */
-
-function StatCard({
-  icon,
-  label,
-  value,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string | number;
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-
-      <div className="flex items-center justify-between">
-
-        <div>
-
-          <p className="text-sm font-medium text-slate-500">
-            {label}
-          </p>
-
-          <p className="mt-1 text-2xl font-bold text-slate-900">
-            {value}
-          </p>
-
-        </div>
-
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-          {icon}
-        </div>
-
-      </div>
-
-    </div>
-  );
-}
-
-/* =========================================================
-   RESULT BADGE
-========================================================= */
 
 function ResultBadge({
   passed,

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 
 import {
@@ -25,6 +26,12 @@ export default function SidebarFooter({
 
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Siguraduhing naka-mount na sa client bago mag-render ng portal
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -102,14 +109,14 @@ export default function SidebarFooter({
       </div>
 
       {/* =====================================================
-          LOGOUT MODAL
+          LOGOUT MODAL (RENDERED VIA PORTAL)
           ===================================================== */}
-      {open && (
+      {open && mounted && createPortal(
         <div
           className="
             fixed
             inset-0
-            z-[999]
+            z-[9999]
             flex
             items-center
             justify-center
@@ -303,7 +310,8 @@ export default function SidebarFooter({
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

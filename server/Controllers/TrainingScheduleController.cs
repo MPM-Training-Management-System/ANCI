@@ -1,3 +1,4 @@
+
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,10 +21,7 @@ public class TrainingScheduleController : ControllerBase
         _scheduleService = scheduleService;
     }
 
-    // ============================================================
-    // GET SCHEDULE RECOMMENDATION
-    // GET /api/training-batches/{trainingBatchId}/schedule/recommendation
-    // ============================================================
+
 
     [HttpGet("recommendation")]
     [Authorize(Roles = "Admin,Trainer")]
@@ -34,29 +32,22 @@ public class TrainingScheduleController : ControllerBase
         {
             var result =
                 await _scheduleService.GetRecommendationAsync(
-                    trainingBatchId
-                );
+                    trainingBatchId);
 
             return Ok(result);
         }
         catch (KeyNotFoundException ex)
         {
-            return NotFound(new
-            {
-                message = ex.Message
-            });
+            return NotFound(new { message = ex.Message });
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
+            return BadRequest(new { message = ex.Message });
         }
     }
 
     // ============================================================
-    // GENERATE TRAINING SCHEDULE
+    // GENERATE AUTOMATIC TRAINING SCHEDULE
     // POST /api/training-batches/{trainingBatchId}/schedule/generate
     // ============================================================
 
@@ -72,40 +63,57 @@ public class TrainingScheduleController : ControllerBase
             var result =
                 await _scheduleService.GenerateScheduleAsync(
                     trainingBatchId,
-                    request
-                );
+                    request);
 
             return Ok(result);
         }
         catch (KeyNotFoundException ex)
         {
-            return NotFound(new
-            {
-                message = ex.Message
-            });
+            return NotFound(new { message = ex.Message });
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
+            return BadRequest(new { message = ex.Message });
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
+            return BadRequest(new { message = ex.Message });
         }
     }
 
+[HttpPost("manual/preview")]
+[Authorize(Roles = "Admin")]
+public async Task<ActionResult<IReadOnlyList<TrainingSessionDto>>>
+    CreateManualSchedulePreview(
+        Guid trainingBatchId,
+        [FromBody] CreateManualTrainingScheduleRequest request)
+{
+    try
+    {
+        request.TrainingBatchId = trainingBatchId;
+
+        var result =
+            await _scheduleService.CreateManualScheduleAsync(request);
+
+        return Ok(result);
+    }
+    catch (KeyNotFoundException ex)
+    {
+        return NotFound(new { message = ex.Message });
+    }
+    catch (ArgumentException ex)
+    {
+        return BadRequest(new { message = ex.Message });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Conflict(new { message = ex.Message });
+    }
+}
+
     // ============================================================
-    // GET TRAINING SCHEDULE
-    //
+    // GET SAVED TRAINING SCHEDULE
     // GET /api/training-batches/{trainingBatchId}/schedule
-    //
-    // ADMIN / TRAINER ONLY
     // ============================================================
 
     [HttpGet]
@@ -117,33 +125,23 @@ public class TrainingScheduleController : ControllerBase
         {
             var result =
                 await _scheduleService.GetScheduleAsync(
-                    trainingBatchId
-                );
+                    trainingBatchId);
 
             return Ok(result);
         }
         catch (KeyNotFoundException ex)
         {
-            return NotFound(new
-            {
-                message = ex.Message
-            });
+            return NotFound(new { message = ex.Message });
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
+            return BadRequest(new { message = ex.Message });
         }
     }
 
     // ============================================================
     // GET PARTICIPANT TRAINING SCHEDULE
-    //
     // GET /api/training-batches/{trainingBatchId}/schedule/participant
-    //
-    // PARTICIPANT ONLY
     // ============================================================
 
     [HttpGet("participant")]
@@ -168,37 +166,27 @@ public class TrainingScheduleController : ControllerBase
             var result =
                 await _scheduleService.GetParticipantScheduleAsync(
                     trainingBatchId,
-                    participantUserId
-                );
+                    participantUserId);
 
             return Ok(result);
         }
         catch (KeyNotFoundException ex)
         {
-            return NotFound(new
-            {
-                message = ex.Message
-            });
+            return NotFound(new { message = ex.Message });
         }
-        catch (UnauthorizedAccessException ex)
+        catch (UnauthorizedAccessException)
         {
             return Forbid();
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
+            return BadRequest(new { message = ex.Message });
         }
     }
 
     // ============================================================
     // APPROVE TRAINING SCHEDULE
-    //
     // POST /api/training-batches/{trainingBatchId}/schedule/approve
-    //
-    // ADMIN / TRAINER ONLY
     // ============================================================
 
     [HttpPost("approve")]
@@ -211,8 +199,7 @@ public class TrainingScheduleController : ControllerBase
         {
             await _scheduleService.ApproveScheduleAsync(
                 trainingBatchId,
-                request.Sessions
-            );
+                request.Sessions);
 
             return Ok(new
             {
@@ -221,21 +208,18 @@ public class TrainingScheduleController : ControllerBase
         }
         catch (KeyNotFoundException ex)
         {
-            return NotFound(new
-            {
-                message = ex.Message
-            });
+            return NotFound(new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
+            return BadRequest(new { message = ex.Message });
         }
     }
 }
-
 
 // ============================================================
 // APPROVE TRAINING SCHEDULE REQUEST

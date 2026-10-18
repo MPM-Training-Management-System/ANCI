@@ -11,9 +11,6 @@ import type {
 } from "@repo/types";
 
 
-// ============================================================
-// PROPS
-// ============================================================
 
 interface TrainerAssignmentModalProps {
   batch: TrainingBatch;

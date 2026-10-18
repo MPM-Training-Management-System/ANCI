@@ -46,8 +46,9 @@ import type {
   TrainerAssignment,
   AssignTrainerRequest,
   TrainingScheduleRecommendation,
-GenerateTrainingScheduleRequest,
-TrainingSession
+  GenerateTrainingScheduleRequest,
+  CreateManualTrainingScheduleRequest,
+  TrainingSession,
 } from "@repo/types";
 import TrainingScheduleAction from "./TrainingScheduleAction";
 import {
@@ -452,6 +453,9 @@ export default function TrainingProgramsPage() {
   generateSchedule,
   getSchedule,
   approveSchedule,
+
+  createManualSchedule,
+  isCreatingManualSchedule,
 
   // BATCH LOADING
   isLoading: isLoadingBatches,
@@ -2239,6 +2243,9 @@ const saveBatch =
               openAssignTrainer
             }
 
+             createManualSchedule={createManualSchedule}
+  isCreatingManualSchedule={isCreatingManualSchedule}
+
             onRemoveTrainer={
               handleRemoveTrainer
             }
@@ -2565,10 +2572,6 @@ approveSchedule={
   );
 }
 
-// ============================================================
-// PROGRAM DETAILS MODAL
-// ============================================================
-
 function ProgramDetailsModal({
   program,
   batches,
@@ -2586,14 +2589,18 @@ function ProgramDetailsModal({
   onUpdateBatchStatus,
   isUpdatingStatus,
 
-  // SCHEDULE
+  // Schedule state
   scheduleRecommendation,
   trainingSessions,
   isLoadingSchedule,
   isGeneratingSchedule,
+  isCreatingManualSchedule,
   scheduleError,
+
+  // Schedule actions
   getScheduleRecommendation,
   generateSchedule,
+  createManualSchedule,
   getSchedule,
   approveSchedule,
 }: {
@@ -2642,21 +2649,16 @@ function ProgramDetailsModal({
     status: string,
   ) => Promise<void>;
 
-    scheduleRecommendation:
-    TrainingScheduleRecommendation | null;
+  
+  // Schedule state
+  scheduleRecommendation: TrainingScheduleRecommendation | null;
+  trainingSessions: TrainingSession[];
+  isLoadingSchedule: boolean;
+  isGeneratingSchedule: boolean;
+  isCreatingManualSchedule: boolean;
+  scheduleError: string | null;
 
-  trainingSessions:
-    TrainingSession[];
-
-  isLoadingSchedule:
-    boolean;
-
-  isGeneratingSchedule:
-    boolean;
-
-  scheduleError:
-    string | null;
-
+  // Schedule actions
   getScheduleRecommendation: (
     trainingBatchId: string,
   ) => Promise<TrainingScheduleRecommendation | null>;
@@ -2666,16 +2668,22 @@ function ProgramDetailsModal({
     request: GenerateTrainingScheduleRequest,
   ) => Promise<TrainingSession[] | null>;
 
+  createManualSchedule: (
+    trainingBatchId: string,
+    request: CreateManualTrainingScheduleRequest,
+  ) => Promise<TrainingSession[] | null>;
+
   getSchedule: (
     trainingBatchId: string,
   ) => Promise<TrainingSession[] | null>;
 
   approveSchedule: (
-  trainingBatchId: string,
-  sessions: TrainingSession[],
-) => Promise<boolean>;
+    trainingBatchId: string,
+    sessions: TrainingSession[],
+  ) => Promise<boolean>;
 
   isUpdatingStatus: boolean;
+
 }) {
   return (
     <Modal
@@ -2953,6 +2961,8 @@ function ProgramDetailsModal({
   scheduleRecommendation={
     scheduleRecommendation
   }
+  createManualSchedule={createManualSchedule}
+isCreatingManualSchedule={isCreatingManualSchedule}
   trainingSessions={
     trainingSessions
   }

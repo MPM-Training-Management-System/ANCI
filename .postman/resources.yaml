@@ -1,0 +1,15 @@
+workspace:
+  id: f2418e8b-c212-4e81-8580-5c62fc21629b
+
+# Each entry here maps a local resource to one or more corresponding objects in Postman Cloud
+
+cloudResources:
+  collections:
+    ../postman/collections/ITSIA2 - CDM Smart Campus Mock API (Exam): d1724aa4-383c-4f1a-988c-efa720a19860
+
+localResources:
+  specs:
+    - ../postman/specs/MOCKAPI/MOCKAPI.json
+resourceNameMappings:
+  specs:
+    - ../postman/specs/MOCKAPI/MOCKAPI.json: MOCKAPI

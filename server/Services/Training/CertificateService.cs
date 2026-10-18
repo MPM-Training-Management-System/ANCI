@@ -701,4 +701,31 @@ private async Task GenerateCertificatePdfAsync(
 
         return new string(result);
     }
+
+    
+    // =========================================================
+    // GET CERTIFICATES FOR THE AUTHENTICATED PARTICIPANT
+    // =========================================================
+
+    public async Task<IReadOnlyList<CertificateDto>>
+        GetMyCertificatesAsync(Guid userId)
+    {
+        var certificates = await _db.Certificates
+            .AsNoTracking()
+            .Include(x => x.Enrollment)
+                .ThenInclude(x => x.ParticipantProfile)
+                    .ThenInclude(x => x.User)
+            .Include(x => x.Enrollment)
+                .ThenInclude(x => x.TrainingBatch)
+                    .ThenInclude(x => x.TrainingProgram)
+            .Where(x =>
+                x.Enrollment.ParticipantProfile.UserId == userId)
+            .OrderByDescending(x => x.IssuedAt)
+            .ToListAsync();
+
+        return certificates
+            .Select(MapToDto)
+            .ToList();
+    }
+
 }

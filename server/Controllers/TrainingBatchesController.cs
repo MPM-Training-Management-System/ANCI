@@ -21,11 +21,7 @@ public class TrainingBatchesController : ControllerBase
     }
 
 
-    // ==========================================
-    // GET /api/training-batches
-    // ==========================================
-    // Admin, Trainer, Participant
-    // ==========================================
+
 
     [HttpGet]
     [Authorize(Roles = "Admin,Trainer,Participant")]
@@ -37,13 +33,6 @@ public class TrainingBatchesController : ControllerBase
         return Ok(result);
     }
 
-    // ==========================================
-// GET /api/training-batches/assigned
-// ==========================================
-// Trainer only
-// Returns only batches assigned to
-// the currently logged-in trainer
-// ==========================================
 
 [HttpGet("assigned")]
 [Authorize(Roles = "Trainer")]

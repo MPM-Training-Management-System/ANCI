@@ -5,7 +5,17 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import CountryPicker, {
+  type CountryCode,
+  type Country,
+} from "react-native-country-picker-modal";
 
+import {
+  parsePhoneNumberFromString,
+  isSupportedCountry,
+  type CountryCode as PhoneCountryCode,
+} from "libphonenumber-js";
+import { AppAlert } from "@repo/ui-mobile";
 import {
   ActivityIndicator,
   Alert,
@@ -41,7 +51,7 @@ import {
 
 import { authApi } from "@/api/api";
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
 type ProfileImage = {
   uri: string;
@@ -52,6 +62,9 @@ type ProfileImage = {
 type LocationItem = {
   code: string;
   name: string;
+  region?: string | null;
+  province?: string | null;
+  type?: string | null;
 };
 
 type InputProps = {
@@ -81,20 +94,77 @@ type DropdownButtonProps = {
   disabled?: boolean;
 };
 
-const PSGC_API = "https://psgc.gitlab.io/api";
+const PSGC_API = "https://psgc.cloud/api/v2";
+const CALOOCAN_BARANGAY_ALIASES: Record<string, string> = {
+  "1380100168": "Deparo",
+  "1380100169": "BF Homes Caloocan",
+  "1380100170": "Deparo 2",
+  "1380100171": "Bagumbong",
+  "1380100172": "Urduja Village",
+  "1380100173": "Congress",
+  "1380100174": "Camarin (Central)",
+  "1380100175": "Camarin",
+  "1380100177": "Camarin (Cielito)",
+  "1380100178": "Camarin (Kiko)",
+  "1380100179": "Amparo",
+  "1380100180": "Tala",
+  "1380100181": "Pangarap Village",
+  "1380100183": "Tala",
+};
+
+const getBarangayDisplayName = (
+  item: LocationItem,
+  municipalityCode?: string
+): string => {
+  if (municipalityCode === "1380100000") {
+    return (
+      CALOOCAN_BARANGAY_ALIASES[item.code] ??
+      item.name.trim()
+    );
+  }
+
+  return item.name.trim();
+};
 
 const GOOGLE_REGISTRATION_TOKEN_KEY =
   "google_registration_id_token";
+
+const educationalStatusOptions = [
+  "Currently Studying",
+  "Undergraduate",
+  "Graduated",
+  "Not Currently Studying",
+];
+
+const employmentStatusOptions = [
+  "Employed",
+  "Self-Employed",
+  "Unemployed",
+  "Student",
+  "Freelance",
+  "Retired",
+];
+
+const validIdTypeOptions = [
+  "Philippine National ID",
+  "Passport",
+  "Driver's License",
+  "UMID",
+  "PhilHealth ID",
+  "Postal ID",
+  "Voter's ID",
+  "SSS ID",
+  "PRC ID",
+  "Senior Citizen ID",
+  "PWD ID",
+  "Other",
+];
 
 const genderOptions = [
   "Male",
   "Female",
   "Prefer not to say",
 ];
-
-// ======================================================
-// REUSABLE INPUT
-// ======================================================
 
 function Input({
   label,
@@ -124,7 +194,7 @@ function Input({
         <Ionicons
           name={icon}
           size={20}
-          color="#2563EB"
+          color="#002B5C"
           style={styles.inputIcon}
         />
 
@@ -147,9 +217,27 @@ function Input({
   );
 }
 
-// ======================================================
-// DROPDOWN BUTTON
-// ======================================================
+type SummaryRowProps = {
+  label: string;
+  value?: string | null;
+};
+
+function SummaryRow({
+  label,
+  value,
+}: SummaryRowProps) {
+  return (
+    <View style={styles.summaryRow}>
+      <Text style={styles.summaryLabel}>
+        {label}
+      </Text>
+
+      <Text style={styles.summaryValue}>
+        {value?.trim() || "Not provided"}
+      </Text>
+    </View>
+  );
+}
 
 function DropdownButton({
   label,
@@ -183,7 +271,7 @@ function DropdownButton({
         <Ionicons
           name={icon}
           size={20}
-          color="#2563EB"
+          color="#002B5C"
           style={styles.inputIcon}
         />
 
@@ -203,7 +291,7 @@ function DropdownButton({
         {loading ? (
           <ActivityIndicator
             size="small"
-            color="#2563EB"
+            color="#002B5C"
           />
         ) : (
           <Ionicons
@@ -224,9 +312,57 @@ function DropdownButton({
 export default function RegisterForm() {
   const router = useRouter();
 
-  // ====================================================
-  // GOOGLE REGISTRATION
-  // ====================================================
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [
+    activeOptionDropdown,
+    setActiveOptionDropdown,
+  ] = useState<
+    "educationalStatus" | "employmentStatus" | "validIdType" | null
+  >(null);
+
+  const [appAlert, setAppAlert] = useState({
+    visible: false,
+    type: "info" as "success" | "error" | "warning" | "info",
+    title: "",
+    message: "",
+    confirmText: "OK",
+    showCancel: false,
+  });
+
+  const [alertAction, setAlertAction] = useState<(() => void) | null>(null);
+
+  const showAlert = (
+    title: string,
+    message: string,
+    type: "success" | "error" | "warning" | "info" = "info",
+    confirmText = "OK",
+    onConfirm?: () => void
+  ) => {
+    setAlertAction(() => onConfirm ?? null);
+
+    setAppAlert({
+      visible: true,
+      type,
+      title,
+      message,
+      confirmText,
+      showCancel: false,
+    });
+  };
+
+  const closeAlert = () => {
+    const action = alertAction;
+
+    setAlertAction(null);
+
+    setAppAlert((prev) => ({
+      ...prev,
+      visible: false,
+    }));
+
+    action?.();
+  };
 
   const params = useLocalSearchParams<{
     google?: string;
@@ -266,6 +402,8 @@ export default function RegisterForm() {
     isLoading,
     error,
   } = useRegister(authApi);
+
+  const isRegistering = isLoading || isSubmitting;
 
   // ====================================================
   // STEP
@@ -321,8 +459,10 @@ export default function RegisterForm() {
   // STEP 3
   // ====================================================
 
-  const [houseNumber, setHouseNumber] =
-    useState("");
+  const [houseNumber, setHouseNumber] = useState("");
+
+  const [region, setRegion] =
+    useState<LocationItem | null>(null);
 
   const [province, setProvince] =
     useState<LocationItem | null>(null);
@@ -337,16 +477,175 @@ export default function RegisterForm() {
   // CONTACT INFORMATION
   // ====================================================
 
-  const [mobileNumber, setMobileNumber] =
-    useState("");
+  const [mobileNumber, setMobileNumber] = useState("");
+
+  const [selectedCountry, setSelectedCountry] =
+    useState<CountryCode>("PH");
+
+  const [callingCode, setCallingCode] = useState("63");
+
+  const parsedMobileNumber = useMemo(() => {
+    const value = mobileNumber.replace(/[\s()-]/g, "");
+
+    if (!value) {
+      return undefined;
+    }
+
+    try {
+      if (value.startsWith("+")) {
+        return parsePhoneNumberFromString(value);
+      }
+
+      const country = String(selectedCountry);
+
+      if (!isSupportedCountry(country)) {
+        return undefined;
+      }
+
+      if (value.startsWith("0")) {
+        return parsePhoneNumberFromString(
+          `+${callingCode}${value.slice(1)}`
+        );
+      }
+
+      return parsePhoneNumberFromString(
+        value,
+        country as PhoneCountryCode
+      );
+    } catch {
+      return undefined;
+    }
+  }, [mobileNumber, selectedCountry, callingCode]);
+
+  const isMobileNumberValid = Boolean(
+    parsedMobileNumber?.isValid()
+  );
 
   // ====================================================
   // PROFILE IMAGE
-  // STEP 4
+  // STEP 8
   // ====================================================
 
   const [profileImage, setProfileImage] =
     useState<ProfileImage | null>(null);
+
+  // ==================================================
+  // EDUCATIONAL INFORMATION
+  // STEP 4
+  // ==================================================
+
+  const [highestEducationalAttainment, setHighestEducationalAttainment] =
+    useState("");
+
+  const [educationalStatus, setEducationalStatus] =
+    useState("");
+
+  const [schoolName, setSchoolName] =
+    useState("");
+
+  const [courseOrDegree, setCourseOrDegree] =
+    useState("");
+
+  const [fieldOfStudy, setFieldOfStudy] =
+    useState("");
+
+  const [yearGraduated, setYearGraduated] =
+    useState("");
+
+  // ==================================================
+  // EMPLOYMENT INFORMATION
+  // STEP 5
+  // ==================================================
+
+  const [employmentStatus, setEmploymentStatus] =
+    useState("");
+
+  const [companyName, setCompanyName] =
+    useState("");
+
+  const [jobTitle, setJobTitle] =
+    useState("");
+
+  const [industry, setIndustry] =
+    useState("");
+
+  const [yearsOfWorkExperience, setYearsOfWorkExperience] =
+    useState("");
+
+  // ==================================================
+  // VALID ID INFORMATION
+  // STEP 6
+  // ==================================================
+
+  const [validIdType, setValidIdType] =
+    useState("");
+
+  const [validIdNumber, setValidIdNumber] =
+    useState("");
+
+  const [validIdImage, setValidIdImage] =
+    useState<ProfileImage | null>(null);
+
+  // ==================================================
+  // EMERGENCY CONTACT
+  // STEP 7
+  // ==================================================
+
+  const [emergencyContactName, setEmergencyContactName] =
+    useState("");
+
+  const [emergencyContactNumber, setEmergencyContactNumber] =
+    useState("");
+
+  const [emergencyContactRelationship, setEmergencyContactRelationship] =
+    useState("");
+
+  const [emergencySelectedCountry, setEmergencySelectedCountry] =
+    useState<CountryCode>("PH");
+
+  const [emergencyCallingCode, setEmergencyCallingCode] =
+    useState("63");
+
+  const parsedEmergencyContactNumber = useMemo(() => {
+    const value = emergencyContactNumber.replace(/[\s()-]/g, "");
+
+    if (!value) {
+      return undefined;
+    }
+
+    try {
+      if (value.startsWith("+")) {
+        return parsePhoneNumberFromString(value);
+      }
+
+      const country = String(emergencySelectedCountry);
+
+      if (!isSupportedCountry(country)) {
+        return undefined;
+      }
+
+      if (value.startsWith("0")) {
+        return parsePhoneNumberFromString(
+          `+${emergencyCallingCode}${value.slice(1)}`
+        );
+      }
+
+      return parsePhoneNumberFromString(
+        value,
+        country as PhoneCountryCode
+      );
+    } catch {
+      return undefined;
+    }
+  }, [
+    emergencyContactNumber,
+    emergencySelectedCountry,
+    emergencyCallingCode,
+  ]);
+
+  const isEmergencyContactNumberValid = Boolean(
+    parsedEmergencyContactNumber?.isValid()
+  );
 
   // ====================================================
   // GOOGLE ID TOKEN
@@ -359,7 +658,13 @@ export default function RegisterForm() {
   // LOCATION DATA
   // ====================================================
 
+  const [regions, setRegions] =
+    useState<LocationItem[]>([]);
+
   const [provinces, setProvinces] =
+    useState<LocationItem[]>([]);
+
+  const [independentCities, setIndependentCities] =
     useState<LocationItem[]>([]);
 
   const [municipalities, setMunicipalities] =
@@ -368,20 +673,20 @@ export default function RegisterForm() {
   const [barangays, setBarangays] =
     useState<LocationItem[]>([]);
 
-  const [
-    isLoadingProvinces,
-    setIsLoadingProvinces,
-  ] = useState(false);
+  const [isLoadingRegions, setIsLoadingRegions] =
+    useState(false);
 
-  const [
-    isLoadingMunicipalities,
-    setIsLoadingMunicipalities,
-  ] = useState(false);
+  const [isLoadingProvinces, setIsLoadingProvinces] =
+    useState(false);
 
-  const [
-    isLoadingBarangays,
-    setIsLoadingBarangays,
-  ] = useState(false);
+  const [isLoadingIndependentCities, setIsLoadingIndependentCities] =
+    useState(false);
+
+  const [isLoadingMunicipalities, setIsLoadingMunicipalities] =
+    useState(false);
+
+  const [isLoadingBarangays, setIsLoadingBarangays] =
+    useState(false);
 
   // ====================================================
   // DROPDOWNS / MODALS
@@ -389,6 +694,7 @@ export default function RegisterForm() {
 
   const [activeDropdown, setActiveDropdown] =
     useState<
+      | "region"
       | "province"
       | "municipality"
       | "barangay"
@@ -415,17 +721,9 @@ export default function RegisterForm() {
       return;
     }
 
-    setFirstName(
-      googleFirstName.trim()
-    );
-
-    setLastName(
-      googleLastName.trim()
-    );
-
-    setEmail(
-      googleEmail.trim().toLowerCase()
-    );
+    setFirstName(googleFirstName.trim());
+    setLastName(googleLastName.trim());
+    setEmail(googleEmail.trim().toLowerCase());
 
     if (googleProfileImageUrl) {
       setProfileImage({
@@ -435,42 +733,27 @@ export default function RegisterForm() {
       });
     }
 
-    const loadGoogleToken =
-      async () => {
-        try {
-          const token =
-            await SecureStore.getItemAsync(
-              GOOGLE_REGISTRATION_TOKEN_KEY
-            );
+    const loadGoogleToken = async () => {
+      try {
+        const token = await SecureStore.getItemAsync(
+          GOOGLE_REGISTRATION_TOKEN_KEY
+        );
 
-          if (!token) {
-            console.warn(
-              "GOOGLE REGISTRATION: ID token not found."
-            );
-
-            setLocalError(
-              "Your Google registration session has expired. Please continue with Google again."
-            );
-
-            return;
-          }
-
-          setGoogleIdToken(token);
-
-          console.log(
-            "GOOGLE REGISTRATION: ID token found."
-          );
-        } catch (error) {
-          console.error(
-            "GOOGLE TOKEN LOAD ERROR:",
-            error
-          );
-
+        if (!token) {
           setLocalError(
-            "Unable to restore your Google registration session."
+            "Your Google registration session has expired. Please continue with Google again."
           );
+          return;
         }
-      };
+
+        setGoogleIdToken(token);
+      } catch (error) {
+        console.error("GOOGLE TOKEN LOAD ERROR:", error);
+        setLocalError(
+          "Unable to restore your Google registration session."
+        );
+      }
+    };
 
     loadGoogleToken();
   }, [
@@ -481,209 +764,219 @@ export default function RegisterForm() {
     googleProfileImageUrl,
   ]);
 
+  const sortLocations = (
+    items: LocationItem[]
+  ): LocationItem[] => {
+    return [...items].sort((a, b) => {
+      return a.name.localeCompare(b.name, "en", {
+        numeric: true,
+        sensitivity: "base",
+      });
+    });
+  };
+
+  async function fetchLocationList(
+    path: string
+  ): Promise<LocationItem[]> {
+    const response = await fetch(`${PSGC_API}${path}`);
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to load locations (${response.status}).`
+      );
+    }
+
+    const payload: unknown = await response.json();
+    let items: unknown;
+
+    if (Array.isArray(payload)) {
+      items = payload;
+    } else if (
+      payload !== null &&
+      typeof payload === "object" &&
+      "data" in payload
+    ) {
+      items = (payload as { data: unknown }).data;
+    } else {
+      throw new Error(
+        "The location API returned an unexpected response format."
+      );
+    }
+
+    if (!Array.isArray(items)) {
+      throw new Error(
+        "The location API did not return a valid list."
+      );
+    }
+
+    const validLocations: LocationItem[] = items.filter(
+      (item): item is LocationItem =>
+        item !== null &&
+        typeof item === "object" &&
+        "code" in item &&
+        typeof item.code === "string" &&
+        "name" in item &&
+        typeof item.name === "string"
+    );
+
+    return sortLocations(validLocations);
+  }
+
   // ==================================================
-  // LOAD PROVINCES
+  // LOAD REGIONS
   // ==================================================
 
   useEffect(() => {
-    const loadProvinces = async () => {
+    let isMounted = true;
+
+    const loadRegions = async () => {
       try {
-        setIsLoadingProvinces(true);
+        setIsLoadingRegions(true);
+        const data = await fetchLocationList("/regions");
 
-        const response = await fetch(
-          `${PSGC_API}/provinces/`
-        );
-
-        if (!response.ok) {
-          throw new Error(
-            "Unable to load provinces."
+        if (isMounted) {
+          setRegions(data);
+        }
+      } catch (error) {
+        console.error("LOAD REGIONS ERROR:", error);
+        if (isMounted) {
+          setLocalError(
+            "Unable to load regions. Please check your internet connection and try again."
           );
         }
-
-        const data =
-          await response.json();
-
-        const formatted: LocationItem[] =
-          data
-            .map(
-              (item: {
-                code: string;
-                name: string;
-              }) => ({
-                code: item.code,
-                name: item.name,
-              })
-            )
-            .sort(
-              (
-                a: LocationItem,
-                b: LocationItem
-              ) =>
-                a.name.localeCompare(
-                  b.name
-                )
-            );
-
-        setProvinces(formatted);
-      } catch (error) {
-        console.error(
-          "LOAD PROVINCES ERROR:",
-          error
-        );
-
-        setLocalError(
-          "Unable to load provinces. Please try again."
-        );
       } finally {
-        setIsLoadingProvinces(false);
+        if (isMounted) {
+          setIsLoadingRegions(false);
+        }
       }
     };
 
-    loadProvinces();
+    loadRegions();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  // ==================================================
-  // LOAD MUNICIPALITIES
-  // ==================================================
+  const handleRegionSelect = async (
+    item: LocationItem
+  ) => {
+    setRegion(item);
+    setProvince(null);
+    setMunicipality(null);
+    setBarangay(null);
 
-  const handleProvinceSelect =
-    async (
-      item: LocationItem
-    ) => {
-      setProvince(item);
+    setProvinces([]);
+    setIndependentCities([]);
+    setMunicipalities([]);
+    setBarangays([]);
 
-      setMunicipality(null);
-      setBarangay(null);
+    setLocalError("");
+    setActiveDropdown(null);
 
-      setMunicipalities([]);
-      setBarangays([]);
+    const regionPath = `/regions/${encodeURIComponent(item.code)}`;
 
-      setActiveDropdown(null);
+    try {
+      setIsLoadingProvinces(true);
+      setIsLoadingIndependentCities(true);
 
-      try {
-        setIsLoadingMunicipalities(
-          true
+      const [provinceData, cityData] = await Promise.all([
+        fetchLocationList(`${regionPath}/provinces`),
+        fetchLocationList(`${regionPath}/cities-municipalities`),
+      ]);
+
+      const citiesWithoutProvince = cityData.filter((city) => {
+        const provinceValue = city.province;
+
+        return (
+          provinceValue == null ||
+          (typeof provinceValue === "string" &&
+            provinceValue.trim() === "")
         );
+      });
 
-        const response = await fetch(
-          `${PSGC_API}/provinces/${item.code}/municipalities/`
-        );
+      setProvinces(provinceData);
 
-        if (!response.ok) {
-          throw new Error(
-            "Unable to load municipalities."
-          );
-        }
-
-        const data =
-          await response.json();
-
-        const formatted: LocationItem[] =
-          data
-            .map(
-              (location: {
-                code: string;
-                name: string;
-              }) => ({
-                code: location.code,
-                name: location.name,
-              })
-            )
-            .sort(
-              (
-                a: LocationItem,
-                b: LocationItem
-              ) =>
-                a.name.localeCompare(
-                  b.name
-                )
-            );
-
-        setMunicipalities(
-          formatted
-        );
-      } catch (error) {
-        console.error(
-          "LOAD MUNICIPALITIES ERROR:",
-          error
-        );
-
-        setLocalError(
-          "Unable to load municipalities."
-        );
-      } finally {
-        setIsLoadingMunicipalities(
-          false
-        );
+      if (provinceData.length === 0) {
+        setIndependentCities(cityData);
+      } else {
+        setIndependentCities(citiesWithoutProvince);
       }
-    };
+    } catch (error) {
+      console.error("LOAD REGION CHILDREN ERROR:", error);
+      setLocalError(
+        "Unable to load provinces and cities for the selected region. Please try again."
+      );
+    } finally {
+      setIsLoadingProvinces(false);
+      setIsLoadingIndependentCities(false);
+    }
+  };
 
   // ==================================================
-  // LOAD BARANGAYS
+  // SELECT PROVINCE
   // ==================================================
 
-  const handleMunicipalitySelect =
-    async (
-      item: LocationItem
-    ) => {
-      setMunicipality(item);
+  const handleProvinceSelect = async (
+    item: LocationItem
+  ) => {
+    setProvince(item);
+    setMunicipality(null);
+    setBarangay(null);
 
-      setBarangay(null);
-      setBarangays([]);
+    setMunicipalities([]);
+    setBarangays([]);
 
-      setActiveDropdown(null);
+    setLocalError("");
+    setActiveDropdown(null);
 
-      try {
-        setIsLoadingBarangays(true);
+    try {
+      setIsLoadingMunicipalities(true);
+      const data = await fetchLocationList(
+        `/provinces/${encodeURIComponent(item.code)}/cities-municipalities`
+      );
 
-        const response = await fetch(
-          `${PSGC_API}/municipalities/${item.code}/barangays/`
-        );
+      setMunicipalities(data);
+    } catch (error) {
+      console.error("LOAD CITIES ERROR:", error);
+      setLocalError(
+        "Unable to load cities and municipalities for the selected province. Please try again."
+      );
+    } finally {
+      setIsLoadingMunicipalities(false);
+    }
+  };
 
-        if (!response.ok) {
-          throw new Error(
-            "Unable to load barangays."
-          );
-        }
+  const handleMunicipalitySelect = async (
+    item: LocationItem
+  ) => {
+    setMunicipality(item);
+    setBarangay(null);
+    setBarangays([]);
 
-        const data =
-          await response.json();
+    setLocalError("");
+    setActiveDropdown(null);
 
-        const formatted: LocationItem[] =
-          data
-            .map(
-              (location: {
-                code: string;
-                name: string;
-              }) => ({
-                code: location.code,
-                name: location.name,
-              })
-            )
-            .sort(
-              (
-                a: LocationItem,
-                b: LocationItem
-              ) =>
-                a.name.localeCompare(
-                  b.name
-                )
-            );
+    try {
+      setIsLoadingBarangays(true);
+      const data = await fetchLocationList(
+        `/cities-municipalities/${encodeURIComponent(item.code)}/barangays`
+      );
 
-        setBarangays(formatted);
-      } catch (error) {
-        console.error(
-          "LOAD BARANGAYS ERROR:",
-          error
-        );
+      setBarangays(data);
+    } catch (error) {
+      console.error("LOAD BARANGAYS ERROR:", error);
+      setLocalError(
+        "Unable to load barangays. Please try again."
+      );
+    } finally {
+      setIsLoadingBarangays(false);
+    }
+  };
 
-        setLocalError(
-          "Unable to load barangays."
-        );
-      } finally {
-        setIsLoadingBarangays(false);
-      }
-    };
+  // ==================================================
+  // SELECT BARANGAY
+  // ==================================================
 
   const handleBarangaySelect = (
     item: LocationItem
@@ -692,95 +985,201 @@ export default function RegisterForm() {
     setActiveDropdown(null);
   };
 
+  const formattedAddress = useMemo(() => {
+    const parts = [
+      houseNumber.trim(),
+      barangay
+        ? getBarangayDisplayName(barangay, municipality?.code)
+        : "",
+      municipality?.name,
+      province?.name,
+      region?.name,
+    ].filter(Boolean);
+
+    return parts.join(", ");
+  }, [
+    houseNumber,
+    barangay,
+    municipality?.code,
+    municipality?.name,
+    province?.name,
+    region?.name,
+  ]);
+
   // ==================================================
-  // ADDRESS
+  // VALID ID IMAGE PICKER / CAMERA
   // ==================================================
 
-  const formattedAddress =
-    useMemo(() => {
-      const parts = [
-        houseNumber.trim(),
-        barangay?.name,
-        municipality?.name,
-        province?.name,
-      ].filter(Boolean);
+  const handlePickValidIdImage = async () => {
+    try {
+      const permission =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-      return parts.join(", ");
-    }, [
-      houseNumber,
-      barangay,
-      municipality,
-      province,
-    ]);
-
-  // ==================================================
-  // PROFILE IMAGE
-  // ==================================================
-
-  const handlePickProfileImage =
-    async () => {
-      try {
-        const permission =
-          await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-        if (!permission.granted) {
-          Alert.alert(
-            "Permission Required",
-            "Please allow photo library access to select a profile picture."
-          );
-
-          return;
-        }
-
-        const result =
-          await ImagePicker.launchImageLibraryAsync(
-            {
-              mediaTypes: ["images"],
-              allowsEditing: true,
-              aspect: [1, 1],
-              quality: 0.8,
-            }
-          );
-
-        if (
-          result.canceled ||
-          !result.assets?.length
-        ) {
-          return;
-        }
-
-        const asset =
-          result.assets[0];
-
-        const fileName =
-          asset.fileName ??
-          `profile-${Date.now()}.jpg`;
-
-        const mimeType =
-          asset.mimeType ??
-          "image/jpeg";
-
-        setProfileImage({
-          uri: asset.uri,
-          name: fileName,
-          type: mimeType,
-        });
-      } catch (error) {
-        console.error(
-          "PROFILE IMAGE ERROR:",
-          error
+      if (!permission.granted) {
+        showAlert(
+          "Permission Required",
+          "Please allow photo library access to upload your valid ID.",
+          "warning"
         );
-
-        Alert.alert(
-          "Image Error",
-          "Unable to select your profile picture."
-        );
+        return;
       }
-    };
 
-  // ==================================================
-  // DATE
-  // ==================================================
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (result.canceled || !result.assets?.length) {
+        return;
+      }
+
+      const asset = result.assets[0];
+
+      setValidIdImage({
+        uri: asset.uri,
+        name: asset.fileName ?? `valid-id-${Date.now()}.jpg`,
+        type: asset.mimeType ?? "image/jpeg",
+      });
+
+      setLocalError("");
+    } catch (error) {
+      console.error("VALID ID IMAGE ERROR:", error);
+      showAlert(
+        "Image Error",
+        "Unable to select your valid ID image. Please try again.",
+        "error"
+      );
+    }
+  };
+
+  const handleCaptureValidIdImage = async () => {
+    try {
+      const permission =
+        await ImagePicker.requestCameraPermissionsAsync();
+
+      if (!permission.granted) {
+        showAlert(
+          "Permission Required",
+          "Please allow camera access to take a photo of your valid ID.",
+          "warning"
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (result.canceled || !result.assets?.length) {
+        return;
+      }
+
+      const asset = result.assets[0];
+
+      setValidIdImage({
+        uri: asset.uri,
+        name: asset.fileName ?? `valid-id-${Date.now()}.jpg`,
+        type: asset.mimeType ?? "image/jpeg",
+      });
+
+      setLocalError("");
+    } catch (error) {
+      console.error("CAMERA VALID ID ERROR:", error);
+      showAlert(
+        "Camera Error",
+        "Unable to take a photo of your valid ID. Please try again.",
+        "error"
+      );
+    }
+  };
+
+  const handlePickProfileImage = async () => {
+    try {
+      const permission =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert(
+          "Permission Required",
+          "Please allow photo library access to select a profile picture."
+        );
+        return;
+      }
+
+      const result =
+        await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ["images"],
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.8,
+        });
+
+      if (result.canceled || !result.assets?.length) {
+        return;
+      }
+
+      const asset = result.assets[0];
+      const fileName = asset.fileName ?? `profile-${Date.now()}.jpg`;
+      const mimeType = asset.mimeType ?? "image/jpeg";
+
+      setProfileImage({
+        uri: asset.uri,
+        name: fileName,
+        type: mimeType,
+      });
+    } catch (error) {
+      console.error("PROFILE IMAGE ERROR:", error);
+      Alert.alert(
+        "Image Error",
+        "Unable to select your profile picture."
+      );
+    }
+  };
+
+  const handleCaptureProfileImage = async () => {
+    try {
+      const permission =
+        await ImagePicker.requestCameraPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert(
+          "Permission Required",
+          "Please allow camera access to take a profile picture."
+        );
+        return;
+      }
+
+      const result =
+        await ImagePicker.launchCameraAsync({
+          mediaTypes: ["images"],
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.8,
+          cameraType: ImagePicker.CameraType.front,
+        });
+
+      if (result.canceled || !result.assets?.length) {
+        return;
+      }
+
+      const asset = result.assets[0];
+
+      setProfileImage({
+        uri: asset.uri,
+        name: asset.fileName ?? `profile-${Date.now()}.jpg`,
+        type: asset.mimeType ?? "image/jpeg",
+      });
+    } catch (error) {
+      console.error("CAMERA PROFILE IMAGE ERROR:", error);
+      Alert.alert(
+        "Camera Error",
+        "Unable to take your profile picture. Please try again."
+      );
+    }
+  };
 
   const handleBirthDateChange = (
     _event: unknown,
@@ -790,651 +1189,483 @@ export default function RegisterForm() {
       return;
     }
 
-    const year =
-      selectedDate.getFullYear();
+    const year = selectedDate.getFullYear();
+    const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+    const day = String(selectedDate.getDate()).padStart(2, "0");
 
-    const month = String(
-      selectedDate.getMonth() + 1
-    ).padStart(2, "0");
-
-    const day = String(
-      selectedDate.getDate()
-    ).padStart(2, "0");
-
-    setBirthDate(
-      `${year}-${month}-${day}`
-    );
-
+    setBirthDate(`${year}-${month}-${day}`);
     setShowDatePicker(false);
   };
 
-  const parsedBirthDate =
-    useMemo(() => {
-      if (!birthDate) {
-        return new Date(
-          new Date().getFullYear() - 18,
-          0,
-          1
-        );
-      }
-
-      const date = new Date(
-        `${birthDate}T00:00:00`
+  const parsedBirthDate = useMemo(() => {
+    if (!birthDate) {
+      return new Date(
+        new Date().getFullYear() - 18,
+        0,
+        1
       );
+    }
 
-      if (
-        Number.isNaN(
-          date.getTime()
-        )
-      ) {
-        return new Date(
-          new Date().getFullYear() - 18,
-          0,
-          1
-        );
-      }
+    const date = new Date(`${birthDate}T00:00:00`);
 
-      return date;
-    }, [birthDate]);
-
-  const formattedBirthDate =
-    useMemo(() => {
-      if (!birthDate) {
-        return "";
-      }
-
-      const date = new Date(
-        `${birthDate}T00:00:00`
+    if (Number.isNaN(date.getTime())) {
+      return new Date(
+        new Date().getFullYear() - 18,
+        0,
+        1
       );
+    }
 
-      if (
-        Number.isNaN(
-          date.getTime()
-        )
-      ) {
-        return birthDate;
-      }
+    return date;
+  }, [birthDate]);
 
-      return date.toLocaleDateString(
-        "en-US",
-        {
-          month: "long",
-          day: "numeric",
-          year: "numeric",
-        }
-      );
-    }, [birthDate]);
+  const formattedBirthDate = useMemo(() => {
+    if (!birthDate) {
+      return "";
+    }
 
-  // ==================================================
-  // VALIDATION - STEP 1
-  // ACCOUNT
-  // ==================================================
+    const date = new Date(`${birthDate}T00:00:00`);
+
+    if (Number.isNaN(date.getTime())) {
+      return birthDate;
+    }
+
+    return date.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+  }, [birthDate]);
+
+  const passwordRequirements = [
+    {
+      label: "At least 8 characters",
+      valid: password.length >= 8,
+    },
+    {
+      label: "Starts with a capital letter or number",
+      valid: /^[A-Z0-9]/.test(password),
+    },
+    {
+      label: "Contains at least one number",
+      valid: /\d/.test(password),
+    },
+    {
+      label: "Contains at least one special character",
+      valid: /[^A-Za-z0-9]/.test(password),
+    },
+  ];
+
+  const isPasswordStrong =
+    passwordRequirements.every(
+      (requirement) => requirement.valid
+    );
+
+  const doPasswordsMatch =
+    password.length > 0 &&
+    confirmPassword.length > 0 &&
+    password === confirmPassword;
 
   const validateStepOne = () => {
     setLocalError("");
 
     if (!email.trim()) {
-      setLocalError(
-        "Please enter your email address."
-      );
-
+      setLocalError("Please enter your email address.");
       return false;
     }
 
-    const emailRegex =
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (
-      !emailRegex.test(
-        email.trim()
-      )
-    ) {
-      setLocalError(
-        "Please enter a valid email address."
-      );
-
+    if (!emailRegex.test(email.trim())) {
+      setLocalError("Please enter a valid email address.");
       return false;
     }
 
     if (!password) {
-      setLocalError(
-        "Please enter a password."
-      );
-
+      setLocalError("Please enter a password.");
       return false;
     }
 
-    if (password.length < 8) {
+    if (!isPasswordStrong) {
       setLocalError(
-        "Password must be at least 8 characters."
+        "Please meet all password requirements before continuing."
       );
-
       return false;
     }
 
     if (!confirmPassword) {
-      setLocalError(
-        "Please confirm your password."
-      );
-
+      setLocalError("Please confirm your password.");
       return false;
     }
 
-    if (
-      password !==
-      confirmPassword
-    ) {
-      setLocalError(
-        "Passwords do not match."
-      );
-
+    if (password !== confirmPassword) {
+      setLocalError("Passwords do not match.");
       return false;
     }
 
-    if (
-      isGoogleRegistration &&
-      !googleIdToken
-    ) {
+    if (isGoogleRegistration && !googleIdToken) {
       setLocalError(
         "Your Google registration session has expired. Please continue with Google again."
       );
-
       return false;
     }
 
     return true;
   };
-
-  // ==================================================
-  // VALIDATION - STEP 2
-  // PERSONAL INFORMATION
-  // ==================================================
 
   const validateStepTwo = () => {
     setLocalError("");
 
     if (!firstName.trim()) {
-      setLocalError(
-        "Please enter your first name."
-      );
-
+      setLocalError("Please enter your first name.");
       return false;
     }
 
     if (!lastName.trim()) {
-      setLocalError(
-        "Please enter your last name."
-      );
-
+      setLocalError("Please enter your last name.");
       return false;
     }
 
     if (!birthDate) {
-      setLocalError(
-        "Please select your birth date."
-      );
-
+      setLocalError("Please select your birth date.");
       return false;
     }
 
     if (!gender) {
-      setLocalError(
-        "Please select your gender."
-      );
-
+      setLocalError("Please select your gender.");
       return false;
     }
 
     return true;
   };
-
-  // ==================================================
-  // VALIDATION - STEP 3
-  // ADDRESS
-  // ==================================================
 
   const validateStepThree = () => {
     setLocalError("");
 
     if (!houseNumber.trim()) {
-      setLocalError(
-        "Please enter your house number or street."
-      );
-
+      setLocalError("Please enter your house number or street.");
       return false;
     }
 
-    if (!province) {
-      setLocalError(
-        "Please select your province."
-      );
-
+    if (!region) {
+      setLocalError("Please select your region.");
       return false;
     }
 
     if (!municipality) {
-      setLocalError(
-        "Please select your municipality or city."
-      );
-
+      setLocalError("Please select your city or municipality.");
       return false;
     }
 
     if (!barangay) {
-      setLocalError(
-        "Please select your barangay."
-      );
-
+      setLocalError("Please select your barangay.");
       return false;
     }
 
     if (!mobileNumber.trim()) {
-      setLocalError(
-        "Please enter your mobile number."
-      );
+      setLocalError("Please enter your mobile number.");
+      return false;
+    }
 
+    if (!isMobileNumberValid || !parsedMobileNumber) {
+      setLocalError(
+        "Please enter a valid mobile number for the selected country."
+      );
       return false;
     }
 
     return true;
   };
-
-  // ==================================================
-  // VALIDATION - STEP 4
-  // PROFILE
-  // ==================================================
 
   const validateStepFour = () => {
     setLocalError("");
-
-    // Profile picture is optional.
-    // If you want it required, uncomment this.
-
-    /*
-    if (!profileImage) {
-      setLocalError(
-        "Please select a profile picture."
-      );
-
-      return false;
-    }
-    */
-
     return true;
   };
 
-  // ==================================================
-  // NEXT
-  // ==================================================
-
   const handleNext = () => {
-    if (step === 1) {
-      if (!validateStepOne()) {
-        return;
-      }
+    setLocalError("");
 
-      setStep(2);
-      return;
-    }
+    if (isRegistering) return;
 
-    if (step === 2) {
-      if (!validateStepTwo()) {
-        return;
-      }
+    if (step === 1 && !validateStepOne()) return;
+    if (step === 2 && !validateStepTwo()) return;
+    if (step === 3 && !validateStepThree()) return;
 
-      setStep(3);
-      return;
-    }
-
-    if (step === 3) {
-      if (!validateStepThree()) {
-        return;
-      }
-
-      setStep(4);
-      return;
+    if (step < 8) {
+      setStep((current) => (current + 1) as Step);
     }
   };
-
-  // ==================================================
-  // BACK
-  // ==================================================
 
   const handleBack = () => {
     setLocalError("");
 
+    if (isRegistering) return;
+
     if (step === 1) {
       router.replace({
         pathname: "/",
-        params: {
-          slide: "3",
-        },
+        params: { slide: "3" },
       });
-
       return;
     }
 
-    setStep((current) => {
-      if (current === 4) {
-        return 3;
-      }
-
-      if (current === 3) {
-        return 2;
-      }
-
-      return 1;
-    });
+    setStep((current) => (current - 1) as Step);
   };
-// ==================================================
-// REGISTER
-// ==================================================
 
-const handleRegister = async () => {
-  if (!validateStepFour()) {
-    return;
-  }
+  const handleRegister = async () => {
+    if (isRegistering) return;
+    if (step !== 8) return;
+    if (!validateStepFour()) return;
 
-  try {
-    const normalizedEmail =
-      email.trim().toLowerCase();
+    setIsSubmitting(true);
 
-    const values: RegisterFormValues = {
-      firstName: firstName.trim(),
-      middleName: middleName.trim(),
-      lastName: lastName.trim(),
-      address: formattedAddress,
-      birthDate,
-      gender,
-      email: normalizedEmail,
-      mobileNumber: mobileNumber.trim(),
-      password,
-      profileImage: profileImage ?? undefined,
-      googleIdToken: isGoogleRegistration
-        ? googleIdToken ?? undefined
-        : undefined,
-    };
+    try {
+      const normalizedEmail = email.trim().toLowerCase();
 
-    console.log(
-      "========================================"
-    );
-
-    console.log(
-      "PARTICIPANT REGISTRATION"
-    );
-
-    console.log(
-      "Google Registration:",
-      isGoogleRegistration
-    );
-
-    console.log(
-      "Google ID Token:",
-      googleIdToken
-        ? `FOUND (${googleIdToken.length} chars)`
-        : "NOT USED"
-    );
-
-    console.log(
-      "Email:",
-      values.email
-    );
-
-    console.log(
-      "First Name:",
-      values.firstName
-    );
-
-    console.log(
-      "Last Name:",
-      values.lastName
-    );
-
-    console.log(
-      "Address:",
-      values.address
-    );
-
-    console.log(
-      "Profile Image:",
-      values.profileImage
-        ? values.profileImage.uri
-        : "NONE"
-    );
-
-    console.log(
-      "========================================"
-    );
-
-    // =================================================
-    // CREATE ACCOUNT
-    // =================================================
-
-    const response =
-      await register(values);
-
-    if (!response) {
-      return;
-    }
-
-    console.log(
-      "REGISTRATION SUCCESSFUL"
-    );
-
-    // =================================================
-    // SEND OTP AFTER SUCCESSFUL REGISTRATION
-    // =================================================
-
-    console.log(
-      "SENDING OTP TO:",
-      normalizedEmail
-    );
-
-    const otpResponse =
-      await authApi.sendOtp({
+      const values: RegisterFormValues = {
+        firstName: firstName.trim(),
+        middleName: middleName.trim(),
+        lastName: lastName.trim(),
+        address: formattedAddress,
+        birthDate,
+        gender,
         email: normalizedEmail,
-      });
+        mobileNumber: parsedMobileNumber?.number ?? "",
+        password,
+        googleIdToken: isGoogleRegistration
+          ? googleIdToken ?? undefined
+          : undefined,
+        profileImage: profileImage ?? undefined,
+        highestEducationalAttainment:
+          highestEducationalAttainment.trim() || null,
+        educationalStatus:
+          educationalStatus.trim() || null,
+        schoolName:
+          schoolName.trim() || null,
+        courseOrDegree:
+          courseOrDegree.trim() || null,
+        fieldOfStudy:
+          fieldOfStudy.trim() || null,
+        yearGraduated:
+          yearGraduated.trim() &&
+          Number(yearGraduated) >= 1900 &&
+          Number(yearGraduated) <= new Date().getFullYear()
+            ? Number(yearGraduated)
+            : null,
+        employmentStatus:
+          employmentStatus.trim() || null,
+        companyName:
+          companyName.trim() || null,
+        jobTitle:
+          jobTitle.trim() || null,
+        industry:
+          industry.trim() || null,
+        yearsOfWorkExperience:
+          yearsOfWorkExperience.trim()
+            ? Number(yearsOfWorkExperience)
+            : null,
+        validIdType:
+          validIdType.trim() || null,
+        validIdNumber:
+          validIdNumber.trim() || null,
+        validIdImage:
+          validIdImage ?? undefined,
+        emergencyContactName:
+          emergencyContactName.trim() || null,
+        emergencyContactNumber:
+          emergencyContactNumber.trim() || null,
+        emergencyContactRelationship:
+          emergencyContactRelationship.trim() || null,
+      };
 
-    console.log(
-      "SEND OTP RESPONSE:",
-      otpResponse
-    );
+      const response = await register(values);
 
-    if (!otpResponse) {
-      Alert.alert(
-        "Registration Successful",
-        "Your account was created successfully, but we could not send the verification code. Please try sending the code again."
-      );
+      if (!response) {
+        showAlert(
+          "Registration Failed",
+          "Unable to create your account. Please check your information and try again.",
+          "error"
+        );
+        return;
+      }
 
-      return;
-    }
+      let otpSent = false;
 
-    console.log(
-      "OTP SENT SUCCESSFULLY"
-    );
-
-    // =================================================
-    // GOOGLE TOKEN CLEANUP
-    // =================================================
-
-    if (isGoogleRegistration) {
       try {
-        await SecureStore.deleteItemAsync(
-          GOOGLE_REGISTRATION_TOKEN_KEY
-        );
-
-        console.log(
-          "GOOGLE REGISTRATION: temporary token deleted."
-        );
-      } catch (error) {
-        console.error(
-          "GOOGLE TOKEN CLEANUP ERROR:",
-          error
-        );
+        const otpResponse = await authApi.sendOtp({
+          email: normalizedEmail,
+        });
+        otpSent = Boolean(otpResponse);
+      } catch (otpError) {
+        console.error("SEND OTP ERROR:", otpError);
       }
+
+      if (isGoogleRegistration) {
+        try {
+          await SecureStore.deleteItemAsync(
+            GOOGLE_REGISTRATION_TOKEN_KEY
+          );
+        } catch (tokenError) {
+          console.error("GOOGLE TOKEN CLEANUP ERROR:", tokenError);
+        }
+      }
+
+      if (!otpSent) {
+        showAlert(
+          "Account Created",
+          "Your account was created, but we could not send the verification code. Please use the resend verification option or contact support.",
+          "warning"
+        );
+        return;
+      }
+
+      showAlert(
+        "Registration Successful",
+        "Your account has been created. A verification code has been sent to your email.",
+        "success",
+        "Continue",
+        () => {
+          router.push({
+            pathname: "/(auth)/otp-verification",
+            params: {
+              email: normalizedEmail,
+            },
+          });
+        }
+      );
+    } catch (registerError) {
+      console.error("REGISTER ERROR:", registerError);
+      showAlert(
+        "Registration Failed",
+        registerError instanceof Error
+          ? registerError.message
+          : "Unable to create your account. Please try again.",
+        "error"
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const locationItems = useMemo(() => {
+    if (activeDropdown === "region") {
+      return regions;
+    }
+    if (activeDropdown === "province") {
+      return provinces;
+    }
+    if (activeDropdown === "municipality") {
+      return province ? municipalities : independentCities;
+    }
+    if (activeDropdown === "barangay") {
+      return barangays;
+    }
+    return [];
+  }, [
+    activeDropdown,
+    regions,
+    provinces,
+    independentCities,
+    municipalities,
+    barangays,
+    province,
+  ]);
+
+  const activeOptionTitle =
+    activeOptionDropdown === "educationalStatus"
+      ? "Select Educational Status"
+      : activeOptionDropdown === "employmentStatus"
+        ? "Select Employment Status"
+        : "Select Valid ID Type";
+
+  const activeOptionItems =
+    activeOptionDropdown === "educationalStatus"
+      ? educationalStatusOptions
+      : activeOptionDropdown === "employmentStatus"
+        ? employmentStatusOptions
+        : validIdTypeOptions;
+
+  const handleOptionSelect = (option: string) => {
+    if (activeOptionDropdown === "educationalStatus") {
+      setEducationalStatus(option);
+    } else if (activeOptionDropdown === "employmentStatus") {
+      setEmploymentStatus(option);
+    } else if (activeOptionDropdown === "validIdType") {
+      setValidIdType(option);
     }
 
-    // =================================================
-    // GO TO OTP VERIFICATION
-    // =================================================
-
-    Alert.alert(
-      "Registration Successful",
-      isGoogleRegistration
-        ? "Your account has been created with Google. A verification code has been sent to your email."
-        : "Your account has been created. A verification code has been sent to your email.",
-      [
-        {
-          text: "Continue",
-          onPress: () =>
-            router.push({
-              pathname:
-                "/(auth)/otp-verification",
-              params: {
-                email: normalizedEmail,
-              },
-            }),
-        },
-      ]
-    );
-  } catch (error) {
-    console.error(
-      "REGISTER ERROR:",
-      error
-    );
-
-    Alert.alert(
-      "Registration Failed",
-      error instanceof Error
-        ? error.message
-        : "Unable to create your account. Please try again."
-    );
-  }
-};
-
-  // ==================================================
-  // LOCATION MODAL
-  // ==================================================
-
-  const locationItems =
-    useMemo(() => {
-      if (
-        activeDropdown ===
-        "province"
-      ) {
-        return provinces;
-      }
-
-      if (
-        activeDropdown ===
-        "municipality"
-      ) {
-        return municipalities;
-      }
-
-      if (
-        activeDropdown ===
-        "barangay"
-      ) {
-        return barangays;
-      }
-
-      return [];
-    }, [
-      activeDropdown,
-      provinces,
-      municipalities,
-      barangays,
-    ]);
+    setActiveOptionDropdown(null);
+    setLocalError("");
+  };
 
   const locationTitle =
-    activeDropdown === "province"
-      ? "Select Province"
-      : activeDropdown ===
-          "municipality"
-        ? "Select Municipality / City"
-        : "Select Barangay";
+    activeDropdown === "region"
+      ? "Select Region"
+      : activeDropdown === "province"
+        ? "Select Province"
+        : activeDropdown === "municipality"
+          ? "Select City / Municipality"
+          : "Select Barangay";
 
   const handleLocationItemPress = (
     item: LocationItem
   ) => {
-    if (
-      activeDropdown ===
-      "province"
-    ) {
-      handleProvinceSelect(item);
+    if (activeDropdown === "region") {
+      void handleRegionSelect(item);
       return;
     }
 
-    if (
-      activeDropdown ===
-      "municipality"
-    ) {
-      handleMunicipalitySelect(
-        item
-      );
-
+    if (activeDropdown === "province") {
+      void handleProvinceSelect(item);
       return;
     }
 
-    if (
-      activeDropdown ===
-      "barangay"
-    ) {
+    if (activeDropdown === "municipality") {
+      void handleMunicipalitySelect(item);
+      return;
+    }
+
+    if (activeDropdown === "barangay") {
       handleBarangaySelect(item);
     }
   };
 
-  // ==================================================
-  // ERROR
-  // ==================================================
-
-  const displayError =
-    localError || error;
-
-  // ==================================================
-  // RENDER
-  // ==================================================
+  const displayError = localError || error;
 
   return (
     <SafeAreaView
       style={styles.safeArea}
-      edges={[
-        "top",
-        "bottom",
-      ]}
+      edges={["top", "bottom"]}
     >
       <KeyboardAvoidingView
         style={styles.container}
         behavior={
-          Platform.OS === "ios"
-            ? "padding"
-            : undefined
+          Platform.OS === "ios" ? "padding" : undefined
         }
       >
+        <AppAlert
+          visible={appAlert.visible}
+          type={appAlert.type}
+          title={appAlert.title}
+          message={appAlert.message}
+          confirmText={appAlert.confirmText}
+          onConfirm={closeAlert}
+          showCancel={false}
+        />
         <ScrollView
-          showsVerticalScrollIndicator={
-            false
-          }
+          showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={
-            styles.scrollContent
-          }
+          contentContainerStyle={styles.scrollContent}
         >
-          {/* ================================= */}
-          {/* HEADER */}
-          {/* ================================= */}
-
           <View style={styles.header}>
             <View style={styles.logoRow}>
               <Pressable
                 onPress={handleBack}
-                disabled={isLoading}
+                disabled={isRegistering}
                 hitSlop={10}
                 style={({ pressed }) => [
                   styles.backButton,
-                  pressed &&
-                    styles.backButtonPressed,
+                  pressed && styles.backButtonPressed,
                 ]}
               >
                 <Ionicons
@@ -1446,57 +1677,28 @@ const handleRegister = async () => {
             </View>
           </View>
 
-          {/* ================================= */}
-          {/* TITLE */}
-          {/* ================================= */}
-
           <View style={styles.content}>
-            <Text
-              style={styles.welcomeTitle}
-            >
+            <Text style={styles.welcomeTitle}>
               Create your account
             </Text>
 
-            <Text
-              style={
-                styles.welcomeSubtitle
-              }
-            >
-              {
-                stepDescriptions[
-                  step
-                ]
-              }
+            <Text style={styles.welcomeSubtitle}>
+              {stepDescriptions[step]}
             </Text>
 
-            {/* ================================= */}
-            {/* STEP INDICATOR */}
-            {/* ================================= */}
-
-            <View
-              style={
-                styles.stepIndicator
-              }
-            >
-              {[1, 2, 3, 4].map(
+            <View style={styles.stepIndicator}>
+              {Array.from({ length: 8 }, (_, index) => index + 1).map(
                 (item, index) => {
-                  const isActive =
-                    item === step;
-
-                  const isCompleted =
-                    item < step;
+                  const isActive = item === step;
+                  const isCompleted = item < step;
 
                   return (
-                    <React.Fragment
-                      key={item}
-                    >
+                    <React.Fragment key={item}>
                       <View
                         style={[
                           styles.stepCircle,
-                          isActive &&
-                            styles.stepCircleActive,
-                          isCompleted &&
-                            styles.stepCircleCompleted,
+                          isActive && styles.stepCircleActive,
+                          isCompleted && styles.stepCircleCompleted,
                         ]}
                       >
                         {isCompleted ? (
@@ -1509,8 +1711,7 @@ const handleRegister = async () => {
                           <Text
                             style={[
                               styles.stepNumber,
-                              isActive &&
-                                styles.stepNumberActive,
+                              isActive && styles.stepNumberActive,
                             ]}
                           >
                             {item}
@@ -1518,12 +1719,11 @@ const handleRegister = async () => {
                         )}
                       </View>
 
-                      {index < 3 && (
+                      {index < 7 && (
                         <View
                           style={[
                             styles.stepLine,
-                            item < step &&
-                              styles.stepLineActive,
+                            item < step && styles.stepLineActive,
                           ]}
                         />
                       )}
@@ -1533,61 +1733,27 @@ const handleRegister = async () => {
               )}
             </View>
 
-            <Text
-              style={styles.stepTitle}
-            >
+            <Text style={styles.stepTitle}>
               {stepTitles[step]}
             </Text>
 
-            {/* ================================= */}
-            {/* GOOGLE ACCOUNT NOTICE */}
-            {/* ================================= */}
-
-            {isGoogleRegistration &&
-              step === 1 && (
-                <View
-                  style={
-                    styles.googleInfoBox
-                  }
-                >
-                  <Ionicons
-                    name="logo-google"
-                    size={20}
-                    color="#2563EB"
-                  />
-
-                  <View
-                    style={
-                      styles.googleInfoContent
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.googleInfoTitle
-                      }
-                    >
-                      Google account detected
-                    </Text>
-
-                    <Text
-                      style={
-                        styles.googleInfoText
-                      }
-                    >
-                      Your Google email,
-                      name, and profile
-                      picture have been
-                      filled in automatically.
-                      Please complete the
-                      remaining information.
-                    </Text>
-                  </View>
+            {isGoogleRegistration && step === 1 && (
+              <View style={styles.googleInfoBox}>
+                <Ionicons
+                  name="logo-google"
+                  size={20}
+                  color="#002B5C"
+                />
+                <View style={styles.googleInfoContent}>
+                  <Text style={styles.googleInfoTitle}>
+                    Google account detected
+                  </Text>
+                  <Text style={styles.googleInfoText}>
+                    Your Google email, name, and profile picture have been filled in automatically. Please complete the remaining information.
+                  </Text>
                 </View>
-              )}
-
-            {/* ================================= */}
-            {/* STEP 1 - ACCOUNT INFORMATION */}
-            {/* ================================= */}
+              </View>
+            )}
 
             {step === 1 && (
               <>
@@ -1595,46 +1761,30 @@ const handleRegister = async () => {
                   label="Email"
                   icon="mail-outline"
                   value={email}
-                  onChangeText={
-                    setEmail
-                  }
+                  onChangeText={setEmail}
                   placeholder="you@email.com"
                   keyboardType="email-address"
                   autoCapitalize="none"
-                  editable={
-                    !isLoading &&
-                    !isGoogleRegistration
-                  }
+                  editable={!isLoading && !isGoogleRegistration}
                 />
 
                 <Input
                   label="Password"
                   icon="lock-closed-outline"
                   value={password}
-                  onChangeText={
-                    setPassword
-                  }
+                  onChangeText={setPassword}
                   placeholder="Enter your password"
-                  secureTextEntry={
-                    !showPassword
-                  }
+                  secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   editable={!isLoading}
                   rightElement={
                     <Pressable
                       onPress={() =>
-                        setShowPassword(
-                          (value) =>
-                            !value
-                        )
+                        setShowPassword((value) => !value)
                       }
-                      disabled={
-                        isLoading
-                      }
+                      disabled={isLoading}
                       hitSlop={10}
-                      style={
-                        styles.eyeButton
-                      }
+                      style={styles.eyeButton}
                     >
                       <Ionicons
                         name={
@@ -1652,33 +1802,20 @@ const handleRegister = async () => {
                 <Input
                   label="Confirm Password"
                   icon="lock-closed-outline"
-                  value={
-                    confirmPassword
-                  }
-                  onChangeText={
-                    setConfirmPassword
-                  }
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
                   placeholder="Confirm your password"
-                  secureTextEntry={
-                    !showConfirmPassword
-                  }
+                  secureTextEntry={!showConfirmPassword}
                   autoCapitalize="none"
                   editable={!isLoading}
                   rightElement={
                     <Pressable
                       onPress={() =>
-                        setShowConfirmPassword(
-                          (value) =>
-                            !value
-                        )
+                        setShowConfirmPassword((value) => !value)
                       }
-                      disabled={
-                        isLoading
-                      }
+                      disabled={isLoading}
                       hitSlop={10}
-                      style={
-                        styles.eyeButton
-                      }
+                      style={styles.eyeButton}
                     >
                       <Ionicons
                         name={
@@ -1693,181 +1830,144 @@ const handleRegister = async () => {
                   }
                 />
 
-                <View
-                  style={
-                    styles.passwordRules
-                  }
-                >
-                  <Text
-                    style={
-                      styles.passwordRulesTitle
-                    }
-                  >
+                <View style={styles.passwordRules}>
+                  <Text style={styles.passwordRulesTitle}>
                     Password requirements
                   </Text>
+                  <Text style={styles.passwordRulesSubtitle}>
+                    Create a strong password to secure your account.
+                  </Text>
 
-                  <View
-                    style={
-                      styles.ruleRow
-                    }
-                  >
-                    <Ionicons
-                      name={
-                        password.length >=
-                        8
-                          ? "checkmark-circle"
-                          : "ellipse-outline"
-                      }
-                      size={17}
-                      color={
-                        password.length >=
-                        8
-                          ? "#16A34A"
-                          : "#94A3B8"
-                      }
-                    />
-
-                    <Text
-                      style={
-                        styles.ruleText
-                      }
+                  {passwordRequirements.map((requirement) => (
+                    <View
+                      key={requirement.label}
+                      style={styles.ruleRow}
                     >
-                      At least 8 characters
-                    </Text>
-                  </View>
+                      <Ionicons
+                        name={
+                          requirement.valid
+                            ? "checkmark-circle"
+                            : "ellipse-outline"
+                        }
+                        size={18}
+                        color={
+                          requirement.valid ? "#16A34A" : "#94A3B8"
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.ruleText,
+                          requirement.valid && styles.ruleTextValid,
+                        ]}
+                      >
+                        {requirement.label}
+                      </Text>
+                    </View>
+                  ))}
 
-                  <View
-                    style={
-                      styles.ruleRow
-                    }
-                  >
+                  <View style={styles.passwordRulesDivider} />
+
+                  <View style={styles.ruleRow}>
                     <Ionicons
                       name={
-                        password &&
-                        confirmPassword &&
-                        password ===
-                          confirmPassword
+                        doPasswordsMatch
                           ? "checkmark-circle"
                           : "ellipse-outline"
                       }
-                      size={17}
+                      size={18}
                       color={
-                        password &&
-                        confirmPassword &&
-                        password ===
-                          confirmPassword
-                          ? "#16A34A"
-                          : "#94A3B8"
+                        doPasswordsMatch ? "#16A34A" : "#94A3B8"
                       }
                     />
-
                     <Text
-                      style={
-                        styles.ruleText
-                      }
+                      style={[
+                        styles.ruleText,
+                        doPasswordsMatch && styles.ruleTextValid,
+                      ]}
                     >
                       Passwords match
                     </Text>
                   </View>
+
+                  {password.length > 0 && (
+                    <View style={styles.passwordStrengthContainer}>
+                      <View style={styles.passwordStrengthTrack}>
+                        {passwordRequirements.map((requirement) => (
+                          <View
+                            key={requirement.label}
+                            style={[
+                              styles.passwordStrengthSegment,
+                              requirement.valid &&
+                                styles.passwordStrengthSegmentActive,
+                            ]}
+                          />
+                        ))}
+                      </View>
+                      <Text
+                        style={[
+                          styles.passwordStrengthText,
+                          isPasswordStrong &&
+                            styles.passwordStrengthTextStrong,
+                        ]}
+                      >
+                        {isPasswordStrong
+                          ? "Strong password"
+                          : "Password requirements not yet met"}
+                      </Text>
+                    </View>
+                  )}
                 </View>
 
                 {isGoogleRegistration && (
-                  <View
-                    style={
-                      styles.googleEmailNote
-                    }
-                  >
+                  <View style={styles.googleEmailNote}>
                     <Ionicons
                       name="logo-google"
                       size={16}
-                      color="#2563EB"
+                      color="#002B5C"
                     />
-
-                    <Text
-                      style={
-                        styles.googleEmailNoteText
-                      }
-                    >
-                      This email is linked
-                      to your Google
-                      account.
+                    <Text style={styles.googleEmailNoteText}>
+                      This email is linked to your Google account.
                     </Text>
                   </View>
                 )}
 
-                <View
-                  style={styles.infoBox}
-                >
+                <View style={styles.infoBox}>
                   <Ionicons
                     name="information-circle-outline"
                     size={20}
-                    color="#2563EB"
+                    color="#002B5C"
                   />
-
-                  <Text
-                    style={styles.infoText}
-                  >
-                    Your email and
-                    password will be used
-                    to access your
-                    participant account.
+                  <Text style={styles.infoText}>
+                    Your email and password will be used to access your participant account.
                   </Text>
                 </View>
               </>
             )}
 
-            {/* ================================= */}
-            {/* STEP 2 - PERSONAL INFORMATION */}
-            {/* ================================= */}
-
             {step === 2 && (
               <>
-                <View
-                  style={styles.nameRow}
-                >
-                  <View
-                    style={
-                      styles.nameField
-                    }
-                  >
+                <View style={styles.nameRow}>
+                  <View style={styles.nameField}>
                     <Input
                       label="First Name"
                       icon="person-outline"
-                      value={
-                        firstName
-                      }
-                      onChangeText={
-                        setFirstName
-                      }
+                      value={firstName}
+                      onChangeText={setFirstName}
                       placeholder="First name"
                       autoCapitalize="words"
-                      editable={
-                        !isLoading &&
-                        !isGoogleRegistration
-                      }
+                      editable={!isLoading && !isGoogleRegistration}
                     />
                   </View>
 
-                  <View
-                    style={
-                      styles.nameField
-                    }
-                  >
+                  <View style={styles.nameField}>
                     <Input
                       label="Last Name"
                       icon="person-outline"
-                      value={
-                        lastName
-                      }
-                      onChangeText={
-                        setLastName
-                      }
+                      value={lastName}
+                      onChangeText={setLastName}
                       placeholder="Last name"
                       autoCapitalize="words"
-                      editable={
-                        !isLoading &&
-                        !isGoogleRegistration
-                      }
+                      editable={!isLoading && !isGoogleRegistration}
                     />
                   </View>
                 </View>
@@ -1876,60 +1976,37 @@ const handleRegister = async () => {
                   label="Middle Name"
                   icon="person-outline"
                   value={middleName}
-                  onChangeText={
-                    setMiddleName
-                  }
+                  onChangeText={setMiddleName}
                   placeholder="Middle name (optional)"
                   autoCapitalize="words"
                   editable={!isLoading}
                 />
 
-                {/* GENDER */}
-
-                <View
-                  style={styles.field}
-                >
-                  <Text
-                    style={styles.label}
-                  >
-                    Gender
-                  </Text>
-
+                <View style={styles.field}>
+                  <Text style={styles.label}>Gender</Text>
                   <Pressable
-                    onPress={() =>
-                      setShowGenderDropdown(
-                        true
-                      )
-                    }
+                    onPress={() => setShowGenderDropdown(true)}
                     disabled={isLoading}
                     style={({ pressed }) => [
                       styles.inputWrapper,
-                      gender &&
-                        styles.inputWrapperActive,
-                      pressed &&
-                        styles.dropdownPressed,
+                      gender && styles.inputWrapperActive,
+                      pressed && styles.dropdownPressed,
                     ]}
                   >
                     <Ionicons
                       name="male-female-outline"
                       size={20}
-                      color="#2563EB"
-                      style={
-                        styles.inputIcon
-                      }
+                      color="#002B5C"
+                      style={styles.inputIcon}
                     />
-
                     <Text
                       style={[
                         styles.dropdownText,
-                        !gender &&
-                          styles.dropdownPlaceholder,
+                        !gender && styles.dropdownPlaceholder,
                       ]}
                     >
-                      {gender ||
-                        "Select gender"}
+                      {gender || "Select gender"}
                     </Text>
-
                     <Ionicons
                       name="chevron-down"
                       size={19}
@@ -1938,52 +2015,31 @@ const handleRegister = async () => {
                   </Pressable>
                 </View>
 
-                {/* BIRTH DATE */}
-
-                <View
-                  style={styles.field}
-                >
-                  <Text
-                    style={styles.label}
-                  >
-                    Birth Date
-                  </Text>
-
+                <View style={styles.field}>
+                  <Text style={styles.label}>Birth Date</Text>
                   <Pressable
-                    onPress={() =>
-                      setShowDatePicker(
-                        true
-                      )
-                    }
+                    onPress={() => setShowDatePicker(true)}
                     disabled={isLoading}
                     style={({ pressed }) => [
                       styles.inputWrapper,
-                      birthDate &&
-                        styles.inputWrapperActive,
-                      pressed &&
-                        styles.dropdownPressed,
+                      birthDate && styles.inputWrapperActive,
+                      pressed && styles.dropdownPressed,
                     ]}
                   >
                     <Ionicons
                       name="calendar-outline"
                       size={20}
-                      color="#2563EB"
-                      style={
-                        styles.inputIcon
-                      }
+                      color="#002B5C"
+                      style={styles.inputIcon}
                     />
-
                     <Text
                       style={[
                         styles.dropdownText,
-                        !birthDate &&
-                          styles.dropdownPlaceholder,
+                        !birthDate && styles.dropdownPlaceholder,
                       ]}
                     >
-                      {formattedBirthDate ||
-                        "Select birth date"}
+                      {formattedBirthDate || "Select birth date"}
                     </Text>
-
                     <Ionicons
                       name="chevron-down"
                       size={19}
@@ -1992,113 +2048,105 @@ const handleRegister = async () => {
                   </Pressable>
                 </View>
 
-                <View
-                  style={styles.infoBox}
-                >
+                <View style={styles.infoBox}>
                   <Ionicons
                     name="information-circle-outline"
                     size={20}
-                    color="#2563EB"
+                    color="#002B5C"
                   />
-
-                  <Text
-                    style={styles.infoText}
-                  >
-                    Please make sure your
-                    personal information
-                    matches your valid
-                    identification details.
+                  <Text style={styles.infoText}>
+                    Please make sure your personal information matches your valid identification details.
                   </Text>
                 </View>
               </>
             )}
-
-            {/* ================================= */}
-            {/* STEP 3 - ADDRESS */}
-            {/* ================================= */}
 
             {step === 3 && (
               <>
                 <Input
                   label="House Number / Street"
                   icon="home-outline"
-                  value={
-                    houseNumber
-                  }
-                  onChangeText={
-                    setHouseNumber
-                  }
+                  value={houseNumber}
+                  onChangeText={setHouseNumber}
                   placeholder="House number or street"
                   autoCapitalize="words"
                   editable={!isLoading}
                 />
 
                 <DropdownButton
-                  label="Province"
+                  label="Region"
+                  icon="globe-outline"
+                  value={region?.name}
+                  placeholder="Select region"
+                  onPress={() => setActiveDropdown("region")}
+                  loading={isLoadingRegions}
+                  disabled={isLoading || isLoadingRegions}
+                />
+
+                <DropdownButton
+                  label="Province (if applicable)"
                   icon="location-outline"
-                  value={
-                    province?.name
+                  value={province?.name}
+                  placeholder={
+                    !region
+                      ? "Select region first"
+                      : isLoadingProvinces
+                        ? "Loading provinces..."
+                        : provinces.length === 0
+                          ? "No province available; select city"
+                          : "Select province or independent city"
                   }
-                  placeholder="Select province"
-                  onPress={() =>
-                    setActiveDropdown(
-                      "province"
-                    )
-                  }
-                  loading={
-                    isLoadingProvinces
-                  }
+                  onPress={() => setActiveDropdown("province")}
+                  loading={isLoadingProvinces}
                   disabled={
                     isLoading ||
-                    isLoadingProvinces
+                    !region ||
+                    isLoadingProvinces ||
+                    provinces.length === 0
                   }
                 />
 
                 <DropdownButton
-                  label="Municipality / City"
+                  label="City / Municipality"
                   icon="business-outline"
-                  value={
-                    municipality?.name
-                  }
+                  value={municipality?.name}
                   placeholder={
-                    province
-                      ? "Select municipality / city"
-                      : "Select province first"
+                    !region
+                      ? "Select region first"
+                      : province
+                        ? "Select city / municipality"
+                        : independentCities.length > 0
+                          ? "Select city / municipality"
+                          : isLoadingIndependentCities
+                            ? "Loading cities..."
+                            : "No cities available"
                   }
-                  onPress={() =>
-                    setActiveDropdown(
-                      "municipality"
-                    )
-                  }
+                  onPress={() => setActiveDropdown("municipality")}
                   loading={
-                    isLoadingMunicipalities
+                    province
+                      ? isLoadingMunicipalities
+                      : isLoadingIndependentCities
                   }
                   disabled={
                     isLoading ||
-                    !province ||
-                    isLoadingMunicipalities
+                    !region ||
+                    (province
+                      ? isLoadingMunicipalities || municipalities.length === 0
+                      : isLoadingIndependentCities || independentCities.length === 0)
                   }
                 />
 
                 <DropdownButton
                   label="Barangay"
                   icon="map-outline"
-                  value={
-                    barangay?.name
-                  }
+                  value={barangay?.name}
                   placeholder={
                     municipality
                       ? "Select barangay"
                       : "Select municipality first"
                   }
-                  onPress={() =>
-                    setActiveDropdown(
-                      "barangay"
-                    )
-                  }
-                  loading={
-                    isLoadingBarangays
-                  }
+                  onPress={() => setActiveDropdown("barangay")}
+                  loading={isLoadingBarangays}
                   disabled={
                     isLoading ||
                     !municipality ||
@@ -2106,427 +2154,806 @@ const handleRegister = async () => {
                   }
                 />
 
-                <Input
-                  label="Mobile Number"
-                  icon="phone-portrait-outline"
-                  value={
-                    mobileNumber
-                  }
-                  onChangeText={
-                    setMobileNumber
-                  }
-                  placeholder="09XXXXXXXXX"
-                  keyboardType="phone-pad"
-                  autoCapitalize="none"
-                  editable={!isLoading}
-                />
+                <View style={styles.field}>
+                  <Text style={styles.label}>Mobile Number</Text>
+                  <View
+                    style={[
+                      styles.inputWrapper,
+                      mobileNumber.length > 0 &&
+                        (isMobileNumberValid
+                          ? styles.inputWrapperActive
+                          : { borderColor: "#FCA5A5" }),
+                    ]}
+                  >
+                    <Ionicons
+                      name="phone-portrait-outline"
+                      size={20}
+                      color="#002B5C"
+                      style={styles.inputIcon}
+                    />
+                    <CountryPicker
+                      countryCode={selectedCountry}
+                      withFilter
+                      withFlag
+                      withEmoji
+                      withCountryNameButton={false}
+                      withCallingCodeButton={false}
+                      onSelect={(country) => {
+                        setSelectedCountry(country.cca2);
+                        setCallingCode(country.callingCode[0] ?? "");
+                        setMobileNumber("");
+                        setLocalError("");
+                      }}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontWeight: "700",
+                        color: "#334155",
+                        marginRight: 10,
+                      }}
+                    >
+                      +{callingCode}
+                    </Text>
+                    <View
+                      style={{
+                        width: 1,
+                        height: 25,
+                        backgroundColor: "#D9E2EC",
+                        marginRight: 10,
+                      }}
+                    />
+                    <TextInput
+                      value={mobileNumber}
+                      onChangeText={(value) => {
+                        setMobileNumber(value.replace(/\D/g, ""));
+                        setLocalError("");
+                      }}
+                      placeholder={
+                        selectedCountry === "PH"
+                          ? "9171234567"
+                          : "Enter phone number"
+                      }
+                      placeholderTextColor="#A0AEC0"
+                      keyboardType="phone-pad"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      editable={!isRegistering}
+                      style={styles.input}
+                    />
+                  </View>
+
+                  {mobileNumber.length > 0 && (
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        marginTop: 7,
+                      }}
+                    >
+                      <Ionicons
+                        name={
+                          isMobileNumberValid
+                            ? "checkmark-circle"
+                            : "alert-circle-outline"
+                        }
+                        size={15}
+                        color={
+                          isMobileNumberValid ? "#16A34A" : "#DC2626"
+                        }
+                      />
+                      <Text
+                        style={{
+                          marginLeft: 6,
+                          fontSize: 11,
+                          color: isMobileNumberValid
+                            ? "#15803D"
+                            : "#DC2626",
+                        }}
+                      >
+                        {isMobileNumberValid
+                          ? "Valid phone number format"
+                          : "Enter a valid number for the selected country."}
+                      </Text>
+                    </View>
+                  )}
+                </View>
 
                 {formattedAddress ? (
-                  <View
-                    style={
-                      styles.addressPreview
-                    }
-                  >
+                  <View style={styles.addressPreview}>
                     <Ionicons
                       name="navigate-outline"
                       size={18}
-                      color="#2563EB"
+                      color="#002B5C"
                     />
-
-                    <View
-                      style={
-                        styles.addressContent
-                      }
-                    >
-                      <Text
-                        style={
-                          styles.addressLabel
-                        }
-                      >
+                    <View style={styles.addressContent}>
+                      <Text style={styles.addressLabel}>
                         Address Preview
                       </Text>
-
-                      <Text
-                        style={
-                          styles.addressText
-                        }
-                      >
-                        {
-                          formattedAddress
-                        }
+                      <Text style={styles.addressText}>
+                        {formattedAddress}
                       </Text>
                     </View>
                   </View>
                 ) : null}
 
-                <View
-                  style={styles.infoBox}
-                >
+                <View style={styles.infoBox}>
                   <Ionicons
                     name="information-circle-outline"
                     size={20}
-                    color="#2563EB"
+                    color="#002B5C"
                   />
-
-                  <Text
-                    style={styles.infoText}
-                  >
-                    Your address will be
-                    used for your
-                    participant profile
-                    and official training
-                    records.
+                  <Text style={styles.infoText}>
+                    Your address will be used for your participant profile and official training records.
                   </Text>
                 </View>
               </>
             )}
 
-            {/* ================================= */}
-            {/* STEP 4 - PROFILE PICTURE */}
-            {/* ================================= */}
-
             {step === 4 && (
               <>
-                <View
-                  style={
-                    styles.profileIntro
-                  }
-                >
-                  <Text
-                    style={
-                      styles.profileIntroTitle
-                    }
-                  >
-                    Add your profile picture
-                  </Text>
-
-                  <Text
-                    style={
-                      styles.profileIntroText
-                    }
-                  >
-                    Upload a clear photo so
-                    your profile can be easily
-                    identified.
+                <View style={styles.infoBox}>
+                  <Ionicons
+                    name="information-circle-outline"
+                    size={20}
+                    color="#002B5C"
+                  />
+                  <Text style={styles.infoText}>
+                    Provide your educational background, employment details, valid ID information, and emergency contact. These fields are optional unless your organization requires them.
                   </Text>
                 </View>
 
-                <View
-                  style={
-                    styles.profileSection
-                  }
-                >
-                  <Text
-                    style={styles.label}
-                  >
-                    Profile Picture
-                  </Text>
+                <Text style={styles.formSectionTitle}>
+                  Educational Information
+                </Text>
 
+                <Input
+                  label="Highest Educational Attainment"
+                  icon="school-outline"
+                  value={highestEducationalAttainment}
+                  onChangeText={setHighestEducationalAttainment}
+                  placeholder="e.g. Bachelor's Degree"
+                  autoCapitalize="words"
+                  editable={!isRegistering}
+                />
+
+                <DropdownButton
+                  label="Educational Status"
+                  icon="book-outline"
+                  value={educationalStatus}
+                  placeholder="Select educational status"
+                  onPress={() => setActiveOptionDropdown("educationalStatus")}
+                  disabled={isRegistering}
+                />
+
+                <Input
+                  label="School Name"
+                  icon="business-outline"
+                  value={schoolName}
+                  onChangeText={setSchoolName}
+                  placeholder="Enter school name"
+                  autoCapitalize="words"
+                  editable={!isRegistering}
+                />
+
+                <Input
+                  label="Course or Degree"
+                  icon="ribbon-outline"
+                  value={courseOrDegree}
+                  onChangeText={setCourseOrDegree}
+                  placeholder="e.g. BS Information Technology"
+                  autoCapitalize="words"
+                  editable={!isRegistering}
+                />
+
+                <Input
+                  label="Field of Study"
+                  icon="library-outline"
+                  value={fieldOfStudy}
+                  onChangeText={setFieldOfStudy}
+                  placeholder="e.g. Information Technology"
+                  autoCapitalize="words"
+                  editable={!isRegistering}
+                />
+
+                <Input
+                  label="Year Graduated"
+                  icon="calendar-outline"
+                  value={yearGraduated}
+                  onChangeText={(value) =>
+                    setYearGraduated(value.replace(/\D/g, "").slice(0, 4))
+                  }
+                  placeholder="e.g. 2025"
+                  keyboardType="number-pad"
+                  autoCapitalize="none"
+                  editable={!isRegistering}
+                />
+              </>
+            )}
+
+            {step === 5 && (
+              <>
+                <View style={styles.infoBox}>
+                  <Ionicons
+                    name="briefcase-outline"
+                    size={20}
+                    color="#002B5C"
+                  />
+                  <Text style={styles.infoText}>
+                    Provide your employment details and work experience, if applicable.
+                  </Text>
+                </View>
+
+                <Text style={styles.formSectionTitle}>
+                  Employment Information
+                </Text>
+
+                <DropdownButton
+                  label="Employment Status"
+                  icon="briefcase-outline"
+                  value={employmentStatus}
+                  placeholder="Select employment status"
+                  onPress={() => setActiveOptionDropdown("employmentStatus")}
+                  disabled={isRegistering}
+                />
+
+                <Input
+                  label="Company Name"
+                  icon="business-outline"
+                  value={companyName}
+                  onChangeText={setCompanyName}
+                  placeholder="Enter company name"
+                  autoCapitalize="words"
+                  editable={!isRegistering}
+                />
+
+                <Input
+                  label="Job Title"
+                  icon="person-outline"
+                  value={jobTitle}
+                  onChangeText={setJobTitle}
+                  placeholder="Enter job title"
+                  autoCapitalize="words"
+                  editable={!isRegistering}
+                />
+
+                <Input
+                  label="Industry"
+                  icon="briefcase-outline"
+                  value={industry}
+                  onChangeText={setIndustry}
+                  placeholder="e.g. Education, IT, Business"
+                  autoCapitalize="words"
+                  editable={!isRegistering}
+                />
+
+                <Input
+                  label="Years of Work Experience"
+                  icon="time-outline"
+                  value={yearsOfWorkExperience}
+                  onChangeText={(value) =>
+                    setYearsOfWorkExperience(value.replace(/\D/g, "").slice(0, 2))
+                  }
+                  placeholder="e.g. 3"
+                  keyboardType="number-pad"
+                  autoCapitalize="none"
+                  editable={!isRegistering}
+                />
+              </>
+            )}
+
+            {step === 6 && (
+              <>
+                <View style={styles.infoBox}>
+                  <Ionicons
+                    name="shield-checkmark-outline"
+                    size={20}
+                    color="#002B5C"
+                  />
+                  <Text style={styles.infoText}>
+                    Provide your valid ID details. You can upload an existing ID image or take a photo using your camera.
+                  </Text>
+                </View>
+
+                <Text style={styles.formSectionTitle}>
+                  Valid ID Information
+                </Text>
+
+                <DropdownButton
+                  label="Valid ID Type"
+                  icon="card-outline"
+                  value={validIdType}
+                  placeholder="Select valid ID type"
+                  onPress={() => setActiveOptionDropdown("validIdType")}
+                  disabled={isRegistering}
+                />
+
+                <Input
+                  label="Valid ID Number"
+                  icon="document-text-outline"
+                  value={validIdNumber}
+                  onChangeText={setValidIdNumber}
+                  placeholder="Enter ID number"
+                  autoCapitalize="characters"
+                  editable={!isRegistering}
+                />
+
+                <View style={styles.field}>
+                  <Text style={styles.label}>Valid ID Image</Text>
                   <Pressable
-                    onPress={
-                      handlePickProfileImage
-                    }
-                    disabled={isLoading}
+                    onPress={handlePickValidIdImage}
+                    disabled={isRegistering}
+                    style={({ pressed }) => [
+                      styles.idImagePicker,
+                      pressed && styles.profilePickerPressed,
+                      isRegistering && styles.dropdownDisabled,
+                    ]}
+                  >
+                    {validIdImage ? (
+                      <Image
+                        source={{ uri: validIdImage.uri }}
+                        style={styles.idImagePreview}
+                        resizeMode="contain"
+                      />
+                    ) : (
+                      <Ionicons
+                        name="cloud-upload-outline"
+                        size={30}
+                        color="#002B5C"
+                      />
+                    )}
+                    <Text style={styles.idImageText}>
+                      {validIdImage
+                        ? "Change valid ID image"
+                        : "Upload valid ID image (optional)"}
+                    </Text>
+                  </Pressable>
+
+                  {/* Camera and Upload Action Buttons para sa Valid ID */}
+                  <View style={styles.profileActions}>
+                    <Pressable
+                      onPress={handleCaptureValidIdImage}
+                      disabled={isRegistering}
+                      style={[
+                        styles.profileActionButton,
+                        styles.profileActionPrimary,
+                      ]}
+                    >
+                      <Ionicons
+                        name="camera-outline"
+                        size={19}
+                        color="#FFFFFF"
+                      />
+                      <Text style={styles.profileActionPrimaryText}>
+                        Take Photo
+                      </Text>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={handlePickValidIdImage}
+                      disabled={isRegistering}
+                      style={[
+                        styles.profileActionButton,
+                        styles.profileActionSecondary,
+                      ]}
+                    >
+                      <Ionicons
+                        name="image-outline"
+                        size={19}
+                        color="#002B5C"
+                      />
+                      <Text style={styles.profileActionSecondaryText}>
+                        Upload Photo
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </>
+            )}
+
+            {step === 7 && (
+              <>
+                <View style={styles.infoBox}>
+                  <Ionicons
+                    name="people-outline"
+                    size={20}
+                    color="#002B5C"
+                  />
+                  <Text style={styles.infoText}>
+                    Add someone we can contact in an emergency. Make sure you have permission to provide their details.
+                  </Text>
+                </View>
+
+                <Text style={styles.formSectionTitle}>
+                  Emergency Contact
+                </Text>
+
+                <Input
+                  label="Emergency Contact Name"
+                  icon="person-outline"
+                  value={emergencyContactName}
+                  onChangeText={setEmergencyContactName}
+                  placeholder="Enter contact person's full name"
+                  autoCapitalize="words"
+                  editable={!isRegistering}
+                />
+
+                <View style={styles.field}>
+                  <Text style={styles.label}>Emergency Contact Number</Text>
+                  <View
+                    style={[
+                      styles.inputWrapper,
+                      emergencyContactNumber.length > 0 &&
+                        (isEmergencyContactNumberValid
+                          ? styles.inputWrapperActive
+                          : { borderColor: "#FCA5A5" }),
+                    ]}
+                  >
+                    <Ionicons
+                      name="call-outline"
+                      size={20}
+                      color="#002B5C"
+                      style={styles.inputIcon}
+                    />
+                    <CountryPicker
+                      countryCode={emergencySelectedCountry}
+                      withFilter
+                      withFlag
+                      withEmoji
+                      withCountryNameButton={false}
+                      withCallingCodeButton={false}
+                      onSelect={(country: Country) => {
+                        setEmergencySelectedCountry(country.cca2);
+                        setEmergencyCallingCode(country.callingCode[0] ?? "");
+                        setEmergencyContactNumber("");
+                        setLocalError("");
+                      }}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontWeight: "700",
+                        color: "#334155",
+                        marginRight: 10,
+                      }}
+                    >
+                      +{emergencyCallingCode}
+                    </Text>
+                    <View
+                      style={{
+                        width: 1,
+                        height: 25,
+                        backgroundColor: "#D9E2EC",
+                        marginRight: 10,
+                      }}
+                    />
+                    <TextInput
+                      value={emergencyContactNumber}
+                      onChangeText={(value) => {
+                        setEmergencyContactNumber(value.replace(/\D/g, ""));
+                        setLocalError("");
+                      }}
+                      placeholder={
+                        emergencySelectedCountry === "PH"
+                          ? "9171234567"
+                          : "Enter phone number"
+                      }
+                      placeholderTextColor="#A0AEC0"
+                      keyboardType="phone-pad"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      editable={!isRegistering}
+                      style={styles.input}
+                    />
+                  </View>
+
+                  {emergencyContactNumber.length > 0 && (
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        marginTop: 7,
+                      }}
+                    >
+                      <Ionicons
+                        name={
+                          isEmergencyContactNumberValid
+                            ? "checkmark-circle"
+                            : "alert-circle-outline"
+                        }
+                        size={15}
+                        color={
+                          isEmergencyContactNumberValid
+                            ? "#16A34A"
+                            : "#DC2626"
+                        }
+                      />
+                      <Text
+                        style={{
+                          marginLeft: 6,
+                          fontSize: 11,
+                          color: isEmergencyContactNumberValid
+                            ? "#15803D"
+                            : "#DC2626",
+                        }}
+                      >
+                        {isEmergencyContactNumberValid
+                          ? "Valid phone number format"
+                          : "Enter a valid number for the selected country."}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                <Input
+                  label="Relationship to Participant"
+                  icon="people-outline"
+                  value={emergencyContactRelationship}
+                  onChangeText={setEmergencyContactRelationship}
+                  placeholder="e.g. Parent, Spouse, Sibling"
+                  autoCapitalize="words"
+                  editable={!isRegistering}
+                />
+
+                <View style={styles.infoBox}>
+                  <Ionicons
+                    name="shield-checkmark-outline"
+                    size={20}
+                    color="#002B5C"
+                  />
+                  <Text style={styles.infoText}>
+                    Only provide information you are comfortable sharing. Make sure you have permission to provide another person's emergency contact details.
+                  </Text>
+                </View>
+              </>
+            )}
+
+            {step === 8 && (
+              <View style={styles.stepContainer}>
+                <Text style={styles.stepTitle}>
+                  Review Your Registration
+                </Text>
+                <Text style={styles.stepDescription}>
+                  Upload your profile picture and review your information before creating your account.
+                </Text>
+
+                <View style={styles.field}>
+                  <Text style={styles.label}>Profile Picture</Text>
+                  <Pressable
+                    onPress={handlePickProfileImage}
+                    disabled={isRegistering}
                     style={({ pressed }) => [
                       styles.profilePicker,
-                      pressed &&
-                        styles.profilePickerPressed,
+                      pressed && styles.profilePickerPressed,
+                      isRegistering && styles.dropdownDisabled,
                     ]}
                   >
                     {profileImage ? (
-                      <>
-                        <Image
-                          source={{
-                            uri: profileImage.uri,
-                          }}
-                          style={
-                            styles.profileImage
-                          }
-                        />
-
-                        <View
-                          style={
-                            styles.profileOverlay
-                          }
-                        >
-                          <Ionicons
-                            name="camera-outline"
-                            size={20}
-                            color="#FFFFFF"
-                          />
-                        </View>
-                      </>
+                      <Image
+                        source={{ uri: profileImage.uri }}
+                        style={styles.profileImagePreview}
+                        resizeMode="cover"
+                      />
                     ) : (
-                      <>
-                        <View
-                          style={
-                            styles.profileIconCircle
-                          }
-                        >
-                          <Ionicons
-                            name="camera-outline"
-                            size={24}
-                            color="#2563EB"
-                          />
-                        </View>
-
-                        <Text
-                          style={
-                            styles.profileTitle
-                          }
-                        >
-                          Add profile picture
-                        </Text>
-
-                        <Text
-                          style={
-                            styles.profileSubtitle
-                          }
-                        >
-                          Optional
-                        </Text>
-                      </>
+                      <View style={styles.profileIconCircle}>
+                        <Ionicons
+                          name="person-outline"
+                          size={32}
+                          color="#002B5C"
+                        />
+                      </View>
                     )}
+                    <Text style={styles.profileTitle}>
+                      {profileImage
+                        ? "Change Profile Picture"
+                        : "Add Profile Picture"}
+                    </Text>
+                    <Text style={styles.profileSubtitle}>
+                      Take a photo or choose one from your gallery
+                    </Text>
                   </Pressable>
+
+                  <View style={styles.profileActions}>
+                    <Pressable
+                      onPress={handleCaptureProfileImage}
+                      disabled={isRegistering}
+                      style={[
+                        styles.profileActionButton,
+                        styles.profileActionPrimary,
+                      ]}
+                    >
+                      <Ionicons
+                        name="camera-outline"
+                        size={19}
+                        color="#FFFFFF"
+                      />
+                      <Text style={styles.profileActionPrimaryText}>
+                        Take Photo
+                      </Text>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={handlePickProfileImage}
+                      disabled={isRegistering}
+                      style={[
+                        styles.profileActionButton,
+                        styles.profileActionSecondary,
+                      ]}
+                    >
+                      <Ionicons
+                        name="image-outline"
+                        size={19}
+                        color="#002B5C"
+                      />
+                      <Text style={styles.profileActionSecondaryText}>
+                        Upload Photo
+                      </Text>
+                    </Pressable>
+                  </View>
                 </View>
 
-                <View
-                  style={
-                    styles.accountSummary
-                  }
-                >
-                  <View
-                    style={
-                      styles.summaryHeader
-                    }
-                  >
+                <View style={styles.summaryCard}>
+                  <View style={styles.summaryHeader}>
                     <Ionicons
-                      name="checkmark-circle-outline"
-                      size={19}
-                      color="#16A34A"
+                      name="document-text-outline"
+                      size={22}
+                      color="#002B5C"
                     />
-
-                    <Text
-                      style={
-                        styles.summaryTitle
-                      }
-                    >
+                    <Text style={styles.summaryTitle}>
                       Registration Summary
                     </Text>
                   </View>
 
-                  <View
-                    style={
-                      styles.summaryRow
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.summaryLabel
-                      }
-                    >
-                      Name
+                  <View style={styles.summarySection}>
+                    <Text style={styles.summarySectionTitle}>
+                      Personal Information
                     </Text>
-
-                    <Text
-                      style={
-                        styles.summaryValue
-                      }
-                    >
-                      {firstName}{" "}
-                      {lastName}
-                    </Text>
+                    <SummaryRow
+                      label="Full Name"
+                      value={[
+                        firstName,
+                        middleName,
+                        lastName,
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    />
+                    <SummaryRow label="Email" value={email} />
+                    <SummaryRow label="Birth Date" value={formattedBirthDate} />
+                    <SummaryRow label="Gender" value={gender} />
+                    <SummaryRow label="Mobile Number" value={parsedMobileNumber?.number} />
+                    <SummaryRow label="Address" value={formattedAddress} />
                   </View>
 
-                  <View
-                    style={
-                      styles.summaryRow
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.summaryLabel
-                      }
-                    >
-                      Email
-                    </Text>
+                  <View style={styles.summaryDivider} />
 
-                    <Text
-                      style={
-                        styles.summaryValue
-                      }
-                      numberOfLines={1}
-                    >
-                      {email}
+                  <View style={styles.summarySection}>
+                    <Text style={styles.summarySectionTitle}>
+                      Educational Information
                     </Text>
+                    <SummaryRow
+                      label="Highest Attainment"
+                      value={highestEducationalAttainment}
+                    />
+                    <SummaryRow
+                      label="Educational Status"
+                      value={educationalStatus}
+                    />
+                    <SummaryRow label="School" value={schoolName} />
+                    <SummaryRow label="Course / Degree" value={courseOrDegree} />
                   </View>
 
-                  <View
-                    style={
-                      styles.summaryRow
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.summaryLabel
-                      }
-                    >
-                      Address
-                    </Text>
+                  <View style={styles.summaryDivider} />
 
-                    <Text
-                      style={
-                        styles.summaryValue
-                      }
-                      numberOfLines={2}
-                    >
-                      {formattedAddress}
+                  <View style={styles.summarySection}>
+                    <Text style={styles.summarySectionTitle}>
+                      Employment Information
                     </Text>
+                    <SummaryRow
+                      label="Employment Status"
+                      value={employmentStatus}
+                    />
+                    <SummaryRow label="Company" value={companyName} />
+                    <SummaryRow label="Job Title" value={jobTitle} />
+                    <SummaryRow label="Industry" value={industry} />
+                  </View>
+
+                  <View style={styles.summaryDivider} />
+
+                  <View style={styles.summarySection}>
+                    <Text style={styles.summarySectionTitle}>Valid ID</Text>
+                    <SummaryRow label="ID Type" value={validIdType} />
+                    <SummaryRow label="ID Number" value={validIdNumber} />
+                    <SummaryRow
+                      label="ID Image"
+                      value={validIdImage ? "Uploaded" : "Not uploaded"}
+                    />
+                  </View>
+
+                  <View style={styles.summaryDivider} />
+
+                  <View style={styles.summarySection}>
+                    <Text style={styles.summarySectionTitle}>
+                      Emergency Contact
+                    </Text>
+                    <SummaryRow
+                      label="Contact Name"
+                      value={emergencyContactName}
+                    />
+                    <SummaryRow
+                      label="Relationship"
+                      value={emergencyContactRelationship}
+                    />
+                    <SummaryRow
+                      label="Contact Number"
+                      value={emergencyContactNumber}
+                    />
                   </View>
                 </View>
 
-                <View
-                  style={
-                    styles.securityBox
-                  }
-                >
-                  <Ionicons
-                    name="shield-checkmark-outline"
-                    size={20}
-                    color="#2563EB"
-                  />
-
-                  <Text
-                    style={
-                      styles.securityBoxText
-                    }
-                  >
-                    Your account information
-                    is securely protected.
-                    Review your details before
-                    creating your participant
-                    account.
-                  </Text>
-                </View>
-              </>
+                <Text style={styles.summaryNotice}>
+                  Please review your information before creating your account. You can go back to previous steps to make corrections.
+                </Text>
+              </View>
             )}
 
-            {/* ================================= */}
-            {/* ERROR */}
-            {/* ================================= */}
-
             {displayError ? (
-              <View
-                style={
-                  styles.errorContainer
-                }
-              >
+              <View style={styles.errorContainer}>
                 <Ionicons
                   name="alert-circle-outline"
                   size={18}
                   color="#DC2626"
                 />
-
-                <Text
-                  style={styles.errorText}
-                >
+                <Text style={styles.errorText}>
                   {displayError}
                 </Text>
               </View>
             ) : null}
 
-            {/* ================================= */}
-            {/* ACTION BUTTONS */}
-            {/* ================================= */}
-
-            <View
-              style={styles.actionArea}
-            >
+            <View style={styles.actionArea}>
               {step > 1 && (
                 <Pressable
                   onPress={handleBack}
                   disabled={isLoading}
                   style={({ pressed }) => [
                     styles.secondaryButton,
-                    pressed &&
-                      styles.secondaryButtonPressed,
+                    pressed && styles.secondaryButtonPressed,
                   ]}
                 >
                   <Ionicons
                     name="arrow-back"
                     size={18}
-                    color="#2563EB"
+                    color="#002B5C"
                   />
-
-                  <Text
-                    style={
-                      styles.secondaryButtonText
-                    }
-                  >
+                  <Text style={styles.secondaryButtonText}>
                     Back
                   </Text>
                 </Pressable>
               )}
 
               <Pressable
-                onPress={
-                  step === 4
-                    ? handleRegister
-                    : handleNext
-                }
-                disabled={isLoading}
+                onPress={step === 8 ? handleRegister : handleNext}
+                disabled={isRegistering}
                 style={({ pressed }) => [
                   styles.primaryButton,
-                  step > 1 &&
-                    styles.primaryButtonWithBack,
-                  pressed &&
-                    !isLoading &&
-                    styles.primaryButtonPressed,
-                  isLoading &&
-                    styles.primaryButtonDisabled,
+                  pressed && !isRegistering && styles.primaryButtonPressed,
+                  isRegistering && styles.primaryButtonDisabled,
                 ]}
               >
-                {isLoading ? (
-                  <View
-                    style={
-                      styles.loadingContent
-                    }
-                  >
-                    <ActivityIndicator
-                      size="small"
-                      color="#FFFFFF"
-                    />
-
-                    <Text
-                      style={
-                        styles.primaryButtonText
-                      }
-                    >
+                {isRegistering ? (
+                  <View style={styles.loadingContent}>
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <Text style={styles.primaryButtonText}>
                       Creating account...
                     </Text>
                   </View>
                 ) : (
-                  <View
-                    style={
-                      styles.primaryButtonContent
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.primaryButtonText
-                      }
-                    >
-                      {step === 4
-                        ? "Create account"
-                        : "Continue"}
+                  <View style={styles.primaryButtonContent}>
+                    <Text style={styles.primaryButtonText}>
+                      {step === 8 ? "Create Account" : "Continue"}
                     </Text>
-
                     <Ionicons
-                      name={
-                        step === 4
-                          ? "checkmark"
-                          : "arrow-forward"
-                      }
+                      name={step === 8 ? "checkmark" : "arrow-forward"}
                       size={19}
                       color="#FFFFFF"
                     />
@@ -2535,101 +2962,49 @@ const handleRegister = async () => {
               </Pressable>
             </View>
 
-            {/* ================================= */}
-            {/* LOGIN */}
-            {/* ================================= */}
-
-            <View
-              style={styles.loginSection}
-            >
-              <View
-                style={
-                  styles.loginDivider
-                }
-              >
-                <View
-                  style={styles.divider}
-                />
-
-                <Text
-                  style={
-                    styles.dividerText
-                  }
-                >
-                  OR
-                </Text>
-
-                <View
-                  style={styles.divider}
-                />
+            <View style={styles.loginSection}>
+              <View style={styles.loginDivider}>
+                <View style={styles.divider} />
+                <Text style={styles.dividerText}>OR</Text>
+                <View style={styles.divider} />
               </View>
 
-              <Text
-                style={
-                  styles.loginQuestion
-                }
-              >
+              <Text style={styles.loginQuestion}>
                 Already have an account?
               </Text>
 
               <Pressable
-                onPress={() =>
-                  router.replace(
-                    "/(auth)/login"
-                  )
-                }
+                onPress={() => router.replace("/(auth)/login")}
                 disabled={isLoading}
                 style={({ pressed }) => [
                   styles.loginButton,
-                  pressed &&
-                    styles.loginButtonPressed,
+                  pressed && styles.loginButtonPressed,
                 ]}
               >
-                <Text
-                  style={
-                    styles.loginButtonText
-                  }
-                >
+                <Text style={styles.loginButtonText}>
                   Sign in
                 </Text>
-
                 <Ionicons
                   name="arrow-forward"
                   size={17}
-                  color="#2563EB"
+                  color="#002B5C"
                 />
               </Pressable>
             </View>
           </View>
 
-          {/* ================================= */}
-          {/* FOOTER */}
-          {/* ================================= */}
-
           <View style={styles.footer}>
-            <View
-              style={
-                styles.securityRow
-              }
-            >
+            <View style={styles.securityRow}>
               <Ionicons
                 name="shield-checkmark-outline"
                 size={15}
                 color="#64748B"
               />
-
-              <Text
-                style={
-                  styles.securityText
-                }
-              >
+              <Text style={styles.securityText}>
                 Secure and protected access
               </Text>
             </View>
-
-            <Text
-              style={styles.footerText}
-            >
+            <Text style={styles.footerText}>
               ACE NextGen • Participant Portal
             </Text>
           </View>
@@ -2639,99 +3014,46 @@ const handleRegister = async () => {
       {/* ====================================== */}
       {/* DATE PICKER MODAL */}
       {/* ====================================== */}
-
       <Modal
         visible={showDatePicker}
         transparent
         animationType="fade"
-        onRequestClose={() =>
-          setShowDatePicker(false)
-        }
+        onRequestClose={() => setShowDatePicker(false)}
       >
         <Pressable
           style={styles.modalOverlay}
-          onPress={() =>
-            setShowDatePicker(false)
-          }
+          onPress={() => setShowDatePicker(false)}
         >
           <Pressable
             style={styles.dateModal}
-            onPress={(event) =>
-              event.stopPropagation()
-            }
+            onPress={(event) => event.stopPropagation()}
           >
-            <View
-              style={styles.modalHeader}
-            >
+            <View style={styles.modalHeader}>
               <View>
-                <Text
-                  style={
-                    styles.modalTitle
-                  }
-                >
-                  Date of Birth
-                </Text>
-
-                <Text
-                  style={
-                    styles.modalSubtitle
-                  }
-                >
-                  Select your birth date
-                </Text>
+                <Text style={styles.modalTitle}>Date of Birth</Text>
+                <Text style={styles.modalSubtitle}>Select your birth date</Text>
               </View>
-
               <Pressable
-                onPress={() =>
-                  setShowDatePicker(false)
-                }
+                onPress={() => setShowDatePicker(false)}
                 hitSlop={10}
               >
-                <Ionicons
-                  name="close"
-                  size={23}
-                  color="#64748B"
-                />
+                <Ionicons name="close" size={23} color="#64748B" />
               </Pressable>
             </View>
-
             <DateTimePicker
               value={parsedBirthDate}
               mode="date"
-              display={
-                Platform.OS === "ios"
-                  ? "spinner"
-                  : "calendar"
-              }
-              maximumDate={
-                new Date()
-              }
-              onChange={
-                handleBirthDateChange
-              }
-              style={
-                styles.datePicker
-              }
+              display={Platform.OS === "ios" ? "spinner" : "calendar"}
+              minimumDate={new Date(1900, 0, 1)}
+              maximumDate={new Date()}
+              onChange={handleBirthDateChange}
             />
-
             {Platform.OS === "ios" && (
               <Pressable
-                onPress={() =>
-                  setShowDatePicker(
-                    false
-                  )
-                }
-                style={
-                  styles.modalDoneButton
-                }
+                onPress={() => setShowDatePicker(false)}
+                style={styles.modalDoneButton}
               >
-                <Text
-                  style={
-                    styles.modalDoneText
-                  }
-                >
-                  Done
-                </Text>
+                <Text style={styles.modalDoneText}>Done</Text>
               </Pressable>
             )}
           </Pressable>
@@ -2741,154 +3063,186 @@ const handleRegister = async () => {
       {/* ====================================== */}
       {/* GENDER MODAL */}
       {/* ====================================== */}
-
       <Modal
-        visible={
-          showGenderDropdown
-        }
+        visible={showGenderDropdown}
         transparent
         animationType="fade"
-        onRequestClose={() =>
-          setShowGenderDropdown(
-            false
-          )
-        }
+        onRequestClose={() => setShowGenderDropdown(false)}
       >
         <Pressable
           style={styles.modalOverlay}
-          onPress={() =>
-            setShowGenderDropdown(
-              false
-            )
-          }
+          onPress={() => setShowGenderDropdown(false)}
         >
           <Pressable
-            style={
-              styles.selectionModal
-            }
-            onPress={(event) =>
-              event.stopPropagation()
-            }
+            style={styles.selectionModal}
+            onPress={(event) => event.stopPropagation()}
           >
-            <View
-              style={styles.modalHeader}
-            >
+            <View style={styles.modalHeader}>
               <View>
-                <Text
-                  style={
-                    styles.modalTitle
-                  }
-                >
-                  Select Gender
-                </Text>
-
-                <Text
-                  style={
-                    styles.modalSubtitle
-                  }
-                >
-                  Choose an option
-                </Text>
+                <Text style={styles.modalTitle}>Select Gender</Text>
+                <Text style={styles.modalSubtitle}>Choose an option</Text>
               </View>
-
               <Pressable
-                onPress={() =>
-                  setShowGenderDropdown(
-                    false
-                  )
-                }
+                onPress={() => setShowGenderDropdown(false)}
                 hitSlop={10}
               >
-                <Ionicons
-                  name="close"
-                  size={23}
-                  color="#64748B"
-                />
+                <Ionicons name="close" size={23} color="#64748B" />
               </Pressable>
             </View>
 
-            <View
-              style={
-                styles.optionList
-              }
-            >
-              {genderOptions.map(
-                (option) => {
-                  const selected =
-                    gender ===
-                    option;
+            <View style={styles.optionList}>
+              {genderOptions.map((option) => {
+                const selected = gender === option;
 
-                  return (
-                    <Pressable
-                      key={option}
-                      onPress={() => {
-                        setGender(
-                          option
-                        );
-
-                        setShowGenderDropdown(
-                          false
-                        );
-                      }}
-                      style={({ pressed }) => [
-                        styles.optionItem,
-                        selected &&
-                          styles.optionItemSelected,
-                        pressed &&
-                          styles.optionItemPressed,
+                return (
+                  <Pressable
+                    key={option}
+                    onPress={() => {
+                      setGender(option);
+                      setShowGenderDropdown(false);
+                    }}
+                    style={({ pressed }) => [
+                      styles.optionItem,
+                      selected && styles.optionItemSelected,
+                      pressed && styles.optionItemPressed,
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.optionIcon,
+                        selected && styles.optionIconSelected,
                       ]}
                     >
-                      <View
-                        style={[
-                          styles.optionIcon,
-                          selected &&
-                            styles.optionIconSelected,
-                        ]}
-                      >
-                        <Ionicons
-                          name={
-                            option ===
-                            "Male"
-                              ? "male-outline"
-                              : option ===
-                                  "Female"
-                                ? "female-outline"
-                                : "person-outline"
-                          }
-                          size={20}
-                          color={
-                            selected
-                              ? "#FFFFFF"
-                              : "#2563EB"
-                          }
-                        />
-                      </View>
-
-                      <Text
-                        style={[
-                          styles.optionText,
-                          selected &&
-                            styles.optionTextSelected,
-                        ]}
-                      >
-                        {option}
-                      </Text>
-
-                      {selected && (
-                        <Ionicons
-                          name="checkmark-circle"
-                          size={21}
-                          color="#2563EB"
-                          style={
-                            styles.optionCheck
-                          }
-                        />
-                      )}
-                    </Pressable>
-                  );
-                }
-              )}
+                      <Ionicons
+                        name={
+                          option === "Male"
+                            ? "male-outline"
+                            : option === "Female"
+                              ? "female-outline"
+                              : "person-outline"
+                        }
+                        size={20}
+                        color={selected ? "#FFFFFF" : "#002B5C"}
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        styles.optionText,
+                        selected && styles.optionTextSelected,
+                      ]}
+                    >
+                      {option}
+                    </Text>
+                    {selected && (
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={21}
+                        color="#002B5C"
+                        style={styles.optionCheck}
+                      />
+                    )}
+                  </Pressable>
+                );
+              })}
             </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* ====================================== */}
+      {/* OPTIONS / STATUS MODAL */}
+      {/* ====================================== */}
+      <Modal
+        visible={activeOptionDropdown !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setActiveOptionDropdown(null)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setActiveOptionDropdown(null)}
+        >
+          <Pressable
+            style={styles.selectionModal}
+            onPress={(event) => event.stopPropagation()}
+          >
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>
+                  {activeOptionTitle}
+                </Text>
+                <Text style={styles.modalSubtitle}>
+                  Choose an option from the list
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => setActiveOptionDropdown(null)}
+                hitSlop={10}
+              >
+                <Ionicons name="close" size={23} color="#64748B" />
+              </Pressable>
+            </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.optionList}
+            >
+              {activeOptionItems.map((option) => {
+                const selected =
+                  (activeOptionDropdown === "educationalStatus" && educationalStatus === option) ||
+                  (activeOptionDropdown === "employmentStatus" && employmentStatus === option) ||
+                  (activeOptionDropdown === "validIdType" && validIdType === option);
+
+                return (
+                  <Pressable
+                    key={option}
+                    onPress={() => {
+                      handleOptionSelect(option);
+                    }}
+                    style={({ pressed }) => [
+                      styles.optionItem,
+                      selected && styles.optionItemSelected,
+                      pressed && styles.optionItemPressed,
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.optionIcon,
+                        selected && styles.optionIconSelected,
+                      ]}
+                    >
+                      <Ionicons
+                        name={
+                          activeOptionDropdown === "validIdType"
+                            ? "card-outline"
+                            : activeOptionDropdown === "employmentStatus"
+                              ? "briefcase-outline"
+                              : "book-outline"
+                        }
+                        size={20}
+                        color={selected ? "#FFFFFF" : "#002B5C"}
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        styles.optionText,
+                        selected && styles.optionTextSelected,
+                      ]}
+                    >
+                      {option}
+                    </Text>
+                    {selected && (
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={21}
+                        color="#002B5C"
+                        style={styles.optionCheck}
+                      />
+                    )}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
           </Pressable>
         </Pressable>
       </Modal>
@@ -2896,74 +3250,33 @@ const handleRegister = async () => {
       {/* ====================================== */}
       {/* LOCATION MODAL */}
       {/* ====================================== */}
-
       <Modal
-        visible={
-          activeDropdown !==
-          null
-        }
+        visible={activeDropdown !== null}
         transparent
         animationType="slide"
-        onRequestClose={() =>
-          setActiveDropdown(
-            null
-          )
-        }
+        onRequestClose={() => setActiveDropdown(null)}
       >
-        <View
-          style={
-            styles.locationModalOverlay
-          }
-        >
+        <View style={styles.locationModalOverlay}>
           <Pressable
-            style={
-              styles.locationBackdrop
-            }
-            onPress={() =>
-              setActiveDropdown(
-                null
-              )
-            }
+            style={styles.locationBackdrop}
+            onPress={() => setActiveDropdown(null)}
           />
 
-          <View
-            style={
-              styles.locationModal
-            }
-          >
-            <View
-              style={
-                styles.modalHandle
-              }
-            />
+          <View style={styles.locationModal}>
+            <View style={styles.modalHandle} />
 
-            <View
-              style={styles.modalHeader}
-            >
+            <View style={styles.modalHeader}>
               <View>
-                <Text
-                  style={
-                    styles.modalTitle
-                  }
-                >
+                <Text style={styles.modalTitle}>
                   {locationTitle}
                 </Text>
-
-                <Text
-                  style={
-                    styles.modalSubtitle
-                  }
-                >
+                <Text style={styles.modalSubtitle}>
                   Select from the list below
                 </Text>
               </View>
 
               <Pressable
-                onPress={() =>
-                  setActiveDropdown(
-                    null
-                  )
-                }
+                onPress={() => setActiveDropdown(null)}
                 hitSlop={10}
               >
                 <Ionicons
@@ -2975,80 +3288,52 @@ const handleRegister = async () => {
             </View>
 
             <ScrollView
-              showsVerticalScrollIndicator={
-                false
-              }
+              showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
-              contentContainerStyle={
-                styles.locationList
-              }
+              contentContainerStyle={styles.locationList}
             >
-              {locationItems.length ===
-              0 ? (
-                <View
-                  style={
-                    styles.emptyLocation
-                  }
-                >
+              {locationItems.length === 0 ? (
+                <View style={styles.emptyLocation}>
                   <Ionicons
                     name="location-outline"
                     size={30}
                     color="#94A3B8"
                   />
-
-                  <Text
-                    style={
-                      styles.emptyLocationText
-                    }
-                  >
-                    No locations
-                    available.
+                  <Text style={styles.emptyLocationText}>
+                    No locations available.
                   </Text>
                 </View>
               ) : (
-                locationItems.map(
-                  (item) => (
-                    <Pressable
-                      key={item.code}
-                      onPress={() =>
-                        handleLocationItemPress(
-                          item
-                        )
-                      }
-                      style={({ pressed }) => [
-                        styles.locationItem,
-                        pressed &&
-                          styles.locationItemPressed,
-                      ]}
-                    >
-                      <View
-                        style={
-                          styles.locationIcon
-                        }
-                      >
-                        <Ionicons
-                          name="location-outline"
-                          size={18}
-                          color="#2563EB"
-                        />
-                      </View>
-
-                      <Text
-                        style={
-                          styles.locationItemText
-                        }
-                      >
-                        {item.name}
-                      </Text>
-
+                locationItems.map((item) => (
+                  <Pressable
+                    key={item.code}
+                    onPress={() =>
+                      handleLocationItemPress(item)
+                    }
+                    style={({ pressed }) => [
+                      styles.locationItem,
+                      pressed && styles.locationItemPressed,
+                    ]}
+                  >
+                    <View style={styles.locationIcon}>
                       <Ionicons
-                        name="chevron-forward"
-                        size={17}
-                        color="#CBD5E1"
+                        name="location-outline"
+                        size={18}
+                        color="#002B5C"
                       />
-                    </Pressable>
-                  )
-                )
+                    </View>
+                    <Text style={styles.locationItemText}>
+                      {activeDropdown === "barangay"
+                        ? getBarangayDisplayName(item, municipality?.code)
+                        : item.name.trim()}
+                    </Text>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={17}
+                      color="#CBD5E1"
+                    />
+                  </Pressable>
+                ))
               )}
             </ScrollView>
           </View>
@@ -3058,60 +3343,46 @@ const handleRegister = async () => {
   );
 }
 
-// ======================================================
-// STEP INFORMATION
-// ======================================================
-
-const stepTitles: Record<
-  Step,
-  string
-> = {
+const stepTitles: Record<Step, string> = {
   1: "Account Information",
   2: "Personal Information",
-  3: "Address Information",
-  4: "Profile Picture",
+  3: "Address and Contact Information",
+  4: "Educational Background",
+  5: "Employment Information",
+  6: "Valid ID Verification",
+  7: "Emergency Contact",
+  8: "Profile Picture and Review",
 };
 
-const stepDescriptions: Record<
-  Step,
-  string
-> = {
+const stepDescriptions: Record<Step, string> = {
   1: "Create your account credentials.",
-  2: "Tell us a little about yourself.",
-  3: "Enter your current residential address.",
-  4: "Add a profile picture to complete your account.",
+  2: "Enter your personal information.",
+  3: "Enter your complete address and mobile number.",
+  4: "Provide your educational background.",
+  5: "Tell us about your employment and work experience.",
+  6: "Provide your valid ID details and image.",
+  7: "Add a person we can contact in an emergency.",
+  8: "Review your details and complete your registration.",
 };
-
-// ======================================================
-// STYLES
-// ======================================================
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#FFFFFF",
   },
-
   container: {
     flex: 1,
   },
-
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 24,
     paddingTop: 60,
     paddingBottom: 30,
   },
-
-  // --------------------------------------------------
-  // HEADER
-  // --------------------------------------------------
-
   header: {
     width: "100%",
     alignItems: "center",
   },
-
   logoRow: {
     width: "100%",
     height: 88,
@@ -3119,7 +3390,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-
   backButton: {
     width: 42,
     height: 42,
@@ -3138,24 +3408,13 @@ const styles = StyleSheet.create({
       height: 2,
     },
   },
-
   backButtonPressed: {
     opacity: 0.6,
-    transform: [
-      {
-        scale: 0.95,
-      },
-    ],
+    transform: [{ scale: 0.95 }],
   },
-
-  // --------------------------------------------------
-  // CONTENT
-  // --------------------------------------------------
-
   content: {
     width: "100%",
   },
-
   welcomeTitle: {
     fontSize: 29,
     lineHeight: 36,
@@ -3163,7 +3422,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.7,
     color: "#111827",
   },
-
   welcomeSubtitle: {
     marginTop: 8,
     maxWidth: 340,
@@ -3171,40 +3429,31 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     color: "#64748B",
   },
-
-  // --------------------------------------------------
-  // GOOGLE INFO
-  // --------------------------------------------------
-
   googleInfoBox: {
     flexDirection: "row",
     alignItems: "flex-start",
     marginTop: 16,
     padding: 13,
     borderRadius: 11,
-    backgroundColor: "#F8FBFF",
+    backgroundColor: "#F4F7FB",
     borderWidth: 1,
-    borderColor: "#DBEAFE",
+    borderColor: "#D4E0ED",
   },
-
   googleInfoContent: {
     flex: 1,
     marginLeft: 9,
   },
-
   googleInfoTitle: {
     fontSize: 12,
     fontWeight: "800",
-    color: "#2563EB",
+    color: "#002B5C",
   },
-
   googleInfoText: {
     marginTop: 4,
     fontSize: 11,
     lineHeight: 17,
     color: "#475569",
   },
-
   googleEmailNote: {
     flexDirection: "row",
     alignItems: "center",
@@ -3212,101 +3461,79 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     paddingVertical: 9,
     borderRadius: 9,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "#EAF1F8",
   },
-
   googleEmailNoteText: {
     flex: 1,
     marginLeft: 7,
     fontSize: 10,
     color: "#475569",
   },
-
-  // --------------------------------------------------
-  // STEP INDICATOR
-  // --------------------------------------------------
-
   stepIndicator: {
     flexDirection: "row",
     alignItems: "center",
     marginTop: 23,
     marginBottom: 11,
   },
-
   stepCircle: {
-    width: 27,
-    height: 27,
+    width: 25,
+    height: 25,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 14,
+    borderRadius: 13,
     borderWidth: 1,
     borderColor: "#CBD5E1",
     backgroundColor: "#FFFFFF",
   },
-
   stepCircleActive: {
-    borderColor: "#2563EB",
-    backgroundColor: "#2563EB",
+    borderColor: "#002B5C",
+    backgroundColor: "#002B5C",
   },
-
   stepCircleCompleted: {
-    borderColor: "#2563EB",
-    backgroundColor: "#2563EB",
+    borderColor: "#002B5C",
+    backgroundColor: "#002B5C",
   },
-
   stepNumber: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "800",
     color: "#64748B",
   },
-
   stepNumberActive: {
     color: "#FFFFFF",
   },
-
   stepLine: {
     flex: 1,
+    minWidth: 3,
     height: 1,
-    marginHorizontal: 6,
+    marginHorizontal: 3,
     backgroundColor: "#E2E8F0",
   },
-
   stepLineActive: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#002B5C",
   },
-
   stepTitle: {
     marginBottom: 1,
     fontSize: 13,
     fontWeight: "800",
     color: "#334155",
   },
-
-  // --------------------------------------------------
-  // FIELDS
-  // --------------------------------------------------
-
   field: {
     marginTop: 19,
   },
-
   nameRow: {
     width: "100%",
     flexDirection: "row",
     gap: 12,
   },
-
   nameField: {
     flex: 1,
   },
-
   label: {
     marginBottom: 8,
     fontSize: 12,
     fontWeight: "700",
     color: "#334155",
   },
-
   inputWrapper: {
     width: "100%",
     minHeight: 55,
@@ -3318,15 +3545,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: "#FFFFFF",
   },
-
   inputWrapperActive: {
-    borderColor: "#93C5FD",
+    borderColor: "#7FA1C4",
   },
-
   inputIcon: {
     marginRight: 10,
   },
-
   input: {
     flex: 1,
     height: 53,
@@ -3334,171 +3558,59 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#111827",
   },
-
   eyeButton: {
     width: 32,
     height: 40,
     alignItems: "center",
     justifyContent: "center",
   },
-
   dropdownText: {
     flex: 1,
     fontSize: 14,
     color: "#111827",
   },
-
   dropdownPlaceholder: {
     color: "#A0AEC0",
   },
-
   dropdownPressed: {
     opacity: 0.75,
   },
-
   dropdownDisabled: {
     opacity: 0.55,
   },
-
-  // --------------------------------------------------
-  // PROFILE INTRO
-  // --------------------------------------------------
-
-  profileIntro: {
-    marginTop: 20,
-    padding: 15,
-    borderRadius: 12,
-    backgroundColor: "#F8FBFF",
-    borderWidth: 1,
-    borderColor: "#DBEAFE",
-  },
-
-  profileIntroTitle: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#2563EB",
-  },
-
-  profileIntroText: {
-    marginTop: 5,
-    fontSize: 11,
-    lineHeight: 17,
-    color: "#64748B",
-  },
-
-  // --------------------------------------------------
-  // PROFILE IMAGE
-  // --------------------------------------------------
-
-  profileSection: {
-    marginTop: 20,
-  },
-
   profilePicker: {
     minHeight: 190,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
     borderStyle: "dashed",
-    borderColor: "#BFDBFE",
+    borderColor: "#B8CBE0",
     borderRadius: 14,
-    backgroundColor: "#F8FBFF",
+    backgroundColor: "#F4F7FB",
     overflow: "hidden",
   },
-
   profilePickerPressed: {
     opacity: 0.75,
   },
-
   profileIconCircle: {
     width: 58,
     height: 58,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 29,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "#EAF1F8",
   },
-
   profileTitle: {
     marginTop: 10,
     fontSize: 14,
     fontWeight: "700",
-    color: "#2563EB",
+    color: "#002B5C",
   },
-
   profileSubtitle: {
     marginTop: 3,
     fontSize: 10,
     color: "#94A3B8",
   },
-
-  profileImage: {
-    width: 190,
-    height: 190,
-  },
-
-  profileOverlay: {
-    position: "absolute",
-    right: 10,
-    bottom: 10,
-    width: 38,
-    height: 38,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 19,
-    backgroundColor: "#2563EB",
-  },
-
-  // --------------------------------------------------
-  // ACCOUNT SUMMARY
-  // --------------------------------------------------
-
-  accountSummary: {
-    marginTop: 18,
-    padding: 14,
-    borderRadius: 12,
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-
-  summaryHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 11,
-  },
-
-  summaryTitle: {
-    marginLeft: 7,
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#334155",
-  },
-
-  summaryRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginTop: 8,
-  },
-
-  summaryLabel: {
-    width: 70,
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#94A3B8",
-  },
-
-  summaryValue: {
-    flex: 1,
-    fontSize: 11,
-    lineHeight: 16,
-    color: "#334155",
-  },
-
-  // --------------------------------------------------
-  // ADDRESS
-  // --------------------------------------------------
-
   addressPreview: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -3510,12 +3622,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E2E8F0",
   },
-
   addressContent: {
     flex: 1,
     marginLeft: 9,
   },
-
   addressLabel: {
     fontSize: 10,
     fontWeight: "800",
@@ -3523,29 +3633,22 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
-
   addressText: {
     marginTop: 4,
     fontSize: 12,
     lineHeight: 17,
     color: "#334155",
   },
-
-  // --------------------------------------------------
-  // INFO / SECURITY
-  // --------------------------------------------------
-
   infoBox: {
     flexDirection: "row",
     alignItems: "flex-start",
     marginTop: 20,
     padding: 13,
     borderRadius: 11,
-    backgroundColor: "#F8FBFF",
+    backgroundColor: "#F4F7FB",
     borderWidth: 1,
-    borderColor: "#DBEAFE",
+    borderColor: "#D4E0ED",
   },
-
   infoText: {
     flex: 1,
     marginLeft: 9,
@@ -3553,7 +3656,6 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     color: "#475569",
   },
-
   passwordRules: {
     marginTop: 18,
     padding: 14,
@@ -3562,49 +3664,64 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E2E8F0",
   },
-
   passwordRulesTitle: {
-    marginBottom: 9,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "800",
     color: "#334155",
   },
-
+  passwordRulesSubtitle: {
+    marginTop: 4,
+    marginBottom: 8,
+    fontSize: 11,
+    lineHeight: 16,
+    color: "#64748B",
+  },
   ruleRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 6,
+    marginTop: 8,
   },
-
   ruleText: {
+    flex: 1,
     marginLeft: 8,
     fontSize: 11,
     color: "#64748B",
   },
-
-  securityBox: {
+  ruleTextValid: {
+    color: "#15803D",
+    fontWeight: "600",
+  },
+  passwordRulesDivider: {
+    height: 1,
+    marginTop: 12,
+    marginBottom: 4,
+    backgroundColor: "#E2E8F0",
+  },
+  passwordStrengthContainer: {
+    marginTop: 14,
+  },
+  passwordStrengthTrack: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    marginTop: 13,
-    padding: 13,
-    borderRadius: 11,
-    backgroundColor: "#F8FBFF",
-    borderWidth: 1,
-    borderColor: "#DBEAFE",
+    gap: 5,
   },
-
-  securityBoxText: {
+  passwordStrengthSegment: {
     flex: 1,
-    marginLeft: 9,
-    fontSize: 11,
-    lineHeight: 17,
-    color: "#475569",
+    height: 4,
+    borderRadius: 4,
+    backgroundColor: "#E2E8F0",
   },
-
-  // --------------------------------------------------
-  // ERROR
-  // --------------------------------------------------
-
+  passwordStrengthSegmentActive: {
+    backgroundColor: "#16A34A",
+  },
+  passwordStrengthText: {
+    marginTop: 7,
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#64748B",
+  },
+  passwordStrengthTextStrong: {
+    color: "#15803D",
+  },
   errorContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -3616,7 +3733,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#FECACA",
   },
-
   errorText: {
     flex: 1,
     marginLeft: 8,
@@ -3624,39 +3740,25 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     color: "#B91C1C",
   },
-
-  // --------------------------------------------------
-  // ACTION BUTTONS
-  // --------------------------------------------------
-
   actionArea: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
     marginTop: 25,
   },
-
   primaryButton: {
     flex: 1,
     height: 55,
     borderRadius: 12,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#002B5C",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#2563EB",
+    shadowColor: "#002B5C",
     shadowOpacity: 0.18,
     shadowRadius: 10,
-    shadowOffset: {
-      width: 0,
-      height: 5,
-    },
+    shadowOffset: { width: 0, height: 5 },
     elevation: 4,
   },
-
-  primaryButtonWithBack: {
-    flex: 1,
-  },
-
   primaryButtonContent: {
     width: "100%",
     height: 55,
@@ -3666,26 +3768,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 10,
   },
-
   primaryButtonText: {
     fontSize: 14,
     fontWeight: "800",
     color: "#FFFFFF",
   },
-
   primaryButtonPressed: {
     opacity: 0.88,
-    transform: [
-      {
-        scale: 0.985,
-      },
-    ],
+    transform: [{ scale: 0.985 }],
   },
-
   primaryButtonDisabled: {
     opacity: 0.6,
   },
-
   secondaryButton: {
     height: 55,
     paddingHorizontal: 18,
@@ -3695,61 +3789,48 @@ const styles = StyleSheet.create({
     gap: 7,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#BFDBFE",
-    backgroundColor: "#F8FBFF",
+    borderColor: "#B8CBE0",
+    backgroundColor: "#F4F7FB",
   },
-
   secondaryButtonPressed: {
     opacity: 0.7,
   },
-
   secondaryButtonText: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#2563EB",
+    color: "#002B5C",
   },
-
   loadingContent: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 9,
   },
-
-  // --------------------------------------------------
-  // LOGIN SECTION
-  // --------------------------------------------------
-
   loginSection: {
     marginTop: 28,
   },
-
   loginDivider: {
     flexDirection: "row",
     alignItems: "center",
     width: "100%",
   },
-
   divider: {
     flex: 1,
     height: 1,
     backgroundColor: "#E2E8F0",
   },
-
   dividerText: {
     marginHorizontal: 12,
     fontSize: 10,
     fontWeight: "700",
     color: "#94A3B8",
   },
-
   loginQuestion: {
     marginTop: 17,
     textAlign: "center",
     fontSize: 12,
     color: "#64748B",
   },
-
   loginButton: {
     width: "100%",
     height: 50,
@@ -3760,59 +3841,42 @@ const styles = StyleSheet.create({
     gap: 8,
     borderRadius: 11,
     borderWidth: 1,
-    borderColor: "#BFDBFE",
-    backgroundColor: "#F8FBFF",
+    borderColor: "#B8CBE0",
+    backgroundColor: "#F4F7FB",
   },
-
   loginButtonPressed: {
     opacity: 0.7,
   },
-
   loginButtonText: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#2563EB",
+    color: "#002B5C",
   },
-
-  // --------------------------------------------------
-  // FOOTER
-  // --------------------------------------------------
-
   footer: {
     alignItems: "center",
     marginTop: 30,
   },
-
   securityRow: {
     flexDirection: "row",
     alignItems: "center",
   },
-
   securityText: {
     marginLeft: 6,
     fontSize: 10,
     color: "#64748B",
   },
-
   footerText: {
     marginTop: 9,
     fontSize: 9,
     color: "#CBD5E1",
   },
-
-  // --------------------------------------------------
-  // MODALS
-  // --------------------------------------------------
-
   modalOverlay: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 22,
-    backgroundColor:
-      "rgba(15, 23, 42, 0.45)",
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
   },
-
   dateModal: {
     width: "100%",
     maxWidth: 400,
@@ -3820,7 +3884,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: "#FFFFFF",
   },
-
   selectionModal: {
     width: "100%",
     maxWidth: 400,
@@ -3828,49 +3891,37 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: "#FFFFFF",
   },
-
   modalHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
   },
-
   modalTitle: {
     fontSize: 18,
     fontWeight: "800",
     color: "#0F172A",
   },
-
   modalSubtitle: {
     marginTop: 4,
     fontSize: 11,
     color: "#64748B",
   },
-
-  datePicker: {
-    alignSelf: "center",
-    marginTop: 12,
-  },
-
   modalDoneButton: {
     height: 48,
     marginTop: 10,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 11,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#002B5C",
   },
-
   modalDoneText: {
     fontSize: 14,
     fontWeight: "800",
     color: "#FFFFFF",
   },
-
   optionList: {
     marginTop: 18,
   },
-
   optionItem: {
     minHeight: 57,
     flexDirection: "row",
@@ -3882,29 +3933,24 @@ const styles = StyleSheet.create({
     borderColor: "#E2E8F0",
     backgroundColor: "#FFFFFF",
   },
-
   optionItemSelected: {
-    borderColor: "#BFDBFE",
-    backgroundColor: "#F8FBFF",
+    borderColor: "#B8CBE0",
+    backgroundColor: "#F4F7FB",
   },
-
   optionItemPressed: {
     opacity: 0.7,
   },
-
   optionIcon: {
     width: 37,
     height: 37,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 19,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "#EAF1F8",
   },
-
   optionIconSelected: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#002B5C",
   },
-
   optionText: {
     flex: 1,
     marginLeft: 11,
@@ -3912,31 +3958,21 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#334155",
   },
-
   optionTextSelected: {
-    color: "#2563EB",
+    color: "#002B5C",
     fontWeight: "800",
   },
-
   optionCheck: {
     marginLeft: 8,
   },
-
-  // --------------------------------------------------
-  // LOCATION BOTTOM SHEET
-  // --------------------------------------------------
-
   locationModalOverlay: {
     flex: 1,
     justifyContent: "flex-end",
   },
-
   locationBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor:
-      "rgba(15, 23, 42, 0.45)",
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
   },
-
   locationModal: {
     width: "100%",
     maxHeight: "78%",
@@ -3947,7 +3983,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 22,
     backgroundColor: "#FFFFFF",
   },
-
   modalHandle: {
     alignSelf: "center",
     width: 40,
@@ -3956,12 +3991,10 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: "#CBD5E1",
   },
-
   locationList: {
     paddingTop: 17,
     paddingBottom: 10,
   },
-
   locationItem: {
     minHeight: 55,
     flexDirection: "row",
@@ -3973,21 +4006,18 @@ const styles = StyleSheet.create({
     borderColor: "#E2E8F0",
     backgroundColor: "#FFFFFF",
   },
-
   locationItemPressed: {
     opacity: 0.65,
     backgroundColor: "#F8FAFC",
   },
-
   locationIcon: {
     width: 35,
     height: 35,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 18,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "#EAF1F8",
   },
-
   locationItemText: {
     flex: 1,
     marginLeft: 10,
@@ -3995,16 +4025,156 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#334155",
   },
-
   emptyLocation: {
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 45,
   },
-
   emptyLocationText: {
     marginTop: 10,
     fontSize: 12,
     color: "#94A3B8",
+  },
+  profileActions: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 16,
+  },
+  profileActionButton: {
+    flex: 1,
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+  },
+  profileActionPrimary: {
+    backgroundColor: "#002B5C",
+  },
+  profileActionSecondary: {
+    backgroundColor: "#EAF1F8",
+    borderWidth: 1,
+    borderColor: "#B8CBE0",
+  },
+  profileActionPrimaryText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  profileActionSecondaryText: {
+    color: "#002B5C",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  formSectionTitle: {
+    marginTop: 28,
+    marginBottom: 2,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#002B5C",
+  },
+  idImagePicker: {
+    minHeight: 125,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 15,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "#B8CBE0",
+    borderRadius: 12,
+    backgroundColor: "#F4F7FB",
+  },
+  idImagePreview: {
+    width: "100%",
+    height: 150,
+  },
+  idImageText: {
+    marginTop: 10,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#002B5C",
+    textAlign: "center",
+  },
+  stepContainer: {
+    width: "100%",
+    gap: 16,
+  },
+  stepDescription: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: "#64748B",
+    marginBottom: 4,
+  },
+  summaryCard: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 16,
+    padding: 16,
+    gap: 16,
+  },
+  summaryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 11,
+  },
+  summaryTitle: {
+    marginLeft: 7,
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#334155",
+  },
+  summarySection: {
+    gap: 12,
+  },
+  summarySectionTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#002B5C",
+    marginBottom: 2,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginTop: 8,
+  },
+  summaryLabel: {
+    width: 70,
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#94A3B8",
+  },
+  summaryValue: {
+    flex: 1,
+    fontSize: 11,
+    lineHeight: 16,
+    color: "#334155",
+  },
+  summaryDivider: {
+    height: 1,
+    backgroundColor: "#E2E8F0",
+  },
+  summaryNotice: {
+    fontSize: 12,
+    lineHeight: 19,
+    color: "#64748B",
+    marginBottom: 8,
+  },
+  profileImagePreview: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    alignSelf: "center",
+    marginTop: 12,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: "#002b5c",
+    backgroundColor: "#f3f4f6",
   },
 });

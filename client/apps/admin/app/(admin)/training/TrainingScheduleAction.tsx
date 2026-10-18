@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -5,8 +6,10 @@ import type {
   TrainingBatch,
   TrainingScheduleRecommendation,
   GenerateTrainingScheduleRequest,
+  CreateManualTrainingScheduleRequest,
   TrainingSession,
 } from "@repo/types";
+
 import TrainingScheduleManager from "./TrainingScheduleManager";
 
 type TrainingScheduleActionProps = {
@@ -14,8 +17,11 @@ type TrainingScheduleActionProps = {
 
   scheduleRecommendation: TrainingScheduleRecommendation | null;
   trainingSessions: TrainingSession[];
+
   isLoadingSchedule: boolean;
   isGeneratingSchedule: boolean;
+  isCreatingManualSchedule: boolean;
+
   scheduleError: string | null;
 
   getScheduleRecommendation: (
@@ -27,14 +33,19 @@ type TrainingScheduleActionProps = {
     request: GenerateTrainingScheduleRequest,
   ) => Promise<TrainingSession[] | null>;
 
+  createManualSchedule: (
+    trainingBatchId: string,
+    request: CreateManualTrainingScheduleRequest,
+  ) => Promise<TrainingSession[] | null>;
+
   getSchedule: (
     trainingBatchId: string,
   ) => Promise<TrainingSession[] | null>;
 
- approveSchedule: (
-  trainingBatchId: string,
-  sessions: TrainingSession[],
-) => Promise<boolean>;
+  approveSchedule: (
+    trainingBatchId: string,
+    sessions: TrainingSession[],
+  ) => Promise<boolean>;
 };
 
 export default function TrainingScheduleAction({
@@ -43,9 +54,11 @@ export default function TrainingScheduleAction({
   trainingSessions,
   isLoadingSchedule,
   isGeneratingSchedule,
+  isCreatingManualSchedule,
   scheduleError,
   getScheduleRecommendation,
   generateSchedule,
+  createManualSchedule,
   getSchedule,
   approveSchedule,
 }: TrainingScheduleActionProps) {
@@ -69,9 +82,11 @@ export default function TrainingScheduleAction({
           trainingSessions={trainingSessions}
           isLoadingSchedule={isLoadingSchedule}
           isGeneratingSchedule={isGeneratingSchedule}
+          isCreatingManualSchedule={isCreatingManualSchedule}
           scheduleError={scheduleError}
           getScheduleRecommendation={getScheduleRecommendation}
           generateSchedule={generateSchedule}
+          createManualSchedule={createManualSchedule}
           getSchedule={getSchedule}
           approveSchedule={approveSchedule}
         />

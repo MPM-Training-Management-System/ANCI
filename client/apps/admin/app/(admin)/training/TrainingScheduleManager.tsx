@@ -1,9 +1,12 @@
+
 import type {
   TrainingBatch,
   TrainingScheduleRecommendation,
   GenerateTrainingScheduleRequest,
+  CreateManualTrainingScheduleRequest,
   TrainingSession,
 } from "@repo/types";
+
 import TrainingScheduleModal from "./TrainingScheduleModal";
 
 type TrainingScheduleManagerProps = {
@@ -12,8 +15,11 @@ type TrainingScheduleManagerProps = {
 
   scheduleRecommendation: TrainingScheduleRecommendation | null;
   trainingSessions: TrainingSession[];
+
   isLoadingSchedule: boolean;
   isGeneratingSchedule: boolean;
+  isCreatingManualSchedule: boolean;
+
   scheduleError: string | null;
 
   getScheduleRecommendation: (
@@ -25,21 +31,25 @@ type TrainingScheduleManagerProps = {
     request: GenerateTrainingScheduleRequest,
   ) => Promise<TrainingSession[] | null>;
 
+  createManualSchedule: (
+    trainingBatchId: string,
+    request: CreateManualTrainingScheduleRequest,
+  ) => Promise<TrainingSession[] | null>;
+
   getSchedule: (
     trainingBatchId: string,
   ) => Promise<TrainingSession[] | null>;
 
- approveSchedule: (
-  trainingBatchId: string,
-  sessions: TrainingSession[],
-) => Promise<boolean>;
-}
+  approveSchedule: (
+    trainingBatchId: string,
+    sessions: TrainingSession[],
+  ) => Promise<boolean>;
+};
 
 /**
- * Small connector between the existing useTrainingBatches hook
- * and TrainingScheduleModal.
- *
- * Put this beside TrainingScheduleModal.tsx.
+ * Connects useTrainingBatches to TrainingScheduleModal.
+ * Supports automatic generation, manual schedule creation,
+ * loading saved sessions, and schedule approval.
  */
 export default function TrainingScheduleManager({
   batch,
@@ -48,9 +58,11 @@ export default function TrainingScheduleManager({
   trainingSessions,
   isLoadingSchedule,
   isGeneratingSchedule,
+  isCreatingManualSchedule,
   scheduleError,
   getScheduleRecommendation,
   generateSchedule,
+  createManualSchedule,
   getSchedule,
   approveSchedule,
 }: TrainingScheduleManagerProps) {
@@ -63,9 +75,11 @@ export default function TrainingScheduleManager({
       sessions={trainingSessions}
       isLoading={isLoadingSchedule}
       isGenerating={isGeneratingSchedule}
+      isCreatingManualSchedule={isCreatingManualSchedule}
       error={scheduleError}
       onLoadRecommendation={getScheduleRecommendation}
       onGenerate={generateSchedule}
+      onCreateManual={createManualSchedule}
       onGetSchedule={getSchedule}
       onApprove={approveSchedule}
       onClose={onClose}

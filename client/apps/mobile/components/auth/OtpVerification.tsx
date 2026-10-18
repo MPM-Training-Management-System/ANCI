@@ -13,7 +13,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-
+import { AppAlert } from "@repo/ui-mobile";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 import { useVerifyOtp } from "@repo/hooks";
@@ -47,6 +47,56 @@ export default function OtpVerification({
 
   const [localError, setLocalError] =
     useState("");
+
+  
+
+type AppAlertType =
+  | "success"
+  | "error"
+  | "warning"
+  | "info";
+
+const [appAlert, setAppAlert] = useState({
+  visible: false,
+  type: "info" as AppAlertType,
+  title: "",
+  message: "",
+  confirmText: "OK",
+});
+
+const [alertAction, setAlertAction] =
+  useState<(() => void) | null>(null);
+
+const showAppAlert = (
+  title: string,
+  message: string,
+  type: AppAlertType = "info",
+  confirmText = "OK",
+  onConfirm?: () => void
+) => {
+  setAlertAction(() => onConfirm ?? null);
+
+  setAppAlert({
+    visible: true,
+    type,
+    title,
+    message,
+    confirmText,
+  });
+};
+
+const closeAppAlert = () => {
+  const action = alertAction;
+
+  setAlertAction(null);
+
+  setAppAlert((previous) => ({
+    ...previous,
+    visible: false,
+  }));
+
+  action?.();
+};
 
     const router = useRouter();
 
@@ -90,27 +140,27 @@ export default function OtpVerification({
    * API SUCCESS
    * =====================================================
    */
+useEffect(() => {
+  if (!success) {
+    return;
+  }
 
-  useEffect(() => {
-    if (!success) {
-      return;
+  Keyboard.dismiss();
+
+  showAppAlert(
+    "Email Verified",
+    "Your email has been successfully verified. Your account is now waiting for administrator approval.",
+    "success",
+    "Continue",
+    () => {
+      if (onVerified) {
+        onVerified();
+      } else {
+        router.replace("/(auth)/login");
+      }
     }
-
-    Keyboard.dismiss();
-
-    Alert.alert(
-      "Email Verified",
-      "Your email has been successfully verified. Your account is now waiting for administrator approval.",
-      [
-        {
-          text: "Continue",
-          onPress: () => {
-            onVerified?.();
-          },
-        },
-      ]
-    );
-  }, [success, onVerified]);
+  );
+}, [success]);
 
   /*
    * =====================================================
@@ -259,137 +309,75 @@ export default function OtpVerification({
       ]?.focus();
     }
   };
+const handleVerify = async () => {
+  if (isLoading) {
+    return;
+  }
 
-  /*
-   * =====================================================
-   * VERIFY OTP
-   * =====================================================
-   */
+  setLocalError("");
 
-  const handleVerify = async () => {
-    setLocalError("");
+  const enteredOtp = otp.join("");
 
-    const enteredOtp =
-      otp.join("");
-
-    /*
-     * Validate length
-     */
-
-    if (enteredOtp.length !== 6) {
-      setLocalError(
-        "Please enter the complete 6-digit OTP."
-      );
-
-      return;
-    }
-
-    /*
-     * Validate timer
-     */
-
-    if (secondsLeft <= 0) {
-      setLocalError(
-        "This OTP has expired. Please request a new OTP."
-      );
-
-      return;
-    }
-
-    Keyboard.dismiss();
-
-    try {
-     
-
-      await verifyOTp({
-        email: email
-          .trim()
-          .toLowerCase(),
-
-        otpCode: enteredOtp,
-
-        
-      });
-      router.push("/(auth)/login")
-    } catch (err) {
-      console.error(
-        "OTP VERIFICATION ERROR:",
-        err
-      );
-    }
-  };
-
-  /*
-   * =====================================================
-   * RESEND OTP
-   * =====================================================
-   */
-
-  const handleResend = async () => {
-    if (secondsLeft > 0) {
-      return;
-    }
-
-    setLocalError("");
-
-    setOtp([
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-    ]);
-
-    /*
-     * IMPORTANT:
-     *
-     * This calls your real resend API
-     * if your auth hook/API exposes it.
-     *
-     * Since the uploaded code only shows
-     * useVerifyOtp, we don't invent a
-     * resend method that may not exist.
-     */
-
-    Alert.alert(
-      "Resend OTP",
-      "The resend OTP API still needs to be connected to your auth hook."
+  if (enteredOtp.length !== 6) {
+    setLocalError(
+      "Please enter the complete 6-digit OTP."
     );
+    return;
+  }
 
-    inputs.current[0]?.focus();
-
-    /*
-     * Once your hook has resendOtp(),
-     * this section can become:
-     *
-     * await resendOtp({
-     *   email,
-     * });
-     *
-     * setSecondsLeft(120);
-     */
-  };
-
-  /*
-   * =====================================================
-   * CHANGE EMAIL
-   * =====================================================
-   */
-
-  const handleChangeEmail = () => {
-    if (onChangeEmail) {
-      onChangeEmail();
-
-      return;
-    }
-
-    Alert.alert(
-      "Change Email",
-      "Return to registration to update your email address."
+  if (secondsLeft <= 0) {
+    showAppAlert(
+      "OTP Expired",
+      "This verification code has expired. Please request a new OTP.",
+      "warning"
     );
-  };
+    return;
+  }
 
+  Keyboard.dismiss();
+
+  try {
+    await verifyOTp({
+      email: email.trim().toLowerCase(),
+      otpCode: enteredOtp,
+    });
+  } catch (err) {
+    console.error("OTP VERIFICATION ERROR:", err);
+
+    showAppAlert(
+      "Verification Failed",
+      err instanceof Error
+        ? err.message
+        : "Unable to verify your email. Please check your OTP and try again.",
+      "error"
+    );
+  }
+};
+
+const handleResend = () => {
+  if (secondsLeft > 0) {
+    return;
+  }
+
+  showAppAlert(
+    "Resend OTP",
+    "The resend OTP feature is not connected yet. Please connect the resend API before requesting another code.",
+    "warning"
+  );
+};
+
+const handleChangeEmail = () => {
+  if (onChangeEmail) {
+    onChangeEmail();
+    return;
+  }
+
+  showAppAlert(
+    "Change Email",
+    "Please return to registration to update your email address.",
+    "info"
+  );
+};
   /*
    * =====================================================
    * ERROR MESSAGE
@@ -618,7 +606,17 @@ export default function OtpVerification({
           NextGen authentication service.
         </Text>
       </View>
+      <AppAlert
+  visible={appAlert.visible}
+  type={appAlert.type}
+  title={appAlert.title}
+  message={appAlert.message}
+  confirmText={appAlert.confirmText}
+  showCancel={false}
+  onConfirm={closeAppAlert}
+/>
     </View>
+    
   );
 }
 

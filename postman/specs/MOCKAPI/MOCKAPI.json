@@ -1,0 +1,105 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MOCKAPI",
+    "version": "1.0.0",
+    "description": "Practice collection for the CDM Smart Campus Service Integration midterm practical. Uses fictional sample student ID 2026001. Set baseUrl to the exact mock server URL provided by your instructor. Responses depend on the instructor-provided mock server examples; this collection does not create real enrollment records or send real notifications."
+  },
+  "servers": [
+    {
+      "url": "{{baseUrl}}"
+    }
+  ],
+  "paths": {
+    "/students/2026001": {
+      "get": {
+        "summary": "1 - Get Student Record",
+        "responses": {},
+        "description": "Retrieve the fictional student record. Expected by the instructor's instructions: 200 OK and studentId, program, yearLevel, status."
+      }
+    },
+    "/grades/2026001": {
+      "get": {
+        "summary": "2 - Get Student Grades - Prerequisite Information",
+        "responses": {},
+        "description": "Retrieve fictional grade/prerequisite information. Instructor instructions state that the sample ITSIA2 grade is '--' and remarks are 'In progress'."
+      }
+    },
+    "/enrollments": {
+      "post": {
+        "summary": "3 - Submit Enrollment Request",
+        "responses": {},
+        "description": "Submit a fictional enrollment request. Instructor's expected mock response: 201 Created, transactionId, and status accepted. This does not save a real enrollment.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "studentId": {
+                    "type": "string",
+                    "format": "utc-millisec"
+                  },
+                  "term": {
+                    "type": "string"
+                  },
+                  "courseCodes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "example": {
+                "studentId": "2026001",
+                "term": "1st Semester AY 2026-2027",
+                "courseCodes": [
+                  "ITSIA2",
+                  "ITIASEC2"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications": {
+      "post": {
+        "summary": "4 - Send Enrollment Notification",
+        "responses": {},
+        "description": "Test the simulated notification endpoint. Instructor's expected mock response: 200 OK, notificationId, and status queued. No actual email or SMS is sent.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "studentId": {
+                    "type": "string",
+                    "format": "utc-millisec"
+                  },
+                  "transactionId": {
+                    "type": "string"
+                  },
+                  "channel": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "type": "string"
+                  }
+                }
+              },
+              "example": {
+                "studentId": "2026001",
+                "transactionId": "ENR-2026-0001",
+                "channel": "email",
+                "message": "Your enrollment request has been accepted."
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

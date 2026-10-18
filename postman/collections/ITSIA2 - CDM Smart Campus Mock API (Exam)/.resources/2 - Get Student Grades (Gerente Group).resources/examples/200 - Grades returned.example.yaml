@@ -1,0 +1,27 @@
+$kind: http-example
+request:
+  url: "{{baseUrl}}/grades/2026001"
+  method: GET
+  headers:
+    Accept: application/json
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "studentId": "2026001",
+        "term": "1st Semester AY 2026-2027",
+        "grades": [
+          {
+            "courseCode": "ITSIA2",
+            "courseTitle": "System Integration and Architecture 2",
+            "grade": "--",
+            "remarks": "In progress"
+          }
+        ]
+      }
+order: 1000

@@ -1,0 +1,4 @@
+$kind: collection
+description: Teaching/demo collection for the ITSIA2 midterm case. Contains saved examples for a Postman Mock Server. All records are fictional; this is not connected to CDM systems. Import the collection, create a Postman Mock Server from it, then set baseUrl to the mock server URL.
+variables:
+  baseUrl: PASTE_YOUR_POSTMAN_MOCK_SERVER_URL_HERE

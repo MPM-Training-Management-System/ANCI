@@ -1,64 +1,72 @@
+
 using Microsoft.EntityFrameworkCore;
 
 using server.Data;
 using server.DTOs.TrainerDashboard;
 using server.Enums;
+using server.Interfaces;
 using server.Services.Interfaces;
 
 namespace server.Services;
 
-public class TrainerDashboardService
-    : ITrainerDashboardService
+public class TrainerDashboardService : ITrainerDashboardService
 {
     private readonly ApplicationDbContext _context;
+    private readonly ICacheService _cacheService;
+
+    private static readonly TimeSpan CacheExpiration =
+        TimeSpan.FromSeconds(30);
+
+    private static string GetDashboardCacheKey(Guid trainerUserId)
+        => $"trainer:dashboard:user:{trainerUserId}";
 
     public TrainerDashboardService(
-        ApplicationDbContext context)
+        ApplicationDbContext context,
+        ICacheService cacheService)
     {
         _context = context;
+        _cacheService = cacheService;
     }
 
     public async Task<TrainerDashboardDto> GetDashboardAsync(
         Guid trainerUserId)
     {
         // =========================================================
+        // CHECK CACHE
+        // =========================================================
+
+        var cacheKey = GetDashboardCacheKey(trainerUserId);
+
+        if (_cacheService.TryGet<TrainerDashboardDto>(
+                cacheKey,
+                out var cachedDashboard))
+        {
+            return cachedDashboard!;
+        }
+
+        // =========================================================
         // CURRENT TIME
         // =========================================================
 
         var nowUtc = DateTime.UtcNow;
-
-        var localNow =
-            nowUtc.ToLocalTime();
-
-        var today =
-            localNow.Date;
-
-        var currentTime =
-            TimeOnly.FromDateTime(localNow);
+        var localNow = nowUtc.ToLocalTime();
+        var today = localNow.Date;
+        var currentTime = TimeOnly.FromDateTime(localNow);
 
         // =========================================================
         // GET TRAINER'S ACTIVE ASSIGNMENT
-        //
-        // ONE TRAINER = ONE ACTIVE TRAINING BATCH
         // =========================================================
 
-        var assignment =
-            await _context.TrainerAssignments
-                .AsNoTracking()
-                .Include(x =>
-                    x.TrainingBatch)
-                    .ThenInclude(x =>
-                        x.TrainingProgram)
-                .Include(x =>
-                    x.TrainerProfile)
-                .Where(x =>
-                    x.IsActive &&
-                    x.TrainerProfile.UserId ==
-                        trainerUserId
-                )
-                .OrderByDescending(x =>
-                    x.AssignedAt)
-                .FirstOrDefaultAsync();
+        var assignment = await _context.TrainerAssignments
+            .AsNoTracking()
+            .Include(x => x.TrainingBatch)
+                .ThenInclude(x => x.TrainingProgram)
+            .Include(x => x.TrainerProfile)
+            .Where(x =>
+                x.IsActive &&
+                x.TrainerProfile.UserId == trainerUserId)
+            .OrderByDescending(x => x.AssignedAt)
+            .FirstOrDefaultAsync();
 
         // =========================================================
         // NO ACTIVE ASSIGNMENT
@@ -66,104 +74,75 @@ public class TrainerDashboardService
 
         if (assignment == null)
         {
-            return new TrainerDashboardDto
+            var emptyDashboard = new TrainerDashboardDto
             {
                 Training = null,
-
-                Stats =
-                    new TrainerDashboardStatsDto(),
-
+                Stats = new TrainerDashboardStatsDto(),
                 TodaySession = null,
-
-                Attendance =
-                    new TrainerDashboardAttendanceDto(),
-
+                Attendance = new TrainerDashboardAttendanceDto(),
                 UpcomingSessions = []
             };
+
+            _cacheService.Set(
+                cacheKey,
+                emptyDashboard,
+                CacheExpiration);
+
+            return emptyDashboard;
         }
 
         // =========================================================
         // ASSIGNED TRAINING BATCH
         // =========================================================
 
-        var batch =
-            assignment.TrainingBatch;
-
-        var batchId =
-            batch.Id;
+        var batch = assignment.TrainingBatch;
+        var batchId = batch.Id;
 
         // =========================================================
         // GET PARTICIPANT ENROLLMENTS
         // =========================================================
 
-        var enrollments =
-            await _context.Enrollments
-                .AsNoTracking()
-                .Where(x =>
-                    x.TrainingBatchId ==
-                        batchId &&
-                    x.Status !=
-                        EnrollmentStatus.Rejected &&
-                    x.Status !=
-                        EnrollmentStatus.Cancelled
-                )
-                .ToListAsync();
+        var enrollments = await _context.Enrollments
+            .AsNoTracking()
+            .Where(x =>
+                x.TrainingBatchId == batchId &&
+                x.Status != EnrollmentStatus.Rejected &&
+                x.Status != EnrollmentStatus.Cancelled)
+            .Select(x => x.ParticipantProfileId)
+            .Distinct()
+            .ToListAsync();
 
-        // =========================================================
-        // TOTAL PARTICIPANTS
-        // =========================================================
-
-        var totalParticipants =
-            enrollments
-                .Select(x =>
-                    x.ParticipantProfileId)
-                .Distinct()
-                .Count();
+        var totalParticipants = enrollments.Count;
 
         // =========================================================
         // GET TRAINING SESSIONS
         // =========================================================
 
-        var sessions =
-            await _context.TrainingSessions
-                .AsNoTracking()
-                .Where(x =>
-                    x.TrainingBatchId ==
-                        batchId)
-                .OrderBy(x =>
-                    x.SessionDate)
-                .ThenBy(x =>
-                    x.StartTime)
-                .ToListAsync();
+        var sessions = await _context.TrainingSessions
+            .AsNoTracking()
+            .Where(x => x.TrainingBatchId == batchId)
+            .OrderBy(x => x.SessionDate)
+            .ThenBy(x => x.StartTime)
+            .ToListAsync();
 
         // =========================================================
         // SESSION COUNTS
         // =========================================================
 
-        var totalSessions =
-            sessions.Count;
+        var totalSessions = sessions.Count;
 
-        var completedSessions =
-            sessions.Count(x =>
-                x.SessionDate.Date < today ||
-                (
-                    x.SessionDate.Date == today &&
-                    x.EndTime <= currentTime
-                )
-            );
+        var completedSessions = sessions.Count(x =>
+            x.SessionDate.Date < today ||
+            (
+                x.SessionDate.Date == today &&
+                x.EndTime <= currentTime
+            ));
 
-        // =========================================================
-        // SESSION PROGRESS
-        // =========================================================
-
-        var sessionProgress =
-            totalSessions > 0
-                ? Math.Round(
-                    completedSessions /
-                    (double)totalSessions *
-                    100,
-                    2)
-                : 0;
+        var sessionProgress = totalSessions > 0
+            ? Math.Round(
+                completedSessions / (double)totalSessions * 100,
+                2)
+            : 0;
 
         // =========================================================
         // TRAINING STATUS
@@ -173,291 +152,175 @@ public class TrainerDashboardService
 
         if (batch.EndDate < nowUtc)
         {
-            trainingStatus =
-                "Completed";
+            trainingStatus = "Completed";
         }
         else if (
             batch.StartDate <= nowUtc &&
             batch.EndDate >= nowUtc)
         {
-            trainingStatus =
-                "Ongoing";
+            trainingStatus = "Ongoing";
         }
         else
         {
-            trainingStatus =
-                "Upcoming";
+            trainingStatus = "Upcoming";
         }
 
         // =========================================================
         // GET ATTENDANCE RECORDS
         // =========================================================
 
-        var attendanceRecords =
-            await _context.AttendanceRecords
-                .AsNoTracking()
-                .Include(x =>
-                    x.Enrollment)
-                .Where(x =>
-                    x.Enrollment.TrainingBatchId ==
-                        batchId)
-                .ToListAsync();
+        var attendanceRecords = await _context.AttendanceRecords
+            .AsNoTracking()
+            .Where(x =>
+                x.Enrollment.TrainingBatchId == batchId)
+            .Select(x => x.Status)
+            .ToListAsync();
 
         // =========================================================
         // ATTENDANCE COUNTS
         // =========================================================
 
-        var present =
-            attendanceRecords.Count(x =>
-                x.Status ==
-                    AttendanceStatus.Present);
+        var present = attendanceRecords.Count(
+            x => x == AttendanceStatus.Present);
 
-        var late =
-            attendanceRecords.Count(x =>
-                x.Status ==
-                    AttendanceStatus.Late);
+        var late = attendanceRecords.Count(
+            x => x == AttendanceStatus.Late);
 
-        var absent =
-            attendanceRecords.Count(x =>
-                x.Status ==
-                    AttendanceStatus.Absent);
+        var absent = attendanceRecords.Count(
+            x => x == AttendanceStatus.Absent);
 
-        var totalRecorded =
-            present +
-            late +
-            absent;
+        var totalRecorded = present + late + absent;
 
         // =========================================================
         // ATTENDANCE RATE
         // =========================================================
 
-        var attendanceRate =
-            totalRecorded > 0
-                ? Math.Round(
-                    (present + late) /
-                    (double)totalRecorded *
-                    100,
-                    2)
-                : 0;
+        var attendanceRate = totalRecorded > 0
+            ? Math.Round(
+                (present + late) / (double)totalRecorded * 100,
+                2)
+            : 0;
 
         // =========================================================
         // TODAY'S SESSION
         // =========================================================
 
-        var todaySession =
-            sessions
-                .Where(x =>
-                    x.SessionDate.Date ==
-                        today)
-                .OrderBy(x =>
-                    x.StartTime)
-                .FirstOrDefault();
+        var todaySession = sessions
+            .Where(x => x.SessionDate.Date == today)
+            .OrderBy(x => x.StartTime)
+            .FirstOrDefault();
 
-        TrainerDashboardSessionDto?
-            todaySessionDto = null;
+        TrainerDashboardSessionDto? todaySessionDto = null;
 
         if (todaySession != null)
         {
-            // =====================================================
-            // SESSION STATUS
-            // =====================================================
-
             string sessionStatus;
 
-            if (
-                currentTime <
-                todaySession.StartTime)
+            if (currentTime < todaySession.StartTime)
             {
-                sessionStatus =
-                    "Upcoming";
+                sessionStatus = "Upcoming";
             }
             else if (
-                currentTime >=
-                    todaySession.StartTime &&
-                currentTime <=
-                    todaySession.EndTime)
+                currentTime >= todaySession.StartTime &&
+                currentTime <= todaySession.EndTime)
             {
-                sessionStatus =
-                    "Ongoing";
+                sessionStatus = "Ongoing";
             }
             else
             {
-                sessionStatus =
-                    "Completed";
+                sessionStatus = "Completed";
             }
 
-            // =====================================================
-            // CHECK OPEN ATTENDANCE SESSION
-            // =====================================================
-
-            var openAttendanceSession =
+            var attendanceIsOpen =
                 await _context.AttendanceSessions
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(x =>
-                        x.TrainingSessionId ==
-                            todaySession.Id &&
-                        x.Status ==
-                            AttendanceSessionStatus.Open
-                    );
+                    .AnyAsync(x =>
+                        x.TrainingSessionId == todaySession.Id &&
+                        x.Status == AttendanceSessionStatus.Open);
 
-            // =====================================================
-            // TODAY SESSION DTO
-            // =====================================================
-
-            todaySessionDto =
-                new TrainerDashboardSessionDto
-                {
-                    TrainingSessionId =
-                        todaySession.Id,
-
-                    Title =
-                        "Training Session",
-
-                    SessionDate =
-                        todaySession.SessionDate,
-
-                    StartTime =
-                        todaySession.StartTime,
-
-                    EndTime =
-                        todaySession.EndTime,
-
-                    Status =
-                        sessionStatus,
-
-                    AttendanceOpen =
-                        openAttendanceSession != null
-                };
+            todaySessionDto = new TrainerDashboardSessionDto
+            {
+                TrainingSessionId = todaySession.Id,
+                Title = "Training Session",
+                SessionDate = todaySession.SessionDate,
+                StartTime = todaySession.StartTime,
+                EndTime = todaySession.EndTime,
+                Status = sessionStatus,
+                AttendanceOpen = attendanceIsOpen
+            };
         }
 
         // =========================================================
         // UPCOMING SESSIONS
         // =========================================================
 
-        var upcomingSessions =
-            sessions
-                .Where(x =>
-                    x.SessionDate.Date > today ||
-                    (
-                        x.SessionDate.Date == today &&
-                        x.StartTime > currentTime
-                    )
-                )
-                .Take(5)
-                .Select(x =>
-                    new TrainerDashboardUpcomingSessionDto
-                    {
-                        TrainingSessionId =
-                            x.Id,
-
-                        SessionDate =
-                            x.SessionDate,
-
-                        StartTime =
-                            x.StartTime,
-
-                        EndTime =
-                            x.EndTime,
-
-                        Title =
-                            "Training Session"
-                    })
-                .ToList();
+        var upcomingSessions = sessions
+            .Where(x =>
+                x.SessionDate.Date > today ||
+                (
+                    x.SessionDate.Date == today &&
+                    x.StartTime > currentTime
+                ))
+            .Take(5)
+            .Select(x => new TrainerDashboardUpcomingSessionDto
+            {
+                TrainingSessionId = x.Id,
+                SessionDate = x.SessionDate,
+                StartTime = x.StartTime,
+                EndTime = x.EndTime,
+                Title = "Training Session"
+            })
+            .ToList();
 
         // =========================================================
-        // RETURN DASHBOARD
+        // BUILD DASHBOARD RESPONSE
         // =========================================================
 
-        return new TrainerDashboardDto
+        var dashboard = new TrainerDashboardDto
         {
-            // =====================================================
-            // TRAINING
-            // =====================================================
+            Training = new TrainerDashboardTrainingDto
+            {
+                TrainingBatchId = batchId,
+                TrainingName = batch.TrainingProgram.Name,
+                BatchName = batch.BatchCode,
+                Status = trainingStatus,
+                StartDate = batch.StartDate,
+                EndDate = batch.EndDate,
+                ParticipantCount = totalParticipants
+            },
 
-            Training =
-                new TrainerDashboardTrainingDto
-                {
-                    TrainingBatchId =
-                        batchId,
+            Stats = new TrainerDashboardStatsDto
+            {
+                TotalParticipants = totalParticipants,
+                TotalSessions = totalSessions,
+                CompletedSessions = completedSessions,
+                SessionProgress = sessionProgress,
+                AttendanceRate = attendanceRate
+            },
 
-                    TrainingName =
-                        batch.TrainingProgram.Name,
+            TodaySession = todaySessionDto,
 
-                    BatchName =
-                        batch.BatchCode,
+            Attendance = new TrainerDashboardAttendanceDto
+            {
+                Present = present,
+                Late = late,
+                Absent = absent,
+                TotalRecorded = totalRecorded,
+                AttendanceRate = attendanceRate
+            },
 
-                    Status =
-                        trainingStatus,
-
-                    StartDate =
-                        batch.StartDate,
-
-                    EndDate =
-                        batch.EndDate,
-
-                    ParticipantCount =
-                        totalParticipants
-                },
-
-            // =====================================================
-            // STATISTICS
-            // =====================================================
-
-            Stats =
-                new TrainerDashboardStatsDto
-                {
-                    TotalParticipants =
-                        totalParticipants,
-
-                    TotalSessions =
-                        totalSessions,
-
-                    CompletedSessions =
-                        completedSessions,
-
-                    SessionProgress =
-                        sessionProgress,
-
-                    AttendanceRate =
-                        attendanceRate
-                },
-
-            // =====================================================
-            // TODAY SESSION
-            // =====================================================
-
-            TodaySession =
-                todaySessionDto,
-
-            // =====================================================
-            // ATTENDANCE
-            // =====================================================
-
-            Attendance =
-                new TrainerDashboardAttendanceDto
-                {
-                    Present =
-                        present,
-
-                    Late =
-                        late,
-
-                    Absent =
-                        absent,
-
-                    TotalRecorded =
-                        totalRecorded,
-
-                    AttendanceRate =
-                        attendanceRate
-                },
-
-            // =====================================================
-            // UPCOMING SESSIONS
-            // =====================================================
-
-            UpcomingSessions =
-                upcomingSessions
+            UpcomingSessions = upcomingSessions
         };
+
+        // =========================================================
+        // SAVE TO CACHE
+        // =========================================================
+
+        _cacheService.Set(
+            cacheKey,
+            dashboard,
+            CacheExpiration);
+
+        return dashboard;
     }
 }
