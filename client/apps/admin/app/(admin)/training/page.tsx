@@ -46,9 +46,9 @@ import type {
   TrainerAssignment,
   AssignTrainerRequest,
   TrainingScheduleRecommendation,
-  GenerateTrainingScheduleRequest,
-  CreateManualTrainingScheduleRequest,
-  TrainingSession,
+GenerateTrainingScheduleRequest,
+TrainingSession,
+CreateManualTrainingScheduleRequest
 } from "@repo/types";
 import TrainingScheduleAction from "./TrainingScheduleAction";
 import {
@@ -454,9 +454,6 @@ export default function TrainingProgramsPage() {
   getSchedule,
   approveSchedule,
 
-  createManualSchedule,
-  isCreatingManualSchedule,
-
   // BATCH LOADING
   isLoading: isLoadingBatches,
   isCreating: isCreatingBatch,
@@ -587,9 +584,6 @@ export default function TrainingProgramsPage() {
       hours: "",
     });
 
-  // ==========================================================
-  // REQUIREMENTS
-  // ==========================================================
 
   const [
     requirements,
@@ -977,9 +971,7 @@ export default function TrainingProgramsPage() {
       [],
     );
 
-  // ==========================================================
-  // VIEW PROGRAM
-  // ==========================================================
+
 
   const handleView =
     useCallback(
@@ -2125,53 +2117,7 @@ const saveBatch =
         toolbar={
           <div className="flex flex-wrap gap-2">
 
-            <input
-              value={
-                search
-              }
-              onChange={(
-                event,
-              ) =>
-                setSearch(
-                  event.target.value,
-                )
-              }
-              placeholder="Search..."
-              className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs outline-none focus:border-gray-300 focus:bg-white"
-            />
-
-            <select
-              value={
-                categoryFilter
-              }
-              onChange={(
-                event,
-              ) =>
-                setCategoryFilter(
-                  event.target.value,
-                )
-              }
-              className="h-10 rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-xs font-medium outline-none"
-            >
-
-              {categories.map(
-                (
-                  category,
-                ) => (
-                  <option
-                    key={
-                      category
-                    }
-                    value={
-                      category
-                    }
-                  >
-                    {category}
-                  </option>
-                ),
-              )}
-
-            </select>
+         
 
             <select
               value={
@@ -2242,9 +2188,6 @@ const saveBatch =
             onAssignTrainer={
               openAssignTrainer
             }
-
-             createManualSchedule={createManualSchedule}
-  isCreatingManualSchedule={isCreatingManualSchedule}
 
             onRemoveTrainer={
               handleRemoveTrainer
@@ -2572,6 +2515,10 @@ approveSchedule={
   );
 }
 
+// ============================================================
+// PROGRAM DETAILS MODAL
+// ============================================================
+
 function ProgramDetailsModal({
   program,
   batches,
@@ -2589,18 +2536,14 @@ function ProgramDetailsModal({
   onUpdateBatchStatus,
   isUpdatingStatus,
 
-  // Schedule state
+  // SCHEDULE
   scheduleRecommendation,
   trainingSessions,
   isLoadingSchedule,
   isGeneratingSchedule,
-  isCreatingManualSchedule,
   scheduleError,
-
-  // Schedule actions
   getScheduleRecommendation,
   generateSchedule,
-  createManualSchedule,
   getSchedule,
   approveSchedule,
 }: {
@@ -2649,16 +2592,21 @@ function ProgramDetailsModal({
     status: string,
   ) => Promise<void>;
 
-  
-  // Schedule state
-  scheduleRecommendation: TrainingScheduleRecommendation | null;
-  trainingSessions: TrainingSession[];
-  isLoadingSchedule: boolean;
-  isGeneratingSchedule: boolean;
-  isCreatingManualSchedule: boolean;
-  scheduleError: string | null;
+    scheduleRecommendation:
+    TrainingScheduleRecommendation | null;
 
-  // Schedule actions
+  trainingSessions:
+    TrainingSession[];
+
+  isLoadingSchedule:
+    boolean;
+
+  isGeneratingSchedule:
+    boolean;
+
+  scheduleError:
+    string | null;
+
   getScheduleRecommendation: (
     trainingBatchId: string,
   ) => Promise<TrainingScheduleRecommendation | null>;
@@ -2668,22 +2616,16 @@ function ProgramDetailsModal({
     request: GenerateTrainingScheduleRequest,
   ) => Promise<TrainingSession[] | null>;
 
-  createManualSchedule: (
-    trainingBatchId: string,
-    request: CreateManualTrainingScheduleRequest,
-  ) => Promise<TrainingSession[] | null>;
-
   getSchedule: (
     trainingBatchId: string,
   ) => Promise<TrainingSession[] | null>;
 
   approveSchedule: (
-    trainingBatchId: string,
-    sessions: TrainingSession[],
-  ) => Promise<boolean>;
+  trainingBatchId: string,
+  sessions: TrainingSession[],
+) => Promise<boolean>;
 
   isUpdatingStatus: boolean;
-
 }) {
   return (
     <Modal
@@ -2818,15 +2760,15 @@ function ProgramDetailsModal({
 
               </div>
 
-              <button
+              <Button
                 type="button"
                 onClick={
                   onCreateBatch
                 }
-                className="rounded-xl bg-[#191c1e] px-4 py-2.5 text-[11px] font-semibold text-white"
+                className="rounded-xl"
               >
                 + Create Batch
-              </button>
+              </Button>
 
             </div>
 
@@ -2957,37 +2899,18 @@ function ProgramDetailsModal({
                                 Edit
                               </button>
 <TrainingScheduleAction
-  batch={batch}
-  scheduleRecommendation={
-    scheduleRecommendation
-  }
-  createManualSchedule={createManualSchedule}
-isCreatingManualSchedule={isCreatingManualSchedule}
-  trainingSessions={
-    trainingSessions
-  }
-  isLoadingSchedule={
-    isLoadingSchedule
-  }
-  isGeneratingSchedule={
-    isGeneratingSchedule
-  }
-  scheduleError={
-    scheduleError
-  }
-  getScheduleRecommendation={
-    getScheduleRecommendation
-  }
-  generateSchedule={
-    generateSchedule
-  }
-  getSchedule={
-    getSchedule
-  }
-  approveSchedule={
-    approveSchedule
-  }
-/>
+                                batch={batch}
+                                scheduleRecommendation={scheduleRecommendation}
+                                trainingSessions={trainingSessions}
+                                isLoadingSchedule={isLoadingSchedule}
+                                isGeneratingSchedule={isGeneratingSchedule}
+                                scheduleError={scheduleError}
+                                getScheduleRecommendation={getScheduleRecommendation}
+                                generateSchedule={generateSchedule}
+                                getSchedule={getSchedule}
+                                approveSchedule={approveSchedule} isCreatingManualSchedule={false} createManualSchedule={function (trainingBatchId: string, request: CreateManualTrainingScheduleRequest): Promise<TrainingSession[] | null> {
+                                  throw new Error("Function not implemented.");
+                                } }/>
 
 
                               <select
@@ -3101,7 +3024,7 @@ isCreatingManualSchedule={isCreatingManualSchedule}
 
                               <div className="flex gap-2">
 
-                                <button
+                                <Button
                                   type="button"
                                   onClick={() =>
                                     onAssignTrainer(
@@ -3116,7 +3039,7 @@ isCreatingManualSchedule={isCreatingManualSchedule}
                                   {assignment
                                     ? "Change Trainer"
                                     : "Assign Trainer"}
-                                </button>
+                                </Button>
 
                                 {assignment && (
 
@@ -3332,7 +3255,7 @@ isCreatingManualSchedule={isCreatingManualSchedule}
 
       <div className="flex shrink-0 gap-2 border-t border-[#eef0f2] px-6 py-4">
 
-        <button
+        <Button
           type="button"
           onClick={
             onManage
@@ -3340,7 +3263,7 @@ isCreatingManualSchedule={isCreatingManualSchedule}
           className="flex-1 rounded-xl bg-[#191c1e] py-3 text-xs font-semibold text-white"
         >
           Manage Program
-        </button>
+        </Button>
 
         <button
           type="button"
@@ -3515,7 +3438,7 @@ function TrainerAssignmentModal({
 
           </div>
 
-          {/* CURRENT TRAINER */}
+
 
           {currentAssignment && (
 
@@ -3726,7 +3649,7 @@ function TrainerAssignmentModal({
           Cancel
         </button>
 
-        <button
+        <Button
           type="button"
           onClick={
             onSave
@@ -3744,7 +3667,7 @@ function TrainerAssignmentModal({
             : currentAssignment
               ? "Change Trainer"
               : "Assign Trainer"}
-        </button>
+        </Button>
 
       </div>
 
@@ -3817,7 +3740,8 @@ function BatchFormModal({
 
         </div>
 
-        <button
+        <Button
+        variant="outline"
           type="button"
           onClick={
             onClose
@@ -3828,7 +3752,7 @@ function BatchFormModal({
           className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 text-lg text-gray-500"
         >
           ×
-        </button>
+        </Button>
 
       </div>
 
@@ -4068,8 +3992,8 @@ function BatchFormModal({
 
       <div className="flex shrink-0 justify-end gap-2 border-t border-[#eef0f2] px-6 py-4">
 
-        <button
-          type="button"
+        <Button
+          variant="outline"
           onClick={
             onClose
           }
@@ -4079,9 +4003,9 @@ function BatchFormModal({
           className="rounded-xl border border-[#e7e9ec] px-5 py-3 text-xs font-semibold text-gray-600"
         >
           Cancel
-        </button>
+        </Button>
 
-        <button
+        <Button
           type="button"
           onClick={
             onSave
@@ -4096,7 +4020,7 @@ function BatchFormModal({
             : selectedBatch
               ? "Save Changes"
               : "Create Batch"}
-        </button>
+        </Button>
 
       </div>
 
@@ -4305,28 +4229,7 @@ function ProgramFormModal({
                 required
               />
 
-              <FormSelect
-                label="Category"
-                value={
-                  form.category
-                }
-                options={[
-                  "Mediation",
-                  "Sports Development",
-                  "Lead Government",
-                  "Other",
-                ]}
-                onChange={(
-                  value,
-                ) =>
-                  setForm({
-                    ...form,
-                    category:
-                      value,
-                  })
-                }
-              />
-
+          
               <FormInput
                 label="Duration Hours"
                 type="number"

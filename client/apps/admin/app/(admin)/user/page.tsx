@@ -8,6 +8,7 @@ import {
 } from "react";
 
 import {
+  Button,
   DataTable,
   PageSection,
   PageSkeleton,
@@ -29,7 +30,7 @@ import { adminUserApi } from "@/lib/api";
 
 import { columns } from "./columns";
 import type { UserTableMeta } from "./columns";
-import { GraduationCap, UserCheck, UserRound, UsersRound } from "lucide-react";
+import { GraduationCap, RotateCcw, UserCheck, UserRound, UsersRound } from "lucide-react";
 
 type ModalType =
   | "view"
@@ -54,7 +55,22 @@ export default function UserManagementPage() {
     updateUserStatus,
     deleteUser,
     clearError,
+    reset
   } = useAdminUsers(adminUserApi);
+
+ const handleRefresh = useCallback(async () => {
+  reset();
+
+  await Promise.all([
+    getUsers(),
+    
+  ]);
+}, [
+  reset,
+  getUsers,
+ 
+]);
+  
 
   const [search, setSearch] = useState("");
 
@@ -181,8 +197,8 @@ export default function UserManagementPage() {
 
   const totalActive = users.filter(
     (user) =>
-      user.status === "Active" ||
-      user.status === "Approved"
+      user.status === "Active" 
+
   ).length;
 
   /*
@@ -449,6 +465,20 @@ export default function UserManagementPage() {
       <PageSection
         title="User Management"
         description="Manage participant and trainer accounts."
+         actions={
+                  <Button
+                    type="button"
+                    onClick={handleRefresh}
+                    disabled={isLoading}
+                  >
+                    <RotateCcw
+                      className={`h-4 w-4 ${
+                        isLoading ? "animate-spin" : ""
+                      }`}
+                    />
+                    Refresh
+                  </Button>
+                }
       />
 
       {error && (
@@ -560,7 +590,7 @@ export default function UserManagementPage() {
               </option>
             </select>
 
-            {/* STATUS */}
+      
 
             <select
               value={statusFilter}
@@ -581,13 +611,11 @@ export default function UserManagementPage() {
                 Pending
               </option>
 
-              <option value="Approved">
+              <option value="Active">
                 Approved
               </option>
 
-              <option value="Active">
-                Active
-              </option>
+              
 
               <option value="Inactive">
                 Inactive
@@ -1175,9 +1203,7 @@ function UserDetailsModal({
   );
 }
 
-/* =================================================================
-   EDIT USER MODAL
-================================================================= */
+
 
 function EditUserModal({
   user,
@@ -1435,14 +1461,15 @@ function EditUserModal({
             </p>
           </div>
 
-          <button
+          <Button
+          variant="outline"
             type="button"
             onClick={onClose}
             disabled={isSaving}
             className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50"
           >
             ✕
-          </button>
+          </Button>
         </div>
 
         {/* SCROLLABLE BODY */}
@@ -1872,7 +1899,7 @@ function EditUserModal({
             Cancel
           </button>
 
-          <button
+          <Button
             type="button"
             onClick={() =>
               void onSave(form)
@@ -1885,7 +1912,7 @@ function EditUserModal({
             {isSaving
               ? "Saving..."
               : "Save Changes"}
-          </button>
+          </Button>
         </div>
       </div>
     </ModalOverlay>
@@ -2004,8 +2031,8 @@ function StatusModal({
                   className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
                 >
                  <option value="Pending">Pending</option>
-<option value="Approved">Approved</option>
-<option value="Active">Active</option>
+<option value="Active">Approved</option>
+
 <option value="Inactive">Inactive</option>
 <option value="Suspended">Suspended</option>
 <option value="Rejected">Rejected</option>
@@ -2027,7 +2054,7 @@ function StatusModal({
             Cancel
           </button>
 
-          <button
+          <Button
             type="button"
             onClick={() =>
               void onSave(status)
@@ -2040,7 +2067,7 @@ function StatusModal({
             {isSaving
               ? "Updating..."
               : "Update Status"}
-          </button>
+          </Button>
         </div>
       </div>
     </ModalOverlay>
@@ -2338,8 +2365,7 @@ function StatusBadge({
     "border-gray-200 bg-gray-50 text-gray-600";
 
   if (
-    status === "Active" ||
-    status === "Approved"
+    status === "Active" 
   ) {
     className =
       "border-emerald-100 bg-emerald-50 text-emerald-700";

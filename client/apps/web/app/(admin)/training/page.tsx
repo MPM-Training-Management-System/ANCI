@@ -671,9 +671,7 @@ export default function TrainerMyTrainingPage() {
     setSelectedDate(today);
   };
 
-  // ============================================================
-  // REFRESH
-  // ============================================================
+  
 
   const handleRefresh =
     async () => {
@@ -683,9 +681,6 @@ export default function TrainerMyTrainingPage() {
       await loadPage();
     };
 
-  // ============================================================
-  // ERRORS
-  // ============================================================
 
   const pageError =
     assignmentError ??

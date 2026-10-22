@@ -10,6 +10,7 @@ import type {
   CreateManualTrainingScheduleRequest,
   TrainingSession,
 } from "@repo/types";
+import { Button } from "@repo/ui/index";
 
 type ManualSessionInput =
   CreateManualTrainingScheduleRequest["sessions"][number];
@@ -384,14 +385,14 @@ export default function TrainingScheduleModal({
             </p>
           </div>
 
-          <button
-            type="button"
+          <Button
+          variant="outline"
             onClick={onClose}
             aria-label="Close schedule modal"
             className="ml-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-lg text-gray-500 transition hover:bg-gray-200"
           >
             ×
-          </button>
+          </Button>
         </div>
 
         {/* BODY */}
@@ -470,7 +471,7 @@ export default function TrainingScheduleModal({
             {/* MODE SELECTOR */}
             <div className="grid grid-cols-2 gap-2 rounded-xl bg-gray-100 p-1">
               <button
-                type="button"
+      
                 onClick={() => {
                   setMode("automatic");
                   setLocalError(null);
@@ -485,7 +486,7 @@ export default function TrainingScheduleModal({
               </button>
 
               <button
-                type="button"
+
                 onClick={() => {
                   setMode("manual");
                   setLocalError(null);
@@ -566,14 +567,14 @@ export default function TrainingScheduleModal({
                 </div>
 
                 <div className="mt-4 flex justify-end">
-                  <button
-                    type="button"
+                  <Button
+    
                     disabled={isGenerating}
                     onClick={() => void handleGenerate()}
                     className="rounded-xl bg-[#191c1e] px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {isGenerating ? "Generating..." : "Generate Schedule"}
-                  </button>
+                  </Button>
                 </div>
               </section>
             )}
@@ -591,8 +592,8 @@ export default function TrainingScheduleModal({
                     </p>
                   </div>
 
-                  <button
-                    type="button"
+                  <Button
+        
                     disabled={
                       isCreatingManualSchedule || hasExistingSessions
                     }
@@ -600,7 +601,7 @@ export default function TrainingScheduleModal({
                     className="rounded-xl border border-[#e7e9ec] px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     + Add Session
-                  </button>
+                  </Button>
                 </div>
 
                 {hasExistingSessions ? (
@@ -623,8 +624,8 @@ export default function TrainingScheduleModal({
                             </p>
 
                             {manualSessions.length > 1 && (
-                              <button
-                                type="button"
+                              <Button
+                        
                                 disabled={isCreatingManualSchedule}
                                 onClick={() =>
                                   handleRemoveManualSession(index)
@@ -632,7 +633,7 @@ export default function TrainingScheduleModal({
                                 className="text-[10px] font-semibold text-red-600 hover:text-red-700 disabled:opacity-50"
                               >
                                 Remove
-                              </button>
+                              </Button>
                             )}
                           </div>
 
@@ -715,8 +716,8 @@ export default function TrainingScheduleModal({
                         )}
                       </div>
 
-                      <button
-                        type="button"
+                      <Button
+               
                         disabled={
                           isCreatingManualSchedule ||
                           isLoading ||
@@ -728,7 +729,7 @@ export default function TrainingScheduleModal({
                         {isCreatingManualSchedule
                           ? "Saving Schedule..."
                           : "Save Manual Schedule"}
-                      </button>
+                      </Button>
                     </div>
 
                     <p className="mt-3 text-[10px] leading-5 text-gray-500">
@@ -755,14 +756,14 @@ export default function TrainingScheduleModal({
                 </div>
 
                 {sessions.length > 0 && (
-                  <button
-                    type="button"
+                  <Button
+          
                     disabled={isApproving}
                     onClick={() => void handleApprove()}
                     className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {isApproving ? "Approving..." : "Approve Schedule"}
-                  </button>
+                  </Button>
                 )}
               </div>
 
@@ -817,13 +818,13 @@ export default function TrainingScheduleModal({
 
         {/* FOOTER */}
         <div className="flex shrink-0 justify-end border-t border-[#e7e9ec] px-5 py-4 sm:px-6">
-          <button
-            type="button"
+          <Button
+    
             onClick={onClose}
             className="rounded-xl border border-[#e7e9ec] px-5 py-2.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
           >
             Close
-          </button>
+          </Button>
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -34,6 +35,7 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
+  Button
 } from "@repo/ui/index";
 
 import {
@@ -41,6 +43,7 @@ import {
   BookOpen,
   FilePenLine,
   Layers3,
+  RotateCcw,
 } from "lucide-react";
 
 import {
@@ -256,13 +259,30 @@ export default function Learning() {
 
     loadModules,
     loadSections,
+    reset
   } = useLearningMaterials(
     learningMaterialApi,
   );
 
-  // ==========================================================
-  // BATCHES
-  // ==========================================================
+   const handleRefresh = useCallback(async () => {
+  if (isLoading) return;
+
+  reset();
+
+  try {
+    await loadLearningMaterials;
+  } catch (error) {
+    console.error(
+      "Failed to refresh learning materials:",
+      error,
+    );
+  }
+}, [
+  isLoading,
+  reset,
+  loadLearningMaterials,
+]);
+
 
   const [
     batches,
@@ -1127,6 +1147,17 @@ export default function Learning() {
       <PageSection
         title="Learning Materials"
         description="Manage, review, and monitor learning resources across training batches."
+        actions={
+          <Button
+          onClick={handleRefresh}
+
+          > <RotateCcw
+              className={`h-4 w-4 ${
+                isLoading ? "animate-spin" : ""
+              }`}
+            />
+            Refresh</Button>
+        }
       />
 
       {/* ======================================================
@@ -1319,15 +1350,15 @@ export default function Learning() {
 
             {/* CREATE BUTTON */}
 
-            <button
+            <Button
               type="button"
               onClick={
                 openCreate
               }
-              className="h-10 rounded-xl bg-[#191c1e] px-4 text-xs font-semibold text-white transition hover:opacity-90"
+              className="h-10 rounded-xl hover:opacity-90"
             >
               Add Material
-            </button>
+            </Button>
           </div>
         }
       />
@@ -1347,7 +1378,7 @@ export default function Learning() {
           <div className="flex shrink-0 items-start justify-between border-b border-[#eef0f2] bg-white px-6 py-5">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-gray-400">
-                Admin Management
+                Learning Management
               </p>
 
               <h2 className="mt-1 text-lg font-bold tracking-tight">
@@ -1810,7 +1841,7 @@ export default function Learning() {
                   </p>
 
                   <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                    <button
+                    <Button
                       type="button"
                       onClick={() =>
                         openMaterial(
@@ -1820,10 +1851,10 @@ export default function Learning() {
                       disabled={
                         !selected.fileUrl
                       }
-                      className="rounded-xl bg-[#191c1e] px-4 py-3 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-40"
+                      className="rounded-xl  px-4 py-3 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-40"
                     >
                       Open File
-                    </button>
+                    </Button>
 
                     <label className="cursor-pointer rounded-xl border border-[#e7e9ec] px-4 py-3 text-center text-xs font-semibold text-gray-600 transition hover:bg-gray-50">
                       {isUploading
@@ -2105,7 +2136,7 @@ export default function Learning() {
                 </button>
               )}
 
-              <button
+              <Button
                 type="button"
                 onClick={() =>
                   openMaterial(
@@ -2115,10 +2146,10 @@ export default function Learning() {
                 disabled={
                   !selected.fileUrl
                 }
-                className="rounded-xl bg-[#191c1e] px-5 py-3 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-40"
+                className="rounded-xl  px-5 py-3 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-40"
               >
                 Open Material
-              </button>
+              </Button>
 
               <button
                 type="button"

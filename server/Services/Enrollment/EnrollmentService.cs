@@ -492,11 +492,37 @@ public async Task<IEnumerable<EnrollmentDto>>
             )
     );
 }
-    // =========================================================
-    // REVIEW ENROLLMENT
-    //
-    // ADMIN
-    // =========================================================
+   
+public async Task<IEnumerable<EnrollmentDto>> GetByTrainingBatchAsync(
+    Guid trainingBatchId)
+{
+    var enrollments = await _context.Enrollments
+        .AsNoTracking()
+
+        .Include(x => x.ParticipantProfile)
+            .ThenInclude(x => x.User)
+
+        .Include(x => x.TrainingBatch)
+            .ThenInclude(x => x.TrainingProgram)
+
+        .Include(x => x.Documents)
+            .ThenInclude(x => x.Requirement)
+
+        .Where(x => x.TrainingBatchId == trainingBatchId)
+
+        .OrderByDescending(x => x.EnrolledAt)
+
+        .ToListAsync();
+
+    return enrollments.Select(x =>
+        MapToDto(
+            x,
+            x.ParticipantProfile,
+            x.TrainingBatch,
+            x.Documents
+        )
+    );
+}
 
     public async Task ReviewAsync(
         Guid enrollmentId,

@@ -159,18 +159,13 @@ export default function ServiceConsultationsPage() {
 
   return (
     <div className="space-y-6">
-      {/* =========================
-          HEADER
-      ========================== */}
+    
 
       <PageSection
         title="Consultations"
         description="Manage and monitor service consultations."
       />
 
-      {/* =========================
-          STATISTICS
-      ========================== */}
 
       <StatGrid>
         <StatCard
@@ -204,9 +199,6 @@ export default function ServiceConsultationsPage() {
         />
       </StatGrid>
 
-      {/* =========================
-          ERROR
-      ========================== */}
 
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
@@ -216,12 +208,9 @@ export default function ServiceConsultationsPage() {
         </div>
       )}
 
-      {/* =========================
-          TABLE
-      ========================== */}
 
-      <section className="overflow-hidden rounded-2xl border border-[#e7e9ec] bg-white shadow-sm">
-        <div className="p-5 sm:p-6">
+      <section >
+        <div >
           <ServiceConsultationTable
             consultations={consultations}
             isLoading={
@@ -232,9 +221,7 @@ export default function ServiceConsultationsPage() {
         </div>
       </section>
 
-      {/* =========================
-          CONSULTATION MODAL
-      ========================== */}
+   
 
       <ServiceConsultationModal
         open={isConsultationOpen}

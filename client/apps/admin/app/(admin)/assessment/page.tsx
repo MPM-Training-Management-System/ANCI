@@ -63,10 +63,10 @@ export default function AssessmentPage() {
   // ASSESSMENT TYPE
   // =========================================================
 
-  const [assessmentType, setAssessmentType] =
-    useState<"written" | "practical">(
-      "written",
-    );
+ const [assessmentType, setAssessmentType] =
+  useState<"written" | "practical" | "retake">(
+    "written",
+  );
 
   // =========================================================
   // WRITTEN ASSESSMENTS
@@ -897,82 +897,65 @@ export default function AssessmentPage() {
   // =========================================================
 
   const stats = useMemo(() => {
-    if (
-      assessmentType ===
-      "practical"
-    ) {
-      const total =
-        practicalAssessments.length;
+  if (assessmentType === "practical") {
+    const total = practicalAssessments.length;
 
-      const published =
-        practicalAssessments.filter(
-          item =>
-            item.isPublished,
-        ).length;
+    const published = practicalAssessments.filter(
+      item => item.isPublished,
+    ).length;
 
-      const drafts =
-        total - published;
-
-      const criteria =
-        practicalAssessments.reduce(
-          (sum, item) =>
-            sum +
-            (
-              item.criteria
-                ?.length ?? 0
-            ),
-          0,
-        );
-
-      return {
-        total,
-        published,
-        drafts,
-        questions: criteria,
-        pendingRetakes: 0,
-      };
-    }
-
-    const total =
-      assessments.length;
-
-    const pendingRetakes =
-      retakeRequests.filter(
-        request =>
-          request.status ===
-          "Pending",
-      ).length;
-
-    const published =
-      assessments.filter(
-        item =>
-          item.isPublished,
-      ).length;
-
-    const drafts =
-      total - published;
-
-    const questions =
-      assessments.reduce(
-        (sum, item) =>
-          sum +
-          item.questionCount,
-        0,
-      );
+    const criteria = practicalAssessments.reduce(
+      (sum, item) => sum + (item.criteria?.length ?? 0),
+      0,
+    );
 
     return {
       total,
       published,
-      drafts,
-      questions,
-      pendingRetakes,
+      drafts: total - published,
+      questions: criteria,
+      pendingRetakes: 0,
     };
-  }, [
-    assessmentType,
-    assessments,
-    practicalAssessments,
-    retakeRequests,
-  ]);
+  }
+
+  if (assessmentType === "retake") {
+    return {
+      total: retakeRequests.length,
+      published: 0,
+      drafts: 0,
+      questions: 0,
+      pendingRetakes: retakeRequests.filter(
+        request => request.status === "Pending",
+      ).length,
+    };
+  }
+
+  const total = assessments.length;
+
+  const published = assessments.filter(
+    item => item.isPublished,
+  ).length;
+
+  const questions = assessments.reduce(
+    (sum, item) => sum + item.questionCount,
+    0,
+  );
+
+  return {
+    total,
+    published,
+    drafts: total - published,
+    questions,
+    pendingRetakes: retakeRequests.filter(
+      request => request.status === "Pending",
+    ).length,
+  };
+}, [
+  assessmentType,
+  assessments,
+  practicalAssessments,
+  retakeRequests,
+]);
 
   // =========================================================
   // WRITTEN TABLE DATA
@@ -1055,20 +1038,16 @@ export default function AssessmentPage() {
         title="Assessment Management"
         description="Create, manage, publish, and review assessments for your training participants."
         actions={
-          <Button
-            onClick={handleCreate}
-            disabled={
-              !selectedBatchId ||
-              isLoadingBatches
-            }
-          >
-            <span className="text-lg leading-none">
-              +
-            </span>
-
-            Create Assessment
-          </Button>
-        }
+  assessmentType !== "retake" ? (
+    <Button
+      onClick={handleCreate}
+      disabled={!selectedBatchId || isLoadingBatches}
+    >
+      <span className="text-lg leading-none">+</span>
+      Create Assessment
+    </Button>
+  ) : undefined
+}
       />
 
       <div className="mx-auto space-y-5 p-2 sm:p-6 lg:p-8">
@@ -1128,125 +1107,144 @@ export default function AssessmentPage() {
           </div>
         )}
 
-        {/* =====================================================
-            ASSESSMENT TYPE
-        ===================================================== */}
+     {/* =====================================================
+    ASSESSMENT TYPE TABS
+===================================================== */}
 
-        <div className="flex w-full max-w-xl rounded-2xl border border-[#e7e9ec] bg-white p-1.5 shadow-sm">
-          <button
-            type="button"
-            onClick={() => {
-              setAssessmentType(
-                "written",
-              );
+<div className="w-full max-w-3xl rounded-2xl border border-[#e7e9ec] bg-white p-1.5 shadow-sm">
+  <div className="grid grid-cols-3 gap-1.5">
+    <button
+      type="button"
+      onClick={() => {
+        setAssessmentType("written");
+        setAlert(null);
+        setError(null);
+      }}
+      className={`
+        flex min-w-0 items-center justify-center gap-2
+        rounded-xl px-2 py-3 text-xs font-semibold
+        transition sm:px-4 sm:text-sm
+        ${
+          assessmentType === "written"
+            ? "bg-[#002b5c] text-white shadow-sm"
+            : "text-gray-500 hover:bg-gray-50"
+        }
+      `}
+    >
+      <FileCheck2 size={17} className="shrink-0" />
+      <span>Written Assessment</span>
+    </button>
 
-              setAlert(null);
-              setError(null);
-            }}
-            className={`
-              flex-1
-              rounded-xl
-              px-4
-              py-3
-              text-sm
-              font-semibold
-              transition
-              ${
-                assessmentType ===
-                "written"
-                  ? "bg-[#002b5c] text-white shadow-sm"
-                  : "text-gray-500 hover:bg-gray-50"
-              }
-            `}
-          >
-            Written Assessment
-          </button>
+    <button
+      type="button"
+      onClick={() => {
+        setAssessmentType("practical");
+        setAlert(null);
+        setError(null);
+      }}
+      className={`
+        flex min-w-0 items-center justify-center gap-2
+        rounded-xl px-2 py-3 text-xs font-semibold
+        transition sm:px-4 sm:text-sm
+        ${
+          assessmentType === "practical"
+            ? "bg-[#002b5c] text-white shadow-sm"
+            : "text-gray-500 hover:bg-gray-50"
+        }
+      `}
+    >
+      <ClipboardClock size={17} className="shrink-0" />
+      <span>Practical Assessment</span>
+    </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              setAssessmentType(
-                "practical",
-              );
+    <button
+      type="button"
+      onClick={() => {
+        setAssessmentType("retake");
+        setAlert(null);
+        setError(null);
+      }}
+      className={`
+        flex min-w-0 items-center justify-center gap-2
+        rounded-xl px-2 py-3 text-xs font-semibold
+        transition sm:px-4 sm:text-sm
+        ${
+          assessmentType === "retake"
+            ? "bg-[#002b5c] text-white shadow-sm"
+            : "text-gray-500 hover:bg-gray-50"
+        }
+      `}
+    >
+      <FileX2 size={17} className="shrink-0" />
+      <span>Retake Exam</span>
 
-              setAlert(null);
-              setError(null);
-            }}
-            className={`
-              flex-1
-              rounded-xl
-              px-4
-              py-3
-              text-sm
-              font-semibold
-              transition
-              ${
-                assessmentType ===
-                "practical"
-                  ? "bg-[#002b5c] text-white shadow-sm"
-                  : "text-gray-500 hover:bg-gray-50"
-              }
-            `}
-          >
-            Practical Assessment
-          </button>
-        </div>
-
-        {/* =====================================================
-            STATS
-        ===================================================== */}
-
-        <StatGrid>
-          <StatCard
-            title="Overview"
-            icon={LayoutDashboard}
-            value={stats.total}
-            variant="primary"
-          />
-
-          <StatCard
-            icon={FileCheck2}
-            title="Published"
-            value={stats.published}
-            variant="primary"
-          />
-
-          <StatCard
-            icon={FileX2}
-            title="Unpublished"
-            variant="warning"
-            value={stats.drafts}
-          />
-
-          <StatCard
-            icon={CircleHelp}
-            title={
-              assessmentType ===
-              "practical"
-                ? "Total Criteria"
-                : "Total Questions"
+      {pendingRequests.length > 0 && (
+        <span
+          className={`
+            rounded-full px-1.5 py-0.5 text-[10px]
+            ${
+              assessmentType === "retake"
+                ? "bg-white/20 text-white"
+                : "bg-amber-100 text-amber-700"
             }
-            variant="success"
-            value={stats.questions}
-          />
+          `}
+        >
+          {pendingRequests.length}
+        </span>
+      )}
+    </button>
+  </div>
+</div>
 
-          {assessmentType ===
-            "written" && (
-            <StatCard
-              icon={ClipboardClock}
-              title="Pending Retakes"
-              value={
-                stats.pendingRetakes
-              }
-              variant="primary"
-            />
-          )}
-        </StatGrid>
+     <StatGrid>
+  <StatCard
+    title={assessmentType === "retake" ? "Total Requests" : "Overview"}
+    icon={LayoutDashboard}
+    value={stats.total}
+    variant="primary"
+  />
 
-        {/* =====================================================
-            WRITTEN ASSESSMENTS
-        ===================================================== */}
+  {assessmentType !== "retake" && (
+    <>
+      <StatCard
+        icon={FileCheck2}
+        title="Published"
+        value={stats.published}
+        variant="primary"
+      />
 
+      <StatCard
+        icon={FileX2}
+        title="Unpublished"
+        variant="warning"
+        value={stats.drafts}
+      />
+
+      <StatCard
+        icon={CircleHelp}
+        title={
+          assessmentType === "practical"
+            ? "Total Criteria"
+            : "Total Questions"
+        }
+        variant="success"
+        value={stats.questions}
+      />
+    </>
+  )}
+
+  {(assessmentType === "written" ||
+    assessmentType === "retake") && (
+    <StatCard
+      icon={ClipboardClock}
+      title="Pending Retakes"
+      value={stats.pendingRetakes}
+      variant="primary"
+    />
+  )}
+</StatGrid>
+
+      
         {assessmentType ===
         "written" ? (
           <DataTable
@@ -1287,18 +1285,9 @@ export default function AssessmentPage() {
 
                 {batches.map(
                   batch => (
-                    <option
-                      key={
-                        batch.id
-                      }
-                      value={
-                        batch.id
-                      }
-                    >
-                      {
-                        batch.batchCode
-                      }
-                    </option>
+                    <option key={batch.id} value={batch.id}>
+  {batch.programName} - {batch.batchCode}
+</option>
                   ),
                 )}
               </select>
@@ -1324,10 +1313,8 @@ export default function AssessmentPage() {
               publishingId,
             }}
           />
-        ) : (
-          /* =====================================================
-             PRACTICAL ASSESSMENTS
-          ===================================================== */
+        ) : assessmentType === "practical" ? (
+       
 
           <section
             className="
@@ -1428,18 +1415,9 @@ export default function AssessmentPage() {
 
                   {batches.map(
                     batch => (
-                      <option
-                        key={
-                          batch.id
-                        }
-                        value={
-                          batch.id
-                        }
-                      >
-                        {
-                          batch.batchCode
-                        }
-                      </option>
+                      <option key={batch.id} value={batch.id}>
+  {batch.programName} - {batch.batchCode}
+</option>
                     ),
                   )}
                 </select>
@@ -1908,7 +1886,7 @@ export default function AssessmentPage() {
               )}
             </div>
           </section>
-        )}
+        ) : null}
 
         {/* =====================================================
             RETAKE REQUESTS
@@ -1916,7 +1894,7 @@ export default function AssessmentPage() {
         ===================================================== */}
 
         {assessmentType ===
-          "written" && (
+          "retake" && (
           <section
             className="
               overflow-hidden
@@ -1927,7 +1905,7 @@ export default function AssessmentPage() {
               shadow-[0_2px_12px_rgba(0,0,0,0.025)]
             "
           >
-            {/* REQUEST HEADER */}
+          
 
             <div
               className="
@@ -2730,9 +2708,7 @@ export default function AssessmentPage() {
         />
       )}
 
-      {/* =====================================================
-          QUESTION MANAGEMENT MODAL
-      ===================================================== */}
+   
 
       {showQuestionsModal &&
       selectedQuestionsAssessment !==

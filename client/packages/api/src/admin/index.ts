@@ -4,3 +4,4 @@ export * from "./AdminUserApi";
 export * from "./AdminUserEndpoints";
 export * from "./AdminDashboardEndpoints";
 export * from "./adminDashboardApi";
+export * from "./AdminRecoveryApi";

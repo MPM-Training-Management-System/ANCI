@@ -8,6 +8,7 @@ import {
 } from "react";
 
 import {
+  Button,
   DataTable,
   PageSection,
   StatCard,
@@ -28,12 +29,19 @@ import {
   columns,
   type AdminAttendanceRecord,
 } from "./column";
-import { CircleCheck, CircleX, ClipboardCheck, Clock3 } from "lucide-react";
+import { CircleCheck, CircleX, ClipboardCheck, Clock3, RotateCcw } from "lucide-react";
+
+
+import { useAttendance } from "@repo/hooks";
 
 export default function AttendanceManagementPage() {
-  // ============================================================
-  // TRAINING BATCHES
-  // ============================================================
+
+
+  const {
+  reset,
+  isLoading
+} = useAttendance(attendanceApi);
+
 
   const [batches, setBatches] =
     useState<TrainingBatch[]>([]);
@@ -41,16 +49,11 @@ export default function AttendanceManagementPage() {
   const [selectedBatchId, setSelectedBatchId] =
     useState<string>("");
 
-  // ============================================================
-  // ATTENDANCE
-  // ============================================================
 
   const [records, setRecords] =
     useState<AttendanceRecordDto[]>([]);
 
-  // ============================================================
-  // UI STATE
-  // ============================================================
+
 
   const [search, setSearch] =
     useState("");
@@ -67,9 +70,7 @@ export default function AttendanceManagementPage() {
   const [successMessage, setSuccessMessage] =
     useState<string | null>(null);
 
-  // ============================================================
-  // DETAILS
-  // ============================================================
+
 
   const [selectedRecord, setSelectedRecord] =
     useState<AttendanceRecordDto | null>(null);
@@ -77,9 +78,6 @@ export default function AttendanceManagementPage() {
   const [showDetails, setShowDetails] =
     useState(false);
 
-  // ============================================================
-  // SELECTED BATCH
-  // ============================================================
 
   const selectedBatch = useMemo(() => {
     return (
@@ -93,9 +91,7 @@ export default function AttendanceManagementPage() {
     selectedBatchId,
   ]);
 
-  // ============================================================
-  // LOAD TRAINING BATCHES
-  // ============================================================
+
 
   const loadBatches = useCallback(
     async () => {
@@ -136,9 +132,7 @@ export default function AttendanceManagementPage() {
     [selectedBatchId],
   );
 
-  // ============================================================
-  // LOAD ATTENDANCE
-  // ============================================================
+
 
   const loadAttendance = useCallback(
     async (
@@ -201,9 +195,7 @@ export default function AttendanceManagementPage() {
     loadAttendance,
   ]);
 
-  // ============================================================
-  // REFRESH
-  // ============================================================
+
 
   const handleRefresh =
     useCallback(async () => {
@@ -408,8 +400,21 @@ export default function AttendanceManagementPage() {
       description=" Monitor participant attendance
             across training batches and
             review real-time attendance
-            records.">
-
+            records."
+            actions={
+              <Button
+              onClick={handleRefresh}
+              >
+                 <RotateCcw
+                      className={`h-4 w-4 ${
+                        isLoading ? "animate-spin" : ""
+                      }`}
+                    />
+                    Refresh
+              </Button>
+            }
+            >
+        
       </PageSection>
       
 
@@ -561,21 +566,6 @@ export default function AttendanceManagementPage() {
           </option>
         ))}
       </select>
-
-      {/* REFRESH */}
-      <button
-        type="button"
-        onClick={handleRefresh}
-        disabled={
-          isLoadingAttendance ||
-          !selectedBatchId
-        }
-        className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {isLoadingAttendance
-          ? "Refreshing..."
-          : "Refresh"}
-      </button>
     </div>
   }
 />

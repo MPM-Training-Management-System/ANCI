@@ -25,9 +25,6 @@ public class ServiceService : IService
         _cloudinaryService = cloudinaryService;
     }
 
-    // =========================================================
-    // SERVICES
-    // =========================================================
 
     public async Task<List<ServiceDto>> GetAllAsync()
     {
@@ -896,5 +893,59 @@ public class ServiceService : IService
             ReviewedByUserId =
                 request.ReviewedByUserId
         };
+    }
+
+        // =========================================================
+    // COMPLETE SERVICE REQUEST
+    // =========================================================
+
+    public async Task<ServiceRequestDto?> CompleteRequestAsync(
+        Guid requestId)
+    {
+        var request = await _context.ServiceRequests
+            .Include(x => x.Service)
+            .FirstOrDefaultAsync(x => x.Id == requestId);
+
+        if (request is null)
+        {
+            return null;
+        }
+
+        // Only approved or ongoing requests can be completed.
+        if (
+            request.Status != ServiceRequestStatus.Approved &&
+            request.Status != ServiceRequestStatus.Scheduled &&
+            request.Status != ServiceRequestStatus.InProgress
+        )
+        {
+            throw new InvalidOperationException(
+                "Only approved, scheduled, or in-progress service requests can be completed."
+            );
+        }
+
+        var previousStatus = request.Status;
+
+        // Mark the request as completed.
+        request.Status = ServiceRequestStatus.Completed;
+
+        await _context.SaveChangesAsync();
+
+        // Notify the applicant about the status change.
+        try
+        {
+            await _serviceEmailService.SendRequestStatusChangedAsync(
+                request,
+                previousStatus
+            );
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(
+                $"Failed to send service completion email: {ex.Message}"
+            );
+        }
+
+        // Return the updated request.
+        return await GetRequestByIdAsync(requestId);
     }
 }

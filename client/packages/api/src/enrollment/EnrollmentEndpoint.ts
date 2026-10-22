@@ -35,7 +35,11 @@ export const EnrollmentEndpoints = {
   //Trainer
 
   getfortrainer:
-  "/api/enrollments/trainer"
+  "/api/enrollments/trainer",
+
+
+  byTrainingBatch: (trainingBatchId: string) =>
+        `/api/enrollments/batch/${trainingBatchId}`,
 
 } as const;
 

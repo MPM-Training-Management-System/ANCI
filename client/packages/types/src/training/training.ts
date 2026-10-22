@@ -9,9 +9,6 @@ export type TrainingStatus =
   | "Completed"
   | "Cancelled";
 
-// ==========================================
-// TRAINING PROGRAM REQUIREMENT
-// ==========================================
 
 export interface TrainingProgramRequirement {
   id: string;
@@ -21,9 +18,7 @@ export interface TrainingProgramRequirement {
   displayOrder: number;
 }
 
-// ==========================================
-// TRAINING PROGRAM REQUIREMENT REQUEST
-// ==========================================
+
 
 export interface TrainingProgramRequirementRequest {
   name: string;
@@ -56,6 +51,13 @@ export interface UpdateTrainingProgramRequest {
   requirements: TrainingProgramRequirementRequest[];
 }
 
+export type Requirement = {
+  id: string;
+  name: string;
+  description: string;
+  required: boolean;
+};
+
 // ==========================================
 // TRAINING PROGRAM
 // ==========================================
@@ -66,6 +68,7 @@ export interface TrainingProgram {
   name: string;
   description: string | null;
   durationHours: number;
+  trainingCategory: string | null;
   isActive: boolean;
   createdAt: string;
   requirements: TrainingProgramRequirement[];

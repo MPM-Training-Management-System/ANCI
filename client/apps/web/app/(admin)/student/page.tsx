@@ -203,7 +203,7 @@ export default function StudentProgress() {
           ) {
             unique.set(
               item.trainingBatchId,
-              item.batchCode,
+              item.trainingBatchId,
             );
           }
         },
@@ -256,7 +256,7 @@ export default function StudentProgress() {
 
           searchValue: [
             item.participantName,
-            item.batchCode,
+            item.trainingBatchId,
             item.overallGrade,
             item.isPassed
               ? "passed"

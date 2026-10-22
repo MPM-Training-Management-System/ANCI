@@ -56,15 +56,7 @@ export const columns: ColumnDef<Enrollment>[] = [
     ),
   },
 
-  {
-    accessorKey: "batchCode",
-    header: "Batch",
-    cell: ({ row }) => (
-      <span className="rounded-lg bg-gray-100 px-2.5 py-1.5 font-mono text-[10px] font-semibold text-gray-600">
-        {row.original.batchCode}
-      </span>
-    ),
-  },
+ 
 
   {
     accessorKey: "enrolledAt",

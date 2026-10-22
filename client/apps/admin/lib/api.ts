@@ -19,8 +19,8 @@ import {
   AdminDashboardApi,
   ReportApi,
   TrainerReportRequestApi,
-  AdminTrainerReportRequestApi
-  
+  AdminTrainerReportRequestApi,
+  AdminRecoveryApi
 } from "@repo/api";
 
 import {
@@ -77,6 +77,9 @@ export const authApi =
 
   export const trainerReportRequestApi =
   new TrainerReportRequestApi(api);
+
+   export const adminRecoveryApi =
+  new AdminRecoveryApi(api);
 
   export const adminTrainerReportRequestApi =
   new AdminTrainerReportRequestApi(api);

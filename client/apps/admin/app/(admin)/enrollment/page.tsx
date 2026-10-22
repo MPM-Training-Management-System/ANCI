@@ -1,12 +1,14 @@
 "use client";
 
 import React, {
+  useCallback,
   useEffect,
   useMemo,
   useState,
 } from "react";
 
 import {
+  Button,
   DataTable,
   PageSection,
   Select,
@@ -36,8 +38,7 @@ import {
 } from "@/lib/api";
 
 import { columns } from "./columns";
-
-
+import { RotateCcw } from "lucide-react";
 
 
 export default function EnrollmentPage() {
@@ -50,9 +51,24 @@ export default function EnrollmentPage() {
     isLoading,
     isSubmitting,
     error,
+    reset
   } = useEnrollments(
     enrollmentApi
   );
+
+const handleRefresh = useCallback(async () => {
+  reset();
+
+  await Promise.all([
+    loadPendingEnrollments(),
+
+  ]);
+}, [
+  reset,
+  loadPendingEnrollments,
+
+]);
+
 
 
 
@@ -796,6 +812,18 @@ export default function EnrollmentPage() {
       description=" Review enrollment requests submitted
           by participants and manage their
           admission into training programs."
+          actions={
+            <Button
+            onClick={handleRefresh}
+            >
+              <RotateCcw
+                      className={`h-4 w-4 ${
+                        isLoading ? "animate-spin" : ""
+                      }`}
+                    />
+                    Refresh
+            </Button>
+          }
       ></PageSection>
 
       {error && (

@@ -1,3 +1,4 @@
+
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -8,6 +9,11 @@ namespace server.Services;
 
 public class CertificatePdfService : ICertificatePdfService
 {
+    private const string Blue = "#0038A8";
+    private const string Red = "#CE1126";
+    private const string Dark = "#172B4D";
+    private const string Gray = "#5B6573";
+
     public async Task<Stream> GenerateAsync(
         string participantName,
         string trainingName,
@@ -19,210 +25,327 @@ public class CertificatePdfService : ICertificatePdfService
     {
         var stream = new MemoryStream();
 
+        var isCompletion = string.Equals(
+            certificateType,
+            "Completion",
+            StringComparison.OrdinalIgnoreCase);
+
+        var title = isCompletion
+            ? "CERTIFICATE OF COMPLETION"
+            : "CERTIFICATE OF PARTICIPATION";
+
+        // Replace with your deployed API URL before production.
         var verificationUrl =
-            $"http://localhost:5296/api/certificate/verify/{verificationCode}";
+            $"http://localhost:5296/api/certificate/verify/{Uri.EscapeDataString(verificationCode)}";
 
-        var qrGenerator = new QRCodeGenerator();
+        using var qrGenerator = new QRCodeGenerator();
 
-        using var qrData =
-            qrGenerator.CreateQrCode(
-                verificationUrl,
-                QRCodeGenerator.ECCLevel.Q
-            );
+        using var qrData = qrGenerator.CreateQrCode(
+            verificationUrl,
+            QRCodeGenerator.ECCLevel.Q);
 
-        var qrCode =
-            new PngByteQRCode(qrData);
+        var qrBytes = new PngByteQRCode(qrData).GetGraphic(8);
 
-        var qrBytes =
-            qrCode.GetGraphic(8);
+        // Optional transparent watermark image.
+        // Expected path:
+        // server/wwwroot/images/ace-icon-watermark.png
+        var watermarkPath = Path.Combine(
+            AppContext.BaseDirectory,
+            "wwwroot",
+            "images",
+            "ace-icon-watermark.png");
 
-        var title =
-            certificateType.Equals(
-                "Completion",
-                StringComparison.OrdinalIgnoreCase)
-                ? "CERTIFICATE OF COMPLETION"
-                : "CERTIFICATE OF PARTICIPATION";
+        byte[]? watermarkBytes = File.Exists(watermarkPath)
+            ? await File.ReadAllBytesAsync(watermarkPath)
+            : null;
 
-        var description =
-            certificateType.Equals(
-                "Completion",
-                StringComparison.OrdinalIgnoreCase)
-                ? "for successfully completing the"
-                : "for successfully participating in the";
+        // Replace with the actual authorized signatories.
+        const string firstSignatoryName = "First Signatory Name";
+        const string firstSignatoryPosition = "Authorized Signatory";
+
+        const string secondSignatoryName = "Second Signatory Name";
+        const string secondSignatoryPosition = "Training Director";
 
         Document.Create(document =>
         {
             document.Page(page =>
             {
                 page.Size(PageSizes.A4.Landscape());
-
-                page.Margin(35);
-
+                page.Margin(24);
                 page.PageColor(Colors.White);
 
-                page.DefaultTextStyle(
-                    style => style.FontFamily("Lato")
-                );
+                page.DefaultTextStyle(style =>
+                    style.FontFamily("Lato")
+                        .FontColor(Dark));
 
-                page.Content()
-                    .Border(3)
-                    .BorderColor("#0038A8")
-                    .Padding(25)
-                    .Column(column =>
+                page.Content().Layers(layers =>
+                {
+                    // BACKGROUND WATERMARK
+                    if (watermarkBytes != null)
                     {
-                        column.Spacing(8);
-
-                        // ==========================================
-                        // HEADER
-                        // ==========================================
-
-                        column.Item()
+                        layers.Layer()
                             .AlignCenter()
-                            .Text("ACE NEXTGEN")
-                            .FontSize(28)
-                            .Bold()
-                            .FontColor("#0038A8");
+                            .AlignTop()
+                            .PaddingTop(25)
+                            .Width(480)
+                            .Height(480)
+                            .Image(watermarkBytes)
+                            .FitArea();
+                    }
 
-                        column.Item()
-                            .AlignCenter()
-                            .Text("CONSULTANCY INC.")
-                            .FontSize(13)
-                            .SemiBold()
-                            .FontColor("#CE1126");
+                    // MAIN CERTIFICATE CONTENT
+                    layers.PrimaryLayer()
+                        .Border(3)
+                        .BorderColor(Blue)
+                        .Padding(5)
+                        .Border(1)
+                        .BorderColor("#8AADE0")
+                        .Padding(22)
+                        .Column(column =>
+                        {
+                            column.Spacing(5);
 
-                        column.Item()
-                            .PaddingTop(8)
-                            .AlignCenter()
-                            .Text(title)
-                            .FontSize(25)
-                            .Bold()
-                            .FontColor("#0038A8");
+                            // COMPANY BRANDING
+                            column.Item()
+                                .AlignCenter()
+                                .Text("ACE NEXTGEN")
+                                .FontSize(25)
+                                .Bold()
+                                .FontColor(Blue);
 
-                        // ==========================================
-                        // DESCRIPTION
-                        // ==========================================
+                            column.Item()
+                                .AlignCenter()
+                                .Text("CONSULTANCY INC.")
+                                .FontSize(12)
+                                .SemiBold()
+                                .FontColor(Red);
 
-                        column.Item()
-                            .PaddingTop(10)
-                            .AlignCenter()
-                            .Text(description)
-                            .FontSize(13)
-                            .FontColor("#444444");
+                            column.Item()
+                                .PaddingTop(2)
+                                .AlignCenter()
+                                .Text(
+                                    "PROFESSIONAL TRAINING AND DEVELOPMENT")
+                                .FontSize(8)
+                                .FontColor(Blue);
 
-                        // ==========================================
-                        // PARTICIPANT
-                        // ==========================================
+                            column.Item()
+                                .PaddingTop(3)
+                                .AlignCenter()
+                                .Width(160)
+                                .LineHorizontal(1.5f)
+                                .LineColor(Red);
 
-                        column.Item()
-                            .PaddingTop(5)
-                            .AlignCenter()
-                            .Text(participantName)
-                            .FontSize(27)
-                            .Bold()
-                            .FontColor("#111111");
+                            // CERTIFICATE TITLE
+                            column.Item()
+                                .PaddingTop(5)
+                                .AlignCenter()
+                                .Text(title)
+                                .FontSize(22)
+                                .Bold()
+                                .FontColor(Blue);
 
-                        column.Item()
-                            .AlignCenter()
-                            .PaddingTop(2)
-                            .Width(420)
-                            .LineHorizontal(1)
-                            .LineColor("#0038A8");
+                            column.Item()
+                                .PaddingTop(4)
+                                .AlignCenter()
+                                .Text(
+                                    "This certificate is proudly presented to")
+                                .FontSize(11)
+                                .FontColor(Gray);
 
-                        // ==========================================
-                        // TRAINING
-                        // ==========================================
+                            // PARTICIPANT NAME
+                            column.Item()
+                                .PaddingTop(2)
+                                .AlignCenter()
+                                .Text(participantName)
+                                .FontSize(26)
+                                .Bold()
+                                .FontColor(Dark);
 
-                        column.Item()
-                            .PaddingTop(8)
-                            .AlignCenter()
-                            .Text(trainingName)
-                            .FontSize(18)
-                            .Bold()
-                            .FontColor("#0038A8");
+                            column.Item()
+                                .PaddingTop(2)
+                                .AlignCenter()
+                                .Width(500)
+                                .LineHorizontal(1)
+                                .LineColor(Blue);
 
-                        column.Item()
-                            .AlignCenter()
-                            .Text($"Batch: {batchCode}")
-                            .FontSize(11)
-                            .FontColor("#555555");
+                            // RECOGNITION SENTENCE
+                            // Training name and batch are part of the sentence.
+                           
+column.Item()
+    .PaddingTop(7)
+    .PaddingHorizontal(18)
+    .AlignCenter()
+    .DefaultTextStyle(style => style
+        .FontSize(11)
+        .FontColor(Dark))
+    .Text(text =>
+    {
+        if (isCompletion)
+        {
+            text.Span(
+                "in recognition of the successful completion of the training program entitled ");
+        }
+        else
+        {
+            text.Span(
+                "in recognition of their active participation in the training program entitled ");
+        }
 
-                        // ==========================================
-                        // FOOTER INFORMATION
-                        // ==========================================
+        text.Span(trainingName)
+            .Bold()
+            .FontColor(Blue);
 
-                        column.Item()
-                            .PaddingTop(12)
-                            .Row(row =>
-                            {
-                                row.RelativeItem()
-                                    .AlignLeft()
-                                    .Column(left =>
-                                    {
-                                        left.Item()
-                                            .Text("Certificate No.")
-                                            .FontSize(9)
-                                            .SemiBold()
-                                            .FontColor("#666666");
+        text.Span(
+            $", under Batch {batchCode}, organized and conducted by ACE NextGen Consultancy Inc.");
 
-                                        left.Item()
-                                            .Text(certificateNumber)
-                                            .FontSize(10)
-                                            .Bold();
+        if (isCompletion)
+        {
+            text.Span(
+                ", having fulfilled the applicable training requirements and demonstrated commitment to acquiring the knowledge and skills covered by the program.");
+        }
+        else
+        {
+            text.Span(
+                ", recognizing their commitment to learning, professional development, and the enhancement of their knowledge and skills relevant to the training subject.");
+        }
+    });
 
-                                        left.Item()
-                                            .PaddingTop(5)
-                                            .Text("Issued Date")
-                                            .FontSize(9)
-                                            .SemiBold()
-                                            .FontColor("#666666");
 
-                                        left.Item()
-                                            .Text(
-                                                issuedAt.ToLocalTime()
-                                                    .ToString("MMMM dd, yyyy")
-                                            )
-                                            .FontSize(10)
-                                            .Bold();
-                                    });
+                            // AWARD DATE
+                            column.Item()
+                                .PaddingTop(7)
+                                .AlignCenter()
+                                .Text(
+                                    $"Given this {issuedAt.Day}{GetOrdinalSuffix(issuedAt.Day)} day of {issuedAt:MMMM yyyy}.")
+                                .FontSize(10)
+                                .FontColor(Dark);
 
-                                row.ConstantItem(90)
-                                    .AlignRight()
-                                    .Column(right =>
-                                    {
-                                        right.Item()
-                                            .AlignCenter()
-                                            .Width(70)
-                                            .Height(70)
-                                            .Image(qrBytes);
+                            // SIGNATORIES AND QR CODE
+                            column.Item()
+                                .PaddingTop(9)
+                                .Row(row =>
+                                {
+                                    // FIRST SIGNATORY
+                                    row.RelativeItem()
+                                        .PaddingHorizontal(8)
+                                        .Column(signature =>
+                                        {
+                                            signature.Item()
+                                                .Height(24);
 
-                                        right.Item()
-                                            .PaddingTop(2)
-                                            .AlignCenter()
-                                            .Text("Scan to verify")
-                                            .FontSize(7)
-                                            .FontColor("#666666");
-                                    });
-                            });
+                                            signature.Item()
+                                                .AlignCenter()
+                                                .Width(180)
+                                                .LineHorizontal(1)
+                                                .LineColor(Dark);
 
-                        // ==========================================
-                        // VERIFICATION CODE
-                        // ==========================================
+                                            signature.Item()
+                                                .PaddingTop(3)
+                                                .AlignCenter()
+                                                .Text(firstSignatoryName)
+                                                .FontSize(9)
+                                                .Bold()
+                                                .FontColor(Blue);
 
-                        column.Item()
-                            .PaddingTop(3)
-                            .AlignCenter()
-                            .Text($"Verification Code: {verificationCode}")
-                            .FontSize(8)
-                            .FontColor("#777777");
-                    });
+                                            signature.Item()
+                                                .AlignCenter()
+                                                .Text(firstSignatoryPosition)
+                                                .FontSize(8)
+                                                .FontColor(Gray);
+                                        });
+
+                                    // SECOND SIGNATORY
+                                    row.RelativeItem()
+                                        .PaddingHorizontal(8)
+                                        .Column(signature =>
+                                        {
+                                            signature.Item()
+                                                .Height(24);
+
+                                            signature.Item()
+                                                .AlignCenter()
+                                                .Width(180)
+                                                .LineHorizontal(1)
+                                                .LineColor(Dark);
+
+                                            signature.Item()
+                                                .PaddingTop(3)
+                                                .AlignCenter()
+                                                .Text(secondSignatoryName)
+                                                .FontSize(9)
+                                                .Bold()
+                                                .FontColor(Blue);
+
+                                            signature.Item()
+                                                .AlignCenter()
+                                                .Text(secondSignatoryPosition)
+                                                .FontSize(8)
+                                                .FontColor(Gray);
+                                        });
+
+                                    // QR CODE
+                                    row.ConstantItem(75)
+                                        .AlignRight()
+                                        .Column(qr =>
+                                        {
+                                            qr.Item()
+                                                .AlignCenter()
+                                                .Width(62)
+                                                .Height(62)
+                                                .Image(qrBytes);
+
+                                            qr.Item()
+                                                .PaddingTop(2)
+                                                .AlignCenter()
+                                                .Text("Scan to verify")
+                                                .FontSize(7)
+                                                .FontColor(Gray);
+                                        });
+                                });
+
+                            // FOOTER
+                            column.Item()
+                                .PaddingTop(5)
+                                .AlignCenter()
+                                .Width(570)
+                                .LineHorizontal(1)
+                                .LineColor("#8AADE0");
+
+                            column.Item()
+                                .PaddingTop(3)
+                                .AlignCenter()
+                                .Text(
+                                    $"CERTIFICATE NO.: {certificateNumber}   |   BATCH: {batchCode}")
+                                .FontSize(8)
+                                .FontColor(Gray);
+
+                            column.Item()
+                                .AlignCenter()
+                                .Text(
+                                    $"Verification Code: {verificationCode}")
+                                .FontSize(7)
+                                .FontColor(Gray);
+                        });
+                });
             });
-        })
-        .GeneratePdf(stream);
+        }).GeneratePdf(stream);
 
         stream.Position = 0;
 
-        await Task.CompletedTask;
-
         return stream;
+    }
+
+    private static string GetOrdinalSuffix(int day)
+    {
+        if (day % 100 is 11 or 12 or 13)
+            return "th";
+
+        return (day % 10) switch
+        {
+            1 => "st",
+            2 => "nd",
+            3 => "rd",
+            _ => "th"
+        };
     }
 }

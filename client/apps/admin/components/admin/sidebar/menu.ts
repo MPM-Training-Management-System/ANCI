@@ -13,6 +13,8 @@ import {
   BarChart3,
   Settings,
   MessageSquareText,
+  Database,
+  CloudDownload,
 } from "lucide-react";
 
 import type { SidebarSectionType } from "./types";
@@ -157,6 +159,17 @@ export const sidebarMenu: SidebarSectionType[] = [
         title: "Settings",
         href: "/setting",
         icon: Settings,
+      },
+    ],
+  },
+
+   {
+    title: "BACKUP & RECOVERY",
+    items: [
+      {
+        title: "Backup",
+        href: "/backup",
+        icon: Database,
       },
     ],
   },

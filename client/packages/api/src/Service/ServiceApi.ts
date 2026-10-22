@@ -253,6 +253,8 @@ async updateConsultation(
       }
     );
   }
+
+
 async reviewRequest(
   id: string,
   request: ReviewServiceRequest,
@@ -263,6 +265,11 @@ async reviewRequest(
       method: "PUT",
       body: request,
     },
+  );
+}
+async completeRequest(id: string): Promise<ServiceRequest> {
+  return this.api.request<ServiceRequest>(
+    `/services/requests/${id}/complete`,
   );
 }
 }

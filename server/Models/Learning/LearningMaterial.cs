@@ -1,6 +1,6 @@
 using server.Models.Learning;
 using server.Models.Training;
-
+namespace server.Models.Learning;
 public class LearningMaterial
 {
     public Guid Id { get; set; }

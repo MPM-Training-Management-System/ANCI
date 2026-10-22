@@ -20,13 +20,6 @@ public class AdminUserController : ControllerBase
         _adminUserService =
             adminUserService;
     }
-
-
-    // =========================================================
-    // GET ALL USERS
-    // GET /api/admin/users
-    // =========================================================
-
     [HttpGet]
     public async Task<IActionResult>
         GetUsers()
@@ -39,10 +32,6 @@ public class AdminUserController : ControllerBase
     }
 
 
-    // =========================================================
-    // GET USER
-    // GET /api/admin/users/{id}
-    // =========================================================
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult>
@@ -68,10 +57,6 @@ public class AdminUserController : ControllerBase
     }
 
 
-    // =========================================================
-    // UPDATE USER
-    // PUT /api/admin/users/{id}
-    // =========================================================
 
     [HttpPut("{id:guid}")]
     public async Task<IActionResult>

@@ -50,11 +50,6 @@ export default function Navbar({
       {/* Right */}
       <div className="flex items-center gap-4">
 
-        <NavbarNotification
-          notificationCount={3}
-          messageCount={1}
-        />
-
         <NavbarProfile
         />
 

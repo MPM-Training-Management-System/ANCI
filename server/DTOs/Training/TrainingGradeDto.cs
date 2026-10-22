@@ -4,7 +4,9 @@ public class TrainingGradeDto
 {
     public Guid EnrollmentId { get; set; }
     public Guid TrainingBatchId { get; set; }
-    public string? BatchCode { get; set; }
+    public string? ProgramCode { get; set; }
+
+    public string? Name { get; set; }
     public string? ParticipantName { get; set; }
     public string? ProfileImageUrl { get; set; }
     public decimal AttendancePercentage { get; set; }

@@ -263,7 +263,22 @@ builder.Services.AddScoped<
     ServiceEmailService
 >();
 
+builder.Services.AddScoped<IUserRecoveryService, UserRecoveryService>();
 
+builder.Services.AddScoped<
+    IRecoveryRecordSearchService,
+    RecoveryRecordSearchService
+>();
+
+builder.Services.AddScoped<
+    IRecoveryCatalogService,
+    RecoveryCatalogService
+>();
+
+builder.Services.AddScoped<
+    IFullUserRecoveryService,
+    FullUserRecoveryService
+>();
 
 builder.Services.AddAuthorization();
 
@@ -281,6 +296,8 @@ builder.Services.AddScoped<
     IOtpService,
     OtpService
 >();
+
+
 
 builder.Services.AddDataProtection();
 builder.Services.AddScoped<
@@ -329,6 +346,12 @@ builder.Services.AddSwaggerGen(options =>
     );
 });
 builder.Services.AddHttpClient();
+
+builder.Services.Configure<RecoveryDatabaseSettings>(
+    builder.Configuration.GetSection(
+        RecoveryDatabaseSettings.SectionName
+    )
+);
 var app = builder.Build();
 
 app.UseCors("FrontendPolicy");

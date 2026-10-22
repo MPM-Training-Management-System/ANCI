@@ -74,11 +74,14 @@ public CacheService(
     }
 
     public void Clear()
+{
+    foreach (var key in _keys.Keys.ToArray())
     {
-        foreach (var key in _keys.Keys)
-        {
-            _cache.Remove(key);
-            _keys.TryRemove(key, out _);
-        }
+        _cache.Remove(key);
+        _keys.TryRemove(key, out _);
     }
+
+    _logger.LogInformation(
+        "All registered application cache entries have been cleared.");
+}
 }

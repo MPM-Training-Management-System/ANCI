@@ -1,6 +1,6 @@
 using server.Models.Trainer;
 using server.Models.Training;
-
+namespace server.Models.Trainer;
 public class TrainerAssignment
 {
     public Guid Id { get; set; }

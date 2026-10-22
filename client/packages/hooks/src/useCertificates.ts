@@ -1,4 +1,9 @@
-import { useCallback, useState } from "react";
+
+import {
+  useCallback,
+  useMemo,
+  useState,
+} from "react";
 
 import type {
   Certificate,
@@ -11,26 +16,32 @@ import {
 } from "@repo/api";
 
 export function useCertificates(api: ApiClient) {
-  const certificateApi = new CertificateApi(api);
+  const certificateApi = useMemo(
+    () => new CertificateApi(api),
+    [api]
+  );
 
   const [certificates, setCertificates] =
     useState<Certificate[]>([]);
 
-  const [enrollmentCertificates, setEnrollmentCertificates] =
-    useState<Certificate[]>([]);
+  const [
+    enrollmentCertificates,
+    setEnrollmentCertificates,
+  ] = useState<Certificate[]>([]);
 
   const [eligibleParticipants, setEligibleParticipants] =
     useState<EligibleCertificate[]>([]);
 
+  // Initial page/table loading only.
   const [isLoading, setIsLoading] =
+    useState(false);
+
+  // Background refresh has its own loading state.
+  const [isRefreshing, setIsRefreshing] =
     useState(false);
 
   const [error, setError] =
     useState<string | null>(null);
-
-  // =========================================================
-  // CLEAR ERROR
-  // =========================================================
 
   const clearError = useCallback(() => {
     setError(null);
@@ -40,75 +51,98 @@ export function useCertificates(api: ApiClient) {
   // LOAD ALL CERTIFICATES
   // =========================================================
 
-  const loadCertificates = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+  const loadCertificates = useCallback(
+    async (options?: { background?: boolean }) => {
+      const background = options?.background ?? false;
 
-    try {
-      const data =
-        await certificateApi.getAll();
+      if (background) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
+      }
 
-      setCertificates(data);
+      setError(null);
 
-      return data;
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Failed to load certificates.";
+      try {
+        const data = await certificateApi.getAll();
 
-      setError(message);
-      setCertificates([]);
+        setCertificates(data);
 
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [api]);
+        return data;
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Failed to load certificates.";
+
+        setError(message);
+
+        // Preserve existing rows during background refresh.
+        if (!background) {
+          setCertificates([]);
+        }
+
+        throw err;
+      } finally {
+        if (background) {
+          setIsRefreshing(false);
+        } else {
+          setIsLoading(false);
+        }
+      }
+    },
+    [certificateApi]
+  );
 
   // =========================================================
   // LOAD CERTIFICATES BY ENROLLMENT
   // =========================================================
 
-  const loadEnrollmentCertificates =
-    useCallback(
-      async (enrollmentId: string) => {
-        setIsLoading(true);
-        setError(null);
+  const loadEnrollmentCertificates = useCallback(
+    async (enrollmentId: string) => {
+      setIsLoading(true);
+      setError(null);
 
-        try {
-          const data =
-            await certificateApi.getByEnrollment(
-              enrollmentId
-            );
+      try {
+        const data =
+          await certificateApi.getByEnrollment(
+            enrollmentId
+          );
 
-          setEnrollmentCertificates(data);
+        setEnrollmentCertificates(data);
 
-          return data;
-        } catch (err) {
-          const message =
-            err instanceof Error
-              ? err.message
-              : "Failed to load certificates.";
+        return data;
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Failed to load certificates.";
 
-          setError(message);
-          setEnrollmentCertificates([]);
+        setError(message);
+        setEnrollmentCertificates([]);
 
-          throw err;
-        } finally {
-          setIsLoading(false);
-        }
-      },
-      [api]
-    );
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [certificateApi]
+  );
 
   // =========================================================
   // LOAD ELIGIBLE PARTICIPANTS
   // =========================================================
 
-  const loadEligibleParticipants =
-    useCallback(async () => {
-      setIsLoading(true);
+  const loadEligibleParticipants = useCallback(
+    async (options?: { background?: boolean }) => {
+      const background = options?.background ?? false;
+
+      if (background) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
+      }
+
       setError(null);
 
       try {
@@ -125,116 +159,83 @@ export function useCertificates(api: ApiClient) {
             : "Failed to load eligible participants.";
 
         setError(message);
-        setEligibleParticipants([]);
+
+        // Preserve existing rows during background refresh.
+        if (!background) {
+          setEligibleParticipants([]);
+        }
 
         throw err;
       } finally {
-        setIsLoading(false);
+        if (background) {
+          setIsRefreshing(false);
+        } else {
+          setIsLoading(false);
+        }
       }
-    }, [api]);
+    },
+    [certificateApi]
+  );
 
   // =========================================================
   // GENERATE CERTIFICATES
   // =========================================================
 
-  const generateCertificates =
-    useCallback(
-      async (enrollmentId: string) => {
-        setIsLoading(true);
-        setError(null);
+  const generateCertificates = useCallback(
+    async (enrollmentId: string) => {
+      setError(null);
 
-        try {
-          /*
-           * Backend handles:
-           *
-           * Enrollment
-           *      ↓
-           * TrainingBatch
-           *      ↓
-           * TrainingProgram
-           *      ↓
-           * TrainingGrade
-           *      ↓
-           * Canva Autofill
-           *      ↓
-           * PDF
-           *      ↓
-           * Certificate records
-           */
+      try {
+        const data =
+          await certificateApi.generate(enrollmentId);
 
-          const data =
-            await certificateApi.generate(
-              enrollmentId
-            );
+        setEnrollmentCertificates(data);
 
-          // Update certificates for this enrollment
-          setEnrollmentCertificates(data);
+        // Return the generated data.
+        // The page will refresh the two lists once.
+        return data;
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Failed to generate certificates.";
 
-          /*
-           * Refresh the admin certificate list
-           * so the UI immediately shows the
-           * newly generated certificates.
-           */
-          const [allCertificates, eligible] =
-            await Promise.all([
-              certificateApi.getAll(),
-              certificateApi.getEligible(),
-            ]);
+        setError(message);
 
-          setCertificates(
-            allCertificates
-          );
-
-          setEligibleParticipants(
-            eligible
-          );
-
-          return data;
-        } catch (err) {
-          const message =
-            err instanceof Error
-              ? err.message
-              : "Failed to generate certificates.";
-
-          setError(message);
-
-          throw err;
-        } finally {
-          setIsLoading(false);
-        }
-      },
-      [api]
-    );
+        throw err;
+      }
+    },
+    [certificateApi]
+  );
 
   // =========================================================
   // VERIFY CERTIFICATE
   // =========================================================
 
-  const verifyCertificate =
-    useCallback(
-      async (verificationCode: string) => {
-        setIsLoading(true);
-        setError(null);
+  const verifyCertificate = useCallback(
+    async (verificationCode: string) => {
+      setIsLoading(true);
+      setError(null);
 
-        try {
-          return await certificateApi.verify(
-            verificationCode
-          );
-        } catch (err) {
-          const message =
-            err instanceof Error
-              ? err.message
-              : "Failed to verify certificate.";
+      try {
+        return await certificateApi.verify(
+          verificationCode
+        );
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Failed to verify certificate.";
 
-          setError(message);
+        setError(message);
 
-          throw err;
-        } finally {
-          setIsLoading(false);
-        }
-      },
-      [api]
-    );
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [certificateApi]
+  );
 
   // =========================================================
   // RESET
@@ -242,19 +243,12 @@ export function useCertificates(api: ApiClient) {
 
   const reset = useCallback(() => {
     setCertificates([]);
-
     setEnrollmentCertificates([]);
-
     setEligibleParticipants([]);
-
     setError(null);
-
     setIsLoading(false);
+    setIsRefreshing(false);
   }, []);
-
-  // =========================================================
-  // RETURN
-  // =========================================================
 
   return {
     certificates,
@@ -262,6 +256,7 @@ export function useCertificates(api: ApiClient) {
     eligibleParticipants,
 
     isLoading,
+    isRefreshing,
     error,
 
     clearError,
@@ -272,7 +267,6 @@ export function useCertificates(api: ApiClient) {
     loadEnrollmentCertificates,
 
     generateCertificates,
-
     verifyCertificate,
   };
 }
