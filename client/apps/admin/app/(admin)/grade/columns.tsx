@@ -19,7 +19,7 @@ export const columns: ColumnDef<TrainingGrade>[] = [
       return (
         <UserCell
           name={item.participantName}
-          email={item.batchCode}
+          email={item.trainingBatchId}
           image={item.profileImageUrl}
         />
       );
