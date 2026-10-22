@@ -152,7 +152,7 @@ export const columns: ColumnDef<TrainingGrade>[] = [
             </p>
 
             <p className="mt-0.5 text-xs text-gray-400">
-              {grade.batchCode}
+              {grade.trainingBatchId}
             </p>
           </div>
         </div>

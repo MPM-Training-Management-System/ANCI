@@ -216,9 +216,7 @@ public class ServicesController : ControllerBase
         return Ok(request);
     }
 
-    // =========================================================
-    // PUT: api/services/requests/{id}/review
-    // =========================================================
+
 
     [HttpPut("requests/{id:guid}/review")]
     [Authorize(Roles = "Admin")]
@@ -268,4 +266,32 @@ public class ServicesController : ControllerBase
             });
         }
     }
+
+
+[HttpPatch("requests/{id:guid}/complete")]
+public async Task<IActionResult> CompleteRequest(Guid id)
+{
+    try
+    {
+        var result = await _service.CompleteRequestAsync(id);
+
+        if (result is null)
+        {
+            return NotFound(new
+            {
+                message = "Service request not found."
+            });
+        }
+
+        return Ok(result);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return BadRequest(new
+        {
+            message = ex.Message
+        });
+    }
+}
+
 }

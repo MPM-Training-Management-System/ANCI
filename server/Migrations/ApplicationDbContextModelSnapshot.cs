@@ -1075,6 +1075,30 @@ namespace server.Migrations
                     b.Property<DateOnly?>("BirthDate")
                         .HasColumnType("date");
 
+                    b.Property<string>("CompanyName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CourseOrDegree")
+                        .HasColumnType("text");
+
+                    b.Property<string>("EducationalStatus")
+                        .HasColumnType("text");
+
+                    b.Property<string>("EmergencyContactName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("EmergencyContactNumber")
+                        .HasColumnType("text");
+
+                    b.Property<string>("EmergencyContactRelationship")
+                        .HasColumnType("text");
+
+                    b.Property<string>("EmploymentStatus")
+                        .HasColumnType("text");
+
+                    b.Property<string>("FieldOfStudy")
+                        .HasColumnType("text");
+
                     b.Property<string>("FirstName")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
@@ -1082,6 +1106,15 @@ namespace server.Migrations
                     b.Property<string>("Gender")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
+
+                    b.Property<string>("HighestEducationalAttainment")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Industry")
+                        .HasColumnType("text");
+
+                    b.Property<string>("JobTitle")
+                        .HasColumnType("text");
 
                     b.Property<string>("LastName")
                         .HasMaxLength(100)
@@ -1095,8 +1128,38 @@ namespace server.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<string>("SchoolName")
+                        .HasColumnType("text");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("ValidIdImageUrl")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ValidIdNumber")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ValidIdRemarks")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ValidIdType")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ValidIdVerificationStatus")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ValidIdVerifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ValidIdVerifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("YearGraduated")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("YearsOfWorkExperience")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 

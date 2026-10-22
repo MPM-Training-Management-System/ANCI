@@ -1,66 +1,106 @@
+
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
 import type { WrittenAssessment } from "@repo/types";
 
-export type AdminWrittenAssessment =
-  WrittenAssessment;
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@repo/ui/index";
+
+export type AdminWrittenAssessment = WrittenAssessment;
+
+export interface WrittenAssessmentTableMeta {
+  onQuestions?: (assessment: AdminWrittenAssessment) => void;
+  onEdit?: (assessment: AdminWrittenAssessment) => void;
+  onDelete?: (assessment: AdminWrittenAssessment) => void;
+  onPublish?: (assessment: AdminWrittenAssessment) => void;
+  deletingId?: string | null;
+  publishingId?: string | null;
+}
 
 export const columns: ColumnDef<AdminWrittenAssessment>[] = [
+  // ============================================================
+  // ASSESSMENT
+  // ============================================================
   {
     accessorKey: "title",
     header: "Assessment",
-    cell: ({ row }) => (
-      <div className="min-w-0">
-        <p className="truncate font-semibold text-[#17191c]">
-          {row.original.title}
-        </p>
 
-        {row.original.description && (
-          <p className="mt-0.5 truncate text-xs text-gray-500">
-            {row.original.description}
+    cell: ({ row }) => {
+      const assessment = row.original;
+
+      return (
+        <div className="min-w-0">
+          <p className="truncate font-semibold text-[#17191c]">
+            {assessment.title || "Untitled Assessment"}
           </p>
-        )}
-      </div>
-    ),
+
+          {assessment.description && (
+            <p className="mt-0.5 truncate text-xs text-gray-500">
+              {assessment.description}
+            </p>
+          )}
+        </div>
+      );
+    },
   },
 
+  // ============================================================
+  // BATCH
+  // ============================================================
   {
     accessorKey: "batchCode",
     header: "Batch",
+
     cell: ({ row }) => (
       <span className="font-medium text-[#17191c]">
-        {row.original.batchCode}
+        {row.original.batchCode || "No batch code"}
       </span>
     ),
   },
 
+  // ============================================================
+  // QUESTIONS
+  // ============================================================
   {
     accessorKey: "questionCount",
     header: "Questions",
+
     cell: ({ row }) => (
       <span className="text-sm text-gray-600">
-        {row.original.questionCount}
+        {row.original.questionCount ?? 0}
       </span>
     ),
   },
 
+  // ============================================================
+  // PASSING
+  // ============================================================
   {
     accessorKey: "passingPercentage",
     header: "Passing",
+
     cell: ({ row }) => (
       <span className="text-sm text-gray-600">
-        {row.original.passingPercentage}%
+        {row.original.passingPercentage ?? 0}%
       </span>
     ),
   },
 
+  // ============================================================
+  // STATUS
+  // ============================================================
   {
     accessorKey: "isPublished",
     header: "Status",
+
     cell: ({ row }) => {
-      const published =
-        row.original.isPublished;
+      const published = row.original.isPublished;
 
       return (
         <span
@@ -72,150 +112,121 @@ export const columns: ColumnDef<AdminWrittenAssessment>[] = [
               : "bg-gray-100 text-gray-600",
           ].join(" ")}
         >
-          {published
-            ? "Published"
-            : "Draft"}
+          {published ? "Published" : "Draft"}
         </span>
       );
     },
   },
 
+  // ============================================================
+  // ACTIONS DROPDOWN
+  // ============================================================
   {
     id: "actions",
     header: "Actions",
-    cell: ({ row, table }) => {
-      const meta =
-        table.options.meta as
-          | {
-              onQuestions?: (
-                assessment: AdminWrittenAssessment,
-              ) => void;
-              onEdit?: (
-                assessment: AdminWrittenAssessment,
-              ) => void;
-              onDelete?: (
-                assessment: AdminWrittenAssessment,
-              ) => void;
-              onPublish?: (
-                assessment: AdminWrittenAssessment,
-              ) => void;
-              deletingId?: string | null;
-              publishingId?: string | null;
-            }
-          | undefined;
+    enableSorting: false,
+    enableColumnFilter: false,
 
-      const assessment =
-        row.original;
+    cell: ({ row, table }) => {
+      const assessment = row.original;
+
+      const meta = table.options.meta as
+        | WrittenAssessmentTableMeta
+        | undefined;
+
+      if (!meta) {
+        return null;
+      }
+
+      const isDeleting = meta.deletingId === assessment.id;
+      const isPublishing = meta.publishingId === assessment.id;
+
+      const hasActions =
+        meta.onQuestions ||
+        meta.onEdit ||
+        meta.onPublish ||
+        meta.onDelete;
+
+      if (!hasActions) {
+        return null;
+      }
 
       return (
-        <div className="flex items-center gap-2">
-          {meta?.onQuestions && (
-            <button
-              type="button"
-              onClick={() =>
-                meta.onQuestions?.(
-                  assessment,
-                )
-              }
-              className="
-                rounded-lg
-                border border-[#dfe2e6]
-                px-3 py-1.5
-                text-[11px] font-semibold
-                text-gray-700
-                transition
-                hover:bg-gray-50
-              "
-            >
-              Questions
-            </button>
-          )}
+        <div
+          className="flex items-center justify-end"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                }}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label={`Actions for ${assessment.title || "assessment"}`}
+              >
+                <span className="text-lg leading-none">⋯</span>
+              </button>
+            </DropdownMenuTrigger>
 
-          {meta?.onEdit && (
-            <button
-              type="button"
-              onClick={() =>
-                meta.onEdit?.(
-                  assessment,
-                )
-              }
-              className="
-                rounded-lg
-                border border-[#dfe2e6]
-                px-3 py-1.5
-                text-[11px] font-semibold
-                text-gray-700
-                transition
-                hover:bg-gray-50
-              "
+            <DropdownMenuContent
+              align="end"
+              className="w-44"
+              onClick={(event) => event.stopPropagation()}
             >
-              Edit
-            </button>
-          )}
+              {meta.onQuestions && (
+                <DropdownMenuItem
+                  onSelect={() => {
+                    meta.onQuestions?.(assessment);
+                  }}
+                >
+                  Questions
+                </DropdownMenuItem>
+              )}
 
-          {meta?.onPublish && (
-            <button
-              type="button"
-              disabled={
-                meta.publishingId ===
-                assessment.id
-              }
-              onClick={() =>
-                meta.onPublish?.(
-                  assessment,
-                )
-              }
-              className="
-                rounded-lg
-                border border-[#dfe2e6]
-                px-3 py-1.5
-                text-[11px] font-semibold
-                text-gray-700
-                transition
-                hover:bg-gray-50
-                disabled:cursor-not-allowed
-                disabled:opacity-50
-              "
-            >
-              {meta.publishingId ===
-              assessment.id
-                ? "..."
-                : assessment.isPublished
-                  ? "Unpublish"
-                  : "Publish"}
-            </button>
-          )}
+              {meta.onEdit && (
+                <DropdownMenuItem
+                  onSelect={() => {
+                    meta.onEdit?.(assessment);
+                  }}
+                >
+                  Edit
+                </DropdownMenuItem>
+              )}
 
-          {meta?.onDelete && (
-            <button
-              type="button"
-              disabled={
-                meta.deletingId ===
-                assessment.id
-              }
-              onClick={() =>
-                meta.onDelete?.(
-                  assessment,
-                )
-              }
-              className="
-                rounded-lg
-                border border-red-200
-                px-3 py-1.5
-                text-[11px] font-semibold
-                text-red-600
-                transition
-                hover:bg-red-50
-                disabled:cursor-not-allowed
-                disabled:opacity-50
-              "
-            >
-              {meta.deletingId ===
-              assessment.id
-                ? "..."
-                : "Delete"}
-            </button>
-          )}
+              {meta.onPublish && (
+                <DropdownMenuItem
+                  disabled={isPublishing}
+                  onSelect={() => {
+                    meta.onPublish?.(assessment);
+                  }}
+                >
+                  {isPublishing
+                    ? "Please wait..."
+                    : assessment.isPublished
+                      ? "Unpublish"
+                      : "Publish"}
+                </DropdownMenuItem>
+              )}
+
+              {meta.onDelete && (
+                <>
+                  <DropdownMenuSeparator />
+
+                  <DropdownMenuItem
+                    disabled={isDeleting}
+                    onSelect={() => {
+                      meta.onDelete?.(assessment);
+                    }}
+                    className="text-red-600 focus:bg-red-50 focus:text-red-600"
+                  >
+                    {isDeleting ? "Deleting..." : "Delete"}
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       );
     },

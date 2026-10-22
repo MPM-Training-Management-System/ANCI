@@ -1,7 +1,9 @@
+
 using Microsoft.EntityFrameworkCore;
 using server.Data;
 using server.DTOs.Training.Schedule;
 using server.Enums;
+using server.Interfaces;
 using server.Models.Training;
 using server.Services.Interfaces;
 
@@ -10,10 +12,48 @@ namespace server.Services.Training;
 public class TrainingScheduleService : ITrainingScheduleService
 {
     private readonly ApplicationDbContext _context;
+    private readonly ICacheService _cacheService;
 
-    public TrainingScheduleService(ApplicationDbContext context)
+    // Short cache because schedules may change frequently.
+    private static readonly TimeSpan ScheduleCacheDuration =
+        TimeSpan.FromSeconds(30);
+
+    private const string ScheduleCachePrefix =
+        "training:schedules:";
+
+    public TrainingScheduleService(
+        ApplicationDbContext context,
+        ICacheService cacheService)
     {
         _context = context;
+        _cacheService = cacheService;
+    }
+
+    // ============================================================
+    // CACHE KEYS AND INVALIDATION
+    // ============================================================
+
+    private static string GetRecommendationCacheKey(Guid batchId)
+        => $"{ScheduleCachePrefix}recommendation:{batchId}";
+
+    private static string GetScheduleCacheKey(Guid batchId)
+        => $"{ScheduleCachePrefix}batch:{batchId}";
+
+    private static string GetParticipantScheduleCacheKey(
+        Guid batchId,
+        Guid participantUserId)
+        => $"{ScheduleCachePrefix}participant:{batchId}:{participantUserId}";
+
+    private void InvalidateScheduleCache(Guid batchId)
+    {
+        _cacheService.Remove(
+            GetRecommendationCacheKey(batchId));
+
+        _cacheService.Remove(
+            GetScheduleCacheKey(batchId));
+
+        _cacheService.Remove(
+            $"{ScheduleCachePrefix}participant:{batchId}:");
     }
 
     // ============================================================
@@ -23,20 +63,30 @@ public class TrainingScheduleService : ITrainingScheduleService
     public async Task<TrainingScheduleRecommendationDto>
         GetRecommendationAsync(Guid trainingBatchId)
     {
+        var cacheKey =
+            GetRecommendationCacheKey(trainingBatchId);
+
+        if (_cacheService.TryGet<TrainingScheduleRecommendationDto>(
+                cacheKey,
+                out var cached) &&
+            cached is not null)
+        {
+            return cached;
+        }
+
         var batch = await _context.TrainingBatches
+            .AsNoTracking()
             .Include(x => x.TrainingProgram)
             .FirstOrDefaultAsync(x => x.Id == trainingBatchId);
 
-        if (batch == null)
+        if (batch is null)
         {
             throw new KeyNotFoundException(
-                "Training batch not found."
-            );
+                "Training batch not found.");
         }
 
         ValidateBatch(batch);
 
-        // Duration comes from TrainingProgram
         var requiredHours =
             (decimal)batch.TrainingProgram.DurationHours;
 
@@ -50,39 +100,31 @@ public class TrainingScheduleService : ITrainingScheduleService
             GetAvailableTrainingDays(
                 startDate,
                 endDate,
-                batch.IncludeWeekends
-            );
+                batch.IncludeWeekends);
 
         if (availableDays.Count == 0)
         {
             throw new InvalidOperationException(
-                "No available training days within the selected period."
-            );
+                "No available training days within the selected period.");
         }
 
         var availableWeeks =
             CalculateAvailableWeeks(
                 startDate,
-                endDate
-            );
+                endDate);
 
         var recommendation =
             CalculateRecommendation(
                 requiredHours,
                 availableDays.Count,
-                availableWeeks
-            );
+                availableWeeks);
 
-        return new TrainingScheduleRecommendationDto
+        var result = new TrainingScheduleRecommendationDto
         {
             TrainingBatchId = batch.Id,
-
             RequiredHours = requiredHours,
-
             StartDate = startDate,
-
             EndDate = endDate,
-
             AvailableWeeks = availableWeeks,
 
             RecommendedSessionsPerWeek =
@@ -97,13 +139,20 @@ public class TrainingScheduleService : ITrainingScheduleService
             EstimatedSessionCount =
                 recommendation.SessionCount,
 
-            IncludeWeekends =
-                batch.IncludeWeekends
+            IncludeWeekends = batch.IncludeWeekends
         };
+
+        _cacheService.Set(
+            cacheKey,
+            result,
+            ScheduleCacheDuration);
+
+        return result;
     }
 
     // ============================================================
-    // GENERATE TRAINING SCHEDULE
+    // GENERATE TRAINING SCHEDULE PREVIEW
+    // Does not save or delete database sessions.
     // ============================================================
 
     public async Task<IReadOnlyList<TrainingSessionDto>>
@@ -112,15 +161,14 @@ public class TrainingScheduleService : ITrainingScheduleService
             GenerateTrainingScheduleRequest request)
     {
         var batch = await _context.TrainingBatches
+            .AsNoTracking()
             .Include(x => x.TrainingProgram)
-            .Include(x => x.TrainingSessions)
             .FirstOrDefaultAsync(x => x.Id == trainingBatchId);
 
-        if (batch == null)
+        if (batch is null)
         {
             throw new KeyNotFoundException(
-                "Training batch not found."
-            );
+                "Training batch not found.");
         }
 
         ValidateBatch(batch);
@@ -129,18 +177,15 @@ public class TrainingScheduleService : ITrainingScheduleService
             request.SessionsPerWeek > 7)
         {
             throw new ArgumentException(
-                "Sessions per week must be between 1 and 7."
-            );
+                "Sessions per week must be between 1 and 7.");
         }
 
         if (request.EndTime <= request.StartTime)
         {
             throw new ArgumentException(
-                "End time must be later than start time."
-            );
+                "End time must be later than start time.");
         }
 
-        // Duration comes from TrainingProgram
         var requiredHours =
             (decimal)batch.TrainingProgram.DurationHours;
 
@@ -154,59 +199,41 @@ public class TrainingScheduleService : ITrainingScheduleService
             GetAvailableTrainingDays(
                 startDate,
                 endDate,
-                request.IncludeWeekends
-            );
+                request.IncludeWeekends);
 
         if (availableDays.Count == 0)
         {
             throw new InvalidOperationException(
-                "No available training days within the selected period."
-            );
+                "No available training days within the selected period.");
         }
 
-        // --------------------------------------------------------
-        // Calculate actual training hours per day
-        // --------------------------------------------------------
-
+        // Calculate usable training hours per day.
         var dailyTrainingHours =
             CalculateDailyTrainingHours(
                 request.StartTime,
                 request.EndTime,
-                batch.BreakHours
-            );
+                batch.BreakHours);
 
         if (dailyTrainingHours <= 0)
         {
             throw new ArgumentException(
-                "The training duration after break time must be greater than zero."
-            );
+                "The training duration after break time must be greater than zero.");
         }
 
-        // --------------------------------------------------------
-        // Determine actual session dates
-        // --------------------------------------------------------
-
+        // Determine the dates for the generated sessions.
         var sessionDates =
             SelectSessionDates(
                 availableDays,
-                request.SessionsPerWeek
-            );
+                request.SessionsPerWeek);
 
         if (sessionDates.Count == 0)
         {
             throw new InvalidOperationException(
-                "Unable to generate training session dates."
-            );
+                "Unable to generate training session dates.");
         }
 
-        // --------------------------------------------------------
-        // Check whether selected schedule can accommodate
-        // required training hours
-        // --------------------------------------------------------
-
         var maximumAvailableHours =
-            sessionDates.Count *
-            dailyTrainingHours;
+            sessionDates.Count * dailyTrainingHours;
 
         if (maximumAvailableHours < requiredHours)
         {
@@ -215,30 +242,12 @@ public class TrainingScheduleService : ITrainingScheduleService
                 $"{maximumAvailableHours:0.##} training hours, " +
                 $"but {requiredHours:0.##} hours are required. " +
                 "Increase sessions per week, extend the training period, " +
-                "or increase the daily training hours."
-            );
+                "or increase the daily training hours.");
         }
 
-        // --------------------------------------------------------
-        // Remove previous generated schedule
-        // --------------------------------------------------------
-
-        if (batch.TrainingSessions.Any())
-        {
-            _context.TrainingSessions.RemoveRange(
-                batch.TrainingSessions
-            );
-        }
-
-        // --------------------------------------------------------
-        // Generate sessions
-        // --------------------------------------------------------
-
-        var sessions =
-            new List<TrainingSession>();
+        var sessions = new List<TrainingSession>();
 
         decimal accumulatedHours = 0m;
-
         var sessionNumber = 1;
 
         foreach (var date in sessionDates)
@@ -249,105 +258,78 @@ public class TrainingScheduleService : ITrainingScheduleService
             }
 
             var remainingHours =
-                requiredHours -
-                accumulatedHours;
-
-            /*
-             * Normally the session receives the complete
-             * daily training duration.
-             *
-             * The final session receives only the
-             * remaining required hours.
-             */
+                requiredHours - accumulatedHours;
 
             var sessionDuration =
                 Math.Min(
                     dailyTrainingHours,
-                    remainingHours
-                );
+                    remainingHours);
 
             sessionDuration =
                 decimal.Round(
                     sessionDuration,
                     2,
-                    MidpointRounding.AwayFromZero
-                );
+                    MidpointRounding.AwayFromZero);
 
             var sessionEndTime =
                 request.StartTime.AddHours(
-                    (double)sessionDuration
-                );
+                    (double)sessionDuration);
 
-            var session =
-                new TrainingSession
-                {
-                    Id = Guid.NewGuid(),
+            var session = new TrainingSession
+            {
+                Id = Guid.NewGuid(),
 
-                    TrainingBatchId =
-                        batch.Id,
+                TrainingBatchId =
+                    batch.Id,
 
-                    SessionNumber =
-                        sessionNumber,
+                SessionNumber =
+                    sessionNumber,
 
-                    SessionDate = DateTime.SpecifyKind(
-    date.ToDateTime(request.StartTime),
-    DateTimeKind.Utc
-),
+                SessionDate =
+                    DateTime.SpecifyKind(
+                        date.ToDateTime(request.StartTime),
+                        DateTimeKind.Utc),
 
-                    StartTime =
-                        request.StartTime,
+                StartTime =
+                    request.StartTime,
 
-                    EndTime =
-                        sessionEndTime,
+                EndTime =
+                    sessionEndTime,
 
-                    DurationHours =
-                        sessionDuration,
+                DurationHours =
+                    sessionDuration,
 
-                    Status =
-                        TrainingSessionStatus.Scheduled
-                };
+                Status =
+                    TrainingSessionStatus.Scheduled
+            };
 
             sessions.Add(session);
 
-            accumulatedHours +=
-                sessionDuration;
-
+            accumulatedHours += sessionDuration;
             sessionNumber++;
         }
-
-        // --------------------------------------------------------
-        // Validate exact total
-        // --------------------------------------------------------
 
         accumulatedHours =
             decimal.Round(
                 accumulatedHours,
                 2,
-                MidpointRounding.AwayFromZero
-            );
+                MidpointRounding.AwayFromZero);
 
         var roundedRequiredHours =
             decimal.Round(
                 requiredHours,
                 2,
-                MidpointRounding.AwayFromZero
-            );
+                MidpointRounding.AwayFromZero);
 
         if (accumulatedHours != roundedRequiredHours)
         {
             throw new InvalidOperationException(
                 $"Unable to generate the complete training schedule. " +
                 $"Generated {accumulatedHours:0.##} hours out of " +
-                $"{roundedRequiredHours:0.##} required hours."
-            );
+                $"{roundedRequiredHours:0.##} required hours.");
         }
 
-        // --------------------------------------------------------
-        // Save generated schedule
-        // --------------------------------------------------------
-
-       
-
+        // Preview only. Approval saves the official schedule.
         return sessions
             .OrderBy(x => x.SessionNumber)
             .Select(MapToDto)
@@ -358,28 +340,24 @@ public class TrainingScheduleService : ITrainingScheduleService
     // VALIDATE TRAINING BATCH
     // ============================================================
 
-    private static void ValidateBatch(
-        TrainingBatch batch)
+    private static void ValidateBatch(TrainingBatch batch)
     {
-        if (batch.TrainingProgram == null)
+        if (batch.TrainingProgram is null)
         {
             throw new InvalidOperationException(
-                "Training program associated with this batch was not found."
-            );
+                "Training program associated with this batch was not found.");
         }
 
         if (batch.TrainingProgram.DurationHours <= 0)
         {
             throw new InvalidOperationException(
-                "Training program duration must be greater than zero."
-            );
+                "Training program duration must be greater than zero.");
         }
 
         if (batch.EndDate < batch.StartDate)
         {
             throw new InvalidOperationException(
-                "Training end date cannot be earlier than start date."
-            );
+                "Training end date cannot be earlier than start date.");
         }
 
         if (batch.StartTime.HasValue &&
@@ -387,15 +365,13 @@ public class TrainingScheduleService : ITrainingScheduleService
             batch.EndTime <= batch.StartTime)
         {
             throw new InvalidOperationException(
-                "Training end time must be later than start time."
-            );
+                "Training end time must be later than start time.");
         }
 
         if (batch.BreakHours < 0)
         {
             throw new InvalidOperationException(
-                "Break hours cannot be negative."
-            );
+                "Break hours cannot be negative.");
         }
     }
 
@@ -409,43 +385,32 @@ public class TrainingScheduleService : ITrainingScheduleService
     {
         var totalDays =
             endDate.DayNumber -
-            startDate.DayNumber +
-            1;
+            startDate.DayNumber + 1;
 
         return Math.Max(
             1,
-            (int)Math.Ceiling(
-                totalDays / 7.0
-            )
-        );
+            (int)Math.Ceiling(totalDays / 7.0));
     }
 
     // ============================================================
     // GET AVAILABLE TRAINING DAYS
     // ============================================================
 
-    private static List<DateOnly>
-        GetAvailableTrainingDays(
-            DateOnly startDate,
-            DateOnly endDate,
-            bool includeWeekends)
+    private static List<DateOnly> GetAvailableTrainingDays(
+        DateOnly startDate,
+        DateOnly endDate,
+        bool includeWeekends)
     {
-        var dates =
-            new List<DateOnly>();
+        var dates = new List<DateOnly>();
 
         for (
             var date = startDate;
             date <= endDate;
-            date = date.AddDays(1)
-        )
+            date = date.AddDays(1))
         {
             if (!includeWeekends &&
-                (
-                    date.DayOfWeek ==
-                        DayOfWeek.Saturday ||
-                    date.DayOfWeek ==
-                        DayOfWeek.Sunday
-                ))
+                (date.DayOfWeek == DayOfWeek.Saturday ||
+                 date.DayOfWeek == DayOfWeek.Sunday))
             {
                 continue;
             }
@@ -465,41 +430,24 @@ public class TrainingScheduleService : ITrainingScheduleService
         decimal HoursPerSession,
         decimal WeeklyHours,
         int SessionCount
-    )
-    CalculateRecommendation(
+    ) CalculateRecommendation(
         decimal requiredHours,
         int availableDays,
         int availableWeeks)
     {
-        var candidates =
-            new List<ScheduleCandidate>();
+        var candidates = new List<ScheduleCandidate>();
 
-        /*
-         * Test 1–7 sessions per week.
-         *
-         * Practical session range:
-         *
-         * Minimum = 2 hours
-         * Maximum = 8 hours
-         *
-         * Ideal = 4–6 hours
-         */
-
-        for (
-            var sessionsPerWeek = 1;
-            sessionsPerWeek <= 7;
-            sessionsPerWeek++
-        )
+        for (var sessionsPerWeek = 1;
+             sessionsPerWeek <= 7;
+             sessionsPerWeek++)
         {
             var estimatedSessionCount =
-                sessionsPerWeek *
-                availableWeeks;
+                sessionsPerWeek * availableWeeks;
 
             estimatedSessionCount =
                 Math.Min(
                     estimatedSessionCount,
-                    availableDays
-                );
+                    availableDays);
 
             if (estimatedSessionCount <= 0)
             {
@@ -507,8 +455,7 @@ public class TrainingScheduleService : ITrainingScheduleService
             }
 
             var hoursPerSession =
-                requiredHours /
-                estimatedSessionCount;
+                requiredHours / estimatedSessionCount;
 
             if (hoursPerSession < 2m ||
                 hoursPerSession > 8m)
@@ -517,53 +464,25 @@ public class TrainingScheduleService : ITrainingScheduleService
             }
 
             var weeklyHours =
-                hoursPerSession *
-                sessionsPerWeek;
-
-            /*
-             * Prefer approximately 4–6 hours/session.
-             */
+                hoursPerSession * sessionsPerWeek;
 
             var durationScore =
-                CalculateDurationScore(
-                    hoursPerSession
-                );
-
-            /*
-             * Slight preference for fewer
-             * sessions per week.
-             */
+                CalculateDurationScore(hoursPerSession);
 
             var frequencyScore =
                 sessionsPerWeek * 0.10;
 
             var totalScore =
-                durationScore +
-                frequencyScore;
+                durationScore + frequencyScore;
 
             candidates.Add(
                 new ScheduleCandidate(
-                    SessionsPerWeek:
-                        sessionsPerWeek,
-
-                    HoursPerSession:
-                        hoursPerSession,
-
-                    WeeklyHours:
-                        weeklyHours,
-
-                    SessionCount:
-                        estimatedSessionCount,
-
-                    Score:
-                        totalScore
-                )
-            );
+                    SessionsPerWeek: sessionsPerWeek,
+                    HoursPerSession: hoursPerSession,
+                    WeeklyHours: weeklyHours,
+                    SessionCount: estimatedSessionCount,
+                    Score: totalScore));
         }
-
-        // --------------------------------------------------------
-        // FALLBACK
-        // --------------------------------------------------------
 
         if (candidates.Count == 0)
         {
@@ -572,30 +491,19 @@ public class TrainingScheduleService : ITrainingScheduleService
                     availableDays,
                     Math.Max(
                         1,
-                        (int)Math.Ceiling(
-                            requiredHours / 8m
-                        )
-                    )
-                );
+                        (int)Math.Ceiling(requiredHours / 8m)));
 
             var sessionsPerWeek =
                 Math.Max(
                     1,
                     (int)Math.Ceiling(
-                        (double)sessionCount /
-                        availableWeeks
-                    )
-                );
+                        (double)sessionCount / availableWeeks));
 
             sessionsPerWeek =
-                Math.Min(
-                    sessionsPerWeek,
-                    7
-                );
+                Math.Min(sessionsPerWeek, 7);
 
             var hoursPerSession =
-                requiredHours /
-                sessionCount;
+                requiredHours / sessionCount;
 
             return (
                 sessionsPerWeek,
@@ -603,24 +511,19 @@ public class TrainingScheduleService : ITrainingScheduleService
                 decimal.Round(
                     hoursPerSession,
                     2,
-                    MidpointRounding.AwayFromZero
-                ),
+                    MidpointRounding.AwayFromZero),
 
                 decimal.Round(
-                    hoursPerSession *
-                    sessionsPerWeek,
+                    hoursPerSession * sessionsPerWeek,
                     2,
-                    MidpointRounding.AwayFromZero
-                ),
+                    MidpointRounding.AwayFromZero),
 
-                sessionCount
-            );
+                sessionCount);
         }
 
-        var best =
-            candidates
-                .OrderBy(x => x.Score)
-                .First();
+        var best = candidates
+            .OrderBy(x => x.Score)
+            .First();
 
         return (
             best.SessionsPerWeek,
@@ -628,33 +531,23 @@ public class TrainingScheduleService : ITrainingScheduleService
             decimal.Round(
                 best.HoursPerSession,
                 2,
-                MidpointRounding.AwayFromZero
-            ),
+                MidpointRounding.AwayFromZero),
 
             decimal.Round(
                 best.WeeklyHours,
                 2,
-                MidpointRounding.AwayFromZero
-            ),
+                MidpointRounding.AwayFromZero),
 
-            best.SessionCount
-        );
+            best.SessionCount);
     }
 
     // ============================================================
     // SCORE SESSION DURATION
     // ============================================================
 
-    private static double CalculateDurationScore(
-        decimal hours)
+    private static double CalculateDurationScore(decimal hours)
     {
-        /*
-         * Ideal range:
-         * 4–6 hours/session
-         */
-
-        if (hours >= 4m &&
-            hours <= 6m)
+        if (hours >= 4m && hours <= 6m)
         {
             return 0;
         }
@@ -671,39 +564,27 @@ public class TrainingScheduleService : ITrainingScheduleService
     // SELECT SESSION DATES
     // ============================================================
 
-    private static List<DateOnly>
-        SelectSessionDates(
-            List<DateOnly> availableDays,
-            int sessionsPerWeek)
+    private static List<DateOnly> SelectSessionDates(
+        List<DateOnly> availableDays,
+        int sessionsPerWeek)
     {
         if (availableDays.Count == 0)
         {
             return [];
         }
 
-        var result =
-            new List<DateOnly>();
+        var result = new List<DateOnly>();
 
-        /*
-         * Group available dates by week.
-         */
-
-        var weeks =
-            availableDays
-                .GroupBy(
-                    GetWeekKey
-                )
-                .OrderBy(
-                    group => group.Key
-                )
-                .ToList();
+        var weeks = availableDays
+            .GroupBy(GetWeekKey)
+            .OrderBy(group => group.Key)
+            .ToList();
 
         foreach (var week in weeks)
         {
-            var days =
-                week
-                    .OrderBy(x => x)
-                    .ToList();
+            var days = week
+                .OrderBy(x => x)
+                .ToList();
 
             if (days.Count == 0)
             {
@@ -711,58 +592,30 @@ public class TrainingScheduleService : ITrainingScheduleService
             }
 
             var count =
-                Math.Min(
-                    sessionsPerWeek,
-                    days.Count
-                );
-
-            // ----------------------------------------------------
-            // One session per week
-            // ----------------------------------------------------
+                Math.Min(sessionsPerWeek, days.Count);
 
             if (count == 1)
             {
-                result.Add(
-                    days[0]
-                );
-
+                result.Add(days[0]);
                 continue;
             }
 
-            // ----------------------------------------------------
-            // Multiple sessions per week
-            // ----------------------------------------------------
-
-            for (
-                var i = 0;
-                i < count;
-                i++
-            )
+            for (var i = 0; i < count; i++)
             {
-                var index =
-                    (int)Math.Round(
-                        i *
-                        (days.Count - 1.0) /
-                        (count - 1),
-                        MidpointRounding.AwayFromZero
-                    );
+                var index = (int)Math.Round(
+                    i * (days.Count - 1.0) / (count - 1),
+                    MidpointRounding.AwayFromZero);
 
-                index =
-                    Math.Clamp(
-                        index,
-                        0,
-                        days.Count - 1
-                    );
+                index = Math.Clamp(
+                    index,
+                    0,
+                    days.Count - 1);
 
-                var selectedDate =
-                    days[index];
+                var selectedDate = days[index];
 
-                if (!result.Contains(
-                        selectedDate))
+                if (!result.Contains(selectedDate))
                 {
-                    result.Add(
-                        selectedDate
-                    );
+                    result.Add(selectedDate);
                 }
             }
         }
@@ -776,33 +629,21 @@ public class TrainingScheduleService : ITrainingScheduleService
     // WEEK KEY
     // ============================================================
 
-    private static int GetWeekKey(
-        DateOnly date)
+    private static int GetWeekKey(DateOnly date)
     {
-        var difference =
-            date.DayOfWeek switch
-            {
-                DayOfWeek.Monday => 0,
+        var difference = date.DayOfWeek switch
+        {
+            DayOfWeek.Monday => 0,
+            DayOfWeek.Tuesday => -1,
+            DayOfWeek.Wednesday => -2,
+            DayOfWeek.Thursday => -3,
+            DayOfWeek.Friday => -4,
+            DayOfWeek.Saturday => -5,
+            DayOfWeek.Sunday => -6,
+            _ => 0
+        };
 
-                DayOfWeek.Tuesday => -1,
-
-                DayOfWeek.Wednesday => -2,
-
-                DayOfWeek.Thursday => -3,
-
-                DayOfWeek.Friday => -4,
-
-                DayOfWeek.Saturday => -5,
-
-                DayOfWeek.Sunday => -6,
-
-                _ => 0
-            };
-
-        var monday =
-            date.AddDays(
-                difference
-            );
+        var monday = date.AddDays(difference);
 
         return monday.DayNumber;
     }
@@ -816,35 +657,28 @@ public class TrainingScheduleService : ITrainingScheduleService
         TimeOnly endTime,
         decimal breakHours)
     {
-        var clockHours =
-            (decimal)(
-                endTime.ToTimeSpan() -
-                startTime.ToTimeSpan()
-            ).TotalHours;
+        var clockHours = (decimal)(
+            endTime.ToTimeSpan() -
+            startTime.ToTimeSpan()).TotalHours;
 
-        var trainingHours =
-            clockHours -
-            breakHours;
+        var trainingHours = clockHours - breakHours;
 
         return decimal.Round(
             trainingHours,
             2,
-            MidpointRounding.AwayFromZero
-        );
+            MidpointRounding.AwayFromZero);
     }
 
     // ============================================================
     // MAP ENTITY TO DTO
     // ============================================================
 
-    private static TrainingSessionDto
-        MapToDto(
-            TrainingSession session)
+    private static TrainingSessionDto MapToDto(
+        TrainingSession session)
     {
         return new TrainingSessionDto
         {
-            Id =
-                session.Id,
+            Id = session.Id,
 
             TrainingBatchId =
                 session.TrainingBatchId,
@@ -853,9 +687,7 @@ public class TrainingScheduleService : ITrainingScheduleService
                 session.SessionNumber,
 
             SessionDate =
-                DateOnly.FromDateTime(
-                    session.SessionDate
-                ),
+                DateOnly.FromDateTime(session.SessionDate),
 
             StartTime =
                 session.StartTime,
@@ -880,146 +712,372 @@ public class TrainingScheduleService : ITrainingScheduleService
         decimal HoursPerSession,
         decimal WeeklyHours,
         int SessionCount,
-        double Score
-    );
+        double Score);
 
     // ============================================================
-// GET TRAINING SCHEDULE
-// ============================================================
+    // GET SAVED TRAINING SCHEDULE
+    // ============================================================
 
+    public async Task<IReadOnlyList<TrainingSessionDto>>
+        GetScheduleAsync(Guid trainingBatchId)
+    {
+        var cacheKey =
+            GetScheduleCacheKey(trainingBatchId);
+
+        if (_cacheService.TryGet<
+                IReadOnlyList<TrainingSessionDto>>(
+                cacheKey,
+                out var cached) &&
+            cached is not null)
+        {
+            return cached;
+        }
+
+        var batchExists = await _context.TrainingBatches
+            .AsNoTracking()
+            .AnyAsync(x => x.Id == trainingBatchId);
+
+        if (!batchExists)
+        {
+            throw new KeyNotFoundException(
+                "Training batch not found.");
+        }
+
+        var sessions = await _context.TrainingSessions
+            .AsNoTracking()
+            .Where(x => x.TrainingBatchId == trainingBatchId)
+            .OrderBy(x => x.SessionNumber)
+            .ToListAsync();
+
+        var result = sessions
+            .Select(MapToDto)
+            .ToList();
+
+        _cacheService.Set<IReadOnlyList<TrainingSessionDto>>(
+            cacheKey,
+            result,
+            ScheduleCacheDuration);
+
+        return result;
+    }
+
+    // ============================================================
+    // APPROVE TRAINING SCHEDULE
+    // Saves the official schedule and clears related caches.
+    // ============================================================
+
+    public async Task ApproveScheduleAsync(
+        Guid trainingBatchId,
+        IReadOnlyList<TrainingSessionDto> sessions)
+    {
+        var batch = await _context.TrainingBatches
+            .Include(x => x.TrainingSessions)
+            .FirstOrDefaultAsync(x => x.Id == trainingBatchId);
+
+        if (batch is null)
+        {
+            throw new KeyNotFoundException(
+                "Training batch not found.");
+        }
+
+        if (sessions is null || sessions.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "Cannot approve a training schedule with no sessions.");
+        }
+
+        if (batch.ScheduleStatus == TrainingScheduleStatus.Approved)
+        {
+            throw new InvalidOperationException(
+                "Training schedule has already been approved.");
+        }
+
+        // Validate the session values before saving.
+        var orderedSessions = sessions
+            .OrderBy(x => x.SessionNumber)
+            .ToList();
+
+        if (orderedSessions.Any(x =>
+                x.SessionNumber <= 0 ||
+                x.DurationHours <= 0 ||
+                x.EndTime <= x.StartTime))
+        {
+            throw new InvalidOperationException(
+                "The schedule contains an invalid session.");
+        }
+
+        if (orderedSessions
+            .Select(x => x.SessionNumber)
+            .Distinct()
+            .Count() != orderedSessions.Count)
+        {
+            throw new InvalidOperationException(
+                "Session numbers must be unique.");
+        }
+
+        if (batch.TrainingSessions.Any())
+        {
+            _context.TrainingSessions.RemoveRange(
+                batch.TrainingSessions);
+        }
+
+        var approvedSessions = orderedSessions
+            .Select(x => new TrainingSession
+            {
+                Id = Guid.NewGuid(),
+
+                TrainingBatchId =
+                    batch.Id,
+
+                SessionNumber =
+                    x.SessionNumber,
+
+                SessionDate =
+                    DateTime.SpecifyKind(
+                        x.SessionDate.ToDateTime(x.StartTime),
+                        DateTimeKind.Utc),
+
+                StartTime =
+                    x.StartTime,
+
+                EndTime =
+                    x.EndTime,
+
+                DurationHours =
+                    x.DurationHours,
+
+                Status =
+                    TrainingSessionStatus.Scheduled
+            })
+            .ToList();
+
+        await _context.TrainingSessions
+            .AddRangeAsync(approvedSessions);
+
+        batch.ScheduleStatus =
+            TrainingScheduleStatus.Approved;
+
+        await _context.SaveChangesAsync();
+
+        // Clear caches only after the database save succeeds.
+        InvalidateScheduleCache(trainingBatchId);
+    }
+
+    // ============================================================
+    // GET PARTICIPANT TRAINING SCHEDULE
+    // Checks enrollment before returning cached data.
+    // ============================================================
+
+    public async Task<IReadOnlyList<TrainingSessionDto>>
+        GetParticipantScheduleAsync(
+            Guid trainingBatchId,
+            Guid participantUserId)
+    {
+        var isEnrolled = await _context.Enrollments
+            .AsNoTracking()
+            .AnyAsync(x =>
+                x.TrainingBatchId == trainingBatchId &&
+                x.ParticipantProfile.UserId == participantUserId &&
+                x.Status == EnrollmentStatus.Approved);
+
+        if (!isEnrolled)
+        {
+            throw new UnauthorizedAccessException(
+                "You are not enrolled in this training batch.");
+        }
+
+        var cacheKey = GetParticipantScheduleCacheKey(
+            trainingBatchId,
+            participantUserId);
+
+        if (_cacheService.TryGet<
+                IReadOnlyList<TrainingSessionDto>>(
+                cacheKey,
+                out var cached) &&
+            cached is not null)
+        {
+            return cached;
+        }
+
+        var sessions = await _context.TrainingSessions
+            .AsNoTracking()
+            .Where(x => x.TrainingBatchId == trainingBatchId)
+            .OrderBy(x => x.SessionNumber)
+            .ToListAsync();
+
+        var result = sessions
+            .Select(MapToDto)
+            .ToList();
+
+        _cacheService.Set<IReadOnlyList<TrainingSessionDto>>(
+            cacheKey,
+            result,
+            ScheduleCacheDuration);
+
+        return result;
+    }
+
+    
 public async Task<IReadOnlyList<TrainingSessionDto>>
-    GetScheduleAsync(Guid trainingBatchId)
+    CreateManualScheduleAsync(
+        CreateManualTrainingScheduleRequest request)
 {
+    if (request.Sessions is null || request.Sessions.Count == 0)
+    {
+        throw new ArgumentException(
+            "At least one training session is required.");
+    }
+
     var batch = await _context.TrainingBatches
+        .Include(x => x.TrainingProgram)
         .Include(x => x.TrainingSessions)
-        .FirstOrDefaultAsync(x => x.Id == trainingBatchId);
+        .FirstOrDefaultAsync(x => x.Id == request.TrainingBatchId);
 
-    if (batch == null)
+    if (batch is null)
     {
-        throw new KeyNotFoundException(
-            "Training batch not found."
-        );
+        throw new KeyNotFoundException("Training batch not found.");
     }
 
-    return batch.TrainingSessions
-        .OrderBy(x => x.SessionNumber)
-        .Select(MapToDto)
-        .ToList();
-}
-
-
-// ============================================================
-// APPROVE TRAINING SCHEDULE
-// ============================================================
-public async Task ApproveScheduleAsync(
-    Guid trainingBatchId,
-    IReadOnlyList<TrainingSessionDto> sessions)
-{
-    var batch = await _context.TrainingBatches
-        .Include(x => x.TrainingSessions)
-        .FirstOrDefaultAsync(x => x.Id == trainingBatchId);
-
-    if (batch == null)
-    {
-        throw new KeyNotFoundException(
-            "Training batch not found."
-        );
-    }
-
-    if (sessions == null || sessions.Count == 0)
-    {
-        throw new InvalidOperationException(
-            "Cannot approve a training schedule with no sessions."
-        );
-    }
+    ValidateBatch(batch);
 
     if (batch.ScheduleStatus == TrainingScheduleStatus.Approved)
     {
         throw new InvalidOperationException(
-            "Training schedule has already been approved."
-        );
+            "The schedule is already approved. Use the schedule revision workflow.");
     }
 
-    // Remove existing sessions if there are any
+    // Prevent replacing sessions that may already be used by attendance.
     if (batch.TrainingSessions.Any())
     {
-        _context.TrainingSessions.RemoveRange(
-            batch.TrainingSessions
-        );
+        throw new InvalidOperationException(
+            "This batch already has saved training sessions. " +
+            "Use the existing schedule revision workflow instead of creating duplicates.");
     }
 
-    // Convert preview sessions into database entities
-    var approvedSessions = sessions
-        .OrderBy(x => x.SessionNumber)
-        .Select(x => new TrainingSession
-        {
-            Id = Guid.NewGuid(),
+    var batchStart = DateOnly.FromDateTime(batch.StartDate);
+    var batchEnd = DateOnly.FromDateTime(batch.EndDate);
 
-            TrainingBatchId =
-                batch.Id,
-
-            SessionNumber =
-                x.SessionNumber,
-
-            SessionDate =
-                DateTime.SpecifyKind(
-                    x.SessionDate.ToDateTime(x.StartTime),
-                    DateTimeKind.Utc
-                ),
-
-            StartTime =
-                x.StartTime,
-
-            EndTime =
-                x.EndTime,
-
-            DurationHours =
-                x.DurationHours,
-
-            Status =
-                TrainingSessionStatus.Scheduled
-        })
+    var ordered = request.Sessions
+        .OrderBy(x => x.SessionDate)
+        .ThenBy(x => x.StartTime)
         .ToList();
 
-    await _context.TrainingSessions
-        .AddRangeAsync(approvedSessions);
-
-    // Only now is the schedule official
-    batch.ScheduleStatus =
-        TrainingScheduleStatus.Approved;
-
-    await _context.SaveChangesAsync();
-}
-// ============================================================
-// GET PARTICIPANT TRAINING SCHEDULE
-// ============================================================
-
-public async Task<IReadOnlyList<TrainingSessionDto>>
-    GetParticipantScheduleAsync(
-        Guid trainingBatchId,
-        Guid participantUserId)
-{
-    var isEnrolled = await _context.Enrollments
-        .AnyAsync(x =>
-            x.TrainingBatchId == trainingBatchId &&
-            x.ParticipantProfile.UserId == participantUserId &&
-            x.Status == EnrollmentStatus.Approved);
-
-    if (!isEnrolled)
+    if (ordered.Any(x =>
+        x.SessionNumber <= 0 ||
+        x.DurationHours <= 0 ||
+        x.EndTime <= x.StartTime))
     {
-        throw new UnauthorizedAccessException(
-            "You are not enrolled in this training batch."
-        );
+        throw new ArgumentException(
+            "Each session must have a valid session number, duration, start time, and end time.");
     }
 
-    var sessions = await _context.TrainingSessions
-        .Where(x =>
-            x.TrainingBatchId == trainingBatchId)
-        .OrderBy(x => x.SessionNumber)
-        .ToListAsync();
+    if (ordered.Any(x =>
+        x.SessionDate < batchStart ||
+        x.SessionDate > batchEnd))
+    {
+        throw new ArgumentException(
+            "Every session date must be within the training batch period.");
+    }
 
-    return sessions
+    if (ordered.Select(x => x.SessionNumber).Distinct().Count()
+        != ordered.Count)
+    {
+        throw new ArgumentException(
+            "Session numbers must be unique.");
+    }
+
+    // Check duration and overlaps, including nested overlapping times.
+    for (var i = 0; i < ordered.Count; i++)
+    {
+        var current = ordered[i];
+
+        var actualHours = (decimal)(
+            current.EndTime.ToTimeSpan() -
+            current.StartTime.ToTimeSpan()).TotalHours;
+
+        actualHours = decimal.Round(
+            actualHours, 2, MidpointRounding.AwayFromZero);
+
+        if (current.DurationHours != actualHours)
+        {
+            throw new ArgumentException(
+                $"Session {current.SessionNumber} duration must match its start and end times.");
+        }
+
+        for (var j = i + 1; j < ordered.Count; j++)
+        {
+            var other = ordered[j];
+
+            if (other.SessionDate != current.SessionDate)
+            {
+                break;
+            }
+
+            if (current.StartTime < other.EndTime &&
+                other.StartTime < current.EndTime)
+            {
+                throw new ArgumentException(
+                    $"Sessions {current.SessionNumber} and {other.SessionNumber} overlap.");
+            }
+        }
+    }
+
+    var totalHours = decimal.Round(
+        ordered.Sum(x => x.DurationHours),
+        2,
+        MidpointRounding.AwayFromZero);
+
+    var requiredHours = decimal.Round(
+        (decimal)batch.TrainingProgram.DurationHours,
+        2,
+        MidpointRounding.AwayFromZero);
+
+    if (totalHours != requiredHours)
+    {
+        throw new ArgumentException(
+            $"The sessions total {totalHours:0.##} hours, " +
+            $"but the training program requires {requiredHours:0.##} hours.");
+    }
+
+    // Create actual TrainingSession model records.
+    var entities = ordered.Select(x => new TrainingSession
+    {
+        Id = Guid.NewGuid(),
+        TrainingBatchId = batch.Id,
+        SessionNumber = x.SessionNumber,
+        SessionDate = DateTime.SpecifyKind(
+            x.SessionDate.ToDateTime(x.StartTime),
+            DateTimeKind.Utc),
+        StartTime = x.StartTime,
+        EndTime = x.EndTime,
+        DurationHours = x.DurationHours,
+        Status = TrainingSessionStatus.Scheduled
+    }).ToList();
+
+    await using var transaction =
+        await _context.Database.BeginTransactionAsync();
+
+    try
+    {
+        await _context.TrainingSessions.AddRangeAsync(entities);
+
+        await _context.SaveChangesAsync();
+
+        await transaction.CommitAsync();
+    }
+    catch
+    {
+        await transaction.RollbackAsync();
+        throw;
+    }
+
+    // Invalidate cached schedules only after a successful save.
+    InvalidateScheduleCache(batch.Id);
+
+    return entities
+        .OrderBy(x => x.SessionNumber)
         .Select(MapToDto)
         .ToList();
 }
+
 }

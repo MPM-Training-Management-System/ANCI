@@ -17,18 +17,6 @@ import {
 } from "./EnrollmentEndpoint";
 
 
-// =========================================================
-// ENROLLMENT API
-//
-// Shared API client for:
-//
-// Participant Mobile
-// Admin Web
-//
-// Authorization is handled by the backend
-// using the authenticated user's JWT role.
-// =========================================================
-
 export class EnrollmentApi {
 
   constructor(
@@ -36,15 +24,6 @@ export class EnrollmentApi {
   ) {}
 
 
-  // =======================================================
-  // PARTICIPANT
-  // CREATE ENROLLMENT
-  //
-  // POST /api/enrollments
-  //
-  // Used when a participant submits
-  // an enrollment application.
-  // =======================================================
 async getRequirements(
   trainingBatchId: string
 ): Promise<TrainingProgramRequirement[]> {
@@ -76,15 +55,14 @@ async getRequirements(
   }
 
 
-  // =======================================================
-  // PARTICIPANT
-  // GET MY ENROLLMENTS
-  //
-  // GET /api/enrollments/me
-  //
-  // Returns all enrollments belonging to
-  // the currently authenticated participant.
-  // =======================================================
+async getByTrainingBatch(
+    trainingBatchId: string
+): Promise<Enrollment[]> {
+    return this.api.request<Enrollment[]>(
+        EnrollmentEndpoints.byTrainingBatch(trainingBatchId),
+        { method: "GET" }
+    );
+}
 
   async getMyEnrollments():
     Promise<Enrollment[]> {

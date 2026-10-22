@@ -49,17 +49,10 @@ export type TrainingProgram = {
 };
 
 export type TrainingProgramTableMeta = {
-  onView?: (
-    program: TrainingProgram,
-  ) => void;
-
-  onManage?: (
-    program: TrainingProgram,
-  ) => void;
-
-  onDelete?: (
-    program: TrainingProgram,
-  ) => void;
+  onView?: (program: TrainingProgram) => void;
+  onManage?: (program: TrainingProgram) => void;
+  onEdit?: (program: TrainingProgram) => void;
+  onDelete?: (program: TrainingProgram) => void;
 };
 
 export const columns: ColumnDef<TrainingProgram>[] =
@@ -79,9 +72,9 @@ export const columns: ColumnDef<TrainingProgram>[] =
         return (
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#191c1e] text-[10px] font-bold text-white">
-              {program.code
-                .slice(0, 3)
-                .toUpperCase()}
+             {(typeof program.code === "string" && program.code.trim()
+  ? program.code.trim().slice(0, 3).toUpperCase()
+  : "N/A")}
             </div>
 
             <div className="min-w-0">
@@ -98,25 +91,6 @@ export const columns: ColumnDef<TrainingProgram>[] =
       },
     },
 
-    // =====================================================
-    // CATEGORY
-    // =====================================================
-
-    {
-      accessorKey: "category",
-
-      header: "Category",
-
-      cell: ({ row }) => (
-        <span className="rounded-lg bg-gray-100 px-2.5 py-1.5 text-[10px] font-semibold text-gray-600">
-          {row.original.category}
-        </span>
-      ),
-    },
-
-    // =====================================================
-    // SCHEDULE
-    // =====================================================
 
     {
       accessorKey: "schedule",
@@ -196,9 +170,6 @@ export const columns: ColumnDef<TrainingProgram>[] =
       },
     },
 
-    // =====================================================
-    // STATUS
-    // =====================================================
 
     {
       accessorKey: "status",
@@ -238,72 +209,70 @@ export const columns: ColumnDef<TrainingProgram>[] =
 
       enableGlobalFilter: false,
 
-      cell: ({ row, table }) => {
-        const program = row.original;
+      
+cell: ({ row, table }) => {
+  const program = row.original;
 
-        const meta =
-          table.options.meta as
-            | TrainingProgramTableMeta
-            | undefined;
+  const meta = table.options.meta as
+    | TrainingProgramTableMeta
+    | undefined;
 
-        return (
-          <div className="flex justify-end">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#e7e9ec] bg-white text-gray-500 transition hover:bg-gray-50 hover:text-gray-700"
-                  aria-label={`Actions for ${program.title}`}
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                </button>
-              </DropdownMenuTrigger>
+  return (
+    <div className="flex justify-end">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#e7e9ec] bg-white text-gray-500 transition hover:bg-gray-50 hover:text-gray-700"
+            aria-label={`Actions for ${program.title}`}
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </button>
+        </DropdownMenuTrigger>
 
-              <DropdownMenuContent
-                align="end"
-                className="w-44"
-              >
-                {/* VIEW */}
-                <DropdownMenuItem
-                  onClick={() =>
-                    meta?.onView?.(program)
-                  }
-                  className="cursor-pointer gap-2 text-xs"
-                >
-                  <Eye className="h-4 w-4 text-gray-500" />
+        <DropdownMenuContent align="end" className="w-44">
+          {/* VIEW PARTICIPANTS */}
+          <DropdownMenuItem
+            onSelect={() => meta?.onView?.(program)}
+            className="cursor-pointer gap-2 text-xs"
+          >
+            <Eye className="h-4 w-4 text-gray-500" />
+            <span>View Participants</span>
+          </DropdownMenuItem>
 
-                  <span>View</span>
-                </DropdownMenuItem>
+          {/* EXISTING MANAGE ACTION */}
+          <DropdownMenuItem
+            onSelect={() => meta?.onManage?.(program)}
+            className="cursor-pointer gap-2 text-xs"
+          >
+            <Pencil className="h-4 w-4 text-gray-500" />
+            <span>Manage</span>
+          </DropdownMenuItem>
 
-                {/* MANAGE */}
-                <DropdownMenuItem
-                  onClick={() =>
-                    meta?.onManage?.(program)
-                  }
-                  className="cursor-pointer gap-2 text-xs"
-                >
-                  <Pencil className="h-4 w-4 text-gray-500" />
+          {/* EDIT */}
+          <DropdownMenuItem
+            onSelect={() => meta?.onEdit?.(program)}
+            className="cursor-pointer gap-2 text-xs"
+          >
+            <Pencil className="h-4 w-4 text-gray-500" />
+            <span>Edit</span>
+          </DropdownMenuItem>
 
-                  <span>Manage</span>
-                </DropdownMenuItem>
+          <DropdownMenuSeparator />
 
-                <DropdownMenuSeparator />
+          {/* DELETE */}
+          <DropdownMenuItem
+            onSelect={() => meta?.onDelete?.(program)}
+            className="cursor-pointer gap-2 text-xs text-red-600 focus:bg-red-50 focus:text-red-700"
+          >
+            <Trash2 className="h-4 w-4" />
+            <span>Delete</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+},
 
-                {/* DELETE */}
-                <DropdownMenuItem
-                  onClick={() =>
-                    meta?.onDelete?.(program)
-                  }
-                  className="cursor-pointer gap-2 text-xs text-red-600 focus:bg-red-50 focus:text-red-700"
-                >
-                  <Trash2 className="h-4 w-4" />
-
-                  <span>Delete</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        );
-      },
     },
   ];

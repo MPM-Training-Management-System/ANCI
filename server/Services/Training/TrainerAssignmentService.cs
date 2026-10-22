@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using server.Data;
 using server.DTOs.Training;
 using server.Interfaces.Training;
+using server.Models.Trainer;
 using server.Models.Training;
 
 namespace server.Services.Training;

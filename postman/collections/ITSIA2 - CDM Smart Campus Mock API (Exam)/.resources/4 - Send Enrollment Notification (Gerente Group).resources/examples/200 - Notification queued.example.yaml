@@ -1,0 +1,33 @@
+$kind: http-example
+request:
+  url: "{{baseUrl}}/notifications"
+  method: POST
+  headers:
+    Content-Type: application/json
+    Accept: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "studentId": "2026001",
+        "transactionId": "ENR-2026-0001",
+        "channel": "email",
+        "message": "Your enrollment request has been accepted."
+      }
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "notificationId": "NTF-2026-0001",
+        "studentId": "2026001",
+        "transactionId": "ENR-2026-0001",
+        "channel": "email",
+        "status": "queued",
+        "message": "Notification queued in this mock scenario."
+      }
+order: 1000

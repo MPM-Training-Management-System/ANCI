@@ -52,9 +52,7 @@ export function useTrainerApplications(
   ] = useState<string | null>(null);
 
 
-  // =========================================================
-  // LOAD ALL APPLICATIONS
-  // =========================================================
+
 
   const loadApplications =
     useCallback(async () => {

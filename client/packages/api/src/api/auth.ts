@@ -30,179 +30,211 @@ export class AuthApi {
 async register(
   request: RegisterRequest
 ): Promise<RegisterResponse> {
-
-  const formData =
-    new FormData();
-
+  const formData = new FormData();
 
   // =========================================================
   // GOOGLE AUTHENTICATION
   // =========================================================
 
-  if (
-    request.googleIdToken &&
-    request.googleIdToken.trim()
-  ) {
+  if (request.googleIdToken?.trim()) {
     formData.append(
       "GoogleIdToken",
       request.googleIdToken.trim()
     );
   }
 
-
   // =========================================================
   // PERSONAL INFORMATION
   // =========================================================
 
-  formData.append(
-    "FullName",
-    request.fullName ?? ""
-  );
+  formData.append("FullName", request.fullName ?? "");
+  formData.append("FirstName", request.firstName);
+  formData.append("MiddleName", request.middleName ?? "");
+  formData.append("LastName", request.lastName);
+  formData.append("Email", request.email);
+  formData.append("MobileNumber", request.mobileNumber);
+  formData.append("BirthDate", request.birthDate);
+  formData.append("Address", request.address);
+  formData.append("Gender", request.gender);
 
-  formData.append(
-    "FirstName",
-    request.firstName
-  );
+  if (request.password) {
+    formData.append("Password", request.password);
+  }
 
-  formData.append(
-    "MiddleName",
-    request.middleName
-  );
+  // =========================================================
+  // EDUCATIONAL BACKGROUND
+  // =========================================================
 
-  formData.append(
-    "LastName",
-    request.lastName
-  );
+  const optionalFields: Array<
+    [string, string | number | null | undefined]
+  > = [
+    [
+      "HighestEducationalAttainment",
+      request.highestEducationalAttainment,
+    ],
+    [
+      "EducationalStatus",
+      request.educationalStatus,
+    ],
+    [
+      "SchoolName",
+      request.schoolName,
+    ],
+    [
+      "CourseOrDegree",
+      request.courseOrDegree,
+    ],
+    [
+      "FieldOfStudy",
+      request.fieldOfStudy,
+    ],
+    [
+      "YearGraduated",
+      request.yearGraduated,
+    ],
 
-  formData.append(
-    "Email",
-    request.email
-  );
+    // =======================================================
+    // EMPLOYMENT INFORMATION
+    // =======================================================
 
-  formData.append(
-    "MobileNumber",
-    request.mobileNumber
-  );
+    [
+      "EmploymentStatus",
+      request.employmentStatus,
+    ],
+    [
+      "CompanyName",
+      request.companyName,
+    ],
+    [
+      "JobTitle",
+      request.jobTitle,
+    ],
+    [
+      "Industry",
+      request.industry,
+    ],
+    [
+      "YearsOfWorkExperience",
+      request.yearsOfWorkExperience,
+    ],
 
-  formData.append(
-    "BirthDate",
-    request.birthDate
-  );
+    // =======================================================
+    // EMERGENCY CONTACT
+    // =======================================================
 
-  formData.append(
-    "Address",
-    request.address
-  );
+    [
+      "EmergencyContactName",
+      request.emergencyContactName,
+    ],
+    [
+      "EmergencyContactNumber",
+      request.emergencyContactNumber,
+    ],
+    [
+      "EmergencyContactRelationship",
+      request.emergencyContactRelationship,
+    ],
+  ];
 
-  formData.append(
-    "Gender",
-    request.gender
-  );
+  for (const [key, value] of optionalFields) {
+    if (value !== undefined && value !== null) {
+      formData.append(key, String(value));
+    }
+  }
 
-  formData.append(
-    "Password",
-    request.password
-  );
+  // =========================================================
+  // VALID ID INFORMATION
+  // Use these fields only if they exist in RegisterRequest
+  // and your backend registration DTO.
+  // =========================================================
 
+  if (request.validIdType) {
+    formData.append("ValidIdType", request.validIdType);
+  }
+
+  if (request.validIdNumber) {
+    formData.append("ValidIdNumber", request.validIdNumber);
+  }
 
   // =========================================================
   // PROFILE IMAGE
   // =========================================================
 
-  if (
-    request.profileImage
-  ) {
+  if (request.profileImage) {
     formData.append(
       "ProfileImage",
       request.profileImage as any
     );
   }
 
-
+    // =========================================================
+  // VALID ID INFORMATION
   // =========================================================
-  // DEBUG
-  // =========================================================
 
-  console.log(
-    "================================="
-  );
-
-  console.log(
-    "🔥 REGISTER PARTICIPANT FORMDATA"
-  );
-
-  console.log(
-    "GoogleIdToken:",
-    formData.has("GoogleIdToken")
-      ? "FOUND"
-      : "MISSING"
-  );
-
-  const googleToken =
-    formData.get("GoogleIdToken");
-
-  console.log(
-    "GoogleIdToken length:",
-    typeof googleToken === "string"
-      ? googleToken.length
-      : 0
-  );
-
-  console.log(
-    "ProfileImage:",
-    request.profileImage
-      ? request.profileImage.name
-      : "NO LOCAL IMAGE"
-  );
-
-  console.log(
-    "================================="
-  );
-
-
-  for (
-    const [key, value]
-    of formData.entries()
-  ) {
-
-    if (
-      key === "GoogleIdToken"
-    ) {
-      console.log(
-        key,
-        typeof value === "string"
-          ? `FOUND (${value.length} chars)`
-          : "INVALID"
-      );
-
-      continue;
-    }
-
-    if (
-      value instanceof File
-    ) {
-      console.log(
-        key,
-        {
-          name: value.name,
-          type: value.type,
-          size: value.size,
-        }
-      );
-
-      continue;
-    }
-
-    console.log(
-      key,
-      value
+  if (request.validIdType) {
+    formData.append(
+      "ValidIdType",
+      request.validIdType
     );
   }
 
-  console.log(
-    "================================="
-  );
+  if (request.validIdNumber) {
+    formData.append(
+      "ValidIdNumber",
+      request.validIdNumber
+    );
+  }
 
+  // =========================================================
+  // VALID ID IMAGE
+  // =========================================================
+
+  if (request.validIdImage) {
+    formData.append(
+      "ValidIdImage",
+      request.validIdImage as any
+    );
+  } else {
+    console.error(
+      "❌ ValidIdImage is missing from registration request."
+    );
+  }
+
+  // =========================================================
+  // DEBUG - SAFE FIELD CHECK
+  // =========================================================
+
+  console.log("========== PARTICIPANT REGISTRATION ==========");
+
+  for (const [key, value] of formData.entries()) {
+    if (key === "Password" || key === "GoogleIdToken") {
+      console.log(
+        `${key}:`,
+        value ? "PROVIDED" : "EMPTY"
+      );
+      continue;
+    }
+
+    if (key === "ValidIdNumber") {
+      console.log(
+        `${key}:`,
+        value ? "PROVIDED" : "EMPTY"
+      );
+      continue;
+    }
+
+    if (typeof value === "string") {
+      console.log(
+        `${key}:`,
+        value.trim() ? "PROVIDED" : "EMPTY"
+      );
+      continue;
+    }
+
+    console.log(`${key}: FILE ATTACHED`);
+  }
+
+  console.log("==============================================");
 
   // =========================================================
   // API REQUEST
@@ -216,6 +248,7 @@ async register(
     }
   );
 }
+
 
 async registerTrainer(
   request: RegisterTrainerRequest

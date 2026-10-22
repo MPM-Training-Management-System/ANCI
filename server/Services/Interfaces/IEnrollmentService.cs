@@ -27,4 +27,7 @@
             Task<IEnumerable<EnrollmentDto>>
         GetAllForAdminAsync();
             
+
+            Task<IEnumerable<EnrollmentDto>> GetByTrainingBatchAsync(
+    Guid trainingBatchId);
     }

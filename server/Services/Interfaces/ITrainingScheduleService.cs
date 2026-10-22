@@ -30,4 +30,10 @@ public interface ITrainingScheduleService
         Guid trainingBatchId,
         IReadOnlyList<TrainingSessionDto> sessions
     );
+
+    
+Task<IReadOnlyList<TrainingSessionDto>>
+    CreateManualScheduleAsync(
+        CreateManualTrainingScheduleRequest request);
+
 }

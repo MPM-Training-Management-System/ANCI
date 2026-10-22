@@ -2,6 +2,7 @@ using server.Models.Participant;
 using server.Enums;
 using server.Models.Attendance;
 using server.Models.Trainer;
+using server.Models.Learning;
 
 namespace server.Models.Training;
 

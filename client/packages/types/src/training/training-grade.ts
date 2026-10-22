@@ -1,10 +1,10 @@
 export interface TrainingGrade {
   enrollmentId: string;
   trainingBatchId: string;
-  batchCode: string;
+  programCode: string;
   participantName: string;
   profileImageUrl?: string | null;
-
+name?: string | null;
   // Attendance - 20%
   attendancePercentage: number;
   attendanceWeight: number;

@@ -13,6 +13,9 @@ export const ServiceEndpoints = {
 reviewRequest: (id: string) =>
   `/api/services/requests/${id}/review`,
 
+completeRequest: (id: string) =>
+  `/api/services/requests/${id}/complete`,
+
 getConsultations: () =>
   `/api/services/consultations`,
 

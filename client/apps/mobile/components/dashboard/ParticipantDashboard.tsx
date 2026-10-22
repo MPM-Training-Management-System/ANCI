@@ -38,8 +38,9 @@ import {
 import type {
   Service,
   TrainingSession,
+  TrainingBatch
 } from "@repo/types";
-
+import TrainingCard from "@/components/training/TrainingCard";
 import {
   mockParticipant,
   mockAssessments,
@@ -1122,9 +1123,26 @@ function TrainingSessionCard({
   );
 }
 
-/* ============================================================
-   PARTICIPANT DASHBOARD
-============================================================ */
+const TRAINING_MOCK_IMAGES = [
+  {
+    uri: "https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=600&auto=format&fit=crop&q=80",
+  },
+  {
+    uri: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=80",
+  },
+  {
+    uri: "https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=600&auto=format&fit=crop&q=80",
+  },
+  {
+    uri: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=600&auto=format&fit=crop&q=80",
+  },
+  {
+    uri: "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=600&auto=format&fit=crop&q=80",
+  },
+  {
+    uri: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=600&auto=format&fit=crop&q=80",
+  },
+];
 
 export default function ParticipantDashboard() {
   const { width: screenWidth } =
@@ -1153,6 +1171,52 @@ export default function ParticipantDashboard() {
     useTrainingBatches(
       trainingBatchApi,
     );
+
+
+
+const availableTrainingBatches = useMemo(() => {
+  if (!Array.isArray(batches)) {
+    return [];
+  }
+
+  return batches.filter(
+    (batch) =>
+      String(batch.status ?? "").toLowerCase() ===
+      "published",
+  );
+}, [batches]);
+
+const [trainingBatchSlideIndex, setTrainingBatchSlideIndex] =
+  useState(0);
+
+const trainingBatchCardWidth = Math.max(
+  240,
+  screenWidth * 0.76,
+);
+
+const twoColumnBatchWidth = Math.max(
+  120,
+  (screenWidth - 36 - 12) / 2,
+);
+
+const handleTrainingBatchScroll = useCallback(
+  (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const index = Math.round(
+      offsetX / (trainingBatchCardWidth + 12),
+    );
+
+    setTrainingBatchSlideIndex(
+      Math.max(
+        0,
+        Math.min(index, availableTrainingBatches.length - 1),
+      ),
+    );
+  },
+  [trainingBatchCardWidth, availableTrainingBatches.length],
+);
+
+
 
   const {
     loadLearningMaterials,
@@ -2032,13 +2096,29 @@ useEffect(() => {
      REQUEST SERVICE
   ============================================================ */
 
-  const handleRequestService = (
-    service: Service,
-  ) => {
+const handleRequestService = (
+  service: Service,
+) => {
+  router.push(
+    `/services/request?serviceId=${service.id}` as any,
+  );
+};
+
+
+/* ============================================================
+   OPEN SELECTED TRAINING DETAILS
+============================================================ */
+
+const handleOpenTraining = useCallback(
+  (trainingId: string | number) => {
     router.push(
-      `/services/request?serviceId=${service.id}` as any,
+      `/training?batchId=${encodeURIComponent(
+        String(trainingId),
+      )}` as any,
     );
-  };
+  },
+  [],
+);
 
   /* ============================================================
      REFRESH
@@ -2400,9 +2480,329 @@ useEffect(() => {
           />
         )}
 
-        {/* =====================================================
-            SERVICES
-        ===================================================== */}
+        
+{/* ============================================================
+    AVAILABLE TRAINING BATCHES
+============================================================ */}
+
+<SectionTitle
+  title="Available Training Batches"
+  subtitle="Explore our published training programs"
+/>
+
+{availableTrainingBatches.length === 0 ? (
+  <View style={styles.trainingBatchesEmptyCard}>
+    <View style={styles.trainingBatchesEmptyIcon}>
+      <Ionicons
+        name="school-outline"
+        size={26}
+        color="#2563EB"
+      />
+    </View>
+
+    <Text style={styles.trainingBatchesEmptyTitle}>
+      No Training Batches Available
+    </Text>
+
+    <Text style={styles.trainingBatchesEmptyText}>
+      There are currently no published training batches.
+      Please check again later.
+    </Text>
+
+    <Pressable
+      onPress={() => router.push("/training" as any)}
+      style={styles.trainingBatchesBrowseButton}
+    >
+      <Text style={styles.trainingBatchesBrowseButtonText}>
+        Browse Training
+      </Text>
+
+      <Ionicons
+        name="arrow-forward"
+        size={15}
+        color="#FFFFFF"
+      />
+    </Pressable>
+  </View>
+) : availableTrainingBatches.length === 1 ? (
+  /* ONE BATCH: FULL WIDTH */
+  <View style={styles.trainingBatchSingleContainer}>
+    {availableTrainingBatches.map((training, index) => {
+      const trainingName =
+        (training as any).programName ??
+        (training as any).trainingProgram?.name ??
+        "Training Program";
+
+      const batchCode =
+        (training as any).batchCode ??
+        "Training Batch";
+
+      const startDate = (training as any).startDate;
+      const endDate = (training as any).endDate;
+
+      return (
+        <Pressable
+          key={training.id}
+            onPress={() => handleOpenTraining(training.id)}
+          style={({ pressed }) => [
+            styles.trainingBatchCard,
+            styles.trainingBatchFullWidth,
+            pressed && styles.trainingBatchPressed,
+          ]}
+        >
+          <View style={styles.trainingBatchImageContainer}>
+            <Image
+              source={
+                TRAINING_MOCK_IMAGES[
+                  index % TRAINING_MOCK_IMAGES.length
+                ]
+              }
+              style={styles.trainingBatchImage}
+              resizeMode="cover"
+            />
+
+            <View style={styles.trainingBatchImageBadge}>
+              <Text style={styles.trainingBatchImageBadgeText}>
+                PUBLISHED
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.trainingBatchCardContent}>
+            <Text style={styles.trainingBatchCode} numberOfLines={1}>
+              {batchCode}
+            </Text>
+
+            <Text style={styles.trainingBatchTitle} numberOfLines={2}>
+              {trainingName}
+            </Text>
+
+            <View style={styles.trainingBatchDateRow}>
+              <Ionicons
+                name="calendar-outline"
+                size={14}
+                color="#64748B"
+              />
+
+              <Text style={styles.trainingBatchDateText}>
+                {startDate
+                  ? formatDate(startDate)
+                  : "Schedule to be announced"}
+                {endDate ? ` - ${formatDate(endDate)}` : ""}
+              </Text>
+            </View>
+
+            <View style={styles.trainingBatchViewRow}>
+              <Text style={styles.trainingBatchViewText}>
+                View training details
+              </Text>
+
+              <Ionicons
+                name="arrow-forward-circle"
+                size={20}
+                color="#002B5C"
+              />
+            </View>
+          </View>
+        </Pressable>
+      );
+    })}
+  </View>
+) : availableTrainingBatches.length === 2 ? (
+  /* TWO BATCHES: TWO COLUMNS */
+  <View style={styles.trainingBatchTwoColumnGrid}>
+    {availableTrainingBatches.map((training, index) => {
+      const trainingName =
+        (training as any).programName ??
+        (training as any).trainingProgram?.name ??
+        "Training Program";
+
+      const batchCode =
+        (training as any).batchCode ??
+        "Training Batch";
+
+      const startDate = (training as any).startDate;
+      const endDate = (training as any).endDate;
+
+      return (
+        <Pressable
+          key={training.id}
+           onPress={() => handleOpenTraining(training.id)}
+          style={({ pressed }) => [
+            styles.trainingBatchCard,
+            { width: twoColumnBatchWidth },
+            pressed && styles.trainingBatchPressed,
+          ]}
+        >
+          <View style={styles.trainingBatchImageContainer}>
+            <Image
+              source={
+                TRAINING_MOCK_IMAGES[
+                  index % TRAINING_MOCK_IMAGES.length
+                ]
+              }
+              style={styles.trainingBatchImage}
+              resizeMode="cover"
+            />
+
+            <View style={styles.trainingBatchImageBadge}>
+              <Text style={styles.trainingBatchImageBadgeText}>
+                PUBLISHED
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.trainingBatchCardContent}>
+            <Text style={styles.trainingBatchCode} numberOfLines={1}>
+              {batchCode}
+            </Text>
+
+            <Text style={styles.trainingBatchTitle} numberOfLines={3}>
+              {trainingName}
+            </Text>
+
+            <View style={styles.trainingBatchDateRow}>
+              <Ionicons
+                name="calendar-outline"
+                size={12}
+                color="#64748B"
+              />
+
+              <Text style={styles.trainingBatchDateText} numberOfLines={3}>
+                {startDate
+                  ? formatDate(startDate)
+                  : "Schedule to be announced"}
+                {endDate ? ` - ${formatDate(endDate)}` : ""}
+              </Text>
+            </View>
+
+            <View style={styles.trainingBatchViewRow}>
+              <Text style={styles.trainingBatchViewText}>
+                View details
+              </Text>
+
+              <Ionicons
+                name="arrow-forward-circle"
+                size={18}
+                color="#002B5C"
+              />
+            </View>
+          </View>
+        </Pressable>
+      );
+    })}
+  </View>
+) : (
+  /* THREE OR MORE BATCHES: HORIZONTAL CAROUSEL */
+  <>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      decelerationRate="fast"
+      snapToInterval={trainingBatchCardWidth + 12}
+      snapToAlignment="start"
+      disableIntervalMomentum
+      contentContainerStyle={styles.trainingBatchCarouselContent}
+      onScroll={handleTrainingBatchScroll}
+      scrollEventThrottle={16}
+    >
+      {availableTrainingBatches.map((training, index) => {
+        const trainingName =
+          (training as any).programName ??
+          (training as any).trainingProgram?.name ??
+          "Training Program";
+
+        const batchCode =
+          (training as any).batchCode ??
+          "Training Batch";
+
+        const startDate = (training as any).startDate;
+        const endDate = (training as any).endDate;
+
+        return (
+          <Pressable
+            key={training.id}
+              onPress={() => handleOpenTraining(training.id)}
+            style={({ pressed }) => [
+              styles.trainingBatchCard,
+              { width: trainingBatchCardWidth },
+              pressed && styles.trainingBatchPressed,
+            ]}
+          >
+            <View style={styles.trainingBatchImageContainer}>
+              <Image
+                source={
+                  TRAINING_MOCK_IMAGES[
+                    index % TRAINING_MOCK_IMAGES.length
+                  ]
+                }
+                style={styles.trainingBatchImage}
+                resizeMode="cover"
+              />
+
+              <View style={styles.trainingBatchImageBadge}>
+                <Text style={styles.trainingBatchImageBadgeText}>
+                  PUBLISHED
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.trainingBatchCardContent}>
+              <Text style={styles.trainingBatchCode} numberOfLines={1}>
+                {batchCode}
+              </Text>
+
+              <Text style={styles.trainingBatchTitle} numberOfLines={2}>
+                {trainingName}
+              </Text>
+
+              <View style={styles.trainingBatchDateRow}>
+                <Ionicons
+                  name="calendar-outline"
+                  size={13}
+                  color="#64748B"
+                />
+
+                <Text style={styles.trainingBatchDateText} numberOfLines={2}>
+                  {startDate
+                    ? formatDate(startDate)
+                    : "Schedule to be announced"}
+                  {endDate ? ` - ${formatDate(endDate)}` : ""}
+                </Text>
+              </View>
+
+              <View style={styles.trainingBatchViewRow}>
+                <Text style={styles.trainingBatchViewText}>
+                  View training details
+                </Text>
+
+                <Ionicons
+                  name="arrow-forward-circle"
+                  size={19}
+                  color="#002B5C"
+                />
+              </View>
+            </View>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+
+    <View style={styles.trainingBatchPagination}>
+      {availableTrainingBatches.map((training, index) => (
+        <View
+          key={training.id}
+          style={[
+            styles.trainingBatchDot,
+            index === trainingBatchSlideIndex &&
+              styles.trainingBatchDotActive,
+          ]}
+        />
+      ))}
+    </View>
+  </>
+)}
+
 
         <SectionTitle
           title="Services Overview"
@@ -2555,203 +2955,11 @@ useEffect(() => {
           </>
         )}
 
-        {/* =====================================================
-            ATTENDANCE
-        ===================================================== */}
-
-        <SectionTitle
-          title="Attendance"
-          subtitle="Your latest attendance status"
-        />
-
-        <View
-          style={styles.attendanceCard}
-        >
-          <View
-            style={styles.attendanceIcon}
-          >
-            <Ionicons
-              name="calendar-outline"
-              size={20}
-              color="#002B5C"
-            />
-          </View>
-
-          <View
-            style={
-              styles.attendanceContent
-            }
-          >
-            <Text
-              style={
-                styles.attendanceTitle
-              }
-            >
-              Attendance Rate
-            </Text>
-
-            <Text
-              style={
-                styles.attendanceValue
-              }
-            >
-              {statistics.attendanceRate}%
-            </Text>
-
-            <Text
-              style={
-                styles.attendanceSubtitle
-              }
-            >
-              {upcomingAttendance
-                ? "Attendance is currently open."
-                : "No attendance session is currently open."}
-            </Text>
-          </View>
-
-          <View
-            style={
-              styles.attendanceStatus
-            }
-          >
-            <View
-              style={[
-                styles.attendanceStatusDot,
-                {
-                  backgroundColor:
-                    upcomingAttendance
-                      ? "#22C55E"
-                      : "#CBD5E1",
-                },
-              ]}
-            />
-
-            <Text
-              style={
-                styles.attendanceStatusText
-              }
-            >
-              {upcomingAttendance
-                ? "OPEN"
-                : "CLOSED"}
-            </Text>
-          </View>
-        </View>
-
-        {/* =====================================================
-            RECENT ACTIVITY
-        ===================================================== */}
-
-        <SectionTitle
-          title="Recent Activity"
-          subtitle="Your latest training activities"
-        />
-
-        <View
-          style={styles.activityCard}
-        >
-          <View
-            style={styles.activityItem}
-          >
-            <View
-              style={
-                styles.activityIcon
-              }
-            >
-              <Ionicons
-                name="book-outline"
-                size={17}
-                color="#002B5C"
-              />
-            </View>
-
-            <View
-              style={
-                styles.activityContent
-              }
-            >
-              <Text
-                style={
-                  styles.activityTitle
-                }
-              >
-                Learning Progress
-              </Text>
-
-              <Text
-                style={
-                  styles.activityText
-                }
-              >
-                You have completed{" "}
-                {moduleCompletion.completed}{" "}
-                of{" "}
-                {moduleCompletion.total}{" "}
-                modules.
-              </Text>
-            </View>
-          </View>
-
-          <View
-            style={styles.activityDivider}
-          />
-
-          <View
-            style={styles.activityItem}
-          >
-            <View
-              style={
-                styles.activityIcon
-              }
-            >
-              <Ionicons
-                name="clipboard-outline"
-                size={17}
-                color="#002B5C"
-              />
-            </View>
-
-            <View
-              style={
-                styles.activityContent
-              }
-            >
-              <Text
-                style={
-                  styles.activityTitle
-                }
-              >
-                Assessments
-              </Text>
-
-              <Text
-                style={
-                  styles.activityText
-                }
-              >
-                {completedAssessments}{" "}
-                assessment
-                {completedAssessments !==
-                1
-                  ? "s"
-                  : ""}{" "}
-                completed.
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View
-          style={styles.bottomSpacing}
-        />
       </ScrollView>
     </View>
   );
 }
 
-/* ============================================================
-   STYLES
-============================================================ */
 
 const styles = StyleSheet.create({
   screen: {
@@ -3784,4 +3992,200 @@ const styles = StyleSheet.create({
   bottomSpacing: {
     height: 30,
   },
+
+
+
+/* ============================================================
+   RESPONSIVE TRAINING BATCHES
+============================================================ */
+
+trainingBatchSingleContainer: {
+  marginBottom: 22,
+},
+
+trainingBatchTwoColumnGrid: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "stretch",
+  marginBottom: 22,
+},
+
+trainingBatchCarouselContent: {
+  paddingRight: 18,
+  paddingBottom: 2,
+  gap: 12,
+},
+
+trainingBatchCard: {
+  overflow: "hidden",
+  borderRadius: 16,
+  backgroundColor: "#FFFFFF",
+  borderWidth: 1,
+  borderColor: "#E2E8F0",
+  marginBottom: 2,
+},
+
+trainingBatchFullWidth: {
+  width: "100%",
+},
+
+trainingBatchPressed: {
+  opacity: 0.86,
+  transform: [{ scale: 0.99 }],
+},
+
+trainingBatchImageContainer: {
+  width: "100%",
+  height: 145,
+  backgroundColor: "#E2E8F0",
+  position: "relative",
+},
+
+trainingBatchImage: {
+  width: "100%",
+  height: "100%",
+},
+
+trainingBatchImageBadge: {
+  position: "absolute",
+  top: 10,
+  left: 10,
+  paddingHorizontal: 8,
+  paddingVertical: 5,
+  borderRadius: 6,
+  backgroundColor: "#FFFFFF",
+},
+
+trainingBatchImageBadgeText: {
+  fontSize: 9,
+  fontWeight: "900",
+  color: "#166534",
+},
+
+trainingBatchCardContent: {
+  padding: 13,
+},
+
+trainingBatchCode: {
+  fontSize: 10,
+  fontWeight: "800",
+  color: "#64748B",
+  marginBottom: 6,
+},
+
+trainingBatchTitle: {
+  minHeight: 40,
+  fontSize: 14,
+  lineHeight: 19,
+  fontWeight: "900",
+  color: "#002B5C",
+},
+
+trainingBatchDateRow: {
+  flexDirection: "row",
+  alignItems: "flex-start",
+  marginTop: 10,
+  gap: 6,
+},
+
+trainingBatchDateText: {
+  flex: 1,
+  fontSize: 10,
+  lineHeight: 15,
+  color: "#64748B",
+},
+
+trainingBatchViewRow: {
+  marginTop: 12,
+  paddingTop: 10,
+  borderTopWidth: 1,
+  borderTopColor: "#EEF2F5",
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+},
+
+trainingBatchViewText: {
+  flex: 1,
+  fontSize: 11,
+  fontWeight: "800",
+  color: "#002B5C",
+},
+
+trainingBatchPagination: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 5,
+  marginTop: 10,
+  marginBottom: 22,
+},
+
+trainingBatchDot: {
+  width: 6,
+  height: 6,
+  borderRadius: 3,
+  backgroundColor: "#CBD5E1",
+},
+
+trainingBatchDotActive: {
+  width: 18,
+  backgroundColor: "#002B5C",
+},
+
+trainingBatchesEmptyCard: {
+  marginBottom: 22,
+  padding: 24,
+  alignItems: "center",
+  borderRadius: 20,
+  backgroundColor: "#FFFFFF",
+  borderWidth: 1,
+  borderColor: "#E2E8F0",
+},
+
+trainingBatchesEmptyIcon: {
+  width: 54,
+  height: 54,
+  borderRadius: 18,
+  backgroundColor: "#EFF6FF",
+  alignItems: "center",
+  justifyContent: "center",
+  marginBottom: 12,
+},
+
+trainingBatchesEmptyTitle: {
+  fontSize: 15,
+  fontWeight: "800",
+  color: "#0F172A",
+  textAlign: "center",
+},
+
+trainingBatchesEmptyText: {
+  marginTop: 7,
+  fontSize: 12,
+  lineHeight: 19,
+  color: "#64748B",
+  textAlign: "center",
+},
+
+trainingBatchesBrowseButton: {
+  marginTop: 16,
+  paddingHorizontal: 16,
+  paddingVertical: 11,
+  borderRadius: 12,
+  backgroundColor: "#002B5C",
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 8,
+},
+
+trainingBatchesBrowseButtonText: {
+  color: "#FFFFFF",
+  fontSize: 12,
+  fontWeight: "800",
+},
+
+
+
 });

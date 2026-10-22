@@ -1,0 +1,7 @@
+$kind: http-request
+url: "{{baseUrl}}/grades/2026001"
+method: GET
+headers:
+  Accept: application/json
+examples: .resources/2 - Get Student Grades (Gerente Group).resources/examples
+order: 2000

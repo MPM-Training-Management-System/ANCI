@@ -23,4 +23,10 @@ public interface IService
     Guid adminUserId,
     ReviewServiceRequestDto dto
 );
+
+
+Task<ServiceRequestDto?> CompleteRequestAsync(
+    Guid requestId
+);
+
 }

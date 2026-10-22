@@ -17,4 +17,7 @@ public interface ICertificateService
 
     Task<IReadOnlyList<EligibleCertificateDto>>
     GetEligibleAsync();
+
+    Task<IReadOnlyList<CertificateDto>>
+    GetMyCertificatesAsync(Guid userId);
 }

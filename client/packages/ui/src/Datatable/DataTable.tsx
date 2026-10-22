@@ -89,8 +89,8 @@ export function DataTable<TData>({
         </div>
       )}
 
-      {/* TOOLBAR */}
-      <div className="border-b border-gray-200 bg-white px-5 py-4">
+
+      <div className="border-b border-gray-200 bg-white  py-4">
         <DataTableToolbar
           searchable={searchable}
           searchPlaceholder={searchPlaceholder}

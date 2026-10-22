@@ -8,6 +8,7 @@ import {
 } from "react";
 
 import {
+  Button,
   DataTable,
   PageSection,
   PageSkeleton,
@@ -29,7 +30,7 @@ import { adminUserApi } from "@/lib/api";
 
 import { columns } from "./columns";
 import type { UserTableMeta } from "./columns";
-import { GraduationCap, UserCheck, UserRound, UsersRound } from "lucide-react";
+import { GraduationCap, RotateCcw, UserCheck, UserRound, UsersRound } from "lucide-react";
 
 type ModalType =
   | "view"
@@ -54,7 +55,22 @@ export default function UserManagementPage() {
     updateUserStatus,
     deleteUser,
     clearError,
+    reset
   } = useAdminUsers(adminUserApi);
+
+ const handleRefresh = useCallback(async () => {
+  reset();
+
+  await Promise.all([
+    getUsers(),
+    
+  ]);
+}, [
+  reset,
+  getUsers,
+ 
+]);
+  
 
   const [search, setSearch] = useState("");
 
@@ -181,8 +197,8 @@ export default function UserManagementPage() {
 
   const totalActive = users.filter(
     (user) =>
-      user.status === "Active" ||
-      user.status === "Approved"
+      user.status === "Active" 
+
   ).length;
 
   /*
@@ -449,6 +465,20 @@ export default function UserManagementPage() {
       <PageSection
         title="User Management"
         description="Manage participant and trainer accounts."
+         actions={
+                  <Button
+                    type="button"
+                    onClick={handleRefresh}
+                    disabled={isLoading}
+                  >
+                    <RotateCcw
+                      className={`h-4 w-4 ${
+                        isLoading ? "animate-spin" : ""
+                      }`}
+                    />
+                    Refresh
+                  </Button>
+                }
       />
 
       {error && (
@@ -560,7 +590,7 @@ export default function UserManagementPage() {
               </option>
             </select>
 
-            {/* STATUS */}
+      
 
             <select
               value={statusFilter}
@@ -581,13 +611,11 @@ export default function UserManagementPage() {
                 Pending
               </option>
 
-              <option value="Approved">
+              <option value="Active">
                 Approved
               </option>
 
-              <option value="Active">
-                Active
-              </option>
+              
 
               <option value="Inactive">
                 Inactive
@@ -822,78 +850,202 @@ function UserDetailsModal({
               </ProfileSection>
 
               {/* PARTICIPANT */}
+{/* PARTICIPANT */}
+{user.participantProfile && (
+  <div className="space-y-5">
+    <ProfileSection title="Participant Profile">
+      <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
+        <Info
+          label="First Name"
+          value={user.participantProfile.firstName || "Not specified"}
+        />
+        <Info
+          label="Middle Name"
+          value={user.participantProfile.middleName || "Not specified"}
+        />
+        <Info
+          label="Last Name"
+          value={user.participantProfile.lastName || "Not specified"}
+        />
+        <Info
+          label="Birth Date"
+          value={
+            user.participantProfile.birthDate
+              ? formatDate(user.participantProfile.birthDate)
+              : "Not specified"
+          }
+        />
+        <Info
+          label="Gender"
+          value={user.participantProfile.gender || "Not specified"}
+        />
+        <Info
+          label="Address"
+          value={user.participantProfile.address || "Not specified"}
+        />
+      </div>
+    </ProfileSection>
 
-              {user.participantProfile && (
-                <ProfileSection title="Participant Profile">
-                  <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
-                    <Info
-                      label="First Name"
-                      value={
-                        user
-                          .participantProfile
-                          .firstName ||
-                        "Not specified"
-                      }
-                    />
+    <ProfileSection title="Educational Background">
+      <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
+        <Info
+          label="Highest Educational Attainment"
+          value={user.participantProfile.highestEducationalAttainment || "Not specified"}
+        />
+        <Info
+          label="Educational Status"
+          value={user.participantProfile.educationalStatus || "Not specified"}
+        />
+        <Info
+          label="School"
+          value={user.participantProfile.schoolName || "Not specified"}
+        />
+        <Info
+          label="Course or Degree"
+          value={user.participantProfile.courseOrDegree || "Not specified"}
+        />
+        <Info
+          label="Field of Study"
+          value={user.participantProfile.fieldOfStudy || "Not specified"}
+        />
+        <Info
+          label="Year Graduated"
+          value={
+            user.participantProfile.yearGraduated != null
+              ? String(user.participantProfile.yearGraduated)
+              : "Not specified"
+          }
+        />
+      </div>
+    </ProfileSection>
 
-                    <Info
-                      label="Middle Name"
-                      value={
-                        user
-                          .participantProfile
-                          .middleName ||
-                        "Not specified"
-                      }
-                    />
+    <ProfileSection title="Employment Information">
+      <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
+        <Info
+          label="Employment Status"
+          value={user.participantProfile.employmentStatus || "Not specified"}
+        />
+        <Info
+          label="Company"
+          value={user.participantProfile.companyName || "Not specified"}
+        />
+        <Info
+          label="Job Title"
+          value={user.participantProfile.jobTitle || "Not specified"}
+        />
+        <Info
+          label="Industry"
+          value={user.participantProfile.industry || "Not specified"}
+        />
+        <Info
+          label="Years of Work Experience"
+          value={
+            user.participantProfile.yearsOfWorkExperience != null
+              ? String(user.participantProfile.yearsOfWorkExperience)
+              : "Not specified"
+          }
+        />
+      </div>
+    </ProfileSection>
 
-                    <Info
-                      label="Last Name"
-                      value={
-                        user
-                          .participantProfile
-                          .lastName ||
-                        "Not specified"
-                      }
-                    />
+    <ProfileSection title="Emergency Contact">
+      <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
+        <Info
+          label="Contact Name"
+          value={user.participantProfile.emergencyContactName || "Not specified"}
+        />
+        <Info
+          label="Contact Number"
+          value={user.participantProfile.emergencyContactNumber || "Not specified"}
+        />
+        <Info
+          label="Relationship"
+          value={user.participantProfile.emergencyContactRelationship || "Not specified"}
+        />
+      </div>
+    </ProfileSection>
 
-                    <Info
-                      label="Birth Date"
-                      value={
-                        user
-                          .participantProfile
-                          .birthDate
-                          ? formatDate(
-                              user
-                                .participantProfile
-                                .birthDate
-                            )
-                          : "Not specified"
-                      }
-                    />
+    <ProfileSection title="Valid ID Information">
+      <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
+        <Info
+          label="ID Type"
+          value={user.participantProfile.validIdType || "Not specified"}
+        />
+        <Info
+          label="ID Number"
+          value={user.participantProfile.validIdNumber || "Not specified"}
+        />
+        <Info
+          label="Verification Status"
+          value={user.participantProfile.validIdVerificationStatus || "Not specified"}
+        />
+        <Info
+          label="Verification Remarks"
+          value={user.participantProfile.validIdRemarks || "None"}
+        />
+        <Info
+          label="Verified At"
+          value={
+            user.participantProfile.validIdVerifiedAt
+              ? formatDate(user.participantProfile.validIdVerifiedAt)
+              : "Not verified"
+          }
+        />
+        <Info
+          label="Verified By"
+          value={user.participantProfile.validIdVerifiedBy || "Not specified"}
+        />
+      </div>
 
-                    <Info
-                      label="Gender"
-                      value={
-                        user
-                          .participantProfile
-                          .gender ||
-                        "Not specified"
-                      }
-                    />
+      {user.participantProfile.validIdImageUrl && (
+        
+<div className="mt-5 border-t border-gray-100 pt-5">
+  <p className="mb-3 text-xs font-bold uppercase tracking-wide text-gray-500">
+    Uploaded Valid ID
+  </p>
 
-                    <Info
-                      label="Address"
-                      value={
-                        user
-                          .participantProfile
-                          .address ||
-                        "Not specified"
-                      }
-                    />
-                  </div>
-                </ProfileSection>
-              )}
+  {user.participantProfile.validIdImageUrl ? (
+    <div className="space-y-3">
+      <a
+        href={user.participantProfile.validIdImageUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Open full-size Valid ID"
+        className="block w-full max-w-xl overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition hover:border-blue-400"
+      >
+        <img
+          src={user.participantProfile.validIdImageUrl}
+          alt={`Valid ID of ${user.fullName}`}
+          className="block max-h-[450px] min-h-40 w-full object-contain"
+          loading="eager"
+          onError={(event) => {
+            event.currentTarget.style.display = "none";
+          }}
+        />
+      </a>
 
+      <p className="text-xs text-gray-500">
+        Click the image to open the full-size Valid ID.
+      </p>
+    </div>
+  ) : (
+    <div className="flex min-h-40 items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-8 text-center">
+      <div>
+        <p className="text-sm font-semibold text-gray-600">
+          No Valid ID image available
+        </p>
+        <p className="mt-1 text-xs text-gray-400">
+          The uploaded ID image URL was not provided.
+        </p>
+      </div>
+    </div>
+  )}
+</div>
+
+      )}
+    </ProfileSection>
+  </div>
+)}
               {/* TRAINER */}
 
               {user.trainerProfile && (
@@ -1051,9 +1203,7 @@ function UserDetailsModal({
   );
 }
 
-/* =================================================================
-   EDIT USER MODAL
-================================================================= */
+
 
 function EditUserModal({
   user,
@@ -1083,42 +1233,60 @@ function EditUserModal({
       user.trainerProfile;
 
     setForm({
-      email: user.email,
-      mobileNumber: user.mobileNumber,
+  email: user.email,
+  mobileNumber: user.mobileNumber,
 
-      firstName:
-        profile?.firstName ?? null,
+  // Personal Information
+  firstName: profile?.firstName ?? null,
+  middleName: profile?.middleName ?? null,
+  lastName: profile?.lastName ?? null,
+  birthDate: profile?.birthDate ?? null,
+  address: profile?.address ?? null,
+  gender: profile?.gender ?? null,
 
-      middleName:
-        profile?.middleName ?? null,
+  // Educational Background
+  highestEducationalAttainment:
+    user.participantProfile?.highestEducationalAttainment ?? null,
+  educationalStatus:
+    user.participantProfile?.educationalStatus ?? null,
+  schoolName:
+    user.participantProfile?.schoolName ?? null,
+  courseOrDegree:
+    user.participantProfile?.courseOrDegree ?? null,
+  fieldOfStudy:
+    user.participantProfile?.fieldOfStudy ?? null,
+  yearGraduated:
+    user.participantProfile?.yearGraduated ?? null,
 
-      lastName:
-        profile?.lastName ?? null,
+  // Employment Information
+  employmentStatus:
+    user.participantProfile?.employmentStatus ?? null,
+  companyName:
+    user.participantProfile?.companyName ?? null,
+  jobTitle:
+    user.participantProfile?.jobTitle ?? null,
+  industry:
+    user.participantProfile?.industry ?? null,
+  yearsOfWorkExperience:
+    user.participantProfile?.yearsOfWorkExperience ?? null,
 
-      birthDate:
-        profile?.birthDate ?? null,
+  // Emergency Contact
+  emergencyContactName:
+    user.participantProfile?.emergencyContactName ?? null,
+  emergencyContactNumber:
+    user.participantProfile?.emergencyContactNumber ?? null,
+  emergencyContactRelationship:
+    user.participantProfile?.emergencyContactRelationship ?? null,
 
-      address:
-        profile?.address ?? null,
-
-      gender:
-        profile?.gender ?? null,
-
-      specialization:
-        user.trainerProfile
-          ?.specialization ?? null,
-
-      bio:
-        user.trainerProfile?.bio ?? null,
-
-      yearsOfExperience:
-        user.trainerProfile
-          ?.yearsOfExperience ?? null,
-
-      isActive:
-        user.trainerProfile?.isActive ?? null,
-    });
+  // Trainer Information
+  specialization: user.trainerProfile?.specialization ?? null,
+  bio: user.trainerProfile?.bio ?? null,
+  yearsOfExperience: user.trainerProfile?.yearsOfExperience ?? null,
+  isActive: user.trainerProfile?.isActive ?? null,
+});
   }, [user]);
+
+  
 
   const updateField = <
     K extends keyof UpdateAdminUserRequest
@@ -1131,7 +1299,152 @@ function EditUserModal({
       [key]: value,
     }));
   };
+  
+  {/* EDUCATIONAL BACKGROUND */}
+{user?.role === "Participant" && (
+  <>
+    <ProfileSection title="Educational Background">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Input
+          label="Highest Educational Attainment"
+          value={form.highestEducationalAttainment ?? ""}
+          onChange={(value) =>
+            updateField("highestEducationalAttainment", value || null)
+          }
+        />
 
+        <Input
+          label="Educational Status"
+          value={form.educationalStatus ?? ""}
+          onChange={(value) =>
+            updateField("educationalStatus", value || null)
+          }
+        />
+
+        <Input
+          label="School Name"
+          value={form.schoolName ?? ""}
+          onChange={(value) =>
+            updateField("schoolName", value || null)
+          }
+        />
+
+        <Input
+          label="Course or Degree"
+          value={form.courseOrDegree ?? ""}
+          onChange={(value) =>
+            updateField("courseOrDegree", value || null)
+          }
+        />
+
+        <Input
+          label="Field of Study"
+          value={form.fieldOfStudy ?? ""}
+          onChange={(value) =>
+            updateField("fieldOfStudy", value || null)
+          }
+        />
+
+        <Input
+          label="Year Graduated"
+          type="number"
+          value={
+            form.yearGraduated != null
+              ? String(form.yearGraduated)
+              : ""
+          }
+          onChange={(value) =>
+            updateField(
+              "yearGraduated",
+              value.trim() === "" ? null : Number(value)
+            )
+          }
+        />
+      </div>
+    </ProfileSection>
+
+    <ProfileSection title="Employment Information">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Input
+          label="Employment Status"
+          value={form.employmentStatus ?? ""}
+          onChange={(value) =>
+            updateField("employmentStatus", value || null)
+          }
+        />
+
+        <Input
+          label="Company Name"
+          value={form.companyName ?? ""}
+          onChange={(value) =>
+            updateField("companyName", value || null)
+          }
+        />
+
+        <Input
+          label="Job Title"
+          value={form.jobTitle ?? ""}
+          onChange={(value) =>
+            updateField("jobTitle", value || null)
+          }
+        />
+
+        <Input
+          label="Industry"
+          value={form.industry ?? ""}
+          onChange={(value) =>
+            updateField("industry", value || null)
+          }
+        />
+
+        <Input
+          label="Years of Work Experience"
+          type="number"
+          value={
+            form.yearsOfWorkExperience != null
+              ? String(form.yearsOfWorkExperience)
+              : ""
+          }
+          onChange={(value) =>
+            updateField(
+              "yearsOfWorkExperience",
+              value.trim() === "" ? null : Number(value)
+            )
+          }
+        />
+      </div>
+    </ProfileSection>
+
+    <ProfileSection title="Emergency Contact">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Input
+          label="Contact Name"
+          value={form.emergencyContactName ?? ""}
+          onChange={(value) =>
+            updateField("emergencyContactName", value || null)
+          }
+        />
+
+        <Input
+          label="Contact Number"
+          value={form.emergencyContactNumber ?? ""}
+          onChange={(value) =>
+            updateField("emergencyContactNumber", value || null)
+          }
+        />
+
+        <Input
+          label="Relationship"
+          value={form.emergencyContactRelationship ?? ""}
+          onChange={(value) =>
+            updateField("emergencyContactRelationship", value || null)
+          }
+        />
+      </div>
+    </ProfileSection>
+    
+  </>
+)}
   return (
     <ModalOverlay onClose={onClose}>
       <div className="flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
@@ -1148,14 +1461,15 @@ function EditUserModal({
             </p>
           </div>
 
-          <button
+          <Button
+          variant="outline"
             type="button"
             onClick={onClose}
             disabled={isSaving}
             className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50"
           >
             ✕
-          </button>
+          </Button>
         </div>
 
         {/* SCROLLABLE BODY */}
@@ -1284,6 +1598,199 @@ function EditUserModal({
                   />
                 </div>
               </ProfileSection>
+              
+{/* PARTICIPANT EDUCATIONAL BACKGROUND */}
+{user.role === "Participant" && (
+  <>
+    <ProfileSection title="Educational Background">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Input
+          label="Highest Educational Attainment"
+          value={form.highestEducationalAttainment ?? ""}
+          onChange={(value) =>
+            updateField("highestEducationalAttainment", value || null)
+          }
+        />
+
+        <Input
+          label="Educational Status"
+          value={form.educationalStatus ?? ""}
+          onChange={(value) =>
+            updateField("educationalStatus", value || null)
+          }
+        />
+
+        <Input
+          label="School Name"
+          value={form.schoolName ?? ""}
+          onChange={(value) =>
+            updateField("schoolName", value || null)
+          }
+        />
+
+        <Input
+          label="Course or Degree"
+          value={form.courseOrDegree ?? ""}
+          onChange={(value) =>
+            updateField("courseOrDegree", value || null)
+          }
+        />
+
+        <Input
+          label="Field of Study"
+          value={form.fieldOfStudy ?? ""}
+          onChange={(value) =>
+            updateField("fieldOfStudy", value || null)
+          }
+        />
+
+        <Input
+          label="Year Graduated"
+          type="number"
+          value={
+            form.yearGraduated != null
+              ? String(form.yearGraduated)
+              : ""
+          }
+          onChange={(value) =>
+            updateField(
+              "yearGraduated",
+              value.trim() === "" ? null : Number(value)
+            )
+          }
+        />
+      </div>
+    </ProfileSection>
+
+    <ProfileSection title="Employment Information">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Input
+          label="Employment Status"
+          value={form.employmentStatus ?? ""}
+          onChange={(value) =>
+            updateField("employmentStatus", value || null)
+          }
+        />
+
+        <Input
+          label="Company Name"
+          value={form.companyName ?? ""}
+          onChange={(value) =>
+            updateField("companyName", value || null)
+          }
+        />
+
+        <Input
+          label="Job Title"
+          value={form.jobTitle ?? ""}
+          onChange={(value) =>
+            updateField("jobTitle", value || null)
+          }
+        />
+
+        <Input
+          label="Industry"
+          value={form.industry ?? ""}
+          onChange={(value) =>
+            updateField("industry", value || null)
+          }
+        />
+
+        <Input
+          label="Years of Work Experience"
+          type="number"
+          value={
+            form.yearsOfWorkExperience != null
+              ? String(form.yearsOfWorkExperience)
+              : ""
+          }
+          onChange={(value) =>
+            updateField(
+              "yearsOfWorkExperience",
+              value.trim() === "" ? null : Number(value)
+            )
+          }
+        />
+      </div>
+    </ProfileSection>
+
+    <ProfileSection title="Emergency Contact">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Input
+          label="Contact Name"
+          value={form.emergencyContactName ?? ""}
+          onChange={(value) =>
+            updateField("emergencyContactName", value || null)
+          }
+        />
+
+        <Input
+          label="Contact Number"
+          value={form.emergencyContactNumber ?? ""}
+          onChange={(value) =>
+            updateField("emergencyContactNumber", value || null)
+          }
+        />
+
+        <Input
+          label="Relationship"
+          value={form.emergencyContactRelationship ?? ""}
+          onChange={(value) =>
+            updateField("emergencyContactRelationship", value || null)
+          }
+        />
+      </div>
+    </ProfileSection>
+
+    <ProfileSection title="Valid ID Information">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Input
+          label="ID Type"
+          value={user.participantProfile?.validIdType ?? ""}
+          onChange={() => {}}
+        />
+
+        <Input
+          label="ID Number"
+          value={user.participantProfile?.validIdNumber ?? ""}
+          onChange={() => {}}
+        />
+      </div>
+
+      <div className="mt-5 border-t border-gray-100 pt-5">
+        <p className="mb-3 text-xs font-bold uppercase tracking-wide text-gray-500">
+          Uploaded Valid ID
+        </p>
+
+        {user.participantProfile?.validIdImageUrl ? (
+          <a
+            href={user.participantProfile.validIdImageUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Open full-size Valid ID"
+            className="block w-full max-w-xl overflow-hidden rounded-xl border border-gray-200 bg-gray-50 hover:border-blue-400"
+          >
+            <img
+              src={user.participantProfile.validIdImageUrl}
+              alt={`Valid ID of ${user.fullName}`}
+              className="block max-h-[450px] min-h-40 w-full object-contain"
+              loading="eager"
+            />
+          </a>
+        ) : (
+          <div className="flex min-h-40 items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-sm text-gray-500">
+            No Valid ID image available.
+          </div>
+        )}
+
+        <p className="mt-2 text-xs text-gray-500">
+          Click the picture to view the full-size image.
+        </p>
+      </div>
+    </ProfileSection>
+  </>
+)}
+
 
               {/* TRAINER */}
 
@@ -1392,7 +1899,7 @@ function EditUserModal({
             Cancel
           </button>
 
-          <button
+          <Button
             type="button"
             onClick={() =>
               void onSave(form)
@@ -1405,7 +1912,7 @@ function EditUserModal({
             {isSaving
               ? "Saving..."
               : "Save Changes"}
-          </button>
+          </Button>
         </div>
       </div>
     </ModalOverlay>
@@ -1523,29 +2030,12 @@ function StatusModal({
                   }
                   className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
                 >
-                  <option value="Pending">
-                    Pending
-                  </option>
+                 <option value="Pending">Pending</option>
+<option value="Active">Approved</option>
 
-                  <option value="Active">
-                    Approved
-                  </option>
-
-                  <option value="Active">
-                    Active
-                  </option>
-
-                  <option value="Inactive">
-                    Inactive
-                  </option>
-
-                  <option value="Suspended">
-                    Suspended
-                  </option>
-
-                  <option value="Rejected">
-                    Rejected
-                  </option>
+<option value="Inactive">Inactive</option>
+<option value="Suspended">Suspended</option>
+<option value="Rejected">Rejected</option>
                 </select>
               </div>
             </div>
@@ -1564,7 +2054,7 @@ function StatusModal({
             Cancel
           </button>
 
-          <button
+          <Button
             type="button"
             onClick={() =>
               void onSave(status)
@@ -1577,7 +2067,7 @@ function StatusModal({
             {isSaving
               ? "Updating..."
               : "Update Status"}
-          </button>
+          </Button>
         </div>
       </div>
     </ModalOverlay>
@@ -1875,8 +2365,7 @@ function StatusBadge({
     "border-gray-200 bg-gray-50 text-gray-600";
 
   if (
-    status === "Active" ||
-    status === "Approved"
+    status === "Active" 
   ) {
     className =
       "border-emerald-100 bg-emerald-50 text-emerald-700";

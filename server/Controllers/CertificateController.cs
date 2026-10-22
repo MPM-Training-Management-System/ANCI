@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using server.DTOs.Training;
@@ -98,4 +99,33 @@ public async Task<ActionResult<IReadOnlyList<EligibleCertificateDto>>>
 
     return Ok(participants);
 }
+
+
+    // =========================================================
+    // GET MY CERTIFICATES — PARTICIPANT
+    // =========================================================
+
+    [HttpGet("my-certificates")]
+    [Authorize(Roles = "Participant")]
+    public async Task<ActionResult<IReadOnlyList<CertificateDto>>>
+        GetMyCertificates()
+    {
+        var userIdValue =
+            User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue("sub");
+
+        if (!Guid.TryParse(userIdValue, out var userId))
+        {
+            return Unauthorized(new
+            {
+                message = "Unable to identify the authenticated user."
+            });
+        }
+
+        var certificates =
+            await _service.GetMyCertificatesAsync(userId);
+
+        return Ok(certificates);
+    }
+
 }

@@ -345,6 +345,7 @@ export interface UseLearningMaterialsResult {
   clearExtraction(): void;
 
   clearModuleFileExtraction(): void;
+  reset(): void;
 }
 
 // ==========================================
@@ -1574,10 +1575,36 @@ export function useLearningMaterials(
       setModuleFileExtraction(null);
     }, []);
 
-  // ==========================================
-  // RETURN
-  // ==========================================
+ const reset = useCallback(() => {
+    // Learning material state
+    setLearningMaterials([]);
+    setSelectedMaterial(null);
+    setExtraction(null);
 
+    // Module state
+    setModules([]);
+    setModuleFileExtraction(null);
+
+    // Section state
+    setSections([]);
+
+    // Loading states
+    setIsLoading(false);
+    setIsSaving(false);
+    setIsUploading(false);
+    setIsGenerating(false);
+    setIsExtracting(false);
+
+    // Module file loading states
+    setIsUploadingModule(false);
+    setIsExtractingModule(false);
+
+    // Error state
+    setError(null);
+  }, []);
+
+
+  
   return {
     // ==========================================
     // LEARNING MATERIAL STATE
@@ -1668,12 +1695,11 @@ export function useLearningMaterials(
     updateLearningSection,
     deleteLearningSection,
 
-    // ==========================================
-    // UTILITY
-    // ==========================================
+   
 
     clearError,
     clearExtraction,
     clearModuleFileExtraction,
+     reset
   };
 }

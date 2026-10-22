@@ -9,9 +9,6 @@ export type TrainingStatus =
   | "Completed"
   | "Cancelled";
 
-// ==========================================
-// TRAINING PROGRAM REQUIREMENT
-// ==========================================
 
 export interface TrainingProgramRequirement {
   id: string;
@@ -21,9 +18,7 @@ export interface TrainingProgramRequirement {
   displayOrder: number;
 }
 
-// ==========================================
-// TRAINING PROGRAM REQUIREMENT REQUEST
-// ==========================================
+
 
 export interface TrainingProgramRequirementRequest {
   name: string;
@@ -56,6 +51,13 @@ export interface UpdateTrainingProgramRequest {
   requirements: TrainingProgramRequirementRequest[];
 }
 
+export type Requirement = {
+  id: string;
+  name: string;
+  description: string;
+  required: boolean;
+};
+
 // ==========================================
 // TRAINING PROGRAM
 // ==========================================
@@ -66,6 +68,7 @@ export interface TrainingProgram {
   name: string;
   description: string | null;
   durationHours: number;
+  trainingCategory: string | null;
   isActive: boolean;
   createdAt: string;
   requirements: TrainingProgramRequirement[];
@@ -458,3 +461,25 @@ export interface UpdateLearningSectionRequest {
   mediaUrl?: string | null;
   displayOrder: number;
 }
+
+
+
+export interface CreateManualTrainingSessionRequest {
+  sessionNumber: number;
+  sessionDate: string; // YYYY-MM-DD
+  startTime: string;   // HH:mm:ss
+  endTime: string;     // HH:mm:ss
+  durationHours: number;
+}
+
+export interface CreateManualTrainingScheduleRequest {
+  trainingBatchId: string;
+  sessions: CreateManualTrainingSessionRequest[];
+}
+
+// ==========================================
+// MANUAL TRAINING SCHEDULE RESPONSE
+// ==========================================
+
+export type CreateManualTrainingScheduleResponse =
+  TrainingSession[];

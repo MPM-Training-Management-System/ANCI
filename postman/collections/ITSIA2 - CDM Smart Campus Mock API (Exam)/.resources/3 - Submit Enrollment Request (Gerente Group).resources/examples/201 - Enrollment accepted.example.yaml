@@ -1,0 +1,38 @@
+$kind: http-example
+request:
+  url: "{{baseUrl}}/enrollments"
+  method: POST
+  headers:
+    Content-Type: application/json
+    Accept: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "studentId": "2026001",
+        "term": "1st Semester AY 2026-2027",
+        "courseCodes": [
+          "ITSIA2",
+          "ITIASEC2"
+        ]
+      }
+response:
+  statusCode: 201
+  statusText: Created
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "transactionId": "ENR-2026-0001",
+        "studentId": "2026001",
+        "term": "1st Semester AY 2026-2027",
+        "courseCodes": [
+          "ITSIA2",
+          "ITIASEC2"
+        ],
+        "status": "accepted",
+        "message": "Enrollment request received. Student record validated in this mock scenario."
+      }
+order: 1000

@@ -470,6 +470,41 @@ const updateConsultation = async (
       [serviceApi]
     );
 
+
+     const completeServiceRequest = useCallback(
+  async (id: string) => {
+    setIsUpdatingRequest(true);
+    setError(null);
+
+    try {
+      const updated = await serviceApi.completeRequest(id);
+
+      setServiceRequests((current) =>
+        current.map((item) =>
+          item.id === id ? updated : item,
+        ),
+      );
+
+      setServiceRequest(updated);
+
+      return updated;
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to complete service request.";
+
+      setError(message);
+
+      return null;
+    } finally {
+      setIsUpdatingRequest(false);
+    }
+  },
+  [serviceApi],
+);
+
+
   const reviewServiceRequest = useCallback(
   async (
     id: string,
@@ -562,6 +597,7 @@ const updateConsultation = async (
     getServiceRequests,
     getServiceRequest,
     reviewServiceRequest,
+    completeServiceRequest,
 
 
 

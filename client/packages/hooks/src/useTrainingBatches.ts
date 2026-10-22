@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -13,6 +14,7 @@ import type {
   UpdateTrainingBatchStatusRequest,
   TrainingScheduleRecommendation,
   GenerateTrainingScheduleRequest,
+  CreateManualTrainingScheduleRequest,
   TrainingSession,
 } from "@repo/types";
 
@@ -27,93 +29,69 @@ export function useTrainingBatches(
   // DATA
   // =========================================================
 
-  const [
-    batches,
-    setBatches,
-  ] = useState<TrainingBatch[]>([]);
+  const [batches, setBatches] =
+    useState<TrainingBatch[]>([]);
 
-  const [
-    selectedBatch,
-    setSelectedBatch,
-  ] = useState<TrainingBatch | null>(null);
+  const [selectedBatch, setSelectedBatch] =
+    useState<TrainingBatch | null>(null);
 
   // =========================================================
   // TRAINING SCHEDULE DATA
   // =========================================================
 
-  const [
-    scheduleRecommendation,
-    setScheduleRecommendation,
-  ] = useState<TrainingScheduleRecommendation | null>(null);
+  const [scheduleRecommendation, setScheduleRecommendation] =
+    useState<TrainingScheduleRecommendation | null>(null);
 
-  const [
-    trainingSessions,
-    setTrainingSessions,
-  ] = useState<TrainingSession[]>([]);
+  const [trainingSessions, setTrainingSessions] =
+    useState<TrainingSession[]>([]);
 
   // =========================================================
-  // LOADING
+  // LOADING STATES
   // =========================================================
 
-  const [
-    isLoading,
-    setIsLoading,
-  ] = useState(false);
+  const [isLoading, setIsLoading] =
+    useState(false);
 
-  const [
-    isCreating,
-    setIsCreating,
-  ] = useState(false);
+  const [isCreating, setIsCreating] =
+    useState(false);
 
-  const [
-    isUpdating,
-    setIsUpdating,
-  ] = useState(false);
+  const [isUpdating, setIsUpdating] =
+    useState(false);
 
-  const [
-    isUpdatingStatus,
-    setIsUpdatingStatus,
-  ] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] =
+    useState(false);
 
-  const [
-    isDeleting,
-    setIsDeleting,
-  ] = useState(false);
+  const [isDeleting, setIsDeleting] =
+    useState(false);
 
-  // =========================================================
-  // TRAINING SCHEDULE LOADING
-  // =========================================================
+  const [isLoadingSchedule, setIsLoadingSchedule] =
+    useState(false);
 
-  const [
-    isLoadingSchedule,
-    setIsLoadingSchedule,
-  ] = useState(false);
+  const [isGeneratingSchedule, setIsGeneratingSchedule] =
+    useState(false);
 
-  const [
-    isGeneratingSchedule,
-    setIsGeneratingSchedule,
-  ] = useState(false);
+  const [isCreatingManualSchedule, setIsCreatingManualSchedule] =
+    useState(false);
+
+  const [isApprovingSchedule, setIsApprovingSchedule] =
+    useState(false);
 
   // =========================================================
-  // ERROR
+  // ERRORS
   // =========================================================
 
-  const [
-    error,
-    setError,
-  ] = useState<string | null>(null);
+  const [error, setError] =
+    useState<string | null>(null);
 
-  const [
-    scheduleError,
-    setScheduleError,
-  ] = useState<string | null>(null);
+  const [scheduleError, setScheduleError] =
+    useState<string | null>(null);
 
   // =========================================================
-  // GET ALL
+  // LOAD ALL TRAINING BATCHES
   // =========================================================
 
   const loadBatches = useCallback(
-    async () => {
+    async (): Promise<TrainingBatch[]> => {
       try {
         setIsLoading(true);
         setError(null);
@@ -121,11 +99,13 @@ export function useTrainingBatches(
         const result =
           await trainingBatchApi.getAll();
 
-        setBatches(
-          Array.isArray(result)
-            ? result
-            : [],
-        );
+        const data = Array.isArray(result)
+          ? result
+          : [];
+
+        setBatches(data);
+
+        return data;
       } catch (error) {
         console.error(
           "LOAD TRAINING BATCHES ERROR:",
@@ -139,23 +119,23 @@ export function useTrainingBatches(
         );
 
         setBatches([]);
+
+        return [];
       } finally {
         setIsLoading(false);
       }
     },
-    [
-      trainingBatchApi,
-    ],
+    [trainingBatchApi],
   );
 
   // =========================================================
-  // GET BY ID
+  // GET TRAINING BATCH BY ID
   // =========================================================
 
   const getBatch = useCallback(
     async (
       id: string,
-    ) => {
+    ): Promise<TrainingBatch | null> => {
       try {
         setError(null);
 
@@ -180,19 +160,17 @@ export function useTrainingBatches(
         return null;
       }
     },
-    [
-      trainingBatchApi,
-    ],
+    [trainingBatchApi],
   );
 
   // =========================================================
-  // CREATE
+  // CREATE TRAINING BATCH
   // =========================================================
 
   const createBatch = useCallback(
     async (
       request: CreateTrainingBatchRequest,
-    ) => {
+    ): Promise<TrainingBatch | null> => {
       try {
         setIsCreating(true);
         setError(null);
@@ -220,21 +198,18 @@ export function useTrainingBatches(
         setIsCreating(false);
       }
     },
-    [
-      trainingBatchApi,
-      loadBatches,
-    ],
+    [trainingBatchApi, loadBatches],
   );
 
   // =========================================================
-  // UPDATE
+  // UPDATE TRAINING BATCH
   // =========================================================
 
   const updateBatch = useCallback(
     async (
       id: string,
       request: UpdateTrainingBatchRequest,
-    ) => {
+    ): Promise<boolean> => {
       try {
         setIsUpdating(true);
         setError(null);
@@ -246,9 +221,7 @@ export function useTrainingBatches(
 
         await loadBatches();
 
-        if (
-          selectedBatch?.id === id
-        ) {
+        if (selectedBatch?.id === id) {
           await getBatch(id);
         }
 
@@ -279,107 +252,91 @@ export function useTrainingBatches(
   );
 
   // =========================================================
-  // UPDATE STATUS
+  // UPDATE TRAINING BATCH STATUS
   // =========================================================
 
-  const updateBatchStatus =
-    useCallback(
-      async (
-        id: string,
-        status: UpdateTrainingBatchStatusRequest,
-      ) => {
-        try {
-          setIsUpdatingStatus(true);
-          setError(null);
+  const updateBatchStatus = useCallback(
+    async (
+      id: string,
+      status: UpdateTrainingBatchStatusRequest,
+    ): Promise<boolean> => {
+      try {
+        setIsUpdatingStatus(true);
+        setError(null);
 
-          await trainingBatchApi.updateStatus(
-            id,
-            status,
-          );
+        await trainingBatchApi.updateStatus(
+          id,
+          status,
+        );
 
-          await loadBatches();
+        await loadBatches();
 
-          if (
-            selectedBatch?.id === id
-          ) {
-            await getBatch(id);
-          }
-
-          return true;
-        } catch (error) {
-          console.error(
-            "UPDATE TRAINING BATCH STATUS ERROR:",
-            error,
-          );
-
-          setError(
-            error instanceof Error
-              ? error.message
-              : "Unable to update training batch status.",
-          );
-
-          return false;
-        } finally {
-          setIsUpdatingStatus(false);
+        if (selectedBatch?.id === id) {
+          await getBatch(id);
         }
-      },
-      [
-        trainingBatchApi,
-        loadBatches,
-        getBatch,
-        selectedBatch?.id,
-      ],
-    );
 
-  // =========================================================
-  // REFRESH
-  // =========================================================
+        return true;
+      } catch (error) {
+        console.error(
+          "UPDATE TRAINING BATCH STATUS ERROR:",
+          error,
+        );
 
-  const refresh = useCallback(
-    async () => {
-      await loadBatches();
+        setError(
+          error instanceof Error
+            ? error.message
+            : "Unable to update training batch status.",
+        );
+
+        return false;
+      } finally {
+        setIsUpdatingStatus(false);
+      }
     },
     [
+      trainingBatchApi,
       loadBatches,
+      getBatch,
+      selectedBatch?.id,
     ],
   );
 
   // =========================================================
-  // DELETE
+  // REFRESH TRAINING BATCHES
+  // =========================================================
+
+  const refresh = useCallback(
+    async (): Promise<void> => {
+      await loadBatches();
+    },
+    [loadBatches],
+  );
+
+  // =========================================================
+  // DELETE TRAINING BATCH
   // =========================================================
 
   const deleteBatch = useCallback(
     async (
       id: string,
-    ) => {
+    ): Promise<boolean> => {
       try {
         setIsDeleting(true);
         setError(null);
 
         await trainingBatchApi.delete(id);
 
-        // -----------------------------------------------------
-        // Remove immediately from UI
-        // -----------------------------------------------------
-
-        setBatches(
-          current =>
-            current.filter(
-              batch =>
-                batch.id !== id,
-            ),
+        setBatches((current) =>
+          current.filter(
+            (batch) => batch.id !== id,
+          ),
         );
 
-        // -----------------------------------------------------
-        // Clear selected batch if deleted
-        // -----------------------------------------------------
-
-        if (
-          selectedBatch?.id === id
-        ) {
+        if (selectedBatch?.id === id) {
           setSelectedBatch(null);
           setScheduleRecommendation(null);
           setTrainingSessions([]);
+          setScheduleError(null);
         }
 
         return true;
@@ -408,358 +365,383 @@ export function useTrainingBatches(
 
   // =========================================================
   // GET SCHEDULE RECOMMENDATION
-  //
-  // GET
-  // /api/training-batches/{trainingBatchId}/schedule/recommendation
+  // GET /api/training-batches/{id}/schedule/recommendation
   // =========================================================
 
-  const getScheduleRecommendation =
-    useCallback(
-      async (
-        trainingBatchId: string,
-      ) => {
-        try {
-          setIsLoadingSchedule(true);
-          setScheduleError(null);
+  const getScheduleRecommendation = useCallback(
+    async (
+      trainingBatchId: string,
+    ): Promise<TrainingScheduleRecommendation | null> => {
+      try {
+        setIsLoadingSchedule(true);
+        setScheduleError(null);
 
-          // IMPORTANT:
-          // Use the injected TrainingBatchApi instance.
-          const result =
-            await trainingBatchApi.getScheduleRecommendation(
-              trainingBatchId,
-            );
-
-          setScheduleRecommendation(result);
-
-          return result;
-        } catch (error) {
-          console.error(
-            "GET TRAINING SCHEDULE RECOMMENDATION ERROR:",
-            error,
-          );
-
-          setScheduleError(
-            error instanceof Error
-              ? error.message
-              : "Unable to load training schedule recommendation.",
-          );
-
-          setScheduleRecommendation(null);
-
-          return null;
-        } finally {
-          setIsLoadingSchedule(false);
-        }
-      },
-      [
-        trainingBatchApi,
-      ],
-    );
-
-  // =========================================================
-  // GENERATE TRAINING SCHEDULE
-  //
-  // POST
-  // /api/training-batches/{trainingBatchId}/schedule/generate
-  // =========================================================
-
-  const generateSchedule =
-    useCallback(
-      async (
-        trainingBatchId: string,
-        request: GenerateTrainingScheduleRequest,
-      ) => {
-        try {
-          setIsGeneratingSchedule(true);
-          setScheduleError(null);
-
-          // IMPORTANT:
-          // Use TrainingBatchApi.generateSchedule()
-          const result =
-            await trainingBatchApi.generateSchedule(
-              trainingBatchId,
-              request,
-            );
-
-          setTrainingSessions(
-            Array.isArray(result)
-              ? result
-              : [],
-          );
-
-          // ---------------------------------------------------
-          // Refresh recommendation
-          // ---------------------------------------------------
-
-          await getScheduleRecommendation(
+        const result =
+          await trainingBatchApi.getScheduleRecommendation(
             trainingBatchId,
           );
 
-          return result;
-        } catch (error) {
-          console.error(
-            "GENERATE TRAINING SCHEDULE ERROR:",
-            error,
-          );
+        setScheduleRecommendation(result);
 
-          setScheduleError(
-            error instanceof Error
-              ? error.message
-              : "Unable to generate training schedule.",
-          );
-
-          setTrainingSessions([]);
-
-          return null;
-        } finally {
-          setIsGeneratingSchedule(false);
-        }
-      },
-      [
-        trainingBatchApi,
-        getScheduleRecommendation,
-      ],
-    );
-
-  // =========================================================
-  // GET TRAINING SCHEDULE
-  //
-  // GET
-  // /api/training-batches/{trainingBatchId}/schedule
-  // =========================================================
-const getSchedule = useCallback(
-  async (trainingBatchId: string) => {
-    try {
-      setIsLoadingSchedule(true);
-      setScheduleError(null);
-
-      const result =
-        await trainingBatchApi.getSchedule(
-          trainingBatchId,
+        return result;
+      } catch (error) {
+        console.error(
+          "GET TRAINING SCHEDULE RECOMMENDATION ERROR:",
+          error,
         );
 
-      const sessions = Array.isArray(result)
-        ? result
-        : [];
+        setScheduleError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load training schedule recommendation.",
+        );
 
-      setTrainingSessions(sessions);
+        setScheduleRecommendation(null);
 
-      return sessions;
-    } catch (error) {
-     const message =
-  error instanceof Error
-    ? error.message
-    : "";
+        return null;
+      } finally {
+        setIsLoadingSchedule(false);
+      }
+    },
+    [trainingBatchApi],
+  );
 
-if (
-  message.includes("404") ||
-  message.toLowerCase().includes("not found")
-) {
-  setTrainingSessions([]);
-  setScheduleError(null);
+  // =========================================================
+  // GENERATE AUTOMATIC SCHEDULE PREVIEW
+  // POST /api/training-batches/{id}/schedule/generate
+  //
+  // Preview only. Backend does not save generated sessions.
+  // =========================================================
 
-  return [];
-}
+  const generateSchedule = useCallback(
+    async (
+      trainingBatchId: string,
+      request: GenerateTrainingScheduleRequest,
+    ): Promise<TrainingSession[] | null> => {
+      try {
+        setIsGeneratingSchedule(true);
+        setScheduleError(null);
 
-console.error(
-  "GET TRAINING SCHEDULE ERROR:",
-  error,
-);
+        const result =
+          await trainingBatchApi.generateSchedule(
+            trainingBatchId,
+            request,
+          );
 
-      setTrainingSessions([]);
+        const sessions = Array.isArray(result)
+          ? result
+          : [];
 
-      return null;
-    } finally {
-      setIsLoadingSchedule(false);
-    }
-  },
-  [trainingBatchApi],
-);
+        setTrainingSessions(sessions);
+
+        return sessions;
+      } catch (error) {
+        console.error(
+          "GENERATE TRAINING SCHEDULE ERROR:",
+          error,
+        );
+
+        setScheduleError(
+          error instanceof Error
+            ? error.message
+            : "Unable to generate training schedule.",
+        );
+
+        setTrainingSessions([]);
+
+        return null;
+      } finally {
+        setIsGeneratingSchedule(false);
+      }
+    },
+    [trainingBatchApi],
+  );
+
+  // =========================================================
+  // CREATE MANUAL TRAINING SCHEDULE
+  // POST /api/training-batches/{id}/schedule/manual/preview
+  //
+  // IMPORTANT:
+  // Despite the endpoint name, the backend saves sessions.
+  // Admin only.
+  // =========================================================
+
+  const createManualSchedule = useCallback(
+    async (
+      trainingBatchId: string,
+      request: CreateManualTrainingScheduleRequest,
+    ): Promise<TrainingSession[] | null> => {
+      try {
+        setIsCreatingManualSchedule(true);
+        setScheduleError(null);
+
+        const result =
+          await trainingBatchApi.createManualSchedule(
+            trainingBatchId,
+            request,
+          );
+
+        const sessions = Array.isArray(result)
+          ? result
+          : [];
+
+        setTrainingSessions(sessions);
+
+        // The manual schedule has been saved.
+        // Reload the batch's current recommendation if needed
+        // separately; do not replace the saved sessions with
+        // generated preview sessions.
+
+        return sessions;
+      } catch (error) {
+        console.error(
+          "CREATE MANUAL TRAINING SCHEDULE ERROR:",
+          error,
+        );
+
+        setScheduleError(
+          error instanceof Error
+            ? error.message
+            : "Unable to create manual training schedule.",
+        );
+
+        return null;
+      } finally {
+        setIsCreatingManualSchedule(false);
+      }
+    },
+    [trainingBatchApi],
+  );
+
+  // =========================================================
+  // GET SAVED TRAINING SCHEDULE
+  // GET /api/training-batches/{id}/schedule
+  // =========================================================
+
+  const getSchedule = useCallback(
+    async (
+      trainingBatchId: string,
+    ): Promise<TrainingSession[] | null> => {
+      try {
+        setIsLoadingSchedule(true);
+        setScheduleError(null);
+
+        const result =
+          await trainingBatchApi.getSchedule(
+            trainingBatchId,
+          );
+
+        const sessions = Array.isArray(result)
+          ? result
+          : [];
+
+        setTrainingSessions(sessions);
+
+        return sessions;
+      } catch (error) {
+        console.error(
+          "GET TRAINING SCHEDULE ERROR:",
+          error,
+        );
+
+        setTrainingSessions([]);
+
+        setScheduleError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load training schedule.",
+        );
+
+        return null;
+      } finally {
+        setIsLoadingSchedule(false);
+      }
+    },
+    [trainingBatchApi],
+  );
+
+  // =========================================================
+  // GET PARTICIPANT TRAINING SCHEDULE
+  // GET /api/training-batches/{id}/schedule/participant
+  // =========================================================
+
+  const getParticipantSchedule = useCallback(
+    async (
+      trainingBatchId: string,
+    ): Promise<TrainingSession[] | null> => {
+      try {
+        setIsLoadingSchedule(true);
+        setScheduleError(null);
+
+        const result =
+          await trainingBatchApi.getParticipantSchedule(
+            trainingBatchId,
+          );
+
+        const sessions = Array.isArray(result)
+          ? result
+          : [];
+
+        setTrainingSessions(sessions);
+
+        return sessions;
+      } catch (error) {
+        console.error(
+          "GET PARTICIPANT TRAINING SCHEDULE ERROR:",
+          error,
+        );
+
+        setScheduleError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load participant training schedule.",
+        );
+
+        setTrainingSessions([]);
+
+        return null;
+      } finally {
+        setIsLoadingSchedule(false);
+      }
+    },
+    [trainingBatchApi],
+  );
 
   // =========================================================
   // APPROVE TRAINING SCHEDULE
-  //
-  // POST
-  // /api/training-batches/{trainingBatchId}/schedule/approve
+  // POST /api/training-batches/{id}/schedule/approve
   // =========================================================
 
- const approveSchedule = useCallback(
-  async (
-    trainingBatchId: string,
-    sessions: TrainingSession[],
-  ): Promise<boolean> => {
-    try {
-      setScheduleError(null);
+  const approveSchedule = useCallback(
+    async (
+      trainingBatchId: string,
+      sessions: TrainingSession[],
+    ): Promise<boolean> => {
+      try {
+        setIsApprovingSchedule(true);
+        setScheduleError(null);
 
-      // Approve the preview schedule.
-      await trainingBatchApi.approveSchedule(
-        trainingBatchId,
-        sessions,
-      );
+        await trainingBatchApi.approveSchedule(
+          trainingBatchId,
+          sessions,
+        );
 
-      // IMPORTANT:
-      // The backend creates the real TrainingSession IDs
-      // when the schedule is approved.
-      //
-      // Therefore, do NOT keep using the preview sessions.
-      // Reload the schedule from the database so the frontend
-      // gets the actual persisted TrainingSession IDs.
-      const approvedSessions =
-  await getSchedule(trainingBatchId);
+        // Approval recreates the database sessions.
+        // Reload to obtain their actual persisted IDs.
+        const approvedSessions =
+          await getSchedule(trainingBatchId);
 
-if (approvedSessions !== null) {
-  setTrainingSessions(approvedSessions);
-}
+        if (approvedSessions === null) {
+          setScheduleError(
+            "The schedule was approved, but the saved schedule could not be reloaded. Refresh the schedule before continuing.",
+          );
+        }
 
-      return true;
-    } catch (error) {
-      console.error(
-        "APPROVE TRAINING SCHEDULE ERROR:",
-        error,
-      );
+        // The approval API call succeeded even if reloading
+        // the saved sessions failed.
+        return true;
+      } catch (error) {
+        console.error(
+          "APPROVE TRAINING SCHEDULE ERROR:",
+          error,
+        );
 
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Failed to approve training schedule.";
+        setScheduleError(
+          error instanceof Error
+            ? error.message
+            : "Failed to approve training schedule.",
+        );
 
-      setScheduleError(message);
+        return false;
+      } finally {
+        setIsApprovingSchedule(false);
+      }
+    },
+    [
+      trainingBatchApi,
+      getSchedule,
+    ],
+  );
 
-      return false;
-    }
-  },
-  [
-    trainingBatchApi,
-    getSchedule,
-  ],
-);
   // =========================================================
   // INITIAL LOAD
   // =========================================================
 
   useEffect(() => {
-    loadBatches();
-  }, [
-    loadBatches,
-  ]);
+    void loadBatches();
+  }, [loadBatches]);
 
   // =========================================================
   // RESET
   // =========================================================
 
-  const reset = useCallback(
-    () => {
-      // -------------------------------------------------------
-      // Data
-      // -------------------------------------------------------
+  const reset = useCallback(() => {
+    setBatches([]);
+    setSelectedBatch(null);
+    setScheduleRecommendation(null);
+    setTrainingSessions([]);
 
-      setBatches([]);
-      setSelectedBatch(null);
-      setScheduleRecommendation(null);
-      setTrainingSessions([]);
+    setIsLoading(false);
+    setIsCreating(false);
+    setIsUpdating(false);
+    setIsUpdatingStatus(false);
+    setIsDeleting(false);
+    setIsLoadingSchedule(false);
+    setIsGeneratingSchedule(false);
+    setIsCreatingManualSchedule(false);
+    setIsApprovingSchedule(false);
 
-      // -------------------------------------------------------
-      // Loading
-      // -------------------------------------------------------
-
-      setIsLoading(false);
-      setIsCreating(false);
-      setIsUpdating(false);
-      setIsUpdatingStatus(false);
-      setIsDeleting(false);
-      setIsLoadingSchedule(false);
-      setIsGeneratingSchedule(false);
-
-      // -------------------------------------------------------
-      // Error
-      // -------------------------------------------------------
-
-      setError(null);
-      setScheduleError(null);
-    },
-    [],
-  );
+    setError(null);
+    setScheduleError(null);
+  }, []);
 
   // =========================================================
   // RETURN
   // =========================================================
 
   return {
-    // -------------------------------------------------------
     // DATA
-    // -------------------------------------------------------
-
     batches,
-
     selectedBatch,
-
     scheduleRecommendation,
-
     trainingSessions,
 
-    // -------------------------------------------------------
-    // SETTER
-    // -------------------------------------------------------
-
+    // SETTERS
     setSelectedBatch,
 
-    // -------------------------------------------------------
     // LOADING
-    // -------------------------------------------------------
-
     isLoading,
-
     isCreating,
-
     isUpdating,
-
     isUpdatingStatus,
-
     isDeleting,
-
     isLoadingSchedule,
-
     isGeneratingSchedule,
+    isCreatingManualSchedule,
+    isApprovingSchedule,
 
-    // -------------------------------------------------------
-    // ERROR
-    // -------------------------------------------------------
-
+    // ERRORS
     error,
-
     scheduleError,
 
-    // -------------------------------------------------------
-    // ACTIONS
-    // -------------------------------------------------------
-
+    // TRAINING BATCH ACTIONS
     loadBatches,
-
     getBatch,
-
     createBatch,
-
     updateBatch,
-
     updateBatchStatus,
-
     deleteBatch,
-
     refresh,
 
-    // Schedule
+    // TRAINING SCHEDULE ACTIONS
     getScheduleRecommendation,
-
     generateSchedule,
-
+    createManualSchedule,
     getSchedule,
-
+    getParticipantSchedule,
     approveSchedule,
 
-    // -------------------------------------------------------
     // RESET
-    // -------------------------------------------------------
-
     reset,
   };
 }

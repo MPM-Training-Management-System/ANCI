@@ -1,42 +1,33 @@
 "use client";
 
-import { Plus } from "lucide-react";
-import type { DataTableActionButton } from "./type";
-
 interface DataTableHeaderProps {
   title?: string;
   description?: string;
-  addButton?: DataTableActionButton;
 }
 
 export function DataTableHeader({
   title,
   description,
 }: DataTableHeaderProps) {
-  // Huwag mag-render kung walang content
   if (!title && !description) {
     return null;
   }
 
   return (
-    <div className="flex flex-col gap-4 border-b border-gray-200 bg-gray-50 px-6 py-4 md:flex-row md:items-center md:justify-between">
-
-      {/* Left */}
-      <div>
+    <div className="w-full min-w-0 border-b border-gray-200 bg-white px-5 py-5 sm:px-6 sm:py-6">
+      <div className="min-w-0 max-w-4xl">
         {title && (
-          <h2 className="text-lg font-semibold text-gray-900">
+          <h2 className="break-words text-lg font-bold leading-7 tracking-tight text-gray-900 sm:text-xl">
             {title}
           </h2>
         )}
 
         {description && (
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-2 max-w-3xl break-words text-sm leading-6 text-gray-500 sm:text-[15px]">
             {description}
           </p>
         )}
       </div>
-
-     
     </div>
   );
 }

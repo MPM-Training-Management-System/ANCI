@@ -1,0 +1,17 @@
+$kind: http-request
+url: "{{baseUrl}}/notifications"
+method: POST
+headers:
+  Content-Type: application/json
+  Accept: application/json
+body:
+  type: json
+  content: |-
+    {
+      "studentId": "2026001",
+      "transactionId": "ENR-2026-0001",
+      "channel": "email",
+      "message": "Your enrollment request has been accepted."
+    }
+examples: .resources/4 - Send Enrollment Notification (Gerente Group).resources/examples
+order: 4000

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -19,10 +20,12 @@ import {
   SelectTrigger,
   SelectValue,
   StatCard,
+  Button,
   StatGrid,
 } from "@repo/ui/index";
 
 import { columns } from "./columns";
+import { RotateCcw } from "lucide-react";
 
 export default function GradeCalculationPage() {
   const {
@@ -30,7 +33,21 @@ export default function GradeCalculationPage() {
     isLoading,
     error,
     loadAllGrades,
+    reset
   } = useTrainingGrade(api);
+
+  const handleRefresh = useCallback(async () => {
+    reset();
+  
+    await Promise.all([
+      loadAllGrades(),
+   
+    ]);
+  }, [
+    reset,
+    loadAllGrades,
+
+  ]);
 
   const [search, setSearch] = useState("");
   const [batchFilter, setBatchFilter] = useState("all");
@@ -39,13 +56,26 @@ export default function GradeCalculationPage() {
     loadAllGrades();
   }, [loadAllGrades]);
 
-  const batches = useMemo(() => {
-    return Array.from(
-      new Set(
-        grades.map((grade) => grade.batchCode)
-      )
-    );
-  }, [grades]);
+  
+const batches = useMemo(() => {
+  const uniqueBatches = new Map<string, string>();
+
+  grades.forEach((grade) => {
+    const programName = grade.name?.trim() || "Unknown Training Program";
+    const batchCode = grade.programCode?.trim();
+
+    if (!batchCode) return;
+
+    // Display: Training Program Name - Training Batch
+    const label = `${programName} - ${batchCode}`;
+
+    uniqueBatches.set(label, batchCode);
+  });
+
+  return Array.from(uniqueBatches.entries())
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}, [grades]);
 
   const filteredGrades = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -56,13 +86,13 @@ export default function GradeCalculationPage() {
         grade.participantName
           .toLowerCase()
           .includes(keyword) ||
-        grade.batchCode
+        grade.programCode
           .toLowerCase()
           .includes(keyword);
 
       const matchesBatch =
         batchFilter === "all" ||
-        grade.batchCode === batchFilter;
+        grade.programCode === batchFilter;
 
       return matchesSearch && matchesBatch;
     });
@@ -89,6 +119,19 @@ export default function GradeCalculationPage() {
       <PageSection
         title="Grade Calculation"
         description="View training grades across all batches and participants."
+        actions={
+          <Button
+          onClick={handleRefresh}
+          >
+
+            <RotateCcw
+                      className={`h-4 w-4 ${
+                        isLoading ? "animate-spin" : ""
+                      }`}
+                    />
+                    Refresh
+          </Button>
+        }
       />
 
       <StatGrid>
@@ -129,29 +172,24 @@ export default function GradeCalculationPage() {
         searchable
         searchPlaceholder="Search participant or batch..."
         toolbar={
-          <Select
-            value={batchFilter}
-            onValueChange={setBatchFilter}
-          >
-            <SelectTrigger className="w-[220px]">
-              <SelectValue placeholder="All Batches" />
-            </SelectTrigger>
+         <Select
+  value={batchFilter}
+  onValueChange={setBatchFilter}
+>
+  <SelectTrigger>
+    <SelectValue placeholder="All Batches" />
+  </SelectTrigger>
 
-            <SelectContent>
-              <SelectItem value="all">
-                All Batches
-              </SelectItem>
+  <SelectContent>
+    <SelectItem value="all">All Batches</SelectItem>
 
-              {batches.map((batch) => (
-                <SelectItem
-                  key={batch}
-                  value={batch}
-                >
-                  {batch}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+    {batches.map((batch) => (
+      <SelectItem key={batch.label} value={batch.value}>
+        {batch.label}
+      </SelectItem>
+    ))}
+  </SelectContent>
+</Select>
         }
         loading={isLoading}
        

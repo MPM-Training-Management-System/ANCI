@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -11,11 +12,10 @@ import { api } from "@/lib/api";
 
 import { useCertificates } from "@repo/hooks";
 
-import type {
-  Certificate,
-} from "@repo/types";
+import type { Certificate } from "@repo/types";
 
 import {
+  Button,
   DataTable,
   PageSection,
   StatCard,
@@ -26,7 +26,10 @@ import {
   Award,
   BadgeCheck,
   GraduationCap,
+  RotateCcw,
   User2Icon,
+  FilePlus2,
+  Files,
 } from "lucide-react";
 
 import {
@@ -39,6 +42,8 @@ import {
   type EligibleCertificateTableMeta,
 } from "./certificate-columns";
 
+type CertificateTab = "generation" | "issued";
+
 export default function CertificatesPage() {
   const {
     certificates,
@@ -48,7 +53,36 @@ export default function CertificatesPage() {
     loadCertificates,
     loadEligibleParticipants,
     generateCertificates,
+    reset,
   } = useCertificates(api);
+
+  /*
+   * ============================================================
+   * TABS
+   * ============================================================
+   */
+
+  const [activeTab, setActiveTab] =
+    useState<CertificateTab>("generation");
+
+  /*
+   * ============================================================
+   * REFRESH
+   * ============================================================
+   */
+
+  const handleRefresh = useCallback(async () => {
+    reset();
+
+    await Promise.all([
+      loadCertificates(),
+      loadEligibleParticipants(),
+    ]);
+  }, [
+    reset,
+    loadCertificates,
+    loadEligibleParticipants,
+  ]);
 
   /*
    * ============================================================
@@ -89,9 +123,7 @@ export default function CertificatesPage() {
   const [
     selectedCertificate,
     setSelectedCertificate,
-  ] = useState<Certificate | null>(
-    null
-  );
+  ] = useState<Certificate | null>(null);
 
   /*
    * ============================================================
@@ -101,7 +133,6 @@ export default function CertificatesPage() {
 
   useEffect(() => {
     void loadCertificates();
-
     void loadEligibleParticipants();
   }, [
     loadCertificates,
@@ -154,15 +185,12 @@ export default function CertificatesPage() {
             (certificate) =>
               certificate.batchCode
           ),
-
           ...eligibleParticipants.map(
             (participant) =>
               participant.batchCode
           ),
         ].filter(
-          (
-            batch
-          ): batch is string =>
+          (batch): batch is string =>
             Boolean(batch)
         )
       )
@@ -178,48 +206,42 @@ export default function CertificatesPage() {
    * ============================================================
    */
 
-  const filteredCertificates =
-    useMemo(() => {
-      const keyword =
-        search.trim().toLowerCase();
+  const filteredCertificates = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
 
-      return certificates.filter(
-        (certificate) => {
-          const matchesSearch =
-            !keyword ||
-            certificate.participantName
-              ?.toLowerCase()
-              .includes(keyword) ||
-            certificate.trainingName
-              ?.toLowerCase()
-              .includes(keyword) ||
-            certificate.certificateNumber
-              .toLowerCase()
-              .includes(keyword);
+    return certificates.filter((certificate) => {
+      const matchesSearch =
+        !keyword ||
+        certificate.participantName
+          ?.toLowerCase()
+          .includes(keyword) ||
+        certificate.trainingName
+          ?.toLowerCase()
+          .includes(keyword) ||
+        certificate.certificateNumber
+          .toLowerCase()
+          .includes(keyword);
 
-          const matchesType =
-            typeFilter === "all" ||
-            certificate.type ===
-              typeFilter;
+      const matchesType =
+        typeFilter === "all" ||
+        certificate.type === typeFilter;
 
-          const matchesBatch =
-            batchFilter === "all" ||
-            certificate.batchCode ===
-              batchFilter;
+      const matchesBatch =
+        batchFilter === "all" ||
+        certificate.batchCode === batchFilter;
 
-          return (
-            Boolean(matchesSearch) &&
-            matchesType &&
-            matchesBatch
-          );
-        }
+      return (
+        Boolean(matchesSearch) &&
+        matchesType &&
+        matchesBatch
       );
-    }, [
-      certificates,
-      search,
-      typeFilter,
-      batchFilter,
-    ]);
+    });
+  }, [
+    certificates,
+    search,
+    typeFilter,
+    batchFilter,
+  ]);
 
   /*
    * ============================================================
@@ -227,41 +249,36 @@ export default function CertificatesPage() {
    * ============================================================
    */
 
-  const filteredEligibleParticipants =
-    useMemo(() => {
-      const keyword =
-        search.trim().toLowerCase();
+  const filteredEligibleParticipants = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
 
-      return eligibleParticipants.filter(
-        (participant) => {
-          const matchesSearch =
-            !keyword ||
-            participant.participantName
-              ?.toLowerCase()
-              .includes(keyword) ||
-            participant.trainingName
-              ?.toLowerCase()
-              .includes(keyword) ||
-            participant.batchCode
-              ?.toLowerCase()
-              .includes(keyword);
+    return eligibleParticipants.filter((participant) => {
+      const matchesSearch =
+        !keyword ||
+        participant.participantName
+          ?.toLowerCase()
+          .includes(keyword) ||
+        participant.trainingName
+          ?.toLowerCase()
+          .includes(keyword) ||
+        participant.batchCode
+          ?.toLowerCase()
+          .includes(keyword);
 
-          const matchesBatch =
-            batchFilter === "all" ||
-            participant.batchCode ===
-              batchFilter;
+      const matchesBatch =
+        batchFilter === "all" ||
+        participant.batchCode === batchFilter;
 
-          return (
-            Boolean(matchesSearch) &&
-            matchesBatch
-          );
-        }
+      return (
+        Boolean(matchesSearch) &&
+        matchesBatch
       );
-    }, [
-      eligibleParticipants,
-      search,
-      batchFilter,
-    ]);
+    });
+  }, [
+    eligibleParticipants,
+    search,
+    batchFilter,
+  ]);
 
   /*
    * ============================================================
@@ -269,83 +286,78 @@ export default function CertificatesPage() {
    * ============================================================
    */
 
-  const participationCount =
-    certificates.filter(
-      (certificate) =>
-        certificate.type ===
-        "Participation"
-    ).length;
+  const participationCount = certificates.filter(
+    (certificate) =>
+      certificate.type === "Participation"
+  ).length;
 
-  const completionCount =
-    certificates.filter(
-      (certificate) =>
-        certificate.type ===
-        "Completion"
-    ).length;
+  const completionCount = certificates.filter(
+    (certificate) =>
+      certificate.type === "Completion"
+  ).length;
 
-  const activeCount =
-    certificates.filter(
-      (certificate) =>
-        !certificate.isRevoked
-    ).length;
+  const activeCount = certificates.filter(
+    (certificate) =>
+      !certificate.isRevoked
+  ).length;
 
-  /*
-   * ============================================================
-   * GENERATE CERTIFICATES
-   * ============================================================
-   */
 
-  const handleGenerate =
-    useCallback(
-      async (
-        enrollmentId: string
-      ) => {
-        try {
-          setGeneratingEnrollmentId(
-            enrollmentId
-          );
+ 
+const handleGenerate = useCallback(
+  async (enrollmentId: string) => {
+    if (generatingEnrollmentId !== null) {
+      return;
+    }
 
-          setGenerationMessage(null);
+    setGeneratingEnrollmentId(enrollmentId);
+    setGenerationMessage(null);
 
-          await generateCertificates(
-            enrollmentId
-          );
+    try {
+      await generateCertificates(enrollmentId);
 
-          setGenerationMessage(
-            "Certificate(s) generated successfully."
-          );
-        } catch {
-          setGenerationMessage(
-            "Failed to generate certificate(s). Please try again."
-          );
-        } finally {
-          setGeneratingEnrollmentId(
-            null
-          );
-        }
-      },
-      [generateCertificates]
-    );
+      setGenerationMessage(
+        "Certificate(s) generated successfully."
+      );
 
-  /*
-   * ============================================================
-   * VIEW CERTIFICATE
-   * ============================================================
-   */
+      // Refresh data in the background.
+      const results = await Promise.allSettled([
+        loadCertificates({ background: true }),
+        loadEligibleParticipants({ background: true }),
+      ]);
 
-  const handleViewCertificate =
-    useCallback(
-      (certificate: Certificate) => {
-        if (!certificate.pdfUrl) {
-          return;
-        }
-
-        setSelectedCertificate(
-          certificate
+      if (results.some((result) => result.status === "rejected")) {
+        setGenerationMessage(
+          "Certificate(s) generated, but refreshing the list failed. Please use Refresh to update the data."
         );
-      },
-      []
-    );
+      }
+    } catch {
+      setGenerationMessage(
+        "Failed to generate certificate(s). Please try again."
+      );
+    } finally {
+      setGeneratingEnrollmentId(null);
+    }
+  },
+  [
+    generatingEnrollmentId,
+    generateCertificates,
+    loadCertificates,
+    loadEligibleParticipants,
+  ]
+);
+
+
+
+  const handleViewCertificate = useCallback(
+    (certificate: Certificate) => {
+      if (!certificate.pdfUrl) {
+        return;
+      }
+
+      setSelectedCertificate(certificate);
+    },
+    []
+  );
 
   /*
    * ============================================================
@@ -353,10 +365,9 @@ export default function CertificatesPage() {
    * ============================================================
    */
 
-  const handleClosePreview =
-    useCallback(() => {
-      setSelectedCertificate(null);
-    }, []);
+  const handleClosePreview = useCallback(() => {
+    setSelectedCertificate(null);
+  }, []);
 
   /*
    * ============================================================
@@ -364,21 +375,20 @@ export default function CertificatesPage() {
    * ============================================================
    */
 
-  const handleOpenPdf =
-    useCallback(
-      (certificate: Certificate) => {
-        if (!certificate.pdfUrl) {
-          return;
-        }
+  const handleOpenPdf = useCallback(
+    (certificate: Certificate) => {
+      if (!certificate.pdfUrl) {
+        return;
+      }
 
-        window.open(
-          certificate.pdfUrl,
-          "_blank",
-          "noopener,noreferrer"
-        );
-      },
-      []
-    );
+      window.open(
+        certificate.pdfUrl,
+        "_blank",
+        "noopener,noreferrer"
+      );
+    },
+    []
+  );
 
   /*
    * ============================================================
@@ -386,41 +396,26 @@ export default function CertificatesPage() {
    * ============================================================
    */
 
-  const handleDownload =
-    useCallback(
-      (certificate: Certificate) => {
-        if (!certificate.pdfUrl) {
-          return;
-        }
+  const handleDownload = useCallback(
+    (certificate: Certificate) => {
+      if (!certificate.pdfUrl) {
+        return;
+      }
 
-        const link =
-          document.createElement(
-            "a"
-          );
+      const link = document.createElement("a");
 
-        link.href =
-          certificate.pdfUrl;
+      link.href = certificate.pdfUrl;
+      link.download =
+        `${certificate.certificateNumber}.pdf`;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
 
-        link.download =
-          `${certificate.certificateNumber}.pdf`;
-
-        link.target = "_blank";
-
-        link.rel =
-          "noopener noreferrer";
-
-        document.body.appendChild(
-          link
-        );
-
-        link.click();
-
-        document.body.removeChild(
-          link
-        );
-      },
-      []
-    );
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    },
+    []
+  );
 
   /*
    * ============================================================
@@ -431,14 +426,9 @@ export default function CertificatesPage() {
   const certificateTableMeta =
     useMemo<CertificateTableMeta>(
       () => ({
-        onView:
-          handleViewCertificate,
-
-        onOpenPdf:
-          handleOpenPdf,
-
-        onDownload:
-          handleDownload,
+        onView: handleViewCertificate,
+        onOpenPdf: handleOpenPdf,
+        onDownload: handleDownload,
       }),
       [
         handleViewCertificate,
@@ -456,9 +446,7 @@ export default function CertificatesPage() {
   const eligibleCertificateTableMeta =
     useMemo<EligibleCertificateTableMeta>(
       () => ({
-        onGenerate:
-          handleGenerate,
-
+        onGenerate: handleGenerate,
         generatingEnrollmentId,
       }),
       [
@@ -473,67 +461,83 @@ export default function CertificatesPage() {
    * ============================================================
    */
 
-  const certificateToolbar =
-    useMemo(() => {
-      return (
-        <div className="flex flex-wrap items-center gap-2">
-          {/* TYPE */}
+  const certificateToolbar = useMemo(() => {
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        {/* CERTIFICATE TYPE */}
 
-          <select
-            value={typeFilter}
-            onChange={(event) =>
-              setTypeFilter(
-                event.target.value
-              )
-            }
-            className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100"
-          >
-            <option value="all">
-              All Certificate Types
+        <select
+          value={typeFilter}
+          onChange={(event) =>
+            setTypeFilter(event.target.value)
+          }
+          className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100"
+        >
+          <option value="all">
+            All Certificate Types
+          </option>
+
+          <option value="Participation">
+            Participation
+          </option>
+
+          <option value="Completion">
+            Completion
+          </option>
+        </select>
+
+        {/* BATCH */}
+
+        <select
+          value={batchFilter}
+          onChange={(event) =>
+            setBatchFilter(event.target.value)
+          }
+          className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100"
+        >
+          <option value="all">
+            All Batches
+          </option>
+
+          {batches.map((batch) => (
+            <option
+              key={batch}
+              value={batch}
+            >
+              {batch}
             </option>
+          ))}
+        </select>
+      </div>
+    );
+  }, [
+    typeFilter,
+    batchFilter,
+    batches,
+  ]);
 
-            <option value="Participation">
-              Participation
-            </option>
+  /*
+   * ============================================================
+   * TAB CONFIGURATION
+   * ============================================================
+   */
 
-            <option value="Completion">
-              Completion
-            </option>
-          </select>
-
-          {/* BATCH */}
-
-          <select
-            value={batchFilter}
-            onChange={(event) =>
-              setBatchFilter(
-                event.target.value
-              )
-            }
-            className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100"
-          >
-            <option value="all">
-              All Batches
-            </option>
-
-            {batches.map(
-              (batch) => (
-                <option
-                  key={batch}
-                  value={batch}
-                >
-                  {batch}
-                </option>
-              )
-            )}
-          </select>
-        </div>
-      );
-    }, [
-      typeFilter,
-      batchFilter,
-      batches,
-    ]);
+  const tabs = [
+    {
+      id: "generation" as const,
+      label: "Certificate Generation",
+      description: "Generate certificates",
+      icon: FilePlus2,
+      count: eligibleParticipants.length,
+    },
+    {
+      id: "issued" as const,
+      label: "Issued Certificates",
+      description: "Manage generated certificates",
+      icon: Files,
+      count: certificates.length,
+    },
+  ];
 
   /*
    * ============================================================
@@ -546,37 +550,44 @@ export default function CertificatesPage() {
       <PageSection
         title="Certificate Management"
         description="Manage participant certificates based on their final training results."
+        actions={
+          <Button
+            onClick={handleRefresh}
+            disabled={isLoading}
+          >
+            <RotateCcw
+              className={`h-4 w-4 ${
+                isLoading ? "animate-spin" : ""
+              }`}
+            />
+            Refresh
+          </Button>
+        }
       />
 
       <div className="space-y-8">
         {/* =====================================================
-            SUMMARY
+            SUMMARY CARDS
         ====================================================== */}
 
         <StatGrid className="pt-4">
           <StatCard
             title="Total Certificate"
-            value={
-              certificates.length
-            }
+            value={certificates.length}
             icon={Award}
             variant="primary"
           />
 
           <StatCard
             title="Participation"
-            value={
-              participationCount
-            }
+            value={participationCount}
             icon={User2Icon}
             variant="primary"
           />
 
           <StatCard
             title="Completion"
-            value={
-              completionCount
-            }
+            value={completionCount}
             icon={GraduationCap}
             variant="success"
           />
@@ -590,11 +601,14 @@ export default function CertificatesPage() {
         </StatGrid>
 
         {/* =====================================================
-            ERROR
+            ERROR MESSAGE
         ====================================================== */}
 
         {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+          <div
+            role="alert"
+            className="rounded-xl border border-red-200 bg-red-50 p-4"
+          >
             <p className="text-sm font-medium text-red-700">
               {error}
             </p>
@@ -602,67 +616,159 @@ export default function CertificatesPage() {
         )}
 
         {/* =====================================================
-            SUCCESS
+            GENERATION MESSAGE
         ====================================================== */}
 
         {generationMessage && (
-          <div className="rounded-xl border border-green-200 bg-green-50 p-4">
-            <p className="text-sm font-medium text-green-700">
+          <div
+            role="status"
+            className={`rounded-xl border p-4 ${
+              generationMessage.startsWith("Failed")
+                ? "border-red-200 bg-red-50"
+                : "border-green-200 bg-green-50"
+            }`}
+          >
+            <p
+              className={`text-sm font-medium ${
+                generationMessage.startsWith("Failed")
+                  ? "text-red-700"
+                  : "text-green-700"
+              }`}
+            >
               {generationMessage}
             </p>
           </div>
         )}
 
         {/* =====================================================
-            CERTIFICATE GENERATION
+            TABS
         ====================================================== */}
 
-        <DataTable
-          title="Certificate Generation"
-          description="Generate certificates for approved participants according to their final training result."
-          columns={
-            eligibleCertificateColumns
-          }
-          data={
-            filteredEligibleParticipants
-          }
-          loading={isLoading}
-          searchable
-          searchPlaceholder="Search participant, training, or batch..."
-          showPagination
-          meta={
-            eligibleCertificateTableMeta
-          }
-          emptyTitle="No eligible participants"
-          emptyDescription="There are currently no participants eligible for certificate generation."
-        />
+        <div className="border-b border-slate-200">
+          <div
+            role="tablist"
+            aria-label="Certificate management sections"
+            className="flex flex-wrap gap-2 sm:gap-6"
+          >
+            {tabs.map((tab) => {
+              const isActive =
+                activeTab === tab.id;
+
+              const Icon = tab.icon;
+
+              return (
+                <button
+                  key={tab.id}
+                  id={`certificate-tab-${tab.id}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  aria-controls={`certificate-panel-${tab.id}`}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    setGenerationMessage(null);
+                  }}
+                  className={`group relative flex items-center gap-3 border-b-2 px-2 py-4 text-left transition ${
+                    isActive
+                      ? "border-[#002b5c] text-[#002b5c]"
+                      : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700"
+                  }`}
+                >
+                  <span
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition ${
+                      isActive
+                        ? "bg-[#002b5c]/10 text-[#002b5c]"
+                        : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
+                    }`}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </span>
+
+                  <span className="flex min-w-0 flex-col">
+                    <span className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+                      {tab.label}
+
+                      <span
+                        className={`inline-flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                          isActive
+                            ? "bg-[#002b5c] text-white"
+                            : "bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        {tab.count}
+                      </span>
+                    </span>
+
+                    <span
+                      className={`mt-1 text-xs ${
+                        isActive
+                          ? "text-[#002b5c]/70"
+                          : "text-slate-400"
+                      }`}
+                    >
+                      {tab.description}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         {/* =====================================================
-            ISSUED CERTIFICATES
+            TAB 1: CERTIFICATE GENERATION
         ====================================================== */}
 
-        <DataTable
-          title="Issued Certificates"
-          description="View certificates that have already been generated."
-          columns={
-            certificateColumns
-          }
-          data={
-            filteredCertificates
-          }
-          loading={isLoading}
-          searchable
-          searchPlaceholder="Search participant, training, or certificate number..."
-          showPagination
-          toolbar={
-            certificateToolbar
-          }
-          meta={
-            certificateTableMeta
-          }
-          emptyTitle="No certificates found"
-          emptyDescription="There are currently no issued certificates matching your filters."
-        />
+        {activeTab === "generation" && (
+          <section
+            id="certificate-panel-generation"
+            role="tabpanel"
+            aria-labelledby="certificate-tab-generation"
+            className="space-y-4"
+          >
+            <DataTable
+              title="Certificate Generation"
+              description="Generate certificates for eligible participants according to their final training results."
+              columns={eligibleCertificateColumns}
+              data={filteredEligibleParticipants}
+              loading={isLoading}
+              searchable
+              searchPlaceholder="Search participant, training, or batch..."
+              showPagination
+              meta={eligibleCertificateTableMeta}
+              emptyTitle="No eligible participants"
+              emptyDescription="There are currently no participants eligible for certificate generation."
+            />
+          </section>
+        )}
+
+        {/* =====================================================
+            TAB 2: ISSUED CERTIFICATES
+        ====================================================== */}
+
+        {activeTab === "issued" && (
+          <section
+            id="certificate-panel-issued"
+            role="tabpanel"
+            aria-labelledby="certificate-tab-issued"
+            className="space-y-4"
+          >
+            <DataTable
+              title="Issued Certificates"
+              description="View, preview, open, and download certificates that have already been generated."
+              columns={certificateColumns}
+              data={filteredCertificates}
+              loading={isLoading}
+              searchable
+              searchPlaceholder="Search participant, training, or certificate number..."
+              showPagination
+              toolbar={certificateToolbar}
+              meta={certificateTableMeta}
+              emptyTitle="No certificates found"
+              emptyDescription="There are currently no issued certificates matching your filters."
+            />
+          </section>
+        )}
       </div>
 
       {/* =======================================================
@@ -671,12 +777,8 @@ export default function CertificatesPage() {
 
       {selectedCertificate && (
         <CertificatePreviewModal
-          certificate={
-            selectedCertificate
-          }
-          onClose={
-            handleClosePreview
-          }
+          certificate={selectedCertificate}
+          onClose={handleClosePreview}
         />
       )}
     </>
@@ -696,22 +798,19 @@ function CertificatePreviewModal({
   certificate: Certificate;
   onClose: () => void;
 }) {
-  const pdfUrl =
-    certificate.pdfUrl;
+  const pdfUrl = certificate.pdfUrl;
 
   if (!pdfUrl) {
     return null;
   }
 
   /*
-   * Cloudinary PDF → JPG preview
+   * Cloudinary PDF -> JPG preview
    *
    * Example:
-   *
    * /image/upload/anci/certificates/file.pdf
    *
    * becomes:
-   *
    * /image/upload/f_jpg,q_auto/anci/certificates/file.jpg
    */
 
@@ -729,18 +828,13 @@ function CertificatePreviewModal({
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4"
       onMouseDown={(event) => {
-        if (
-          event.target ===
-          event.currentTarget
-        ) {
+        if (event.target === event.currentTarget) {
           onClose();
         }
       }}
     >
       <div className="relative flex h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-neutral-100 shadow-2xl">
-        {/* =====================================================
-            MODAL HEADER
-        ====================================================== */}
+        {/* MODAL HEADER */}
 
         <div className="flex shrink-0 items-center justify-between border-b bg-background px-5 py-4">
           <div className="min-w-0">
@@ -785,7 +879,7 @@ function CertificatePreviewModal({
             <button
               type="button"
               onClick={onClose}
-              aria-label="Close"
+              aria-label="Close certificate preview"
               className="flex h-9 w-9 items-center justify-center rounded-lg border bg-background text-lg transition hover:bg-muted"
             >
               ×
@@ -793,9 +887,7 @@ function CertificatePreviewModal({
           </div>
         </div>
 
-        {/* =====================================================
-            CERTIFICATE IMAGE
-        ====================================================== */}
+        {/* CERTIFICATE IMAGE */}
 
         <div className="min-h-0 flex-1 overflow-auto bg-neutral-200 p-4 sm:p-8">
           <div className="flex min-h-full items-start justify-center">

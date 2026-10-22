@@ -17,31 +17,14 @@ import type {
 } from "@repo/api";
 
 
-// =========================================================
-// ENROLLMENT HOOK
-//
-// Shared by:
-// - Participant Mobile
-// - Admin Web
-//
-// Handles:
-// - Current participant enrollments
-// - Pending enrollments
-// - Creating enrollment
-// - Reviewing enrollment
-// - Loading training requirements
-// - Loading enrollment documents
-// - Reviewing enrollment documents
-// =========================================================
+
 
 export function useEnrollments(
   api: EnrollmentApi
 ) {
 
-  // =======================================================
-  // STATE
-  // =======================================================
-
+  const [batchEnrollments, setBatchEnrollments] =
+  useState<Enrollment[]>([]);
   const [trainerEnrollments, setTrainerEnrollments] =
   useState<Enrollment[]>([]);
 
@@ -79,12 +62,41 @@ export function useEnrollments(
     useState<Error | null>(null);
 
 
-  // =========================================================
-  // GET MY ENROLLMENTS
-  //
-  // Participant:
-  // GET /api/enrollments/me
-  // =========================================================
+// =========================================================
+// GET ENROLLMENTS BY TRAINING BATCH
+//
+// Admin:
+// GET /api/enrollments/batch/{trainingBatchId}
+// =========================================================
+
+const loadBatchEnrollments = useCallback(
+  async (trainingBatchId: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const result =
+        await api.getByTrainingBatch(trainingBatchId);
+
+      setBatchEnrollments(result);
+
+      return result;
+    } catch (err) {
+      const normalizedError =
+        err instanceof Error
+          ? err
+          : new Error(
+              "Failed to load participants for this training batch."
+            );
+
+      setError(normalizedError);
+      throw normalizedError;
+    } finally {
+      setIsLoading(false);
+    }
+  },
+  [api]
+);
 
   const loadMyEnrollments =
     useCallback(async () => {
@@ -702,6 +714,8 @@ export function useEnrollments(
       setTrainerEnrollments([]);
       setPendingEnrollments([]);
 
+      setBatchEnrollments([]);
+
       setRequirements([]);
 
       setEnrollmentDocuments([]);
@@ -730,6 +744,10 @@ export function useEnrollments(
     loadMyEnrollments,
 
     refreshMyEnrollments,
+
+
+batchEnrollments,
+loadBatchEnrollments,
 
 
     // -------------------------------------------------------

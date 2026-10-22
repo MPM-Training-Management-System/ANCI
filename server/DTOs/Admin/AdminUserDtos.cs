@@ -1,3 +1,4 @@
+
 using server.Enums;
 
 namespace server.DTOs.Admin;
@@ -72,6 +73,7 @@ public class AdminParticipantProfileDto
 {
     public Guid Id { get; set; }
 
+    // Personal Information
     public string? FirstName { get; set; }
 
     public string? MiddleName { get; set; }
@@ -85,6 +87,56 @@ public class AdminParticipantProfileDto
     public string? Gender { get; set; }
 
     public string? ProfileImageUrl { get; set; }
+
+
+    // Educational Background
+    public string? HighestEducationalAttainment { get; set; }
+
+    public string? EducationalStatus { get; set; }
+
+    public string? SchoolName { get; set; }
+
+    public string? CourseOrDegree { get; set; }
+
+    public string? FieldOfStudy { get; set; }
+
+    public int? YearGraduated { get; set; }
+
+
+    // Employment Information
+    public string? EmploymentStatus { get; set; }
+
+    public string? CompanyName { get; set; }
+
+    public string? JobTitle { get; set; }
+
+    public string? Industry { get; set; }
+
+    public int? YearsOfWorkExperience { get; set; }
+
+
+    // Valid ID Information
+    public string? ValidIdType { get; set; }
+
+    public string? ValidIdNumber { get; set; }
+
+    public string? ValidIdImageUrl { get; set; }
+
+    public string? ValidIdVerificationStatus { get; set; }
+
+    public string? ValidIdRemarks { get; set; }
+
+    public DateTime? ValidIdVerifiedAt { get; set; }
+
+    public Guid? ValidIdVerifiedBy { get; set; }
+
+
+    // Emergency Contact
+    public string? EmergencyContactName { get; set; }
+
+    public string? EmergencyContactNumber { get; set; }
+
+    public string? EmergencyContactRelationship { get; set; }
 }
 
 
@@ -128,14 +180,15 @@ public class AdminTrainerProfileDto
 
 public class UpdateAdminUserRequest
 {
+    // Common Account Information
     public string? FullName { get; set; }
 
     public string? Email { get; set; }
 
     public string? MobileNumber { get; set; }
 
-    // Participant / Trainer common personal information
 
+    // Common Personal Information
     public string? FirstName { get; set; }
 
     public string? MiddleName { get; set; }
@@ -148,8 +201,42 @@ public class UpdateAdminUserRequest
 
     public string? Gender { get; set; }
 
-    // Trainer-only fields
 
+    // Participant: Educational Background
+    public string? HighestEducationalAttainment { get; set; }
+
+    public string? EducationalStatus { get; set; }
+
+    public string? SchoolName { get; set; }
+
+    public string? CourseOrDegree { get; set; }
+
+    public string? FieldOfStudy { get; set; }
+
+    public int? YearGraduated { get; set; }
+
+
+    // Participant: Employment Information
+    public string? EmploymentStatus { get; set; }
+
+    public string? CompanyName { get; set; }
+
+    public string? JobTitle { get; set; }
+
+    public string? Industry { get; set; }
+
+    public int? YearsOfWorkExperience { get; set; }
+
+
+    // Participant: Emergency Contact
+    public string? EmergencyContactName { get; set; }
+
+    public string? EmergencyContactNumber { get; set; }
+
+    public string? EmergencyContactRelationship { get; set; }
+
+
+    // Trainer-only Fields
     public string? Specialization { get; set; }
 
     public string? Bio { get; set; }
@@ -161,7 +248,7 @@ public class UpdateAdminUserRequest
 
 
 // =========================================================
-// UPDATE STATUS
+// UPDATE USER STATUS
 // =========================================================
 
 public class UpdateAdminUserStatusRequest

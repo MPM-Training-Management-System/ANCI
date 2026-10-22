@@ -9,6 +9,7 @@ using server.DTOs.Training;
 using server.Services.Interfaces;
 using server.Interfaces.Training;
 
+
 namespace server.Controllers;
 
 [ApiController]
@@ -284,6 +285,17 @@ public async Task<
         );
     }
 
+[HttpGet("batch/{trainingBatchId:guid}")]
+[Authorize(Roles = "Admin")]
+public async Task<ActionResult<IEnumerable<EnrollmentDto>>>
+    GetByTrainingBatch(Guid trainingBatchId)
+{
+    var result =
+        await _service.GetByTrainingBatchAsync(trainingBatchId);
+
+    return Ok(result);
+}
+
 
 
     [HttpGet("trainer")]
@@ -301,4 +313,7 @@ public async Task<
 
         return Ok(result);
     }
+
+
+    
 }

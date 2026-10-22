@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using server.Data;
 using server.DTOs.Training;
 using server.Enums;
+using server.Models.Training;
 
 namespace server.Services.Training;
 
@@ -17,21 +18,7 @@ public class TrainingGradeService : ITrainingGradeService
     private const decimal ExamWeight = 0.30m;
     private const decimal PracticalWeight = 0.30m;
 
-    // =========================================================
-    // ATTENDANCE VALUES
-    // =========================================================
-    // Present = full attendance
-    // Late    = half attendance
-    // Absent  = zero attendance
-    //
-    // Example:
-    // 5 sessions
-    // 3 Present = 3.00
-    // 1 Late    = 0.50
-    // 1 Absent  = 0.00
-    //
-    // Total = 3.50 / 5 = 70%
-    // =========================================================
+   
 
     private const decimal PresentValue = 1.00m;
     private const decimal LateValue = 0.50m;
@@ -54,19 +41,18 @@ public class TrainingGradeService : ITrainingGradeService
         _db = db;
     }
 
-    // =========================================================
-    // GET GRADE BY ENROLLMENT
-    // =========================================================
+
 
     public async Task<TrainingGradeDto?> GetByEnrollmentAsync(
         Guid enrollmentId)
     {
-        var enrollment = await _db.Enrollments
-            .AsNoTracking()
-            .Include(x => x.TrainingBatch)
-            .Include(x => x.ParticipantProfile)
-                .ThenInclude(x => x.User)
-            .FirstOrDefaultAsync(x => x.Id == enrollmentId);
+      var enrollment = await _db.Enrollments
+    .AsNoTracking()
+    .Include(x => x.TrainingBatch)
+        .ThenInclude(x => x.TrainingProgram)
+    .Include(x => x.ParticipantProfile)
+        .ThenInclude(x => x.User)
+    .FirstOrDefaultAsync(x => x.Id == enrollmentId);
 
         if (enrollment is null)
         {
@@ -156,87 +142,40 @@ public class TrainingGradeService : ITrainingGradeService
         // =====================================================
 
         return new TrainingGradeDto
-        {
-            EnrollmentId =
-                enrollment.Id,
+    
+{
+    EnrollmentId = enrollment.Id,
+    TrainingBatchId = enrollment.TrainingBatchId,
 
-            TrainingBatchId =
-                enrollment.TrainingBatchId,
+    Name =   enrollment.TrainingBatch.TrainingProgram.Name,
+    ProgramCode = enrollment.TrainingBatch?.BatchCode,
+    
 
-            BatchCode =
-                enrollment.TrainingBatch?.BatchCode,
+    ParticipantName =
+        enrollment.ParticipantProfile?.User?.FullName,
 
-            ParticipantName =
-                enrollment.ParticipantProfile?
-                    .User?
-                    .FullName,
+    ProfileImageUrl =
+        enrollment.ParticipantProfile?.ProfileImageUrl,
 
-            ProfileImageUrl =
-                enrollment.ParticipantProfile?
-                    .ProfileImageUrl,
+    AttendancePercentage = attendancePercentage,
+    AttendanceWeight = 20m,
+    AttendanceWeightedScore = attendanceWeighted,
 
-            // -------------------------------------------------
-            // ATTENDANCE
-            // -------------------------------------------------
+    ParticipationPercentage = participationPercentage,
+    ParticipationWeight = 20m,
+    ParticipationWeightedScore = participationWeighted,
 
-            AttendancePercentage =
-                attendancePercentage,
+    ExamPercentage = examPercentage,
+    ExamWeight = 30m,
+    ExamWeightedScore = examWeighted,
 
-            AttendanceWeight =
-                20m,
+    PracticalPercentage = practicalPercentage,
+    PracticalWeight = 30m,
+    PracticalWeightedScore = practicalWeighted,
 
-            AttendanceWeightedScore =
-                attendanceWeighted,
-
-            // -------------------------------------------------
-            // PARTICIPATION
-            // -------------------------------------------------
-
-            ParticipationPercentage =
-                participationPercentage,
-
-            ParticipationWeight =
-                20m,
-
-            ParticipationWeightedScore =
-                participationWeighted,
-
-            // -------------------------------------------------
-            // EXAM
-            // -------------------------------------------------
-
-            ExamPercentage =
-                examPercentage,
-
-            ExamWeight =
-                30m,
-
-            ExamWeightedScore =
-                examWeighted,
-
-            // -------------------------------------------------
-            // PRACTICAL
-            // -------------------------------------------------
-
-            PracticalPercentage =
-                practicalPercentage,
-
-            PracticalWeight =
-                30m,
-
-            PracticalWeightedScore =
-                practicalWeighted,
-
-            // -------------------------------------------------
-            // OVERALL
-            // -------------------------------------------------
-
-            OverallGrade =
-                overall,
-
-            IsPassed =
-                isPassed,
-        };
+    OverallGrade = overall,
+    IsPassed = isPassed,
+};
     }
 
     // =========================================================

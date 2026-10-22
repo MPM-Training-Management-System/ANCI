@@ -8,9 +8,11 @@ import type {
 
 import {
   Badge,
+  Button,
 } from "@repo/ui/index";
 
 import {
+  LoaderCircle,
   Play,
 } from "lucide-react";
 
@@ -193,78 +195,85 @@ export const certificatecolumns: ColumnDef<EligibleCertificate>[] = [
    * ============================================================
    */
 
-  {
-    id: "actions",
+ 
+{
+  id: "actions",
 
-    header: "Actions",
+  header: "Actions",
 
-    enableSorting: false,
-    enableColumnFilter: false,
+  enableSorting: false,
+  enableColumnFilter: false,
 
-    cell: ({ row, table }) => {
-      const participant =
-        row.original;
+  cell: ({ row, table }) => {
+    const participant = row.original;
 
-      const meta =
-        table.options.meta as
-          | EligibleCertificateTableMeta
-          | undefined;
+    const meta =
+      table.options.meta as
+        | EligibleCertificateTableMeta
+        | undefined;
 
-      if (!meta) {
-        return null;
-      }
+    if (!meta) {
+      return null;
+    }
 
-      const hasParticipation =
-        participant.hasParticipationCertificate;
+    const hasParticipation =
+      participant.hasParticipationCertificate;
 
-      const hasCompletion =
-        participant.hasCompletionCertificate;
+    const hasCompletion =
+      participant.hasCompletionCertificate;
 
-      const isFullyGenerated =
-        participant.isPassed
-          ? hasParticipation &&
-            hasCompletion
-          : hasParticipation;
+    const isFullyGenerated =
+      participant.isPassed
+        ? hasParticipation && hasCompletion
+        : hasParticipation;
 
-      const isGenerating =
-        meta.generatingEnrollmentId ===
-        participant.enrollmentId;
+    const isGenerating =
+      meta.generatingEnrollmentId ===
+      participant.enrollmentId;
 
-      if (isFullyGenerated) {
-        return (
-          <span className="whitespace-nowrap text-xs font-medium text-muted-foreground">
-            Already Generated
-          </span>
-        );
-      }
-
+    if (isFullyGenerated) {
       return (
-        <div
-          className="flex justify-end"
-          onClick={(event) => {
-            event.stopPropagation();
-          }}
-        >
-          <button
-            type="button"
-            disabled={isGenerating}
-            onClick={() => {
-              meta.onGenerate(
+        <span className="whitespace-nowrap text-xs font-medium text-muted-foreground">
+          Already Generated
+        </span>
+      );
+    }
+
+    return (
+      <div
+        className="flex justify-end"
+        onClick={(event) => {
+          event.stopPropagation();
+        }}
+      >
+        <Button
+          type="button"
+          disabled={isGenerating}
+          onClick={() => {
+            if (!isGenerating) {
+              void meta.onGenerate(
                 participant.enrollmentId
               );
-            }}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Play className="h-3.5 w-3.5" />
-
-            {isGenerating
-              ? "Generating..."
-              : participant.isPassed
+            }
+          }}
+        >
+          {isGenerating ? (
+            <>
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+              Generating...
+            </>
+          ) : (
+            <>
+              <Play className="h-3.5 w-3.5" />
+              {participant.isPassed
                 ? "Generate 2"
                 : "Generate"}
-          </button>
-        </div>
-      );
-    },
+            </>
+          )}
+        </Button>
+      </div>
+    );
   },
+}
+
 ];

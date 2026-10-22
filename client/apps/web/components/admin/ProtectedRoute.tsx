@@ -40,9 +40,7 @@ export default function ProtectedRoute({
         console.log("USER:", user);
         console.log("================================");
 
-        // =====================================================
-        // NO TOKEN
-        // =====================================================
+      
 
         if (!token) {
           if (!cancelled) {

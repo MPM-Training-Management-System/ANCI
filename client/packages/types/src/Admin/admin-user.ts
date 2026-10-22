@@ -19,16 +19,43 @@ export type UserStatus =
 export interface AdminParticipantProfile {
   id: string;
 
+  // Personal Information
   firstName: string | null;
   middleName: string | null;
   lastName: string | null;
-
   birthDate: string | null;
-
   address: string | null;
   gender: string | null;
-
   profileImageUrl: string | null;
+
+  // Educational Background
+  highestEducationalAttainment: string | null;
+  educationalStatus: string | null;
+  schoolName: string | null;
+  courseOrDegree: string | null;
+  fieldOfStudy: string | null;
+  yearGraduated: number | null;
+
+  // Employment Information
+  employmentStatus: string | null;
+  companyName: string | null;
+  jobTitle: string | null;
+  industry: string | null;
+  yearsOfWorkExperience: number | null;
+
+  // Valid ID Information
+  validIdType: string | null;
+  validIdNumber: string | null;
+  validIdImageUrl: string | null;
+  validIdVerificationStatus: string | null;
+  validIdRemarks: string | null;
+  validIdVerifiedAt: string | null;
+  validIdVerifiedBy: string | null;
+
+  // Emergency Contact
+  emergencyContactName: string | null;
+  emergencyContactNumber: string | null;
+  emergencyContactRelationship: string | null;
 }
 
 
@@ -127,32 +154,43 @@ export interface AdminUserDetails {
 // =========================================================
 
 export interface UpdateAdminUserRequest {
+  // Account Information
   fullName?: string | null;
-
   email?: string | null;
-
   mobileNumber?: string | null;
 
+  // Personal Information
   firstName?: string | null;
-
   middleName?: string | null;
-
   lastName?: string | null;
-
   birthDate?: string | null;
-
   address?: string | null;
-
   gender?: string | null;
 
-  // Trainer only
+  // Educational Background
+  highestEducationalAttainment?: string | null;
+  educationalStatus?: string | null;
+  schoolName?: string | null;
+  courseOrDegree?: string | null;
+  fieldOfStudy?: string | null;
+  yearGraduated?: number | null;
 
+  // Employment Information
+  employmentStatus?: string | null;
+  companyName?: string | null;
+  jobTitle?: string | null;
+  industry?: string | null;
+  yearsOfWorkExperience?: number | null;
+
+  // Emergency Contact
+  emergencyContactName?: string | null;
+  emergencyContactNumber?: string | null;
+  emergencyContactRelationship?: string | null;
+
+  // Trainer Information
   specialization?: string | null;
-
   bio?: string | null;
-
   yearsOfExperience?: number | null;
-
   isActive?: boolean | null;
 }
 

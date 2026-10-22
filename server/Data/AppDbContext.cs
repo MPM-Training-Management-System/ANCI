@@ -9,16 +9,106 @@ using server.Models.Participant;
 using server.Models.Service;
 using server.Models.Trainer;
 using server.Models.Training;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using server.Interfaces;
 
 namespace server.Data;
 
 public class ApplicationDbContext : DbContext
 {
+
+    private readonly ICacheService _cacheService;
     public ApplicationDbContext(
-        DbContextOptions<ApplicationDbContext> options)
-        : base(options)
+    DbContextOptions<ApplicationDbContext> options,
+    ICacheService cacheService)
+    : base(options)
+{
+    _cacheService = cacheService;
+}
+
+// =========================================================
+// AUTOMATIC CACHE INVALIDATION
+// =========================================================
+
+private bool HasPendingDatabaseChanges()
+{
+    return ChangeTracker
+        .Entries()
+        .Any(entry =>
+            entry.State == EntityState.Added ||
+            entry.State == EntityState.Modified ||
+            entry.State == EntityState.Deleted);
+}
+
+// Synchronous save
+public override int SaveChanges()
+{
+    var hasChanges = HasPendingDatabaseChanges();
+
+    var result = base.SaveChanges();
+
+    if (hasChanges)
     {
+        _cacheService.Clear();
     }
+
+    return result;
+}
+
+// Synchronous save with acceptAllChangesOnSuccess
+public override int SaveChanges(
+    bool acceptAllChangesOnSuccess)
+{
+    var hasChanges = HasPendingDatabaseChanges();
+
+    var result = base.SaveChanges(
+        acceptAllChangesOnSuccess);
+
+    if (hasChanges)
+    {
+        _cacheService.Clear();
+    }
+
+    return result;
+}
+
+// Asynchronous save
+public override async Task<int> SaveChangesAsync(
+    CancellationToken cancellationToken = default)
+{
+    var hasChanges = HasPendingDatabaseChanges();
+
+    var result = await base.SaveChangesAsync(
+        cancellationToken);
+
+    if (hasChanges)
+    {
+        _cacheService.Clear();
+    }
+
+    return result;
+}
+
+// Asynchronous save with acceptAllChangesOnSuccess
+public override async Task<int> SaveChangesAsync(
+    bool acceptAllChangesOnSuccess,
+    CancellationToken cancellationToken = default)
+{
+    var hasChanges = HasPendingDatabaseChanges();
+
+    var result = await base.SaveChangesAsync(
+        acceptAllChangesOnSuccess,
+        cancellationToken);
+
+    if (hasChanges)
+    {
+        _cacheService.Clear();
+    }
+
+    return result;
+}
 
     
 public DbSet<TrainingProgramRequirement>

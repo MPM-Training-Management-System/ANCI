@@ -20,10 +20,6 @@ public class TrainingProgramsController : ControllerBase
     }
 
 
-    // =========================================================
-    // GET ALL
-    // GET /api/training-programs
-    // =========================================================
 
     [HttpGet]
     public async Task<
@@ -108,10 +104,7 @@ public class TrainingProgramsController : ControllerBase
     }
 
 
-    // =========================================================
-    // DELETE
-    // DELETE /api/training-programs/{id}
-    // =========================================================
+  
 
    [HttpDelete("{id:guid}")]
 public async Task<IActionResult> Delete(Guid id)

@@ -17,6 +17,7 @@ import type {
 } from "@repo/types";
 
 import { writtenAssessmentApi } from "@/lib/api";
+import { Button } from "@repo/ui/index";
 
 // ============================================================
 // TYPES
@@ -1086,8 +1087,8 @@ export default function WrittenAssessmentQuestionsModal({
             </p>
           </div>
 
-          <button
-            type="button"
+          <Button
+        variant="outline"
             onClick={onClose}
             className="
               ml-4
@@ -1107,7 +1108,7 @@ export default function WrittenAssessmentQuestionsModal({
             "
           >
             ×
-          </button>
+          </Button>
         </div>
 
         {/* ====================================================
@@ -1208,8 +1209,8 @@ export default function WrittenAssessmentQuestionsModal({
     gap-2
   "
 >
-  <button
-    type="button"
+  <Button
+
     onClick={openGenerateModal}
     disabled={
       assessment.isPublished ||
@@ -1234,10 +1235,10 @@ export default function WrittenAssessmentQuestionsModal({
     {isGenerating
       ? "Generating..."
       : "Generate from DOCX"}
-  </button>
+  </Button>
 
-  <button
-    type="button"
+  <Button
+
     onClick={openCreateQuestion}
     disabled={
       assessment.isPublished ||
@@ -1258,7 +1259,7 @@ export default function WrittenAssessmentQuestionsModal({
     "
   >
     + Add Question
-  </button>
+  </Button>
 </div>
           </div>
 
@@ -1439,8 +1440,8 @@ export default function WrittenAssessmentQuestionsModal({
                             gap-2
                           "
                         >
-                          <button
-                            type="button"
+                          <Button
+                            variant="outline"
                             disabled={
                               assessment.isPublished
                             }
@@ -1465,10 +1466,10 @@ export default function WrittenAssessmentQuestionsModal({
                             "
                           >
                             Edit
-                          </button>
+                          </Button>
 
-                          <button
-                            type="button"
+                          <Button
+                            variant="danger"
                             disabled={
                               assessment.isPublished ||
                               deletingQuestionId ===
@@ -1481,24 +1482,14 @@ export default function WrittenAssessmentQuestionsModal({
                             }
                             className="
                               rounded-lg
-                              border
-                              border-red-200
-                              px-3
-                              py-1.5
-                              text-[11px]
-                              font-semibold
-                              text-red-600
-                              transition
-                              hover:bg-red-50
-                              disabled:cursor-not-allowed
-                              disabled:opacity-40
+                            
                             "
                           >
                             {deletingQuestionId ===
                             question.id
                               ? "..."
                               : "Delete"}
-                          </button>
+                          </Button>
                         </div>
                       </div>
 
@@ -1530,8 +1521,8 @@ export default function WrittenAssessmentQuestionsModal({
                             Choices
                           </p>
 
-                          <button
-                            type="button"
+                          <Button
+      
                             disabled={
                               assessment.isPublished
                             }
@@ -1541,16 +1532,11 @@ export default function WrittenAssessmentQuestionsModal({
                               )
                             }
                             className="
-                              text-[11px]
-                              font-semibold
-                              text-black
-                              hover:underline
-                              disabled:cursor-not-allowed
-                              disabled:opacity-40
+                             rounded-xl
                             "
                           >
                             + Add Choice
-                          </button>
+                          </Button>
                         </div>
 
                         {question.choices
@@ -1682,8 +1668,8 @@ export default function WrittenAssessmentQuestionsModal({
                                         gap-2
                                       "
                                     >
-                                      <button
-                                        type="button"
+                                      <Button
+                                      variant="outline"
                                         disabled={
                                           assessment.isPublished
                                         }
@@ -1695,24 +1681,14 @@ export default function WrittenAssessmentQuestionsModal({
                                         }
                                         className="
                                           rounded-lg
-                                          border
-                                          border-[#dfe2e6]
-                                          px-3
-                                          py-1.5
-                                          text-[10px]
-                                          font-semibold
-                                          text-gray-700
-                                          transition
-                                          hover:bg-gray-50
-                                          disabled:cursor-not-allowed
-                                          disabled:opacity-40
+                                       
                                         "
                                       >
                                         Edit
-                                      </button>
+                                      </Button>
 
-                                      <button
-                                        type="button"
+                                      <Button
+                            
                                         disabled={
                                           assessment.isPublished ||
                                           deletingChoiceId ===
@@ -1725,24 +1701,14 @@ export default function WrittenAssessmentQuestionsModal({
                                         }
                                         className="
                                           rounded-lg
-                                          border
-                                          border-red-200
-                                          px-3
-                                          py-1.5
-                                          text-[10px]
-                                          font-semibold
-                                          text-red-600
-                                          transition
-                                          hover:bg-red-50
-                                          disabled:cursor-not-allowed
-                                          disabled:opacity-40
+                                        
                                         "
                                       >
                                         {deletingChoiceId ===
                                         choice.id
                                           ? "..."
                                           : "Delete"}
-                                      </button>
+                                      </Button>
                                     </div>
                                   </div>
                                 ),
@@ -1782,8 +1748,8 @@ export default function WrittenAssessmentQuestionsModal({
             are visible here.
           </p>
 
-          <button
-            type="button"
+          <Button
+     
             onClick={onClose}
             className="
               rounded-xl
@@ -1798,7 +1764,7 @@ export default function WrittenAssessmentQuestionsModal({
             "
           >
             Done
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -2014,8 +1980,8 @@ export default function WrittenAssessmentQuestionsModal({
                   pt-2
                 "
               >
-                <button
-                  type="button"
+                <Button
+variant="outline"
                   onClick={
                     closeQuestionForm
                   }
@@ -2024,20 +1990,13 @@ export default function WrittenAssessmentQuestionsModal({
                   }
                   className="
                     rounded-xl
-                    border
-                    border-[#dfe2e6]
-                    px-4
-                    py-2.5
-                    text-xs
-                    font-semibold
-                    text-gray-700
-                    hover:bg-gray-50
+                  
                   "
                 >
                   Cancel
-                </button>
+                </Button>
 
-                <button
+                <Button
                   type="submit"
                   disabled={
                     savingQuestion
@@ -2059,7 +2018,7 @@ export default function WrittenAssessmentQuestionsModal({
                     : editingQuestionId
                       ? "Save Changes"
                       : "Create Question"}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -2319,31 +2278,21 @@ export default function WrittenAssessmentQuestionsModal({
                   pt-1
                 "
               >
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
                   onClick={
                     closeGenerateModal
                   }
                   disabled={isGenerating}
                   className="
                     rounded-xl
-                    border
-                    border-[#dfe2e6]
-                    px-4
-                    py-2.5
-                    text-xs
-                    font-semibold
-                    text-gray-700
-                    transition
-                    hover:bg-gray-50
-                    disabled:cursor-not-allowed
-                    disabled:opacity-50
+                  
                   "
                 >
                   Cancel
-                </button>
+                </Button>
 
-                <button
+                <Button
                   type="submit"
                   disabled={
                     isGenerating ||
@@ -2366,7 +2315,7 @@ export default function WrittenAssessmentQuestionsModal({
                   {isGenerating
                     ? "Generating..."
                     : "Generate Questions"}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -2649,8 +2598,8 @@ export default function WrittenAssessmentQuestionsModal({
                   pt-2
                 "
               >
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
                   onClick={
                     closeChoiceForm
                   }
@@ -2670,9 +2619,9 @@ export default function WrittenAssessmentQuestionsModal({
                   "
                 >
                   Cancel
-                </button>
+                </Button>
 
-                <button
+                <Button
                   type="submit"
                   disabled={
                     savingChoice
@@ -2694,7 +2643,7 @@ export default function WrittenAssessmentQuestionsModal({
                     : editingChoiceId
                       ? "Save Changes"
                       : "Create Choice"}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
