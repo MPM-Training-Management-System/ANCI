@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using server.Data;
 using server.DTOs.Admin;
 using server.Enums;
+using server.Interfaces;
 using server.Models.Auth;
 using server.Models.Participant;
 using server.Models.Trainer;
@@ -13,53 +14,90 @@ namespace server.Services;
 
 public class AdminUserService : IAdminUserService
 {
-    private readonly ApplicationDbContext _db;
+   private readonly ApplicationDbContext _db;
+   private readonly ILogger<AdminUserService> _logger;
+private readonly ICacheService _cache;
 
-    public AdminUserService(ApplicationDbContext db)
+private const string UserCachePrefix = "admin-users:";
+private static readonly TimeSpan UserCacheExpiration =
+    TimeSpan.FromMinutes(5);
+
+public AdminUserService(
+    ApplicationDbContext db,
+    ICacheService cache,
+    ILogger<AdminUserService> logger)
+{
+    _db = db;
+    _cache = cache;
+    _logger = logger;
+}
+
+   public async Task<List<AdminUserListDto>> GetUsersAsync()
+{
+    const string cacheKey = $"{UserCachePrefix}list";
+
+    if (_cache.TryGet<List<AdminUserListDto>>(
+            cacheKey,
+            out var cachedUsers) &&
+        cachedUsers is not null)
     {
-        _db = db;
+        return cachedUsers;
     }
 
-    // =========================================================
-    // GET ALL USERS
-    // =========================================================
+    var users = await _db.Users
+        .AsNoTracking()
+        .Include(x => x.ParticipantProfile)
+        .Include(x => x.TrainerProfile)
+        .Where(x =>
+            x.Role == UserRole.Participant ||
+            x.Role == UserRole.Trainer)
+        .OrderByDescending(x => x.CreatedAt)
+        .ToListAsync();
 
-    public async Task<List<AdminUserListDto>> GetUsersAsync()
+    var result = users.Select(MapToListDto).ToList();
+
+    _cache.Set(
+        cacheKey,
+        result,
+        UserCacheExpiration);
+
+    return result;
+}
+
+  public async Task<AdminUserDetailsDto?> GetUserByIdAsync(
+    Guid id)
+{
+    var cacheKey = $"{UserCachePrefix}details:{id}";
+
+    if (_cache.TryGet<AdminUserDetailsDto>(
+            cacheKey,
+            out var cachedUser) &&
+        cachedUser is not null)
     {
-        var users = await _db.Users
-            .AsNoTracking()
-            .Include(x => x.ParticipantProfile)
-            .Include(x => x.TrainerProfile)
-            .Where(x =>
-                x.Role == UserRole.Participant ||
-                x.Role == UserRole.Trainer)
-            .OrderByDescending(x => x.CreatedAt)
-            .ToListAsync();
-
-        return users.Select(MapToListDto).ToList();
+        return cachedUser;
     }
 
-    // =========================================================
-    // GET USER BY ID
-    // =========================================================
+    var user = await _db.Users
+        .AsNoTracking()
+        .Include(x => x.ParticipantProfile)
+        .Include(x => x.TrainerProfile)
+        .FirstOrDefaultAsync(x => x.Id == id);
 
-    public async Task<AdminUserDetailsDto?> GetUserByIdAsync(Guid id)
+    if (user is null || !IsManageableRole(user.Role))
     {
-        var user = await _db.Users
-            .AsNoTracking()
-            .Include(x => x.ParticipantProfile)
-            .Include(x => x.TrainerProfile)
-            .FirstOrDefaultAsync(x => x.Id == id);
-
-        if (user is null || !IsManageableRole(user.Role))
-            return null;
-
-        return MapToDetailsDto(user);
+        return null;
     }
 
-    // =========================================================
-    // UPDATE USER
-    // =========================================================
+    var result = MapToDetailsDto(user);
+
+    _cache.Set(
+        cacheKey,
+        result,
+        UserCacheExpiration);
+
+    return result;
+}
+
 
     public async Task<AdminUserDetailsDto?> UpdateUserAsync(
         Guid id,
@@ -569,4 +607,14 @@ public class AdminUserService : IAdminUserService
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Select(x => x!.Trim()));
     }
+
+    private void InvalidateUserCache(Guid userId)
+{
+    // Remove the user list and all cached user details.
+    _cache.RemoveByPrefix(UserCachePrefix);
+
+    _logger.LogDebug(
+        "Invalidated admin user cache after changing user {UserId}.",
+        userId);
+}
 }

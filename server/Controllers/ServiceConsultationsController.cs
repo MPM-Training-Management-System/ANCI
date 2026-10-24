@@ -19,11 +19,6 @@ public class ServiceConsultationsController : ControllerBase
         _consultationService = consultationService;
     }
 
-    // ============================================================
-    // CREATE / SCHEDULE CONSULTATION
-    // POST: api/services/consultations
-    // ============================================================
-
     [HttpPost]
     public async Task<IActionResult> Create(
         [FromBody] CreateServiceConsultationDto dto)
@@ -71,10 +66,8 @@ public class ServiceConsultationsController : ControllerBase
         }
     }
 
-    // ============================================================
     // GET ALL CONSULTATIONS
-    // GET: api/services/consultations
-    // ============================================================
+   
 
     [HttpGet]
     public async Task<IActionResult> GetAll()

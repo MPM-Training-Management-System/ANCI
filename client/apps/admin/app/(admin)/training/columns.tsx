@@ -57,9 +57,22 @@ export type TrainingProgramTableMeta = {
 
 export const columns: ColumnDef<TrainingProgram>[] =
   [
-    // =====================================================
-    // TRAINING PROGRAM
-    // =====================================================
+    {
+  id: "rowNumber",
+  header: "No.",
+  enableSorting: false,
+  enableColumnFilter: false,
+  cell: ({ row, table }) => {
+    const { pageIndex, pageSize } = table.getState().pagination;
+
+    return (
+      <span className="text-sm font-medium text-gray-500">
+        {pageIndex * pageSize + row.index + 1}
+      </span>
+    );
+  },
+},
+
 
     {
       accessorKey: "title",
@@ -237,7 +250,7 @@ cell: ({ row, table }) => {
             className="cursor-pointer gap-2 text-xs"
           >
             <Eye className="h-4 w-4 text-gray-500" />
-            <span>View Participants</span>
+            <span>Manage</span>
           </DropdownMenuItem>
 
           {/* EXISTING MANAGE ACTION */}
@@ -246,17 +259,17 @@ cell: ({ row, table }) => {
             className="cursor-pointer gap-2 text-xs"
           >
             <Pencil className="h-4 w-4 text-gray-500" />
-            <span>Manage</span>
+            <span>Edit</span>
           </DropdownMenuItem>
 
           {/* EDIT */}
-          <DropdownMenuItem
+          {/* <DropdownMenuItem
             onSelect={() => meta?.onEdit?.(program)}
             className="cursor-pointer gap-2 text-xs"
           >
             <Pencil className="h-4 w-4 text-gray-500" />
             <span>Edit</span>
-          </DropdownMenuItem>
+          </DropdownMenuItem> */}
 
           <DropdownMenuSeparator />
 

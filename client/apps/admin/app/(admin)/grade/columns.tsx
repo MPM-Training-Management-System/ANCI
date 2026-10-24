@@ -11,20 +11,39 @@ import type { TrainingGrade } from "@repo/types";
 
 export const columns: ColumnDef<TrainingGrade>[] = [
   {
-    accessorKey: "participantName",
-    header: "Participant",
-    cell: ({ row }) => {
-      const item = row.original;
+  id: "rowNumber",
+  header: "No.",
+  enableSorting: false,
+  enableColumnFilter: false,
+  cell: ({ row, table }) => {
+    const { pageIndex, pageSize } = table.getState().pagination;
 
-      return (
+    return (
+      <span className="text-sm font-medium text-gray-500">
+        {pageIndex * pageSize + row.index + 1}
+      </span>
+    );
+  },
+},
+ 
+ {
+  accessorFn: (row) =>
+    `${row.participantName}  ${row.userCode ?? ""}`,
+  id: "participantName",
+  header: "Participant",
+  cell: ({ row }) => {
+    const item = row.original;
+
+    return (
+      <div className="flex flex-col gap-1">
         <UserCell
           name={item.participantName}
-          email={item.trainingBatchId}
-          image={item.profileImageUrl}
-        />
-      );
-    },
+          image={item.profileImageUrl ?? undefined}
+          id={item.userCode ?? "N/A"} email={""}        />
+      </div>
+    );
   },
+},
 
   {
     accessorKey: "attendancePercentage",

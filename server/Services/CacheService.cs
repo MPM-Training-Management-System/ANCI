@@ -84,4 +84,23 @@ public CacheService(
     _logger.LogInformation(
         "All registered application cache entries have been cleared.");
 }
+
+public void RemoveByPrefix(string prefix)
+{
+    var keysToRemove = _keys.Keys
+        .Where(key => key.StartsWith(
+            prefix,
+            StringComparison.Ordinal))
+        .ToArray();
+
+    foreach (var key in keysToRemove)
+    {
+        Remove(key);
+    }
+
+    _logger.LogInformation(
+        "Invalidated {Count} cache entries with prefix {Prefix}.",
+        keysToRemove.Length,
+        prefix);
+}
 }

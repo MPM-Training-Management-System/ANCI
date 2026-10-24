@@ -1,7 +1,7 @@
 "use client"
 
 
-import { useState } from "react";
+import { SetStateAction, useState } from "react";
 import ProtectedRoute from "../(auth)/login/Protectedroute";
 import Sidebar from "@/components/admin/sidebar/Sidebar"
 import Navbar from "@/components/admin/navbar/Navbar"
@@ -29,8 +29,9 @@ export default function AdminLayout({
             {/* Navbar */}
             <Navbar
               collapsed={collapsed}
-              setCollapsed={setCollapsed}
-            />
+              setCollapsed={setCollapsed} mobileOpen={false} setMobileOpen={function (value: SetStateAction<boolean>): void {
+                throw new Error("Function not implemented.");
+              } }            />
 
             {/* Page Content */}
             <main className="mt-25 flex-1">

@@ -3,6 +3,7 @@ export interface TrainingGrade {
   trainingBatchId: string;
   programCode: string;
   participantName: string;
+  userCode: string;
   profileImageUrl?: string | null;
 name?: string | null;
   // Attendance - 20%

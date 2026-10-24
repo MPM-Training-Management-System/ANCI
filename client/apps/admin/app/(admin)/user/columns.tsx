@@ -15,6 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  UserCell,
 } from "@repo/ui/index";
 
 export interface UserTableMeta {
@@ -25,50 +26,42 @@ export interface UserTableMeta {
 }
 
 export const columns: ColumnDef<AdminUserList>[] = [
-  /*
-   * ============================================================
-   * USER
-   * ============================================================
-   */
-
   {
-    accessorKey: "fullName",
-    header: "User",
+  id: "rowNumber",
+  header: "No.",
+  enableSorting: false,
+  enableColumnFilter: false,
+  cell: ({ row, table }) => {
+    const { pageIndex, pageSize } = table.getState().pagination;
 
-    cell: ({ row }) => {
-      const user = row.original;
-
-      return (
-        <div className="flex items-center gap-3">
-          {/* AVATAR */}
-          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gray-100">
-            {user.profileImageUrl ? (
-              <img
-                src={user.profileImageUrl}
-                alt={user.fullName}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-gray-500">
-                {getInitials(user.fullName)}
-              </div>
-            )}
-          </div>
-
-          {/* NAME */}
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-gray-900">
-              {user.fullName || "Unnamed User"}
-            </p>
-
-            <p className="truncate text-xs text-gray-400">
-              {user.userCode || "No user code"}
-            </p>
-          </div>
-        </div>
-      );
-    },
+    return (
+      <span className="text-sm font-medium text-gray-500">
+        {pageIndex * pageSize + row.index + 1}
+      </span>
+    );
   },
+},
+
+ {
+   accessorFn: (row) =>
+     `${row.fullName} ${row.email} ${row.userCode ?? ""}`,
+   id: "participantName",
+   header: "Participant",
+   cell: ({ row }) => {
+     const item = row.original;
+ 
+     return (
+       <div className="flex flex-col gap-1">
+         <UserCell
+           name={item.fullName}
+           email={item.email}
+           image={item.profileImageUrl ?? undefined}
+           id=  {item.userCode ?? "N/A"}
+         />
+       </div>
+     );
+   },
+ },
 
   /*
    * ============================================================

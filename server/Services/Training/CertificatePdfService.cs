@@ -60,11 +60,11 @@ public class CertificatePdfService : ICertificatePdfService
             : null;
 
         // Replace with the actual authorized signatories.
-        const string firstSignatoryName = "First Signatory Name";
-        const string firstSignatoryPosition = "Authorized Signatory";
+        const string firstSignatoryName = "Antonio T. Ortega";
+        const string firstSignatoryPosition = "President & Excutive Director";
 
-        const string secondSignatoryName = "Second Signatory Name";
-        const string secondSignatoryPosition = "Training Director";
+        const string secondSignatoryName = "Dr. Danilo J. Carandang";
+        const string secondSignatoryPosition = "Chairman";
 
         Document.Create(document =>
         {
@@ -183,12 +183,12 @@ column.Item()
         if (isCompletion)
         {
             text.Span(
-                "in recognition of the successful completion of the training program entitled ");
+                "In recognition of the successful completion of the training program entitled ");
         }
         else
         {
             text.Span(
-                "in recognition of their active participation in the training program entitled ");
+                "In recognition of their active participation in the training program entitled ");
         }
 
         text.Span(trainingName)
@@ -196,7 +196,7 @@ column.Item()
             .FontColor(Blue);
 
         text.Span(
-            $", under Batch {batchCode}, organized and conducted by ACE NextGen Consultancy Inc.");
+            $", under {batchCode}, organized and conducted by ACE NextGen Consultancy Inc.");
 
         if (isCompletion)
         {

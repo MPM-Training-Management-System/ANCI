@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@repo/ui/index";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import {
@@ -201,14 +202,14 @@ export const practicalColumns: ColumnDef<PracticalTableRow>[] = [
       }
 
       return (
-        <button
+        <Button
           type="button"
           onClick={participant.onEvaluate}
           className="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-gray-800"
         >
           <ClipboardCheck className="h-3.5 w-3.5" />
           Evaluate
-        </button>
+        </Button>
       );
     },
   },

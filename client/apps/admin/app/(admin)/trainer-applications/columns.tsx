@@ -15,10 +15,12 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  UserCell,
 } from "@repo/ui/index";
 
 export type TrainerApplicationRow = {
   id: string;
+  userCode: string;
   fullName: string;
   email: string;
   specialization: string;
@@ -34,41 +36,42 @@ export interface TrainerApplicationTableMeta {
 }
 
 export const columns: ColumnDef<TrainerApplicationRow>[] = [
+
   {
-    accessorKey: "fullName",
-    header: "Trainer",
-    cell: ({ row }) => {
-      const application = row.original;
+  id: "rowNumber",
+  header: "No.",
+  enableSorting: false,
+  enableColumnFilter: false,
+  cell: ({ row, table }) => {
+    const { pageIndex, pageSize } = table.getState().pagination;
 
-      return (
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200">
-            {application.profileImageUrl ? (
-              <img
-                src={application.profileImageUrl}
-                alt={application.fullName}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-slate-500">
-                <UserRound className="h-5 w-5" />
-              </div>
-            )}
-          </div>
-
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-slate-900">
-              {application.fullName || "Unnamed Trainer"}
-            </p>
-            <p className="mt-0.5 flex max-w-[230px] items-center gap-1 truncate text-xs text-slate-500">
-              <Mail className="h-3 w-3 shrink-0" />
-              {application.email || "No email"}
-            </p>
-          </div>
-        </div>
-      );
-    },
+    return (
+      <span className="text-sm font-medium text-gray-500">
+        {pageIndex * pageSize + row.index + 1}
+      </span>
+    );
   },
+},
+  {
+     accessorFn: (row) =>
+       `${row.fullName} ${row.email} ${row.userCode ?? ""}`,
+     id: "participantName",
+     header: "Participant",
+     cell: ({ row }) => {
+       const item = row.original;
+   
+       return (
+         <div className="flex flex-col gap-1">
+           <UserCell
+             name={item.fullName}
+             email={item.email}
+             image={item.profileImageUrl ?? undefined}
+             id=  {item.userCode ?? "N/A"}
+           />
+         </div>
+       );
+     },
+   },
   {
     accessorKey: "specialization",
     header: "Specialization",

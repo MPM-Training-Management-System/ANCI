@@ -21,40 +21,44 @@ export interface EnrollmentTableMeta {
 }
 
 export const columns: ColumnDef<Enrollment>[] = [
-  {
-    accessorKey: "participantName",
-    header: "Participant",
-    cell: ({ row }) => {
-      const item = row.original;
 
-      return (
+    {
+  id: "rowNumber",
+  header: "No.",
+  enableSorting: false,
+  enableColumnFilter: false,
+  cell: ({ row, table }) => {
+    const { pageIndex, pageSize } = table.getState().pagination;
+
+    return (
+      <span className="text-sm font-medium text-gray-500">
+        {pageIndex * pageSize + row.index + 1}
+      </span>
+    );
+  },
+},
+ {
+  accessorFn: (row) =>
+    `${row.participant.fullName} ${row.participant.email} ${row.participant.userCode ?? ""}`,
+  id: "participantName",
+  header: "Participant",
+  cell: ({ row }) => {
+    const item = row.original;
+
+    return (
+      <div className="flex flex-col gap-1">
         <UserCell
           name={item.participant.fullName}
           email={item.participant.email}
-          image={
-            item.participant.profileImageUrl ??
-            undefined
-          }
+          image={item.participant.profileImageUrl ?? undefined}
+          id=  {item.participant.userCode ?? "N/A"}
         />
-      );
-    },
-  },
-
-  {
-    accessorKey: "programName",
-    header: "Training",
-    cell: ({ row }) => (
-      <div className="min-w-[220px]">
-        <p className="font-semibold text-gray-900">
-          {row.original.programName}
-        </p>
-
-        <p className="mt-1 text-xs text-gray-500">
-          Batch: {row.original.batchCode}
-        </p>
       </div>
-    ),
+    );
   },
+},
+
+ 
 
  
 

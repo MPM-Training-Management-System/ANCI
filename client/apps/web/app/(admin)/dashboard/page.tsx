@@ -19,7 +19,7 @@ import type {
 
 import { trainerDashboardApi } from "@/lib/api";
 import { useTrainerDashboard } from "@repo/hooks";
-import { PageSkeleton, StatCard } from "@repo/ui/index";
+import { Button, PageSection, PageSkeleton, StatCard } from "@repo/ui/index";
 import { useState } from "react";
 
 import {
@@ -801,25 +801,12 @@ export default function TrainerDashboardPage() {
             HEADER
         ================================================= */}
 
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white">
-                <GraduationCap className="h-4 w-4" />
-              </div>
-
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                Trainer Dashboard
-              </h1>
-            </div>
-
-            <p className="mt-2 text-sm text-slate-500">
-              Overview of your assigned training,
-              participants, attendance, and sessions.
-            </p>
-          </div>
-
-          <button
+      
+         
+            <PageSection title="Trainer Dashboard"  description="  Overview of your assigned training,
+              participants, attendance, and sessions."     
+              actions={
+          <Button
             type="button"
             onClick={handleRefresh}
             disabled={
@@ -836,13 +823,9 @@ export default function TrainerDashboardPage() {
             {isRefreshing || refreshing
               ? "Refreshing..."
               : "Refresh"}
-          </button>
-        </div>
-
-        {/* =================================================
-            NO TRAINING
-        ================================================= */}
-
+          </Button>
+              }   
+            ></PageSection>
         {!dashboard.training ? (
           <NoTrainingAssigned />
         ) : (
@@ -916,10 +899,7 @@ export default function TrainerDashboardPage() {
               />
             </div>
 
-            {/* =============================================
-                SESSION PROGRESS
-            ============================================== */}
-
+           
             <div className="mt-5">
               <SectionCard
                 title="Session Progress"
