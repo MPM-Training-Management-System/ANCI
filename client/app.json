@@ -1,3 +1,12 @@
 {
-  "expo": {}
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "24c31300-6d74-42cb-b6f6-c50ee1df9e34"
+      }
+    },
+    "android": {
+      "package": "com.ralphjoed.client"
+    }
+  }
 }
