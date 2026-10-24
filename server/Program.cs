@@ -35,7 +35,7 @@ builder.Services.AddCors(options =>
     {
         policy
             .WithOrigins(
-                "http://localhost:3000","http://localhost:3001", "http://192.168.1.16:3000","https://anci-tms.vercel.app","https://anci-admin.vercel.app", "http://acenextgen.com","https://www.acenextgen.me"
+                "http://localhost:3000","http://localhost:3001", "http://192.168.1.16:3000","https://anci-tms.vercel.app","https://anci-admin.vercel.app","http://127.0.0.1:3000", "http://acenextgen.com","https://www.acenextgen.me"
             )
             .AllowAnyHeader()
             .AllowAnyMethod();
