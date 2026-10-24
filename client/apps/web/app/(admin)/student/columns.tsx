@@ -17,9 +17,7 @@ function formatPercentage(value: number) {
   return `${value.toFixed(2)}%`;
 }
 
-/* =========================================================
-   PROGRESS CELL
-========================================================= */
+
 
 function ProgressCell({
   percentage,
@@ -63,9 +61,6 @@ function ProgressCell({
   );
 }
 
-/* =========================================================
-   GRADE STATUS
-========================================================= */
 
 function GradeStatus({
   grade,
@@ -90,10 +85,6 @@ function GradeStatus({
     </span>
   );
 }
-
-/* =========================================================
-   PARTICIPANT AVATAR
-========================================================= */
 
 function ParticipantAvatar({
   name,
@@ -122,14 +113,9 @@ function ParticipantAvatar({
   );
 }
 
-/* =========================================================
-   COLUMNS
-========================================================= */
+
 
 export const columns: ColumnDef<TrainingGrade>[] = [
-  /* =======================================================
-     PARTICIPANT
-  ======================================================= */
 
   {
     accessorKey: "participantName",
@@ -152,7 +138,7 @@ export const columns: ColumnDef<TrainingGrade>[] = [
             </p>
 
             <p className="mt-0.5 text-xs text-gray-400">
-              {grade.trainingBatchId}
+              {grade.name}
             </p>
           </div>
         </div>
@@ -160,9 +146,7 @@ export const columns: ColumnDef<TrainingGrade>[] = [
     },
   },
 
-  /* =======================================================
-     ATTENDANCE
-  ======================================================= */
+
 
   {
     accessorKey: "attendancePercentage",

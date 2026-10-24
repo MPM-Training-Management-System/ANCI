@@ -1,7 +1,7 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
-
 import type { LearningSection } from "@repo/types";
 
 interface LearningSectionFormModalProps {
@@ -31,69 +31,71 @@ export default function LearningSectionFormModal({
   onClose,
   onSubmit,
 }: LearningSectionFormModalProps) {
-  const [sectionNumber, setSectionNumber] =
-    useState("1");
-
+  const [sectionNumber, setSectionNumber] = useState("1");
   const [title, setTitle] = useState("");
-  const [contentType, setContentType] =
-    useState("Text");
-
-  const [content, setContent] =
-    useState("");
-
-  const [mediaUrl, setMediaUrl] =
-    useState("");
-
-  const [displayOrder, setDisplayOrder] =
-    useState("1");
+  const [contentType, setContentType] = useState("Text");
+  const [content, setContent] = useState("");
+  const [mediaUrl, setMediaUrl] = useState("");
+  const [displayOrder, setDisplayOrder] = useState("1");
 
   useEffect(() => {
-    if (!open) {
-      return;
-    }
+    if (!open) return;
 
-    setSectionNumber(
-      String(section?.sectionNumber ?? 1),
-    );
-
+    setSectionNumber(String(section?.sectionNumber ?? 1));
     setTitle(section?.title ?? "");
-
-    setContentType(
-      section?.contentType ?? "Text",
-    );
-
-    setContent(
-      section?.content ?? "",
-    );
-
-    setMediaUrl(
-      section?.mediaUrl ?? "",
-    );
-
-    setDisplayOrder(
-      String(section?.displayOrder ?? 1),
-    );
+    setContentType(section?.contentType ?? "Text");
+    setContent(section?.content ?? "");
+    setMediaUrl(section?.mediaUrl ?? "");
+    setDisplayOrder(String(section?.displayOrder ?? 1));
   }, [open, section]);
 
-  if (!open) {
-    return null;
-  }
+  if (!open) return null;
 
-  function handleSubmit(
-    event: React.FormEvent<HTMLFormElement>,
-  ) {
+  const isVideo = contentType === "Video";
+  const isImage = contentType === "Image";
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    const finalContent = content.trim();
+    const finalMediaUrl = mediaUrl.trim();
+
+    if (contentType === "Video") {
+      if (!finalMediaUrl) {
+        alert("Please enter a YouTube video URL in the Media URL field.");
+        return;
+      }
+
+      let parsedUrl: URL;
+
+      try {
+        parsedUrl = new URL(finalMediaUrl);
+      } catch {
+        alert("Please enter a valid YouTube URL.");
+        return;
+      }
+
+      const host = parsedUrl.hostname.toLowerCase();
+      const isYouTube =
+        host === "youtube.com" ||
+        host.endsWith(".youtube.com") ||
+        host === "youtu.be" ||
+        host.endsWith(".youtu.be");
+
+      if (!isYouTube) {
+        alert("Only YouTube video URLs are allowed.");
+        return;
+      }
+    }
 
     onSubmit({
       learningModuleId,
-      sectionNumber:
-        Number(sectionNumber) || 1,
+      sectionNumber: Number(sectionNumber) || 1,
       title: title.trim(),
       contentType,
-      content: content.trim(),
-      mediaUrl: mediaUrl.trim(),
-      displayOrder:
-        Number(displayOrder) || 1,
+      content: finalContent,
+      mediaUrl: contentType === "Text" ? "" : finalMediaUrl,
+      displayOrder: Number(displayOrder) || 1,
     });
   }
 
@@ -101,10 +103,7 @@ export default function LearningSectionFormModal({
     <div
       className="fixed inset-0 z-999 flex items-center justify-center bg-black/40 p-3 backdrop-blur-[2px] sm:p-5"
       onMouseDown={(event) => {
-        if (
-          event.target === event.currentTarget &&
-          !loading
-        ) {
+        if (event.target === event.currentTarget && !loading) {
           onClose();
         }
       }}
@@ -127,8 +126,7 @@ export default function LearningSectionFormModal({
             </h2>
 
             <p className="mt-1 text-[11px] leading-5 text-gray-500">
-              Add or update the actual learning
-              content of this module.
+              Add or update the actual learning content of this module.
             </p>
           </div>
 
@@ -145,7 +143,7 @@ export default function LearningSectionFormModal({
         {/* BODY */}
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
           <div className="space-y-5">
-            {/* NUMBER + ORDER */}
+            {/* SECTION NUMBER + DISPLAY ORDER */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
@@ -155,12 +153,9 @@ export default function LearningSectionFormModal({
                 <input
                   type="number"
                   min={1}
+                  required
                   value={sectionNumber}
-                  onChange={(event) =>
-                    setSectionNumber(
-                      event.target.value,
-                    )
-                  }
+                  onChange={(event) => setSectionNumber(event.target.value)}
                   disabled={loading}
                   className="mt-2 h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-sm text-gray-700 outline-none focus:border-gray-300 focus:bg-white"
                 />
@@ -174,19 +169,16 @@ export default function LearningSectionFormModal({
                 <input
                   type="number"
                   min={1}
+                  required
                   value={displayOrder}
-                  onChange={(event) =>
-                    setDisplayOrder(
-                      event.target.value,
-                    )
-                  }
+                  onChange={(event) => setDisplayOrder(event.target.value)}
                   disabled={loading}
                   className="mt-2 h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-sm text-gray-700 outline-none focus:border-gray-300 focus:bg-white"
                 />
               </div>
             </div>
 
-            {/* TITLE */}
+            {/* SECTION TITLE */}
             <div>
               <label className="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
                 Section Title
@@ -194,12 +186,10 @@ export default function LearningSectionFormModal({
 
               <input
                 value={title}
-                onChange={(event) =>
-                  setTitle(event.target.value)
-                }
+                onChange={(event) => setTitle(event.target.value)}
                 required
                 disabled={loading}
-                placeholder="Example: What is Mediation?"
+                placeholder="Example: Introduction to Mediation"
                 className="mt-2 h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-gray-300 focus:bg-white"
               />
             </div>
@@ -212,11 +202,7 @@ export default function LearningSectionFormModal({
 
               <select
                 value={contentType}
-                onChange={(event) =>
-                  setContentType(
-                    event.target.value,
-                  )
-                }
+                onChange={(event) => setContentType(event.target.value)}
                 disabled={loading}
                 className="mt-2 h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-sm text-gray-700 outline-none focus:border-gray-300 focus:bg-white"
               >
@@ -226,42 +212,67 @@ export default function LearningSectionFormModal({
               </select>
             </div>
 
-            {/* CONTENT */}
-            <div>
-              <label className="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                Content
-              </label>
-
-              <textarea
-                value={content}
-                onChange={(event) =>
-                  setContent(
-                    event.target.value,
-                  )
-                }
-                disabled={loading}
-                rows={8}
-                placeholder="Enter the learning section content..."
-                className="mt-2 w-full resize-none rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 py-3 text-sm leading-6 text-gray-700 outline-none placeholder:text-gray-400 focus:border-gray-300 focus:bg-white"
-              />
-            </div>
-
-            {/* MEDIA URL */}
-            {contentType !== "Text" && (
+            {/* TEXT CONTENT */}
+            {!isVideo && (
               <div>
                 <label className="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
-                  Media URL
+                  Content
+                </label>
+
+                <textarea
+                  value={content}
+                  onChange={(event) => setContent(event.target.value)}
+                  disabled={loading}
+                  required={contentType === "Text"}
+                  rows={8}
+                  placeholder={
+                    isImage
+                      ? "Enter an optional description for this image..."
+                      : "Enter the learning section content..."
+                  }
+                  className="mt-2 w-full resize-none rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 py-3 text-sm leading-6 text-gray-700 outline-none placeholder:text-gray-400 focus:border-gray-300 focus:bg-white"
+                />
+              </div>
+            )}
+
+            {/* VIDEO URL */}
+            {isVideo && (
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
+                  YouTube Video URL
                 </label>
 
                 <input
+                  type="url"
                   value={mediaUrl}
-                  onChange={(event) =>
-                    setMediaUrl(
-                      event.target.value,
-                    )
-                  }
+                  onChange={(event) => setMediaUrl(event.target.value)}
                   disabled={loading}
-                  placeholder="https://..."
+                  required
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  className="mt-2 h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-gray-300 focus:bg-white"
+                />
+
+                <p className="mt-2 text-xs leading-5 text-gray-500">
+                  Paste the YouTube video link here. Do not put the link in
+                  the Content field.
+                </p>
+              </div>
+            )}
+
+            {/* IMAGE URL */}
+            {isImage && (
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">
+                  Image URL
+                </label>
+
+                <input
+                  type="url"
+                  value={mediaUrl}
+                  onChange={(event) => setMediaUrl(event.target.value)}
+                  disabled={loading}
+                  required
+                  placeholder="https://example.com/image.jpg"
                   className="mt-2 h-11 w-full rounded-xl border border-[#e7e9ec] bg-[#f8f9fa] px-3 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-gray-300 focus:bg-white"
                 />
               </div>
@@ -282,10 +293,7 @@ export default function LearningSectionFormModal({
 
           <button
             type="submit"
-            disabled={
-              loading ||
-              !title.trim()
-            }
+            disabled={loading || !title.trim()}
             className="rounded-xl bg-[#191c1e] px-5 py-3 text-xs font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading

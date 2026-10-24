@@ -4,6 +4,12 @@ import React from "react";
 export interface NavbarProps {
   collapsed: boolean;
   setCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
+  // Mobile sidebar state
+  mobileOpen: boolean;
+
+  setMobileOpen: React.Dispatch<
+    React.SetStateAction<boolean>
+  >;
 }
 
 export interface NavbarCollapseProps {

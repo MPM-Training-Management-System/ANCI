@@ -51,7 +51,7 @@ export default function RootLayout() {
         />
       </Stack>
 
-    
+    <AuthGuard></AuthGuard>
 
       <StatusBar style="auto" />
     </ThemeProvider>

@@ -30,9 +30,6 @@ export interface LearningMaterialTableMeta {
 }
 
 
-// ============================================================
-// MATERIAL TYPE
-// ============================================================
 
 type MaterialType =
   | "PDF"
@@ -43,17 +40,23 @@ type MaterialType =
   | "Other";
 
 
-// ============================================================
-// COLUMNS
-// ============================================================
 
 export const columns: ColumnDef<LearningMaterial>[] = [
+  {
+  id: "rowNumber",
+  header: "No.",
+  enableSorting: false,
+  enableColumnFilter: false,
+  cell: ({ row, table }) => {
+    const { pageIndex, pageSize } = table.getState().pagination;
 
-  /*
-   * ============================================================
-   * LEARNING MATERIAL
-   * ============================================================
-   */
+    return (
+      <span className="text-sm font-medium text-gray-500">
+        {pageIndex * pageSize + row.index + 1}
+      </span>
+    );
+  },
+},
 
   {
     accessorKey: "title",

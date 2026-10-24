@@ -1,7 +1,9 @@
+
 using Microsoft.EntityFrameworkCore;
 using server.Data;
 using server.DTOs.Training;
 using server.Enums;
+using server.Interfaces;
 using server.Models.Training;
 using server.Services.Interfaces;
 
@@ -13,17 +15,33 @@ public class CertificateService : ICertificateService
     private readonly ITrainingGradeService _trainingGradeService;
     private readonly ICertificatePdfService _certificatePdfService;
     private readonly ICloudinaryService _cloudinaryService;
+    private readonly ICacheService _cache;
+
+    private const string CertificateCachePrefix = "certificates:";
+    private static readonly TimeSpan CacheDuration =
+        TimeSpan.FromMinutes(5);
 
     public CertificateService(
         ApplicationDbContext db,
         ITrainingGradeService trainingGradeService,
         ICertificatePdfService certificatePdfService,
-        ICloudinaryService cloudinaryService)
+        ICloudinaryService cloudinaryService,
+        ICacheService cache)
     {
         _db = db;
         _trainingGradeService = trainingGradeService;
         _certificatePdfService = certificatePdfService;
         _cloudinaryService = cloudinaryService;
+        _cache = cache;
+    }
+
+    // =========================================================
+    // CACHE HELPERS
+    // =========================================================
+
+    private void InvalidateCertificateCache()
+    {
+        _cache.RemoveByPrefix(CertificateCachePrefix);
     }
 
     // =========================================================
@@ -33,6 +51,17 @@ public class CertificateService : ICertificateService
     public async Task<IReadOnlyList<CertificateDto>>
         GetByEnrollmentAsync(Guid enrollmentId)
     {
+        var cacheKey =
+            $"{CertificateCachePrefix}enrollment:{enrollmentId}";
+
+        if (_cache.TryGet<List<CertificateDto>>(
+                cacheKey,
+                out var cachedCertificates) &&
+            cachedCertificates is not null)
+        {
+            return cachedCertificates;
+        }
+
         var certificates = await _db.Certificates
             .AsNoTracking()
             .Include(x => x.Enrollment)
@@ -46,9 +75,13 @@ public class CertificateService : ICertificateService
             .ThenBy(x => x.IssuedAt)
             .ToListAsync();
 
-        return certificates
+        var result = certificates
             .Select(MapToDto)
             .ToList();
+
+        _cache.Set(cacheKey, result, CacheDuration);
+
+        return result;
     }
 
     // =========================================================
@@ -58,6 +91,17 @@ public class CertificateService : ICertificateService
     public async Task<IReadOnlyList<CertificateDto>>
         GetAllAsync()
     {
+        const string cacheKey =
+            $"{CertificateCachePrefix}all";
+
+        if (_cache.TryGet<List<CertificateDto>>(
+                cacheKey,
+                out var cachedCertificates) &&
+            cachedCertificates is not null)
+        {
+            return cachedCertificates;
+        }
+
         var certificates = await _db.Certificates
             .AsNoTracking()
             .Include(x => x.Enrollment)
@@ -69,45 +113,59 @@ public class CertificateService : ICertificateService
             .OrderByDescending(x => x.IssuedAt)
             .ToListAsync();
 
-        return certificates
+        var result = certificates
             .Select(MapToDto)
             .ToList();
+
+        _cache.Set(cacheKey, result, CacheDuration);
+
+        return result;
     }
 
-    // =========================================================
-    // VERIFY CERTIFICATE
-    // =========================================================
+ 
 
     public async Task<CertificateDto?>
-        GetByVerificationCodeAsync(
-            string verificationCode)
+        GetByVerificationCodeAsync(string verificationCode)
     {
         if (string.IsNullOrWhiteSpace(verificationCode))
         {
             return null;
         }
 
-        var normalizedCode =
-            verificationCode.Trim();
+        var normalizedCode = verificationCode.Trim();
 
-        var certificate =
-            await _db.Certificates
-                .AsNoTracking()
-                .Include(x => x.Enrollment)
-                    .ThenInclude(x => x.ParticipantProfile)
-                        .ThenInclude(x => x.User)
-                .Include(x => x.Enrollment)
-                    .ThenInclude(x => x.TrainingBatch)
-                        .ThenInclude(x => x.TrainingProgram)
-                .FirstOrDefaultAsync(x =>
-                    x.VerificationCode == normalizedCode);
+        var cacheKey =
+            $"{CertificateCachePrefix}verification:{normalizedCode}";
+
+        if (_cache.TryGet<CertificateDto>(
+                cacheKey,
+                out var cachedCertificate) &&
+            cachedCertificate is not null)
+        {
+            return cachedCertificate;
+        }
+
+        var certificate = await _db.Certificates
+            .AsNoTracking()
+            .Include(x => x.Enrollment)
+                .ThenInclude(x => x.ParticipantProfile)
+                    .ThenInclude(x => x.User)
+            .Include(x => x.Enrollment)
+                .ThenInclude(x => x.TrainingBatch)
+                    .ThenInclude(x => x.TrainingProgram)
+            .FirstOrDefaultAsync(x =>
+                x.VerificationCode == normalizedCode);
 
         if (certificate is null)
         {
             return null;
         }
 
-        return MapToDto(certificate);
+        var result = MapToDto(certificate);
+
+        _cache.Set(cacheKey, result, CacheDuration);
+
+        return result;
     }
 
     // =========================================================
@@ -117,18 +175,14 @@ public class CertificateService : ICertificateService
     public async Task<IReadOnlyList<CertificateDto>>
         GenerateForEnrollmentAsync(Guid enrollmentId)
     {
-        // -----------------------------------------------------
-        // 1. Get enrollment + participant + batch + program
-        // -----------------------------------------------------
+        // 1. Get enrollment and related information.
 
-        var enrollment =
-            await _db.Enrollments
-                .Include(x => x.ParticipantProfile)
-                    .ThenInclude(x => x.User)
-                .Include(x => x.TrainingBatch)
-                    .ThenInclude(x => x.TrainingProgram)
-                .FirstOrDefaultAsync(x =>
-                    x.Id == enrollmentId);
+        var enrollment = await _db.Enrollments
+            .Include(x => x.ParticipantProfile)
+                .ThenInclude(x => x.User)
+            .Include(x => x.TrainingBatch)
+                .ThenInclude(x => x.TrainingProgram)
+            .FirstOrDefaultAsync(x => x.Id == enrollmentId);
 
         if (enrollment is null)
         {
@@ -136,9 +190,7 @@ public class CertificateService : ICertificateService
                 "Enrollment not found.");
         }
 
-        // -----------------------------------------------------
-        // 2. Enrollment must be approved
-        // -----------------------------------------------------
+        // 2. Enrollment must be approved.
 
         if (enrollment.Status != EnrollmentStatus.Approved)
         {
@@ -146,9 +198,7 @@ public class CertificateService : ICertificateService
                 "Certificates can only be generated for approved enrollments.");
         }
 
-        // -----------------------------------------------------
-        // 3. Validate related data
-        // -----------------------------------------------------
+        // 3. Validate related data.
 
         if (enrollment.ParticipantProfile is null)
         {
@@ -174,13 +224,10 @@ public class CertificateService : ICertificateService
                 "Training program was not found.");
         }
 
-        // -----------------------------------------------------
-        // 4. Get training grade
-        // -----------------------------------------------------
+        // 4. Get training grade.
 
-        var grade =
-            await _trainingGradeService
-                .GetByEnrollmentAsync(enrollmentId);
+        var grade = await _trainingGradeService
+            .GetByEnrollmentAsync(enrollmentId);
 
         if (grade is null)
         {
@@ -188,26 +235,16 @@ public class CertificateService : ICertificateService
                 "Training grade is not available yet.");
         }
 
-        // -----------------------------------------------------
-        // 5. Get actual training information
-        // -----------------------------------------------------
+        // 5. Get training information.
 
         var participantName =
-            enrollment
-                .ParticipantProfile
-                .User
-                .FullName;
+            enrollment.ParticipantProfile.User.FullName;
 
         var trainingName =
-            enrollment
-                .TrainingBatch
-                .TrainingProgram
-                .Name;
+            enrollment.TrainingBatch.TrainingProgram.Name;
 
         var batchCode =
-            enrollment
-                .TrainingBatch
-                .BatchCode;
+            enrollment.TrainingBatch.BatchCode;
 
         if (string.IsNullOrWhiteSpace(participantName))
         {
@@ -227,15 +264,11 @@ public class CertificateService : ICertificateService
                 "Training batch code is missing.");
         }
 
-        // -----------------------------------------------------
-        // 6. Check existing certificates
-        // -----------------------------------------------------
+        // 6. Get existing certificates.
 
-        var existingCertificates =
-            await _db.Certificates
-                .Where(x =>
-                    x.EnrollmentId == enrollmentId)
-                .ToListAsync();
+        var existingCertificates = await _db.Certificates
+            .Where(x => x.EnrollmentId == enrollmentId)
+            .ToListAsync();
 
         var participationCertificate =
             existingCertificates.FirstOrDefault(x =>
@@ -245,44 +278,31 @@ public class CertificateService : ICertificateService
             existingCertificates.FirstOrDefault(x =>
                 x.Type == CertificateType.Completion);
 
-        // -----------------------------------------------------
-        // 7. Always generate Participation Certificate
-        // -----------------------------------------------------
+        // 7. Generate participation certificate if missing.
 
         if (participationCertificate is null)
         {
-            participationCertificate =
-                new Certificate
-                {
-                    Id = Guid.NewGuid(),
+            participationCertificate = new Certificate
+            {
+                Id = Guid.NewGuid(),
+                EnrollmentId = enrollmentId,
+                CertificateNumber =
+                    await GenerateUniqueCertificateNumberAsync(),
+                Type = CertificateType.Participation,
+                IssuedAt = DateTime.UtcNow,
+                VerificationCode =
+                    await GenerateUniqueVerificationCodeAsync(),
+                IsRevoked = false
+            };
 
-                    EnrollmentId =
-                        enrollmentId,
-
-                    CertificateNumber =
-                        await GenerateUniqueCertificateNumberAsync(),
-
-                    Type =
-                        CertificateType.Participation,
-
-                    IssuedAt =
-                        DateTime.UtcNow,
-
-                    VerificationCode =
-                        await GenerateUniqueVerificationCodeAsync(),
-
-                    IsRevoked = false
-                };
-
-            _db.Certificates.Add(
-                participationCertificate);
+            _db.Certificates.Add(participationCertificate);
 
             await _db.SaveChangesAsync();
+
+            InvalidateCertificateCache();
         }
 
-        // -----------------------------------------------------
-        // 8. Generate Participation PDF → Cloudinary
-        // -----------------------------------------------------
+        // 8. Generate participation PDF if missing.
 
         if (string.IsNullOrWhiteSpace(
                 participationCertificate.PdfUrl))
@@ -294,47 +314,33 @@ public class CertificateService : ICertificateService
                 batchCode);
         }
 
-        // -----------------------------------------------------
-        // 9. Generate Completion Certificate
-        //    ONLY IF PASSED
-        // -----------------------------------------------------
+        // 9. Generate completion certificate only if passed.
 
         if (grade.IsPassed)
         {
             if (completionCertificate is null)
             {
-                completionCertificate =
-                    new Certificate
-                    {
-                        Id = Guid.NewGuid(),
+                completionCertificate = new Certificate
+                {
+                    Id = Guid.NewGuid(),
+                    EnrollmentId = enrollmentId,
+                    CertificateNumber =
+                        await GenerateUniqueCertificateNumberAsync(),
+                    Type = CertificateType.Completion,
+                    IssuedAt = DateTime.UtcNow,
+                    VerificationCode =
+                        await GenerateUniqueVerificationCodeAsync(),
+                    IsRevoked = false
+                };
 
-                        EnrollmentId =
-                            enrollmentId,
-
-                        CertificateNumber =
-                            await GenerateUniqueCertificateNumberAsync(),
-
-                        Type =
-                            CertificateType.Completion,
-
-                        IssuedAt =
-                            DateTime.UtcNow,
-
-                        VerificationCode =
-                            await GenerateUniqueVerificationCodeAsync(),
-
-                        IsRevoked = false
-                    };
-
-                _db.Certificates.Add(
-                    completionCertificate);
+                _db.Certificates.Add(completionCertificate);
 
                 await _db.SaveChangesAsync();
+
+                InvalidateCertificateCache();
             }
 
-            // -------------------------------------------------
-            // 10. Generate Completion PDF → Cloudinary
-            // -------------------------------------------------
+            // 10. Generate completion PDF if missing.
 
             if (string.IsNullOrWhiteSpace(
                     completionCertificate.PdfUrl))
@@ -347,86 +353,68 @@ public class CertificateService : ICertificateService
             }
         }
 
-        // -----------------------------------------------------
-        // 11. Return latest certificates
-        // -----------------------------------------------------
+        // 11. Return fresh certificate data.
+        // Invalidation has occurred after certificate writes.
 
-        return await GetByEnrollmentAsync(
-            enrollmentId);
+        return await GetByEnrollmentAsync(enrollmentId);
     }
 
     // =========================================================
-    // GENERATE PDF → CLOUDINARY
+    // GENERATE PDF AND UPLOAD TO CLOUDINARY
     // =========================================================
-private async Task GenerateCertificatePdfAsync(
-    Certificate certificate,
-    string participantName,
-    string trainingName,
-    string batchCode)
-{
-    // =====================================================
-    // 1. Generate PDF using QuestPDF
-    // =====================================================
 
-    await using var pdfStream =
-        await _certificatePdfService.GenerateAsync(
-            participantName,
-            trainingName,
-            batchCode,
-            certificate.CertificateNumber,
-            certificate.IssuedAt,
-            certificate.VerificationCode,
-            certificate.Type.ToString()
-        );
-
-    if (pdfStream is null)
+    private async Task GenerateCertificatePdfAsync(
+        Certificate certificate,
+        string participantName,
+        string trainingName,
+        string batchCode)
     {
-        throw new InvalidOperationException(
-            "Certificate PDF stream could not be generated."
-        );
-    }
+        await using var pdfStream =
+            await _certificatePdfService.GenerateAsync(
+                participantName,
+                trainingName,
+                batchCode,
+                certificate.CertificateNumber,
+                certificate.IssuedAt,
+                certificate.VerificationCode,
+                certificate.Type.ToString());
 
-    if (pdfStream.Length == 0)
-    {
-        throw new InvalidOperationException(
-            "Certificate PDF is empty."
-        );
-    }
+        if (pdfStream is null)
+        {
+            throw new InvalidOperationException(
+                "Certificate PDF stream could not be generated.");
+        }
 
-    pdfStream.Position = 0;
+        if (pdfStream.Length == 0)
+        {
+            throw new InvalidOperationException(
+                "Certificate PDF is empty.");
+        }
 
-    // =====================================================
-    // 2. Upload ONLY certificate PDF to Cloudinary
-    // =====================================================
+        pdfStream.Position = 0;
 
-    var fileName =
-        $"{certificate.CertificateNumber}.pdf";
+        var fileName =
+            $"{certificate.CertificateNumber}.pdf";
 
-    var uploadResult =
-        await _cloudinaryService
+        var uploadResult = await _cloudinaryService
             .UploadCertificatePdfAsync(
                 pdfStream,
                 fileName,
-                "anci/certificates"
-            );
+                "anci/certificates");
 
-    if (string.IsNullOrWhiteSpace(
-        uploadResult.Url))
-    {
-        throw new InvalidOperationException(
-            "Cloudinary did not return a certificate PDF URL."
-        );
+        if (string.IsNullOrWhiteSpace(uploadResult.Url))
+        {
+            throw new InvalidOperationException(
+                "Cloudinary did not return a certificate PDF URL.");
+        }
+
+        certificate.PdfUrl = uploadResult.Url;
+
+        await _db.SaveChangesAsync();
+
+        InvalidateCertificateCache();
     }
 
-    // =====================================================
-    // 3. Save Cloudinary URL
-    // =====================================================
-
-    certificate.PdfUrl =
-        uploadResult.Url;
-
-    await _db.SaveChangesAsync();
-}
     // =========================================================
     // GET ELIGIBLE CERTIFICATES
     // =========================================================
@@ -434,44 +422,45 @@ private async Task GenerateCertificatePdfAsync(
     public async Task<IReadOnlyList<EligibleCertificateDto>>
         GetEligibleAsync()
     {
-        var enrollments =
-            await _db.Enrollments
-                .AsNoTracking()
-                .Include(x => x.ParticipantProfile)
-                    .ThenInclude(x => x.User)
-                .Include(x => x.TrainingBatch)
-                    .ThenInclude(x => x.TrainingProgram)
-                .Where(x =>
-                    x.Status == EnrollmentStatus.Approved)
-                .OrderBy(x =>
-                    x.TrainingBatch.BatchCode)
-                .ThenBy(x =>
-                    x.ParticipantProfile.User.FullName)
-                .ToListAsync();
+        const string cacheKey =
+            $"{CertificateCachePrefix}eligible";
 
-        var result =
-            new List<EligibleCertificateDto>();
+        if (_cache.TryGet<List<EligibleCertificateDto>>(
+                cacheKey,
+                out var cachedEligible) &&
+            cachedEligible is not null)
+        {
+            return cachedEligible;
+        }
+
+        var enrollments = await _db.Enrollments
+            .AsNoTracking()
+            .Include(x => x.ParticipantProfile)
+                .ThenInclude(x => x.User)
+            .Include(x => x.TrainingBatch)
+                .ThenInclude(x => x.TrainingProgram)
+            .Where(x => x.Status == EnrollmentStatus.Approved)
+            .OrderBy(x => x.TrainingBatch.BatchCode)
+            .ThenBy(x => x.ParticipantProfile.User.FullName)
+            .ToListAsync();
+
+        var result = new List<EligibleCertificateDto>();
 
         foreach (var enrollment in enrollments)
         {
-            var grade =
-                await _trainingGradeService
-                    .GetByEnrollmentAsync(
-                        enrollment.Id);
+            var grade = await _trainingGradeService
+                .GetByEnrollmentAsync(enrollment.Id);
 
             if (grade is null)
             {
                 continue;
             }
 
-            var existingCertificates =
-                await _db.Certificates
-                    .AsNoTracking()
-                    .Where(x =>
-                        x.EnrollmentId ==
-                        enrollment.Id)
-                    .Select(x => x.Type)
-                    .ToListAsync();
+            var existingCertificates = await _db.Certificates
+                .AsNoTracking()
+                .Where(x => x.EnrollmentId == enrollment.Id)
+                .Select(x => x.Type)
+                .ToListAsync();
 
             var hasParticipation =
                 existingCertificates.Contains(
@@ -481,51 +470,35 @@ private async Task GenerateCertificatePdfAsync(
                 existingCertificates.Contains(
                     CertificateType.Completion);
 
-            result.Add(
-                new EligibleCertificateDto
-                {
-                    EnrollmentId =
-                        enrollment.Id,
+            result.Add(new EligibleCertificateDto
+            {
+                EnrollmentId = enrollment.Id,
+                TrainingBatchId = enrollment.TrainingBatchId,
 
-                    TrainingBatchId =
-                        enrollment.TrainingBatchId,
+                ParticipantName =
+                    enrollment.ParticipantProfile.User.FullName,
 
-                    ParticipantName =
-                        enrollment
-                            .ParticipantProfile
-                            .User
-                            .FullName,
+                TrainingName =
+                    enrollment.TrainingBatch.TrainingProgram.Name,
 
-                    TrainingName =
-                        enrollment
-                            .TrainingBatch
-                            .TrainingProgram
-                            .Name,
+                BatchCode =
+                    enrollment.TrainingBatch.BatchCode,
 
-                    BatchCode =
-                        enrollment
-                            .TrainingBatch
-                            .BatchCode,
+                OverallGrade = grade.OverallGrade,
+                IsPassed = grade.IsPassed,
 
-                    OverallGrade =
-                        grade.OverallGrade,
-
-                    IsPassed =
-                        grade.IsPassed,
-
-                    HasParticipationCertificate =
-                        hasParticipation,
-
-                    HasCompletionCertificate =
-                        hasCompletion
-                });
+                HasParticipationCertificate = hasParticipation,
+                HasCompletionCertificate = hasCompletion
+            });
         }
+
+        _cache.Set(cacheKey, result, CacheDuration);
 
         return result;
     }
 
     // =========================================================
-    // MAP ENTITY → DTO
+    // MAP ENTITY TO DTO
     // =========================================================
 
     private static CertificateDto MapToDto(
@@ -533,62 +506,40 @@ private async Task GenerateCertificatePdfAsync(
     {
         return new CertificateDto
         {
-            Id =
-                certificate.Id,
+            Id = certificate.Id,
+            EnrollmentId = certificate.EnrollmentId,
+            CertificateNumber = certificate.CertificateNumber,
+            Type = certificate.Type.ToString(),
+            IssuedAt = certificate.IssuedAt,
+            VerificationCode = certificate.VerificationCode,
+            PdfUrl = certificate.PdfUrl,
 
-            EnrollmentId =
-                certificate.EnrollmentId,
+            CanvaDesignId = certificate.CanvaDesignId,
 
-            CertificateNumber =
-                certificate.CertificateNumber,
-
-            Type =
-                certificate.Type.ToString(),
-
-            IssuedAt =
-                certificate.IssuedAt,
-
-            VerificationCode =
-                certificate.VerificationCode,
-
-            PdfUrl =
-                certificate.PdfUrl,
-
-            // Keep this for now because your current
-            // Certificate model still contains CanvaDesignId.
-            CanvaDesignId =
-                certificate.CanvaDesignId,
-
-            IsRevoked =
-                certificate.IsRevoked,
-
-            RevocationReason =
-                certificate.RevocationReason,
+            IsRevoked = certificate.IsRevoked,
+            RevocationReason = certificate.RevocationReason,
 
             ParticipantName =
-                certificate
-                    .Enrollment?
+                certificate.Enrollment?
                     .ParticipantProfile?
                     .User?
                     .FullName,
 
             TrainingName =
-                certificate
-                    .Enrollment?
+                certificate.Enrollment?
                     .TrainingBatch?
                     .TrainingProgram?
                     .Name,
 
             BatchCode =
-                certificate
-                    .Enrollment?
+                certificate.Enrollment?
                     .TrainingBatch?
                     .BatchCode
         };
     }
 
     // =========================================================
-    // CERTIFICATE NUMBER
+    // GENERATE UNIQUE CERTIFICATE NUMBER
     // =========================================================
 
     private async Task<string>
@@ -603,10 +554,8 @@ private async Task GenerateCertificatePdfAsync(
             var number =
                 $"ANCI-CERT-{DateTime.UtcNow:yyyy}-{RandomDigits(6)}";
 
-            var exists =
-                await _db.Certificates
-                    .AnyAsync(x =>
-                        x.CertificateNumber == number);
+            var exists = await _db.Certificates
+                .AnyAsync(x => x.CertificateNumber == number);
 
             if (!exists)
             {
@@ -619,7 +568,7 @@ private async Task GenerateCertificatePdfAsync(
     }
 
     // =========================================================
-    // VERIFICATION CODE
+    // GENERATE UNIQUE VERIFICATION CODE
     // =========================================================
 
     private async Task<string>
@@ -631,13 +580,10 @@ private async Task GenerateCertificatePdfAsync(
              attempt < maxAttempts;
              attempt++)
         {
-            var code =
-                $"ANCI-{RandomAlphaNumeric(8)}";
+            var code = $"ANCI-{RandomAlphaNumeric(8)}";
 
-            var exists =
-                await _db.Certificates
-                    .AnyAsync(x =>
-                        x.VerificationCode == code);
+            var exists = await _db.Certificates
+                .AnyAsync(x => x.VerificationCode == code);
 
             if (!exists)
             {
@@ -653,22 +599,14 @@ private async Task GenerateCertificatePdfAsync(
     // RANDOM DIGITS
     // =========================================================
 
-    private static string RandomDigits(
-        int length)
+    private static string RandomDigits(int length)
     {
-        var random =
-            Random.Shared;
+        var random = Random.Shared;
+        var chars = new char[length];
 
-        var chars =
-            new char[length];
-
-        for (var i = 0;
-             i < length;
-             i++)
+        for (var i = 0; i < length; i++)
         {
-            chars[i] =
-                (char)('0' +
-                    random.Next(0, 10));
+            chars[i] = (char)('0' + random.Next(0, 10));
         }
 
         return new string(chars);
@@ -678,38 +616,40 @@ private async Task GenerateCertificatePdfAsync(
     // RANDOM ALPHANUMERIC
     // =========================================================
 
-    private static string RandomAlphaNumeric(
-        int length)
+    private static string RandomAlphaNumeric(int length)
     {
         const string chars =
             "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-        var random =
-            Random.Shared;
+        var random = Random.Shared;
+        var result = new char[length];
 
-        var result =
-            new char[length];
-
-        for (var i = 0;
-             i < length;
-             i++)
+        for (var i = 0; i < length; i++)
         {
-            result[i] =
-                chars[
-                    random.Next(chars.Length)];
+            result[i] = chars[random.Next(chars.Length)];
         }
 
         return new string(result);
     }
 
-    
     // =========================================================
-    // GET CERTIFICATES FOR THE AUTHENTICATED PARTICIPANT
+    // GET CERTIFICATES FOR AUTHENTICATED PARTICIPANT
     // =========================================================
 
     public async Task<IReadOnlyList<CertificateDto>>
         GetMyCertificatesAsync(Guid userId)
     {
+        var cacheKey =
+            $"{CertificateCachePrefix}user:{userId}";
+
+        if (_cache.TryGet<List<CertificateDto>>(
+                cacheKey,
+                out var cachedCertificates) &&
+            cachedCertificates is not null)
+        {
+            return cachedCertificates;
+        }
+
         var certificates = await _db.Certificates
             .AsNoTracking()
             .Include(x => x.Enrollment)
@@ -723,9 +663,12 @@ private async Task GenerateCertificatePdfAsync(
             .OrderByDescending(x => x.IssuedAt)
             .ToListAsync();
 
-        return certificates
+        var result = certificates
             .Select(MapToDto)
             .ToList();
-    }
 
+        _cache.Set(cacheKey, result, CacheDuration);
+
+        return result;
+    }
 }

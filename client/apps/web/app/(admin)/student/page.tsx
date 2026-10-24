@@ -44,14 +44,9 @@ type GradeMap = Record<
   TrainingGrade
 >;
 
-/* -------------------------------------------------------------------------- */
-/*                                  Page                                      */
-/* -------------------------------------------------------------------------- */
 
 export default function StudentProgress() {
-  /* ------------------------------------------------------------------------ */
-  /*                              ENROLLMENTS                                 */
-  /* ------------------------------------------------------------------------ */
+
 
   const {
     trainerEnrollments,
@@ -61,9 +56,6 @@ export default function StudentProgress() {
     enrollmentApi,
   );
 
-  /* ------------------------------------------------------------------------ */
-  /*                              TRAINING GRADE                              */
-  /* ------------------------------------------------------------------------ */
 
   const {
     grade,
@@ -73,9 +65,7 @@ export default function StudentProgress() {
     apiClient,
   );
 
-  /* ------------------------------------------------------------------------ */
-  /*                                  STATE                                   */
-  /* ------------------------------------------------------------------------ */
+
 
   const [
     grades,
@@ -87,10 +77,7 @@ export default function StudentProgress() {
     setSelectedBatch,
   ] = useState("all");
 
-  /* ------------------------------------------------------------------------ */
-  /*                       LOAD TRAINER ENROLLMENTS                           */
-  /* ------------------------------------------------------------------------ */
-
+ 
   useEffect(() => {
     loadTrainerEnrollments().catch(() => {
       // Hook handles the error.
@@ -99,9 +86,6 @@ export default function StudentProgress() {
     loadTrainerEnrollments,
   ]);
 
-  /* ------------------------------------------------------------------------ */
-  /*                              LOAD GRADES                                 */
-  /* ------------------------------------------------------------------------ */
 
   useEffect(() => {
     if (
@@ -163,9 +147,6 @@ export default function StudentProgress() {
     loadGrade,
   ]);
 
-  /* ------------------------------------------------------------------------ */
-  /*                           CURRENT GRADE                                  */
-  /* ------------------------------------------------------------------------ */
 
   useEffect(() => {
     if (!grade) {
@@ -182,9 +163,7 @@ export default function StudentProgress() {
     grade,
   ]);
 
-  /* ------------------------------------------------------------------------ */
-  /*                            BATCH OPTIONS                                 */
-  /* ------------------------------------------------------------------------ */
+
 
   const batchOptions =
     useMemo(() => {
@@ -221,9 +200,6 @@ export default function StudentProgress() {
       grades,
     ]);
 
-  /* ------------------------------------------------------------------------ */
-  /*                           FILTERED GRADES                                */
-  /* ------------------------------------------------------------------------ */
 
   const filteredGrades =
     useMemo(() => {
@@ -244,9 +220,6 @@ export default function StudentProgress() {
       selectedBatch,
     ]);
 
-  /* ------------------------------------------------------------------------ */
-  /*                         DATATABLE DATA                                   */
-  /* ------------------------------------------------------------------------ */
 
   const tableData =
     useMemo(() => {
@@ -269,10 +242,6 @@ export default function StudentProgress() {
     }, [
       filteredGrades,
     ]);
-
-  /* ------------------------------------------------------------------------ */
-  /*                                  STATS                                   */
-  /* ------------------------------------------------------------------------ */
 
   const totalParticipants =
     filteredGrades.length;
@@ -334,9 +303,7 @@ export default function StudentProgress() {
         )
       : 0;
 
-  /* ------------------------------------------------------------------------ */
-  /*                                  LOADING                                 */
-  /* ------------------------------------------------------------------------ */
+
 
   const isLoading =
     enrollmentsLoading ||
@@ -344,25 +311,17 @@ export default function StudentProgress() {
       Object.keys(grades).length ===
         0);
 
-  /* ------------------------------------------------------------------------ */
-  /*                                  RENDER                                  */
-  /* ------------------------------------------------------------------------ */
 
   return (
     <div className="min-h-screen space-y-3 p-8">
 
-      {/* ------------------------------------------------------------------ */}
-      {/* PAGE HEADER                                                        */}
-      {/* ------------------------------------------------------------------ */}
 
       <PageSection
         title="Student Progress"
         description="Monitor participant progress, completion, and calculated grades."
       />
 
-      {/* ------------------------------------------------------------------ */}
-      {/* STATISTICS                                                         */}
-      {/* ------------------------------------------------------------------ */}
+
 
       <StatGrid>
 
@@ -486,9 +445,6 @@ export default function StudentProgress() {
           }
         />
 
-        {/* ---------------------------------------------------------------- */}
-        {/* GRADE FORMULA                                                    */}
-        {/* ---------------------------------------------------------------- */}
 
         <div className="mt-4 rounded-xl border border-gray-200 bg-white px-5 py-4">
 

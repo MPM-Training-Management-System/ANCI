@@ -24,9 +24,21 @@ export interface WrittenAssessmentTableMeta {
 }
 
 export const columns: ColumnDef<AdminWrittenAssessment>[] = [
-  // ============================================================
-  // ASSESSMENT
-  // ============================================================
+  {
+  id: "rowNumber",
+  header: "No.",
+  enableSorting: false,
+  enableColumnFilter: false,
+  cell: ({ row, table }) => {
+    const { pageIndex, pageSize } = table.getState().pagination;
+
+    return (
+      <span className="text-sm font-medium text-gray-500">
+        {pageIndex * pageSize + row.index + 1}
+      </span>
+    );
+  },
+},
   {
     accessorKey: "title",
     header: "Assessment",

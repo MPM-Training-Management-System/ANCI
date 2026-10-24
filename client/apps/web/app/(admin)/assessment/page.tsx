@@ -47,9 +47,6 @@ import {
 import {participationColumns} from "./participation-columns";
 import {practicalColumns} from "./practical-columns";
 
-/* =========================================================
-   HELPERS
-========================================================= */
 
 function formatDate(value?: string | null) {
   if (!value) {
@@ -1452,16 +1449,17 @@ function PracticalEvaluationModal({
 
             </div>
 
-            <button
+            <Button
+            variant="outline"
               type="button"
               onClick={onClose}
               disabled={
                 isSubmitting
               }
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50"
+             
             >
               <X className="h-5 w-5" />
-            </button>
+            </Button>
 
           </div>
 
@@ -1754,7 +1752,7 @@ function PracticalEvaluationModal({
                 Cancel
               </button>
 
-              <button
+              <Button
                 type="button"
                 onClick={() =>
                   void handleSubmit()
@@ -1762,7 +1760,7 @@ function PracticalEvaluationModal({
                 disabled={
                   isSubmitting
                 }
-                className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl"
               >
                 {isSubmitting ? (
                   <>
@@ -1775,7 +1773,7 @@ function PracticalEvaluationModal({
                     Submit Evaluation
                   </>
                 )}
-              </button>
+              </Button>
 
             </div>
 
@@ -2126,13 +2124,13 @@ function SubmissionDetailsModal({
 
             </div>
 
-            <button
+            <Button
+            variant="outline"
               type="button"
               onClick={onClose}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
-            >
+              >
               <X className="h-5 w-5" />
-            </button>
+            </Button>
 
           </div>
 
@@ -2316,13 +2314,13 @@ function SubmissionDetailsModal({
 
           <div className="flex shrink-0 justify-end border-t border-slate-200 px-5 py-4 sm:px-6">
 
-            <button
+            <Button
               type="button"
               onClick={onClose}
-              className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+              className="rounded-xl"
             >
               Close
-            </button>
+            </Button>
 
           </div>
 

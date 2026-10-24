@@ -26,6 +26,7 @@ interface PracticalColumnsMeta {
 }
 
 export const practicalColumns = [
+  
   {
     accessorKey: "title",
     header: "Title",

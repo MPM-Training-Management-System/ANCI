@@ -10,6 +10,7 @@ import React, {
 
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -17,7 +18,6 @@ import {
   Text,
   View,
 } from "react-native";
-
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 
@@ -52,9 +52,41 @@ type LearningFilter =
   | "videos"
   | "assessments";
 
-/* =========================================================
-   HELPERS
-========================================================= */
+type LearningVideo = {
+  id: string;
+  title: string;
+  moduleTitle: string;
+  content: string;
+  mediaUrl: string;
+};
+
+const getVideoUrl = (section: any): string => {
+  const mediaUrl = String(section?.mediaUrl ?? "").trim();
+  const content = String(section?.content ?? "").trim();
+
+  // Prefer MediaUrl, but support older sections
+  // where the URL may have been saved in Content.
+  if (mediaUrl) {
+    return mediaUrl;
+  }
+
+  return content;
+};
+
+const isVideoSection = (section: any): boolean => {
+  const contentType = String(
+    section?.contentType ?? "",
+  )
+    .trim()
+    .toLowerCase();
+
+  const url = getVideoUrl(section);
+
+  return (
+    contentType === "video" ||
+    /youtube\.com|youtu\.be/i.test(url)
+  );
+};
 
 const getAssessmentId = (assessment: any): string | null => {
   const id =
@@ -129,14 +161,14 @@ export default function LearningScreen() {
     error: enrollmentError,
   } = useEnrollments(enrollmentApi);
 
-  const {
-    learningMaterials,
-    modules,
-    loadLearningMaterials,
-    loadModules,
-    isLoading: isLoadingMaterials,
-  } = useLearningMaterials(learningMaterialApi);
-
+const {
+  learningMaterials,
+  modules,
+  loadLearningMaterials,
+  loadModules,
+  loadSections,
+  isLoading: isLoadingMaterials,
+} = useLearningMaterials(learningMaterialApi);
   const {
     progress,
     getMaterialProgress,
@@ -158,7 +190,11 @@ export default function LearningScreen() {
 
   const [isLoadingModules, setIsLoadingModules] =
     useState(false);
+const [learningVideos, setLearningVideos] =
+  useState<LearningVideo[]>([]);
 
+const [isLoadingVideos, setIsLoadingVideos] =
+  useState(false);
   const [areModulesCompleted, setAreModulesCompleted] =
     useState(false);
 
@@ -248,9 +284,83 @@ export default function LearningScreen() {
     [loadModules],
   );
 
-  /* =======================================================
-     CHECK MODULE COMPLETION
-  ======================================================= */
+/* =========================================================
+   LOAD VIDEOS FROM ALL MODULE SECTIONS
+========================================================= */
+
+const loadVideosFromModules = useCallback(
+  async (
+    loadedModules: any[],
+  ) => {
+    if (
+      !Array.isArray(loadedModules) ||
+      loadedModules.length === 0
+    ) {
+      setLearningVideos([]);
+      return;
+    }
+
+    setIsLoadingVideos(true);
+
+    try {
+      const sectionGroups = await Promise.all(
+        loadedModules.map(async (module: any) => {
+          if (!module?.id) {
+            return [];
+          }
+
+          const result = await loadSections(
+            String(module.id),
+          );
+
+          const sections = Array.isArray(result)
+            ? result
+            : Array.isArray((result as any)?.data)
+              ? (result as any).data
+              : [];
+
+          return sections
+            .filter((section: any) =>
+              isVideoSection(section),
+            )
+            .map((section: any): LearningVideo => ({
+              id: String(
+                section?.id ??
+                  `${module.id}-${section?.sectionNumber ?? section?.title}`,
+              ),
+              title:
+                section?.title ??
+                "Learning Video",
+              moduleTitle:
+                module?.title ??
+                module?.name ??
+                "Learning Module",
+              content: String(
+                section?.content ?? "",
+              ),
+              mediaUrl: getVideoUrl(section),
+            }));
+        }),
+      );
+
+      const videos = sectionGroups
+        .flat()
+        .filter((video) => video.mediaUrl.length > 0);
+
+      setLearningVideos(videos);
+    } catch (error) {
+      console.error(
+        "Failed to load learning videos:",
+        error,
+      );
+
+      setLearningVideos([]);
+    } finally {
+      setIsLoadingVideos(false);
+    }
+  },
+  [loadSections],
+);
 
   const checkModuleCompletion = useCallback(
     async (
@@ -469,14 +579,14 @@ export default function LearningScreen() {
         return;
       }
 
-      /* -----------------------------------------------
-         FETCH ADMIN-CREATED MODULES
-      ------------------------------------------------ */
+     
 
       const loadedModules =
         await loadCourseModules(
           String(material.id),
         );
+
+        await loadVideosFromModules(loadedModules);
 
       /* -----------------------------------------------
          CHECK MODULE PROGRESS
@@ -511,12 +621,13 @@ export default function LearningScreen() {
       setParticipantAssessments([]);
     }
   }, [
-    loadMyEnrollments,
-    loadLearningMaterials,
-    loadCourseModules,
-    checkModuleCompletion,
-    loadAssessments,
-  ]);
+  loadMyEnrollments,
+  loadLearningMaterials,
+  loadCourseModules,
+  loadVideosFromModules,
+  checkModuleCompletion,
+  loadAssessments,
+]);
 
   /* =======================================================
      INITIAL LOAD
@@ -619,9 +730,7 @@ export default function LearningScreen() {
           String(material.id),
         );
 
-      /* -----------------------------------------------
-         CHECK PROGRESS AGAIN
-      ------------------------------------------------ */
+await loadVideosFromModules(loadedModules);
 
       const allCompleted =
         await checkModuleCompletion(

@@ -6,7 +6,7 @@ import { NavbarProps } from "./navbar/types";
 
 import NavbarCollapse from "./navbar/NavbarCollapse";
 import NavbarTitle from "./navbar/NavbarTitle";
-import NavbarNotification from "./navbar/NavbarNotification";
+
 import NavbarProfile from "./navbar/NavbarProfile";
 
 export default function Navbar({
@@ -22,7 +22,7 @@ export default function Navbar({
         top-3
         left-3
         right-3
-        z-[90]
+        z-90
 
         flex
         h-16
@@ -162,11 +162,6 @@ export default function Navbar({
         "
       >
  
-
-        <NavbarNotification
-          notificationCount={3}
-          messageCount={1}
-        />
 
         <div
           className="

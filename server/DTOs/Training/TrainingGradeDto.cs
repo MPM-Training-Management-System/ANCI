@@ -8,6 +8,7 @@ public class TrainingGradeDto
 
     public string? Name { get; set; }
     public string? ParticipantName { get; set; }
+    public string? UserCode {get; set;}
     public string? ProfileImageUrl { get; set; }
     public decimal AttendancePercentage { get; set; }
     public decimal AttendanceWeight { get; set; } = 20m;
