@@ -1,0 +1,21 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "ACTIVITY3_GERENTE_RALPHJOED.json",
+    "version": "1.0.0",
+    "description": ""
+  },
+  "servers": [
+    {
+      "url": ""
+    }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "summary": "New Request",
+        "responses": {}
+      }
+    }
+  }
+}

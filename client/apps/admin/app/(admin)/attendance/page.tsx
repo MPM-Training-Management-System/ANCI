@@ -1,13 +1,6 @@
 "use client";
 
 import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-
-import {
   Button,
   DataTable,
   PageSection,
@@ -21,377 +14,57 @@ import type {
 } from "@repo/types";
 
 import {
-  attendanceApi,
-  trainingBatchApi,
-} from "@/lib/api";
-
-import {
   columns,
   type AdminAttendanceRecord,
 } from "./column";
-import { CircleCheck, CircleX, ClipboardCheck, Clock3, RotateCcw } from "lucide-react";
 
+import {
+  CircleCheck,
+  CircleX,
+  ClipboardCheck,
+  Clock3,
+  RotateCcw,
+} from "lucide-react";
 
-import { useAttendance } from "@repo/hooks";
+import { useAttendanceManagement } from "@/hooks/useAttendanceManagementl";
 
 export default function AttendanceManagementPage() {
 
-
   const {
-  reset,
-  isLoading
-} = useAttendance(attendanceApi);
-
-
-  const [batches, setBatches] =
-    useState<TrainingBatch[]>([]);
-
-  const [selectedBatchId, setSelectedBatchId] =
-    useState<string>("");
-
-
-  const [records, setRecords] =
-    useState<AttendanceRecordDto[]>([]);
-
-
-
-  const [search, setSearch] =
-    useState("");
-
-  const [isLoadingBatches, setIsLoadingBatches] =
-    useState(true);
-
-  const [isLoadingAttendance, setIsLoadingAttendance] =
-    useState(false);
-
-  const [error, setError] =
-    useState<string | null>(null);
-
-  const [successMessage, setSuccessMessage] =
-    useState<string | null>(null);
-
-
-
-  const [selectedRecord, setSelectedRecord] =
-    useState<AttendanceRecordDto | null>(null);
-
-  const [showDetails, setShowDetails] =
-    useState(false);
-
-
-  const selectedBatch = useMemo(() => {
-    return (
-      batches.find(
-        (batch) =>
-          batch.id === selectedBatchId,
-      ) ?? null
-    );
-  }, [
     batches,
     selectedBatchId,
-  ]);
+    setSelectedBatchId,
+    selectedBatch,
+
+    filteredRecords,
+    search,
+    setSearch,
+
+    isLoading,
+    isLoadingBatches,
+    isLoadingAttendance,
+
+    error,
+    setError,
+    successMessage,
+    setSuccessMessage,
+
+    selectedRecord,
+    showDetails,
+
+    totalRecords,
+    presentCount,
+    lateCount,
+    absentCount,
+
+    handleRefresh,
+    handleView,
+    closeDetails,
+    handleExport,
+  } = useAttendanceManagement();
 
 
 
-  const loadBatches = useCallback(
-    async () => {
-      try {
-        setIsLoadingBatches(true);
-        setError(null);
-
-        const result =
-          await trainingBatchApi.getAll();
-
-        setBatches(result);
-
-        if (
-          result.length > 0 &&
-          !selectedBatchId
-        ) {
-          setSelectedBatchId(
-            result[0].id,
-          );
-        }
-
-        if (
-          result.length === 0
-        ) {
-          setSelectedBatchId("");
-          setRecords([]);
-        }
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Unable to load training batches.",
-        );
-      } finally {
-        setIsLoadingBatches(false);
-      }
-    },
-    [selectedBatchId],
-  );
-
-
-
-  const loadAttendance = useCallback(
-    async (
-      batchId: string,
-    ) => {
-      if (!batchId) {
-        setRecords([]);
-        return;
-      }
-
-      try {
-        setIsLoadingAttendance(true);
-        setError(null);
-        setSuccessMessage(null);
-
-        const result =
-          await attendanceApi.getBatch(
-            batchId,
-          );
-
-        setRecords(result);
-      } catch (err) {
-        setRecords([]);
-
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Unable to load attendance records.",
-        );
-      } finally {
-        setIsLoadingAttendance(false);
-      }
-    },
-    [],
-  );
-
-  // ============================================================
-  // INITIAL LOAD
-  // ============================================================
-
-  useEffect(() => {
-    void loadBatches();
-  }, [loadBatches]);
-
-  // ============================================================
-  // LOAD ATTENDANCE WHEN BATCH CHANGES
-  // ============================================================
-
-  useEffect(() => {
-    if (!selectedBatchId) {
-      setRecords([]);
-      return;
-    }
-
-    void loadAttendance(
-      selectedBatchId,
-    );
-  }, [
-    selectedBatchId,
-    loadAttendance,
-  ]);
-
-
-
-  const handleRefresh =
-    useCallback(async () => {
-      setError(null);
-      setSuccessMessage(null);
-
-      if (selectedBatchId) {
-        await loadAttendance(
-          selectedBatchId,
-        );
-      }
-    }, [
-      selectedBatchId,
-      loadAttendance,
-    ]);
-
-  // ============================================================
-  // SEARCH
-  // ============================================================
-
-  const filteredRecords =
-    useMemo(() => {
-      const query =
-        search
-          .trim()
-          .toLowerCase();
-
-      if (!query) {
-        return records;
-      }
-
-      return records.filter(
-        (record) =>
-          record.participantName
-            .toLowerCase()
-            .includes(query) ||
-          record.status
-            .toLowerCase()
-            .includes(query) ||
-          record.method
-            .toLowerCase()
-            .includes(query) ||
-          record.id
-            .toLowerCase()
-            .includes(query),
-      );
-    }, [
-      records,
-      search,
-    ]);
-
-  // ============================================================
-  // STATISTICS
-  // ============================================================
-
-  const totalRecords =
-    records.length;
-
-  const presentCount =
-    records.filter(
-      (record) =>
-        record.status ===
-        "Present",
-    ).length;
-
-  const lateCount =
-    records.filter(
-      (record) =>
-        record.status ===
-        "Late",
-    ).length;
-
-  const absentCount =
-    records.filter(
-      (record) =>
-        record.status ===
-        "Absent",
-    ).length;
-
-  // ============================================================
-  // VIEW RECORD
-  // ============================================================
-
-  function handleView(
-    record: AttendanceRecordDto,
-  ) {
-    setSelectedRecord(record);
-    setShowDetails(true);
-  }
-
-  // ============================================================
-  // EXPORT
-  // ============================================================
-
-  function handleExport() {
-    if (
-      filteredRecords.length ===
-      0
-    ) {
-      setError(
-        "There are no attendance records to export.",
-      );
-
-      return;
-    }
-
-    const rows =
-      filteredRecords
-        .map(
-          (record) =>
-            [
-              record.id,
-              record.participantName,
-              formatDateTime(
-                record.timeIn,
-              ),
-              formatDateTime(
-                record.timeOut,
-              ),
-              record.status,
-              record.method ||
-                "—",
-            ]
-              .map(
-                (value) =>
-                  `"${String(
-                    value,
-                  ).replace(
-                    /"/g,
-                    '""',
-                  )}"`,
-              )
-              .join(","),
-        )
-        .join("\n");
-
-    const csv = [
-      "Attendance ID,Participant,Time In,Time Out,Status,Method",
-      rows,
-    ].join("\n");
-
-    const blob =
-      new Blob(
-        [csv],
-        {
-          type:
-            "text/csv;charset=utf-8;",
-        },
-      );
-
-    const url =
-      URL.createObjectURL(
-        blob,
-      );
-
-    const link =
-      document.createElement(
-        "a",
-      );
-
-    link.href = url;
-
-    const batchName =
-      selectedBatch
-        ? getBatchLabel(
-            selectedBatch,
-          )
-        : "attendance";
-
-    link.download =
-      `${sanitizeFileName(
-        batchName,
-      )}-attendance.csv`;
-
-    document.body.appendChild(
-      link,
-    );
-
-    link.click();
-
-    document.body.removeChild(
-      link,
-    );
-
-    URL.revokeObjectURL(
-      url,
-    );
-
-    setSuccessMessage(
-      "Attendance exported successfully.",
-    );
-  }
-
-  // ============================================================
-  // RENDER
-  // ============================================================
 
   return (
     <div className="space-y-6">
@@ -584,14 +257,7 @@ export default function AttendanceManagementPage() {
             batch={
               selectedBatch
             }
-            onClose={() => {
-              setShowDetails(
-                false,
-              );
-              setSelectedRecord(
-                null,
-              );
-            }}
+           onClose={closeDetails}
           />
         )}
     </div>

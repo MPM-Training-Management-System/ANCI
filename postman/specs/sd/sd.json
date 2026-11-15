@@ -1,0 +1,21 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "sd",
+    "version": "1.0.0",
+    "description": ""
+  },
+  "servers": [
+    {
+      "url": ""
+    }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "summary": "Updating Information",
+        "responses": {}
+      }
+    }
+  }
+}

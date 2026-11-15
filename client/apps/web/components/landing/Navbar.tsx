@@ -93,18 +93,13 @@ export default function Navbar() {
 
         {/* Desktop Actions */}
         <div className="hidden lg:flex items-center gap-3">
-          <Link
-            href="/login"
-            className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 transition hover:text-[#2563eb]"
-          >
-            Login
-          </Link>
+         
 
           <Link
-            href="/register"
-            className="rounded-lg bg-[#002b5c] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#0d2142] hover:shadow-lg"
+            href="/login"
+            className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#0d2142] hover:shadow-lg"
           >
-            Apply Now
+            Login
           </Link>
         </div>
 
@@ -139,20 +134,14 @@ export default function Navbar() {
             ))}
 
             <div className="mt-3 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4">
+             
+
               <Link
                 href="/login"
                 onClick={closeMenu}
-                className="rounded-lg border border-slate-200 px-4 py-3 text-center text-sm font-semibold text-slate-700"
+                className="rounded-lg bg-primary px-4 py-3 text-center text-sm font-semibold text-white"
               >
                 Login
-              </Link>
-
-              <Link
-                href="/register"
-                onClick={closeMenu}
-                className="rounded-lg bg-[#002b5c] px-4 py-3 text-center text-sm font-semibold text-white"
-              >
-                Apply Now
               </Link>
             </div>
           </nav>

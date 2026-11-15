@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "electron .",
     "start": "electron .",
-    "build": "electron-builder",
-    "build:win": "electron-builder --win"
+    "prepare:admin": "node scripts/prepare-admin.js",
+    "build": "pnpm --dir ../admin build && node scripts/prepare-admin.js && electron-builder",
+    "build:win": "pnpm --dir ../admin build && node scripts/prepare-admin.js && electron-builder --win"
   },
   "devDependencies": {
     "electron": "^43.4.0",
@@ -24,7 +25,14 @@
     },
     "files": [
       "src/**/*",
+      "assets/**/*",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/admin-server",
+        "to": "admin-server"
+      }
     ],
     "win": {
       "target": "nsis",
@@ -38,5 +46,8 @@
       "createStartMenuShortcut": true,
       "shortcutName": "ANCI"
     }
+  },
+  "dependencies": {
+    "@swc/helpers": "^0.5.23"
   }
 }

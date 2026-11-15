@@ -9,45 +9,29 @@ public interface ILearningMaterialService
 {
     // =========================================================
     // LEARNING MATERIALS
-    //
-    // ADMIN:
-    // - Create
-    // - Update
-    // - Delete
-    // - Upload main source file
-    // - Extract source file
-    // - Publish
-    //
-    // TRAINER:
-    // - View assigned learning material
-    //
-    // PARTICIPANT:
-    // - View published learning material
+    // ADMIN: Create, update, delete, upload, extract, publish
+    // TRAINER: View assigned learning materials
+    // PARTICIPANT: View published learning materials
     // =========================================================
 
     Task<IReadOnlyList<LearningMaterialDto>>
-        GetByBatchIdAsync(
-            Guid trainingBatchId);
+        GetByBatchIdAsync(Guid trainingBatchId);
 
     Task<LearningMaterialDto>
-        GetByIdAsync(
-            Guid id);
+        GetByIdAsync(Guid id);
 
     Task<LearningMaterialDto>
-        CreateAsync(
-            CreateLearningMaterialRequest request);
+        CreateAsync(CreateLearningMaterialRequest request);
 
     Task<LearningMaterialDto>
         UpdateAsync(
             Guid id,
             UpdateLearningMaterialRequest request);
 
-    Task DeleteAsync(
-        Guid id);
+    Task DeleteAsync(Guid id);
 
     Task<LearningMaterialDto>
-        PublishAsync(
-            Guid id);
+        PublishAsync(Guid id);
 
     Task<LearningMaterialDto>
         UploadFileAsync(
@@ -55,20 +39,16 @@ public interface ILearningMaterialService
             UploadLearningMaterialRequest request);
 
     Task<LearningMaterialExtractionDto>
-        ExtractTextAsync(
-            Guid id);
+        ExtractTextAsync(Guid id);
 
 
     // =========================================================
     // LEARNING MODULES
-    //
-    // TRAINER CREATES MODULES
-    // INSIDE THE ADMIN-CREATED LEARNING MATERIAL
+    // TRAINER: Create, update, view, delete modules
     // =========================================================
 
     Task<LearningModuleDto>
-        CreateModuleAsync(
-            CreateLearningModuleRequest request);
+        CreateModuleAsync(CreateLearningModuleRequest request);
 
     Task<LearningModuleDto>
         UpdateModuleAsync(
@@ -76,18 +56,14 @@ public interface ILearningMaterialService
             UpdateLearningModuleRequest request);
 
     Task<IReadOnlyList<LearningModuleDto>>
-        GetModulesAsync(
-            Guid learningMaterialId);
+        GetModulesAsync(Guid learningMaterialId);
 
-    Task DeleteModuleAsync(
-        Guid moduleId);
+    Task DeleteModuleAsync(Guid moduleId);
 
 
     // =========================================================
     // MODULE FILES
-    //
-    // TRAINER CAN ADD SUPPORTING FILES
-    // TO A SPECIFIC MODULE
+    // TRAINER: Upload and extract supporting files
     // =========================================================
 
     Task<LearningModuleFileDto>
@@ -96,36 +72,19 @@ public interface ILearningMaterialService
             IFormFile file);
 
     Task<LearningModuleFileExtractionDto>
-        ExtractModuleFileTextAsync(
-            Guid moduleFileId);
+        ExtractModuleFileTextAsync(Guid moduleFileId);
 
     Task<bool>
-        ExtractAllModuleFilesAsync(
-            Guid moduleId);
-
-
-    // =========================================================
-    // AI MODULE CONTENT
-    //
-    // TRAINER USES AI TO GENERATE LESSON CONTENT
-    // INSIDE AN EXISTING MODULE
-    // =========================================================
-
-    Task<LearningModuleDto>
-        GenerateModuleAiContentAsync(
-            Guid moduleId);
+        ExtractAllModuleFilesAsync(Guid moduleId);
 
 
     // =========================================================
     // LEARNING SECTIONS / LESSONS
-    //
-    // TRAINER CREATES LESSONS
-    // INSIDE A MODULE
+    // TRAINER: Create, update, view, delete lessons
     // =========================================================
 
     Task<LearningSectionDto>
-        CreateSectionAsync(
-            CreateLearningSectionRequest request);
+        CreateSectionAsync(CreateLearningSectionRequest request);
 
     Task<LearningSectionDto>
         UpdateSectionAsync(
@@ -133,9 +92,7 @@ public interface ILearningMaterialService
             UpdateLearningSectionRequest request);
 
     Task<IReadOnlyList<LearningSectionDto>>
-        GetSectionsAsync(
-            Guid moduleId);
+        GetSectionsAsync(Guid moduleId);
 
-    Task DeleteSectionAsync(
-        Guid sectionId);
+    Task DeleteSectionAsync(Guid sectionId);
 }

@@ -1,0 +1,9 @@
+$kind: http-request
+description: ""
+url: "{{baseUrl}}/"
+method: GET
+body:
+  type: text
+  content: ""
+settings: {}
+order: 1000

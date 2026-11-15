@@ -17,6 +17,6 @@
     "next-env.d.ts",
     "next.config.ts",
     ".next/types/**/*.ts"
-  ],
+, "app/(auth)/register/participant"  ],
   "exclude": ["node_modules"]
 }

@@ -1413,50 +1413,7 @@ export default function TrainerRegisterPage() {
       clientId={GOOGLE_CLIENT_ID}
     >
       <main className="min-h-screen bg-[#f7f9ff] text-[#0d2142]">
-        {/* ==================================================
-            HEADER
-        ================================================== */}
-
-        <header className="border-b border-slate-200 bg-white/90 backdrop-blur">
-          <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 sm:px-8">
-            <Link
-              href="/"
-              className="flex items-center gap-3"
-            >
-              <Image
-                src={Logo}
-                alt="ACE NextGen"
-                width={48}
-                height={48}
-                className="h-11 w-11 object-contain"
-              />
-
-              <div>
-                <p className="text-sm font-bold tracking-wide text-[#002b5c]">
-                  ACE NEXTGEN
-                </p>
-
-                <p className="text-[11px] text-[#3B7597]">
-                  Consultancy Inc.
-                </p>
-              </div>
-            </Link>
-
-            <Link
-              href="/login"
-              className="text-sm font-semibold text-[#3B7597] transition hover:text-[#002b5c]"
-            >
-              Already have an account?
-              <span className="ml-1 text-[#002b5c]">
-                Sign in
-              </span>
-            </Link>
-          </div>
-        </header>
-
-        {/* ==================================================
-            PAGE
-        ================================================== */}
+       
 
         <section className="px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
           <div className="mx-auto max-w-5xl">

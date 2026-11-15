@@ -1,6 +1,5 @@
-"use client";
 
-import { useMemo, useState } from "react";
+"use client";
 
 import {
   Check,
@@ -20,17 +19,16 @@ import {
   StatGrid,
 } from "@repo/ui/index";
 
-import { useTrainerApplications } from "@repo/hooks";
-
-import { trainerApplicationApi } from "@/lib/api";
-
 import { columns } from "./columns";
 import type { TrainerApplicationRow } from "./columns";
 
 import type { TrainerApplication } from "@repo/types";
 
 import ReviewModal from "./ReviewModal";
-import type { ReviewDecision } from "./ReviewModal";
+
+import {
+  useTrainerApplicationManagement,
+} from "@/hooks/TrainerApplicationHooks";
 
 // =============================================================
 // TRAINER APPLICATIONS PAGE
@@ -40,131 +38,29 @@ export default function TrainerApplicationsPage() {
   const {
     applications,
     selectedApplication,
-    setSelectedApplication,
     isLoading,
     isReviewing,
     error,
     loadApplications,
-    reviewApplication,
-  } = useTrainerApplications(trainerApplicationApi);
 
-  // ===========================================================
-  // MODAL STATE
-  // ===========================================================
+    remarks,
+    setRemarks,
+    isModalOpen,
+    selectedDecision,
+    setSelectedDecision,
+    openReview,
+    closeModal,
+    handleReview,
 
-  const [remarks, setRemarks] = useState("");
+    statusFilter,
+    setStatusFilter,
+    filteredApplications,
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const [selectedDecision, setSelectedDecision] =
-    useState<ReviewDecision>("Approved");
-
-  // ===========================================================
-  // FILTER STATE
-  // ===========================================================
-
-  const [statusFilter, setStatusFilter] = useState("All");
-
-  // ===========================================================
-  // OPEN REVIEW MODAL
-  // ===========================================================
-
-  const openReview = (
-    application: (typeof applications)[number],
-  ) => {
-    setSelectedApplication(application);
-
-    setRemarks(application.adminRemarks ?? "");
-
-    setSelectedDecision("Approved");
-
-    setIsModalOpen(true);
-  };
-
-  // ===========================================================
-  // CLOSE REVIEW MODAL
-  // ===========================================================
-
-  const closeModal = () => {
-    if (isReviewing) {
-      return;
-    }
-
-    setIsModalOpen(false);
-
-    setRemarks("");
-
-    setSelectedApplication(null);
-  };
-
-  // ===========================================================
-  // SUBMIT REVIEW
-  // ===========================================================
-
-  const handleReview = async () => {
-    if (!selectedApplication || isReviewing) {
-      return;
-    }
-
-    const success = await reviewApplication(
-      selectedApplication.id,
-      selectedDecision,
-      remarks.trim() || undefined,
-    );
-
-    if (success) {
-      setIsModalOpen(false);
-
-      setRemarks("");
-
-      setSelectedApplication(null);
-    }
-  };
-
-  // ===========================================================
-  // FILTER APPLICATIONS
-  // ===========================================================
-
-  const filteredApplications = useMemo(() => {
-    if (statusFilter === "All") {
-      return applications;
-    }
-
-    return applications.filter(
-      (application) =>
-        application.status.toLowerCase() ===
-        statusFilter.toLowerCase(),
-    );
-  }, [applications, statusFilter]);
-
-  // ===========================================================
-  // STATISTICS
-  // ===========================================================
-
-  const totalApplications = applications.length;
-
-  const pendingApplications = applications.filter(
-    (application) =>
-      application.status.toLowerCase() === "pending",
-  ).length;
-
-  const approvedApplications = applications.filter(
-    (application) =>
-      application.status.toLowerCase() === "approved",
-  ).length;
-
-  const needsReviewApplications = applications.filter(
-    (application) => {
-      const status = application.status
-        .toLowerCase()
-        .replace(/[\s_-]/g, "");
-
-      return (
-        status === "rejected" ||
-        status === "needscorrection"
-      );
-    },
-  ).length;
+    totalApplications,
+    pendingApplications,
+    approvedApplications,
+    needsReviewApplications,
+  } = useTrainerApplicationManagement();
 
   // ===========================================================
   // LOADING STATE
@@ -188,15 +84,13 @@ export default function TrainerApplicationsPage() {
 
   return (
     <div className="min-h-full lg:p-2">
-      {/* PAGE HEADER */}
-
       <PageSection
         title="Trainer Applications"
         description="Review trainer applications, verify submitted information, and manage application status."
         actions={
           <Button
             type="button"
-            onClick={loadApplications}
+            onClick={() => void loadApplications()}
             disabled={isLoading}
           >
             <RotateCcw
@@ -204,16 +98,13 @@ export default function TrainerApplicationsPage() {
                 isLoading ? "animate-spin" : ""
               }`}
             />
-
             Refresh
           </Button>
         }
       />
 
       <div className="mx-auto max-w-7xl space-y-6">
-        {/* =====================================================
-            STATISTICS
-        ===================================================== */}
+        {/* STATISTICS */}
 
         <StatGrid>
           <StatCard
@@ -249,9 +140,7 @@ export default function TrainerApplicationsPage() {
           />
         </StatGrid>
 
-        {/* =====================================================
-            ERROR MESSAGE
-        ===================================================== */}
+        {/* ERROR MESSAGE */}
 
         {error && (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
@@ -273,9 +162,7 @@ export default function TrainerApplicationsPage() {
           </div>
         )}
 
-        {/* =====================================================
-            APPLICATION TABLE
-        ===================================================== */}
+        {/* APPLICATION TABLE */}
 
         <DataTable
           columns={columns}
@@ -297,9 +184,7 @@ export default function TrainerApplicationsPage() {
           }
           meta={{
             onReview: (application: TrainerApplication) => {
-              openReview(
-                application as (typeof applications)[number],
-              );
+              openReview(application);
             },
           }}
           toolbar={
@@ -319,19 +204,12 @@ export default function TrainerApplicationsPage() {
                 aria-label="Filter trainer applications by status"
               >
                 <option value="All">All Status</option>
-
                 <option value="Pending">Pending</option>
-
-                <option value="UnderReview">
-                  Under Review
-                </option>
-
+                <option value="UnderReview">Under Review</option>
                 <option value="Approved">Approved</option>
-
                 <option value="NeedsCorrection">
                   Needs Correction
                 </option>
-
                 <option value="Rejected">Rejected</option>
               </select>
             </div>
@@ -339,9 +217,7 @@ export default function TrainerApplicationsPage() {
         />
       </div>
 
-      {/* =======================================================
-          SEPARATE REVIEW MODAL
-      ======================================================= */}
+      {/* REVIEW MODAL */}
 
       {isModalOpen && selectedApplication && (
         <ReviewModal

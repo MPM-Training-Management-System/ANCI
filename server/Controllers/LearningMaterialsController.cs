@@ -1,3 +1,4 @@
+
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,8 +11,7 @@ namespace server.Controllers;
 [ApiController]
 [Route("api/learning-materials")]
 [Authorize]
-public class LearningMaterialsController
-    : ControllerBase
+public class LearningMaterialsController : ControllerBase
 {
     private readonly ILearningMaterialService _service;
 
@@ -22,880 +22,552 @@ public class LearningMaterialsController
     }
 
     // =========================================================
-    // GET LEARNING MATERIALS BY TRAINING BATCH
-    //
-    // GET
-    // /api/learning-materials/batch/{batchId}
-    //
-    // ADMIN
-    // TRAINER
-    // PARTICIPANT
+    // LEARNING MATERIALS
     // =========================================================
+
+    // GET: api/learning-materials/batch/{batchId}
+    // ADMIN / TRAINER / PARTICIPANT
 
     [HttpGet("batch/{batchId:guid}")]
-    [Authorize(
-        Roles = "Admin,Trainer,Participant")]
-    public async Task<
-        ActionResult<
-            IReadOnlyList<LearningMaterialDto>>>
-        GetByBatch(
-            Guid batchId)
+    [Authorize(Roles = "Admin,Trainer,Participant")]
+    public async Task<IActionResult> GetByBatchId(Guid batchId)
     {
         try
         {
-            var result =
-                await _service.GetByBatchIdAsync(
-                    batchId);
+            var result = await _service.GetByBatchIdAsync(batchId);
 
             return Ok(result);
         }
         catch (KeyNotFoundException ex)
         {
-            return NotFound(new
-            {
-                message = ex.Message
-            });
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
         }
     }
 
-    // =========================================================
-    // GET LEARNING MATERIAL BY ID
-    //
-    // GET
-    // /api/learning-materials/{id}
-    // =========================================================
+    // GET: api/learning-materials/{id}
+    // ADMIN / TRAINER / PARTICIPANT
 
     [HttpGet("{id:guid}")]
-    [Authorize(
-        Roles = "Admin,Trainer,Participant")]
-    public async Task<
-        ActionResult<LearningMaterialDto>>
-        GetById(
-            Guid id)
+    [Authorize(Roles = "Admin,Trainer,Participant")]
+    public async Task<IActionResult> GetById(Guid id)
     {
         try
         {
-            var result =
-                await _service.GetByIdAsync(
-                    id);
+            var result = await _service.GetByIdAsync(id);
 
             return Ok(result);
         }
         catch (KeyNotFoundException ex)
         {
-            return NotFound(new
-            {
-                message = ex.Message
-            });
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
         }
     }
 
     // =========================================================
-    // CREATE LEARNING MATERIAL
-    //
-    // ADMIN ONLY
-    //
-    // POST
-    // /api/learning-materials
+    // ADMIN: CREATE / UPDATE / DELETE
     // =========================================================
+
+    // POST: api/learning-materials
 
     [HttpPost]
     [Authorize(Roles = "Admin")]
-    public async Task<
-        ActionResult<LearningMaterialDto>>
-        Create(
-            [FromBody]
-            CreateLearningMaterialRequest request)
+    public async Task<IActionResult> Create(
+        [FromBody] CreateLearningMaterialRequest request)
     {
         try
         {
-            var result =
-                await _service.CreateAsync(
-                    request);
+            var result = await _service.CreateAsync(request);
 
             return CreatedAtAction(
                 nameof(GetById),
-                new
-                {
-                    id = result.Id
-                },
+                new { id = result.Id },
                 result);
         }
         catch (KeyNotFoundException ex)
         {
-            return NotFound(new
-            {
-                message = ex.Message
-            });
+            return NotFound(new { message = ex.Message });
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
+            return BadRequest(new { message = ex.Message });
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
+            return BadRequest(new { message = ex.Message });
         }
     }
 
-    // =========================================================
-    // UPDATE LEARNING MATERIAL
-    //
-    // ADMIN ONLY
-    //
-    // PUT
-    // /api/learning-materials/{id}
-    // =========================================================
+    // PUT: api/learning-materials/{id}
 
     [HttpPut("{id:guid}")]
     [Authorize(Roles = "Admin")]
-    public async Task<
-        ActionResult<LearningMaterialDto>>
-        Update(
-            Guid id,
-            [FromBody]
-            UpdateLearningMaterialRequest request)
+    public async Task<IActionResult> Update(
+        Guid id,
+        [FromBody] UpdateLearningMaterialRequest request)
     {
         try
         {
-            var result =
-                await _service.UpdateAsync(
-                    id,
-                    request);
+            var result = await _service.UpdateAsync(id, request);
 
             return Ok(result);
         }
         catch (KeyNotFoundException ex)
         {
-            return NotFound(new
-            {
-                message = ex.Message
-            });
+            return NotFound(new { message = ex.Message });
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
+            return BadRequest(new { message = ex.Message });
         }
     }
 
-    // =========================================================
-    // DELETE LEARNING MATERIAL
-    //
-    // ADMIN ONLY
-    //
-    // DELETE
-    // /api/learning-materials/{id}
-    // =========================================================
+    // DELETE: api/learning-materials/{id}
 
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult>
-        Delete(
-            Guid id)
+    public async Task<IActionResult> Delete(Guid id)
     {
         try
         {
-            await _service.DeleteAsync(
-                id);
+            await _service.DeleteAsync(id);
 
-            return NoContent();
+            return Ok(new
+            {
+                message = "Learning material deleted successfully."
+            });
         }
         catch (KeyNotFoundException ex)
         {
-            return NotFound(new
-            {
-                message = ex.Message
-            });
+            return NotFound(new { message = ex.Message });
         }
     }
 
     // =========================================================
-    // PUBLISH LEARNING MATERIAL
-    //
-    // ADMIN ONLY
-    //
-    // PUT
-    // /api/learning-materials/{id}/publish
+    // ADMIN: PUBLISH
     // =========================================================
+
+    // PUT: api/learning-materials/{id}/publish
 
     [HttpPut("{id:guid}/publish")]
     [Authorize(Roles = "Admin")]
-    public async Task<
-        ActionResult<LearningMaterialDto>>
-        Publish(
-            Guid id)
+    public async Task<IActionResult> Publish(Guid id)
     {
         try
         {
-            var result =
-                await _service.PublishAsync(
-                    id);
+            var result = await _service.PublishAsync(id);
 
-            return Ok(result);
+            return Ok(new
+            {
+                message = "Learning material published successfully.",
+                data = result
+            });
         }
         catch (KeyNotFoundException ex)
         {
-            return NotFound(new
-            {
-                message = ex.Message
-            });
+            return NotFound(new { message = ex.Message });
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
+            return BadRequest(new { message = ex.Message });
         }
     }
 
     // =========================================================
-    // UPLOAD MAIN LEARNING MATERIAL
-    //
-    // ADMIN ONLY
-    //
-    // POST
-    // /api/learning-materials/{id}/upload
+    // ADMIN: UPLOAD MAIN SOURCE FILE
     // =========================================================
+
+    // POST: api/learning-materials/{id}/upload
 
     [HttpPost("{id:guid}/upload")]
     [Authorize(Roles = "Admin")]
     [Consumes("multipart/form-data")]
-    public async Task<
-        ActionResult<LearningMaterialDto>>
-        UploadFile(
-            Guid id,
-            [FromForm]
-            UploadLearningMaterialRequest request)
+    public async Task<IActionResult> UploadFile(
+        Guid id,
+        [FromForm] UploadLearningMaterialRequest request)
     {
         try
         {
-            if (request.File == null ||
-                request.File.Length == 0)
-            {
-                return BadRequest(new
-                {
-                    message =
-                        "A source file is required."
-                });
-            }
-
-            var result =
-                await _service.UploadFileAsync(
-                    id,
-                    request);
-
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new
-            {
-                message = ex.Message
-            });
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
-        }
-    }
-
-    // =========================================================
-    // EXTRACT MAIN LEARNING MATERIAL
-    //
-    // ADMIN ONLY
-    //
-    // POST
-    // /api/learning-materials/{id}/extract
-    // =========================================================
-
-    [HttpPost("{id:guid}/extract")]
-    [Authorize(Roles = "Admin")]
-    public async Task<
-        ActionResult<LearningMaterialExtractionDto>>
-        ExtractText(
-            Guid id)
-    {
-        try
-        {
-            var result =
-                await _service.ExtractTextAsync(
-                    id);
-
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new
-            {
-                message = ex.Message
-            });
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
-        }
-    }
-
-    // =========================================================
-    // CREATE MODULE
-    //
-    // TRAINER ONLY
-    //
-    // POST
-    // /api/learning-materials/modules
-    // =========================================================
-
-    [HttpPost("modules")]
-    [Authorize(Roles = "Trainer")]
-    public async Task<
-        ActionResult<LearningModuleDto>>
-        CreateModule(
-            [FromBody]
-            CreateLearningModuleRequest request)
-    {
-        try
-        {
-            var result =
-                await _service.CreateModuleAsync(
-                    request);
-
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new
-            {
-                message = ex.Message
-            });
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
-        }
-    }
-
-    // =========================================================
-    // GET MODULES
-    //
-    // ADMIN
-    // TRAINER
-    // PARTICIPANT
-    //
-    // GET
-    // /api/learning-materials/{id}/modules
-    // =========================================================
-
-    [HttpGet("{id:guid}/modules")]
-    [Authorize(
-        Roles = "Admin,Trainer,Participant")]
-    public async Task<
-        ActionResult<
-            IReadOnlyList<LearningModuleDto>>>
-        GetModules(
-            Guid id)
-    {
-        try
-        {
-            var result =
-                await _service.GetModulesAsync(
-                    id);
-
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new
-            {
-                message = ex.Message
-            });
-        }
-    }
-
-    // =========================================================
-    // UPDATE MODULE
-    //
-    // TRAINER ONLY
-    //
-    // PUT
-    // /api/learning-materials/modules/{moduleId}
-    // =========================================================
-
-    [HttpPut(
-        "modules/{moduleId:guid}")]
-    [Authorize(Roles = "Trainer")]
-    public async Task<
-        ActionResult<LearningModuleDto>>
-        UpdateModule(
-            Guid moduleId,
-            [FromBody]
-            UpdateLearningModuleRequest request)
-    {
-        try
-        {
-            var result =
-                await _service.UpdateModuleAsync(
-                    moduleId,
-                    request);
-
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new
-            {
-                message = ex.Message
-            });
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
-        }
-    }
-
-    // =========================================================
-    // DELETE MODULE
-    //
-    // TRAINER ONLY
-    // =========================================================
-
-    [HttpDelete(
-        "modules/{moduleId:guid}")]
-    [Authorize(Roles = "Trainer")]
-    public async Task<IActionResult>
-        DeleteModule(
-            Guid moduleId)
-    {
-        try
-        {
-            await _service.DeleteModuleAsync(
-                moduleId);
-
-            return NoContent();
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new
-            {
-                message = ex.Message
-            });
-        }
-    }
-
-    // =========================================================
-    // UPLOAD MODULE FILE
-    //
-    // TRAINER ONLY
-    //
-    // POST
-    // /api/learning-materials/modules/{moduleId}/files
-    // =========================================================
-
-    [HttpPost(
-        "modules/{moduleId:guid}/files")]
-    [Authorize(Roles = "Trainer")]
-    [Consumes("multipart/form-data")]
-    public async Task<
-        ActionResult<LearningModuleFileDto>>
-        UploadModuleFile(
-            Guid moduleId,
-            [FromForm]
-            UploadLearningModuleRequest request)
-    {
-        try
-        {
-            if (request.File == null ||
-                request.File.Length == 0)
-            {
-                return BadRequest(new
-                {
-                    message =
-                        "A module file is required."
-                });
-            }
-
-            var result =
-                await _service.UploadModuleFileAsync(
-                    moduleId,
-                    request.File);
-
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new
-            {
-                message = ex.Message
-            });
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
-        }
-    }
-
-    // =========================================================
-    // EXTRACT MODULE FILE
-    // =========================================================
-
-    [HttpPost(
-        "modules/{moduleId:guid}/files/{fileId:guid}/extract")]
-    [Authorize(Roles = "Trainer")]
-    public async Task<
-        ActionResult<LearningModuleFileExtractionDto>>
-        ExtractModuleFileText(
-            Guid moduleId,
-            Guid fileId)
-    {
-        try
-        {
-            var result =
-                await _service.ExtractModuleFileTextAsync(
-                    fileId);
-
-            if (result.LearningModuleId !=
-                moduleId)
-            {
-                return BadRequest(new
-                {
-                    message =
-                        "The module file does not belong to the specified module."
-                });
-            }
-
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new
-            {
-                message = ex.Message
-            });
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
-        }
-    }
-
-    // =========================================================
-    // EXTRACT ALL MODULE FILES
-    // =========================================================
-
-    [HttpPost(
-        "modules/{moduleId:guid}/extract")]
-    [Authorize(Roles = "Trainer")]
-    public async Task<IActionResult>
-        ExtractAllModuleFiles(
-            Guid moduleId)
-    {
-        try
-        {
-            var result =
-                await _service.ExtractAllModuleFilesAsync(
-                    moduleId);
+            var result = await _service.UploadFileAsync(id, request);
 
             return Ok(new
             {
-                success = result,
-
-                message = result
-                    ? "All module files were extracted successfully."
-                    : "No module files were available."
+                message = "Learning material file uploaded successfully.",
+                data = result
             });
         }
         catch (KeyNotFoundException ex)
         {
-            return NotFound(new
-            {
-                message = ex.Message
-            });
+            return NotFound(new { message = ex.Message });
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    // =========================================================
+    // ADMIN: EXTRACT MAIN SOURCE FILE
+    // =========================================================
+
+    // POST: api/learning-materials/{id}/extract
+
+    [HttpPost("{id:guid}/extract")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> ExtractText(Guid id)
+    {
+        try
+        {
+            var result = await _service.ExtractTextAsync(id);
+
+            return Ok(new
             {
-                message = ex.Message
+                message = "Learning material text extracted successfully.",
+                data = result
             });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (HttpRequestException ex)
+        {
+            return StatusCode(502, new
             {
-                message = ex.Message
+                message = "Unable to retrieve the source file.",
+                error = ex.Message
             });
         }
     }
 
     // =========================================================
-    // GENERATE AI MODULE CONTENT
-    //
-    // TRAINER ONLY
-    //
-    // AI generates lessons inside the existing module.
+    // TRAINER: MODULES
     // =========================================================
 
-    [HttpPost(
-        "modules/{moduleId:guid}/generate-ai")]
+    // POST: api/learning-materials/modules
+
+    [HttpPost("modules")]
     [Authorize(Roles = "Trainer")]
-    public async Task<
-        ActionResult<LearningModuleDto>>
-        GenerateModuleAiContent(
-            Guid moduleId)
+    public async Task<IActionResult> CreateModule(
+        [FromBody] CreateLearningModuleRequest request)
     {
         try
         {
-            var result =
-                await _service
-                    .GenerateModuleAiContentAsync(
-                        moduleId);
+            var result = await _service.CreateModuleAsync(request);
+
+            return Ok(new
+            {
+                message = "Learning module created successfully.",
+                data = result
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    // PUT: api/learning-materials/modules/{moduleId}
+
+    [HttpPut("modules/{moduleId:guid}")]
+    [Authorize(Roles = "Trainer")]
+    public async Task<IActionResult> UpdateModule(
+        Guid moduleId,
+        [FromBody] UpdateLearningModuleRequest request)
+    {
+        try
+        {
+            var result = await _service.UpdateModuleAsync(
+                moduleId,
+                request);
+
+            return Ok(new
+            {
+                message = "Learning module updated successfully.",
+                data = result
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    // GET: api/learning-materials/{learningMaterialId}/modules
+
+    [HttpGet("{learningMaterialId:guid}/modules")]
+    [Authorize(Roles = "Admin,Trainer,Participant")]
+    public async Task<IActionResult> GetModules(
+        Guid learningMaterialId)
+    {
+        try
+        {
+            var result = await _service.GetModulesAsync(
+                learningMaterialId);
 
             return Ok(result);
         }
         catch (KeyNotFoundException ex)
         {
-            return NotFound(new
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    // DELETE: api/learning-materials/modules/{moduleId}
+
+    [HttpDelete("modules/{moduleId:guid}")]
+    [Authorize(Roles = "Trainer")]
+    public async Task<IActionResult> DeleteModule(Guid moduleId)
+    {
+        try
+        {
+            await _service.DeleteModuleAsync(moduleId);
+
+            return Ok(new
             {
-                message = ex.Message
+                message = "Learning module deleted successfully."
             });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    // =========================================================
+    // TRAINER: MODULE SUPPORTING FILES
+    // =========================================================
+
+    // POST: api/learning-materials/modules/{moduleId}/files
+
+    [HttpPost("modules/{moduleId:guid}/files")]
+    [Authorize(Roles = "Trainer")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadModuleFile(
+        Guid moduleId,
+        IFormFile file)
+    {
+        try
+        {
+            var result = await _service.UploadModuleFileAsync(
+                moduleId,
+                file);
+
+            return Ok(new
+            {
+                message = "Module supporting file uploaded successfully.",
+                data = result
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    // POST: api/learning-materials/module-files/{moduleFileId}/extract
+
+    [HttpPost("module-files/{moduleFileId:guid}/extract")]
+    [Authorize(Roles = "Trainer")]
+    public async Task<IActionResult> ExtractModuleFileText(
+        Guid moduleFileId)
+    {
+        try
+        {
+            var result = await _service.ExtractModuleFileTextAsync(
+                moduleFileId);
+
+            return Ok(new
             {
-                message = ex.Message
+                message = "Module file text extracted successfully.",
+                data = result
             });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (HttpRequestException ex)
+        {
+            return StatusCode(502, new
             {
-                message = ex.Message
+                message = "Unable to retrieve the module file.",
+                error = ex.Message
+            });
+        }
+    }
+
+    // POST: api/learning-materials/modules/{moduleId}/extract-all
+
+    [HttpPost("modules/{moduleId:guid}/extract-all")]
+    [Authorize(Roles = "Trainer")]
+    public async Task<IActionResult> ExtractAllModuleFiles(
+        Guid moduleId)
+    {
+        try
+        {
+            var result = await _service.ExtractAllModuleFilesAsync(
+                moduleId);
+
+            if (!result)
+            {
+                return NotFound(new
+                {
+                    message = "No supporting files were found in this module."
+                });
+            }
+
+            return Ok(new
+            {
+                message = "All module files were extracted successfully."
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (HttpRequestException ex)
+        {
+            return StatusCode(502, new
+            {
+                message = "Unable to retrieve one or more module files.",
+                error = ex.Message
             });
         }
     }
 
     // =========================================================
-    // CREATE LESSON / SECTION
-    //
-    // TRAINER ONLY
-    //
-    // POST
-    // /api/learning-materials/sections
+    // TRAINER: LESSONS / SECTIONS
     // =========================================================
+
+    // POST: api/learning-materials/sections
 
     [HttpPost("sections")]
     [Authorize(Roles = "Trainer")]
-    public async Task<
-        ActionResult<LearningSectionDto>>
-        CreateSection(
-            [FromBody]
-            CreateLearningSectionRequest request)
+    public async Task<IActionResult> CreateSection(
+        [FromBody] CreateLearningSectionRequest request)
     {
         try
         {
-            var result =
-                await _service.CreateSectionAsync(
-                    request);
+            var result = await _service.CreateSectionAsync(request);
 
-            return Ok(result);
+            return Ok(new
+            {
+                message = "Lesson created successfully.",
+                data = result
+            });
         }
         catch (KeyNotFoundException ex)
         {
-            return NotFound(new
-            {
-                message = ex.Message
-            });
+            return NotFound(new { message = ex.Message });
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
+            return BadRequest(new { message = ex.Message });
         }
     }
 
-    // =========================================================
-    // GET LESSONS
-    //
-    // GET
-    // /api/learning-materials/modules/{moduleId}/sections
-    // =========================================================
+    // PUT: api/learning-materials/sections/{sectionId}
 
-    [HttpGet(
-        "modules/{moduleId:guid}/sections")]
-    [Authorize(
-        Roles = "Admin,Trainer,Participant")]
-    public async Task<
-        ActionResult<
-            IReadOnlyList<LearningSectionDto>>>
-        GetSections(
-            Guid moduleId)
-    {
-        try
-        {
-            var result =
-                await _service.GetSectionsAsync(
-                    moduleId);
-
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new
-            {
-                message = ex.Message
-            });
-        }
-    }
-
-    // =========================================================
-    // UPDATE LESSON
-    // =========================================================
-
-    [HttpPut(
-        "sections/{sectionId:guid}")]
+    [HttpPut("sections/{sectionId:guid}")]
     [Authorize(Roles = "Trainer")]
-    public async Task<
-        ActionResult<LearningSectionDto>>
-        UpdateSection(
-            Guid sectionId,
-            [FromBody]
-            UpdateLearningSectionRequest request)
+    public async Task<IActionResult> UpdateSection(
+        Guid sectionId,
+        [FromBody] UpdateLearningSectionRequest request)
     {
         try
         {
-            var result =
-                await _service.UpdateSectionAsync(
-                    sectionId,
-                    request);
+            var result = await _service.UpdateSectionAsync(
+                sectionId,
+                request);
 
-            return Ok(result);
+            return Ok(new
+            {
+                message = "Lesson updated successfully.",
+                data = result
+            });
         }
         catch (KeyNotFoundException ex)
         {
-            return NotFound(new
-            {
-                message = ex.Message
-            });
+            return NotFound(new { message = ex.Message });
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
+            return BadRequest(new { message = ex.Message });
         }
     }
 
-    // =========================================================
-    // DELETE LESSON
-    // =========================================================
+    // GET: api/learning-materials/modules/{moduleId}/sections
 
-    [HttpDelete(
-        "sections/{sectionId:guid}")]
-    [Authorize(Roles = "Trainer")]
-    public async Task<IActionResult>
-        DeleteSection(
-            Guid sectionId)
+    [HttpGet("modules/{moduleId:guid}/sections")]
+    [Authorize(Roles = "Admin,Trainer,Participant")]
+    public async Task<IActionResult> GetSections(Guid moduleId)
     {
         try
         {
-            await _service.DeleteSectionAsync(
-                sectionId);
+            var result = await _service.GetSectionsAsync(moduleId);
 
-            return NoContent();
+            return Ok(result);
         }
         catch (KeyNotFoundException ex)
         {
-            return NotFound(new
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    // DELETE: api/learning-materials/sections/{sectionId}
+
+    [HttpDelete("sections/{sectionId:guid}")]
+    [Authorize(Roles = "Trainer")]
+    public async Task<IActionResult> DeleteSection(Guid sectionId)
+    {
+        try
+        {
+            await _service.DeleteSectionAsync(sectionId);
+
+            return Ok(new
             {
-                message = ex.Message
+                message = "Lesson deleted successfully."
             });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
         }
     }
 }
