@@ -22,3 +22,4 @@ export * from './icon-wrapper';
 export * from './empty-action-card';
 export * from './program-card';
 export * from "./PageSkeleton";
+export * from "./PageSectionHeader";

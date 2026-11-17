@@ -28,6 +28,7 @@ import {
   DataTable,
   StatCard,
   StatGrid,
+  PageSectionHeader,
 } from "@repo/ui/index";
 
 import { columns } from "./columns";
@@ -920,123 +921,51 @@ const attendanceRate =
       {/* DASHBOARD HEADER */}
       
 
-      <section className="relative isolate overflow-hidden rounded-[26px] bg-gradient-to-br from-[#071a35] via-[#103967] to-[#17619a] px-6 py-7 text-white shadow-[0_16px_40px_rgba(9,42,80,0.18)] sm:px-8 sm:py-9">
-        <div className="pointer-events-none absolute -right-16 -top-28 h-80 w-80 rounded-full border-[38px] border-white/[0.045]" />
-        <div className="pointer-events-none absolute -bottom-40 right-36 h-80 w-80 rounded-full border-[1px] border-white/[0.09]" />
-        <div className="pointer-events-none absolute right-20 top-10 h-40 w-40 rounded-full bg-cyan-300/[0.08] blur-3xl" />
+      <PageSectionHeader
+  title="Attendance Management"
+  description="Monitor participant attendance, manage training sessions, and record Time In and Time Out."
+  badge="Trainer Workspace"
+  stats={[
+    {
+      label: "Assigned Batch",
+      value: selectedBatch?.batchCode ?? "No batch",
+    },
+    {
+      label: "Participants",
+      value: `${selectedBatch?.enrolledCount ?? 0} Enrolled`,
+    },
+  ]}
+  actions={
+  <><button
+        type="button"
+        onClick={() => void handleRefresh()}
+        disabled={isLoadingAttendance || isCheckingSession}
+        className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-3 text-[10px] font-bold text-white backdrop-blur transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <RefreshIcon />
+        Refresh
+      </button>
+       <button
+        type="button"
+        onClick={openCameraModal}
+        disabled={!openSessionId || isCheckingSession}
+        className="group inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-[#5cc7e6] to-[#3c9fd0] px-3.5 text-[11px] font-extrabold text-[#082541] shadow-md shadow-black/10 transition duration-200 hover:-translate-y-0.5 hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+      >
+        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-white/25 transition group-hover:bg-white/40">
+          <CameraIcon />
+        </span>
+        <span className="text-left">
+          <span className="block">Open QR Scanner</span>
+          <span className="mt-0.5 block text-[8px] font-semibold text-[#103b5b]/70">
+            Scan participant attendance
+          </span>
+        </span>
+      </button>
+      </>
+}
+/>
 
-        <div className="relative z-10 flex flex-col justify-between gap-7 lg:flex-row lg:items-end">
-          <div className="max-w-2xl">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.09] px-3 py-1.5 backdrop-blur">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-cyan-300" />
-              <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-blue-100">
-                Trainer Workspace
-              </span>
-            </div>
 
-            <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl lg:text-[34px]">
-              Attendance Management
-            </h1>
-
-            <p className="mt-3 max-w-xl text-sm leading-6 text-blue-100/75">
-              Monitor participant attendance, manage training sessions,
-              and record Time In and Time Out through QR scanning.
-            </p>
-
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.08] px-3 py-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10">
-                  <BatchIcon className="!h-4 !w-4 text-cyan-200" />
-                </div>
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider text-blue-200/70">
-                    Assigned Batch
-                  </p>
-                  <p className="mt-0.5 text-xs font-bold text-white">
-                    {selectedBatch?.batchCode ?? "No batch"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.08] px-3 py-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10">
-                  <UsersIcon className="!h-4 !w-4 text-cyan-200" />
-                </div>
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider text-blue-200/70">
-                    Participants
-                  </p>
-                  <p className="mt-0.5 text-xs font-bold text-white">
-                    {selectedBatch?.enrolledCount ?? 0} Enrolled
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-        <div className="flex shrink-0 flex-wrap items-center gap-2 lg:justify-end">
-  {/* QR SCANNER BUTTON */}
-  <button
-  type="button"
-  onClick={() => setIsSummaryModalOpen(true)}
-  className="group inline-flex h-12 items-center justify-center gap-2.5 rounded-xl border border-white/20 bg-white/10 px-4 text-xs font-extrabold text-white backdrop-blur transition duration-200 hover:-translate-y-0.5 hover:bg-white/20"
->
-  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-cyan-200 transition group-hover:bg-white/20">
-    <ChartIcon />
-  </span>
-
-  <span className="text-left">
-    <span className="block">Attendance Summary</span>
-    <span className="mt-0.5 block text-[9px] font-medium text-blue-100/60">
-      View performance overview
-    </span>
-  </span>
-</button>
-  <button
-    type="button"
-    onClick={openCameraModal}
-    disabled={!openSessionId || isCheckingSession}
-    className="group inline-flex h-12 items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-[#5cc7e6] to-[#3c9fd0] px-5 text-xs font-extrabold text-[#082541] shadow-lg shadow-black/10 transition duration-200 hover:-translate-y-0.5 hover:brightness-105 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
-  >
-    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/25 transition group-hover:bg-white/40">
-      <CameraIcon />
-    </span>
-
-    <span className="text-left">
-      <span className="block">Open QR Scanner</span>
-      <span className="mt-0.5 block text-[9px] font-semibold text-[#103b5b]/70">
-        Scan participant attendance
-      </span>
-    </span>
-  </button>
-
-  {/* REFRESH BUTTON */}
-  <button
-    type="button"
-    onClick={() => void handleRefresh()}
-    disabled={isLoadingAttendance || isCheckingSession}
-    className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 text-xs font-bold text-white backdrop-blur transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
-  >
-    <RefreshIcon />
-    Refresh Data
-  </button>
-
-  {/* SESSION STATUS */}
-  <div className="flex h-12 items-center gap-2 rounded-xl border border-white/10 bg-black/10 px-4">
-    <span
-      className={`h-2 w-2 rounded-full ${
-        openSessionId
-          ? "animate-pulse bg-emerald-400"
-          : "bg-white/40"
-      }`}
-    />
-    <span className="text-xs font-bold">
-      {openSessionId ? "Session Active" : "Session Inactive"}
-    </span>
-  </div>
-</div>
-        </div>
-      </section>
 
       {/* NOTIFICATIONS */}
 

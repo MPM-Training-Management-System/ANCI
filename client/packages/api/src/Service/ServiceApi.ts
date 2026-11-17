@@ -267,9 +267,15 @@ async reviewRequest(
     },
   );
 }
+
+
 async completeRequest(id: string): Promise<ServiceRequest> {
   return this.api.request<ServiceRequest>(
-    `/services/requests/${id}/complete`,
+    `/api/services/requests/${id}/complete`,
+    {
+      method: "PATCH",
+    },
   );
 }
+
 }
