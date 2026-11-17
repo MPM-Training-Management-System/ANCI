@@ -320,6 +320,7 @@ export default function ServicesPage() {
           "
         >
           <StatCard
+          
             title="Total Services"
             value="—"
             description="Loading services..."

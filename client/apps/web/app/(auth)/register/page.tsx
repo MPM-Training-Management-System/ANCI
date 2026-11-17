@@ -1,8 +1,10 @@
+
 "use client";
 
 import {
   ChangeEvent,
   FormEvent,
+  Suspense,
   useEffect,
   useRef,
   useState,
@@ -161,40 +163,35 @@ const steps = [
   {
     number: 1,
     title: "Personal Information",
-    description:
-      "Tell us about yourself.",
+    description: "Tell us about yourself.",
   },
   {
     number: 2,
     title: "Address",
-    description:
-      "Provide your complete address.",
+    description: "Provide your complete address.",
   },
   {
     number: 3,
     title: "Professional",
-    description:
-      "Tell us about your professional background.",
+    description: "Tell us about your professional background.",
   },
   {
     number: 4,
     title: "Education & Certifications",
-    description:
-      "Add your educational and professional credentials.",
+    description: "Add your educational and professional credentials.",
   },
   {
     number: 5,
     title: "Account",
-    description:
-      "Create your ACE NextGen trainer account.",
+    description: "Create your ACE NextGen trainer account.",
   },
 ];
 
 // ==========================================================
-// PAGE
+// PAGE CONTENT
 // ==========================================================
 
-export default function TrainerRegisterPage() {
+function TrainerRegisterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -202,21 +199,18 @@ export default function TrainerRegisterPage() {
   // FORM
   // ========================================================
 
-  const [form, setForm] =
-    useState<FormData>(initialForm);
+  const [form, setForm] = useState<FormData>(initialForm);
 
   const [address, setAddress] =
     useState<AddressData>(initialAddress);
 
-  const [currentStep, setCurrentStep] =
-    useState(1);
+  const [currentStep, setCurrentStep] = useState(1);
 
   // ========================================================
   // PSGC
   // ========================================================
 
-  const [provinces, setProvinces] =
-    useState<PsgcItem[]>([]);
+  const [provinces, setProvinces] = useState<PsgcItem[]>([]);
 
   const [municipalities, setMunicipalities] =
     useState<PsgcMunicipality[]>([]);
@@ -237,19 +231,17 @@ export default function TrainerRegisterPage() {
     ]);
 
   const [certifications, setCertifications] =
-    useState<CreateTrainerCertificationRequest[]>(
-      [emptyCertification()]
-    );
+    useState<CreateTrainerCertificationRequest[]>([
+      emptyCertification(),
+    ]);
 
   // ========================================================
   // IMAGE
   // ========================================================
 
-  const [preview, setPreview] =
-    useState<string | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
 
-  const fileInputRef =
-    useRef<HTMLInputElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // ========================================================
   // GOOGLE
@@ -268,30 +260,23 @@ export default function TrainerRegisterPage() {
   // OTP
   // ========================================================
 
-  const [showOtpModal, setShowOtpModal] =
-    useState(false);
+  const [showOtpModal, setShowOtpModal] = useState(false);
 
-  const [otp, setOtp] =
-    useState("");
+  const [otp, setOtp] = useState("");
 
-  const [otpLoading, setOtpLoading] =
-    useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
 
-  const [otpError, setOtpError] =
-    useState<string | null>(null);
+  const [otpError, setOtpError] = useState<string | null>(null);
 
-  const [otpSuccess, setOtpSuccess] =
-    useState<string | null>(null);
+  const [otpSuccess, setOtpSuccess] = useState<string | null>(null);
 
-  const [registeredEmail, setRegisteredEmail] =
-    useState("");
+  const [registeredEmail, setRegisteredEmail] = useState("");
 
   // ========================================================
   // ERROR
   // ========================================================
 
-  const [localError, setLocalError] =
-    useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   // ========================================================
   // REGISTER HOOK
@@ -307,29 +292,22 @@ export default function TrainerRegisterPage() {
   // CURRENT STEP
   // ========================================================
 
-  const currentStepData =
-    steps[currentStep - 1];
-
-  if (!currentStepData) {
-    return null;
-  }
+  const currentStepData = steps[currentStep - 1];
 
   // ========================================================
   // GOOGLE REGISTRATION LOADER
   // ========================================================
 
   useEffect(() => {
-    const googleMode =
-      searchParams.get("google") === "1";
+    const googleMode = searchParams.get("google") === "1";
 
     if (!googleMode) {
       return;
     }
 
-    const token =
-      sessionStorage.getItem(
-        "google_registration_id_token"
-      );
+    const token = sessionStorage.getItem(
+      "google_registration_id_token"
+    );
 
     if (!token) {
       setLocalError(
@@ -339,15 +317,9 @@ export default function TrainerRegisterPage() {
       return;
     }
 
-    const firstName =
-      searchParams.get("firstName") ?? "";
-
-    const lastName =
-      searchParams.get("lastName") ?? "";
-
-    const email =
-      searchParams.get("email") ?? "";
-
+    const firstName = searchParams.get("firstName") ?? "";
+    const lastName = searchParams.get("lastName") ?? "";
+    const email = searchParams.get("email") ?? "";
     const profileImageUrl =
       searchParams.get("profileImageUrl") ?? "";
 
@@ -362,9 +334,7 @@ export default function TrainerRegisterPage() {
     }));
 
     if (profileImageUrl) {
-      setGoogleProfileImageUrl(
-        profileImageUrl
-      );
+      setGoogleProfileImageUrl(profileImageUrl);
     }
   }, [searchParams]);
 
@@ -377,23 +347,15 @@ export default function TrainerRegisterPage() {
       try {
         setAddressLoading(true);
 
-        const result =
-          await getProvinces();
+        const result = await getProvinces();
 
         setProvinces(
-          Array.isArray(result)
-            ? result
-            : []
+          Array.isArray(result) ? result : []
         );
       } catch (err) {
-        console.error(
-          "Province loading error:",
-          err
-        );
+        console.error("Province loading error:", err);
 
-        setLocalError(
-          "Unable to load provinces."
-        );
+        setLocalError("Unable to load provinces.");
       } finally {
         setAddressLoading(false);
       }
@@ -437,17 +399,14 @@ export default function TrainerRegisterPage() {
   const handleProvinceChange = async (
     provinceCode: string
   ) => {
-    const selected =
-      provinces.find(
-        (item) =>
-          item.code === provinceCode
-      );
+    const selected = provinces.find(
+      (item) => item.code === provinceCode
+    );
 
     setAddress((current) => ({
       ...current,
       provinceCode,
-      provinceName:
-        selected?.name ?? "",
+      provinceName: selected?.name ?? "",
 
       municipalityCode: "",
       municipalityName: "",
@@ -467,25 +426,15 @@ export default function TrainerRegisterPage() {
     try {
       setAddressLoading(true);
 
-      const result =
-        await getMunicipalities(
-          provinceCode
-        );
+      const result = await getMunicipalities(provinceCode);
 
       setMunicipalities(
-        Array.isArray(result)
-          ? result
-          : []
+        Array.isArray(result) ? result : []
       );
     } catch (err) {
-      console.error(
-        "Municipality loading error:",
-        err
-      );
+      console.error("Municipality loading error:", err);
 
-      setLocalError(
-        "Unable to load municipalities."
-      );
+      setLocalError("Unable to load municipalities.");
     } finally {
       setAddressLoading(false);
     }
@@ -498,17 +447,14 @@ export default function TrainerRegisterPage() {
   const handleMunicipalityChange = async (
     municipalityCode: string
   ) => {
-    const selected =
-      municipalities.find(
-        (item) =>
-          item.code === municipalityCode
-      );
+    const selected = municipalities.find(
+      (item) => item.code === municipalityCode
+    );
 
     setAddress((current) => ({
       ...current,
       municipalityCode,
-      municipalityName:
-        selected?.name ?? "",
+      municipalityName: selected?.name ?? "",
 
       barangayCode: "",
       barangayName: "",
@@ -524,25 +470,15 @@ export default function TrainerRegisterPage() {
     try {
       setAddressLoading(true);
 
-      const result =
-        await getBarangays(
-          municipalityCode
-        );
+      const result = await getBarangays(municipalityCode);
 
       setBarangays(
-        Array.isArray(result)
-          ? result
-          : []
+        Array.isArray(result) ? result : []
       );
     } catch (err) {
-      console.error(
-        "Barangay loading error:",
-        err
-      );
+      console.error("Barangay loading error:", err);
 
-      setLocalError(
-        "Unable to load barangays."
-      );
+      setLocalError("Unable to load barangays.");
     } finally {
       setAddressLoading(false);
     }
@@ -552,20 +488,15 @@ export default function TrainerRegisterPage() {
   // PSGC BARANGAY
   // ========================================================
 
-  const handleBarangayChange = (
-    barangayCode: string
-  ) => {
-    const selected =
-      barangays.find(
-        (item) =>
-          item.code === barangayCode
-      );
+  const handleBarangayChange = (barangayCode: string) => {
+    const selected = barangays.find(
+      (item) => item.code === barangayCode
+    );
 
     setAddress((current) => ({
       ...current,
       barangayCode,
-      barangayName:
-        selected?.name ?? "",
+      barangayName: selected?.name ?? "",
     }));
 
     setLocalError(null);
@@ -593,8 +524,7 @@ export default function TrainerRegisterPage() {
   const handleProfileImage = (
     event: ChangeEvent<HTMLInputElement>
   ) => {
-    const file =
-      event.target.files?.[0];
+    const file = event.target.files?.[0];
 
     if (!file) {
       return;
@@ -612,7 +542,6 @@ export default function TrainerRegisterPage() {
       );
 
       event.target.value = "";
-
       return;
     }
 
@@ -622,7 +551,6 @@ export default function TrainerRegisterPage() {
       );
 
       event.target.value = "";
-
       return;
     }
 
@@ -630,8 +558,7 @@ export default function TrainerRegisterPage() {
       URL.revokeObjectURL(preview);
     }
 
-    const nextPreview =
-      URL.createObjectURL(file);
+    const nextPreview = URL.createObjectURL(file);
 
     setForm((current) => ({
       ...current,
@@ -668,14 +595,13 @@ export default function TrainerRegisterPage() {
     updates: Partial<CreateTrainerEducationRequest>
   ) => {
     setEducations((current) =>
-      current.map(
-        (item, itemIndex) =>
-          itemIndex === index
-            ? {
-                ...item,
-                ...updates,
-              }
-            : item
+      current.map((item, itemIndex) =>
+        itemIndex === index
+          ? {
+              ...item,
+              ...updates,
+            }
+          : item
       )
     );
 
@@ -689,19 +615,14 @@ export default function TrainerRegisterPage() {
     ]);
   };
 
-  const removeEducation = (
-    index: number
-  ) => {
+  const removeEducation = (index: number) => {
     setEducations((current) => {
       if (current.length === 1) {
-        return [
-          emptyEducation(),
-        ];
+        return [emptyEducation()];
       }
 
       return current.filter(
-        (_, itemIndex) =>
-          itemIndex !== index
+        (_, itemIndex) => itemIndex !== index
       );
     });
   };
@@ -715,14 +636,13 @@ export default function TrainerRegisterPage() {
     updates: Partial<CreateTrainerCertificationRequest>
   ) => {
     setCertifications((current) =>
-      current.map(
-        (item, itemIndex) =>
-          itemIndex === index
-            ? {
-                ...item,
-                ...updates,
-              }
-            : item
+      current.map((item, itemIndex) =>
+        itemIndex === index
+          ? {
+              ...item,
+              ...updates,
+            }
+          : item
       )
     );
 
@@ -736,19 +656,14 @@ export default function TrainerRegisterPage() {
     ]);
   };
 
-  const removeCertification = (
-    index: number
-  ) => {
+  const removeCertification = (index: number) => {
     setCertifications((current) => {
       if (current.length === 1) {
-        return [
-          emptyCertification(),
-        ];
+        return [emptyCertification()];
       }
 
       return current.filter(
-        (_, itemIndex) =>
-          itemIndex !== index
+        (_, itemIndex) => itemIndex !== index
       );
     });
   };
@@ -760,8 +675,7 @@ export default function TrainerRegisterPage() {
   const handleGoogleSuccess = async (
     credentialResponse: CredentialResponse
   ) => {
-    const token =
-      credentialResponse.credential;
+    const token = credentialResponse.credential;
 
     if (!token) {
       setLocalError(
@@ -777,8 +691,7 @@ export default function TrainerRegisterPage() {
         token
       );
 
-      const payload =
-        decodeJwtPayload(token);
+      const payload = decodeJwtPayload(token);
 
       const firstName =
         typeof payload.given_name === "string"
@@ -810,16 +723,11 @@ export default function TrainerRegisterPage() {
         email,
       }));
 
-      setGoogleProfileImageUrl(
-        picture || null
-      );
+      setGoogleProfileImageUrl(picture || null);
 
       setLocalError(null);
     } catch (err) {
-      console.error(
-        "GOOGLE REGISTRATION ERROR:",
-        err
-      );
+      console.error("GOOGLE REGISTRATION ERROR:", err);
 
       setLocalError(
         "Unable to continue with Google."
@@ -837,14 +745,11 @@ export default function TrainerRegisterPage() {
   // OTP
   // ========================================================
 
-  const sendOtp = async (
-    email: string
-  ) => {
+  const sendOtp = async (email: string) => {
     try {
-      const response =
-        await authApi.sendOtp({
-          email,
-        });
+      const response = await authApi.sendOtp({
+        email,
+      });
 
       if (!response.success) {
         setOtpError(
@@ -861,10 +766,7 @@ export default function TrainerRegisterPage() {
 
       return true;
     } catch (err) {
-      console.error(
-        "SEND OTP ERROR:",
-        err
-      );
+      console.error("SEND OTP ERROR:", err);
 
       setOtpError(
         err instanceof Error
@@ -880,61 +782,43 @@ export default function TrainerRegisterPage() {
     setOtpError(null);
     setOtpSuccess(null);
 
-    const cleanOtp =
-      otp.trim();
+    const cleanOtp = otp.trim();
 
     if (!cleanOtp) {
-      setOtpError(
-        "Please enter the OTP."
-      );
-
+      setOtpError("Please enter the OTP.");
       return;
     }
 
     if (!/^\d{6}$/.test(cleanOtp)) {
-      setOtpError(
-        "OTP must be 6 digits."
-      );
-
+      setOtpError("OTP must be 6 digits.");
       return;
     }
 
     try {
       setOtpLoading(true);
 
-      const response =
-        await authApi.verifyOtp({
-          email: registeredEmail,
-          otpCode: cleanOtp,
-        });
+      const response = await authApi.verifyOtp({
+        email: registeredEmail,
+        otpCode: cleanOtp,
+      });
 
       if (!response.success) {
         setOtpError(
-          response.message ||
-            "Invalid or expired OTP."
+          response.message || "Invalid or expired OTP."
         );
 
         return;
       }
 
-      setOtpSuccess(
-        "Email verified successfully!"
-      );
-
+      setOtpSuccess("Email verified successfully!");
       setOtp("");
 
       setTimeout(() => {
         setShowOtpModal(false);
-
-        router.push(
-          "/login?verified=true"
-        );
+        router.push("/login?verified=true");
       }, 1000);
     } catch (err) {
-      console.error(
-        "VERIFY OTP ERROR:",
-        err
-      );
+      console.error("VERIFY OTP ERROR:", err);
 
       setOtpError(
         err instanceof Error
@@ -951,50 +835,34 @@ export default function TrainerRegisterPage() {
     setOtpSuccess(null);
     setOtp("");
 
-    await sendOtp(
-      registeredEmail
-    );
+    await sendOtp(registeredEmail);
   };
 
   // ========================================================
   // STEP VALIDATION
   // ========================================================
 
-  const validateStep = (
-    step: number
-  ) => {
+  const validateStep = (step: number) => {
     setLocalError(null);
 
     if (step === 1) {
       if (!form.firstName.trim()) {
-        setLocalError(
-          "First name is required."
-        );
-
+        setLocalError("First name is required.");
         return false;
       }
 
       if (!form.lastName.trim()) {
-        setLocalError(
-          "Last name is required."
-        );
-
+        setLocalError("Last name is required.");
         return false;
       }
 
       if (!form.birthDate) {
-        setLocalError(
-          "Birth date is required."
-        );
-
+        setLocalError("Birth date is required.");
         return false;
       }
 
       if (!form.gender) {
-        setLocalError(
-          "Please select your gender."
-        );
-
+        setLocalError("Please select your gender.");
         return false;
       }
     }
@@ -1009,10 +877,7 @@ export default function TrainerRegisterPage() {
       }
 
       if (!address.provinceCode) {
-        setLocalError(
-          "Please select a province."
-        );
-
+        setLocalError("Please select a province.");
         return false;
       }
 
@@ -1025,38 +890,26 @@ export default function TrainerRegisterPage() {
       }
 
       if (!address.barangayCode) {
-        setLocalError(
-          "Please select a barangay."
-        );
-
+        setLocalError("Please select a barangay.");
         return false;
       }
     }
 
     if (step === 3) {
       if (!form.specialization.trim()) {
-        setLocalError(
-          "Specialization is required."
-        );
-
+        setLocalError("Specialization is required.");
         return false;
       }
     }
 
     if (step === 5) {
       if (!form.email.trim()) {
-        setLocalError(
-          "Email is required."
-        );
-
+        setLocalError("Email is required.");
         return false;
       }
 
       if (!form.password) {
-        setLocalError(
-          "Password is required."
-        );
-
+        setLocalError("Password is required.");
         return false;
       }
 
@@ -1068,21 +921,12 @@ export default function TrainerRegisterPage() {
         return false;
       }
 
-      if (
-        form.password !==
-        form.confirmPassword
-      ) {
-        setLocalError(
-          "Passwords do not match."
-        );
-
+      if (form.password !== form.confirmPassword) {
+        setLocalError("Passwords do not match.");
         return false;
       }
 
-      if (
-        isGoogleRegistration &&
-        !googleIdToken
-      ) {
+      if (isGoogleRegistration && !googleIdToken) {
         setLocalError(
           "Google registration session is missing. Please continue with Google again."
         );
@@ -1104,10 +948,7 @@ export default function TrainerRegisterPage() {
     }
 
     if (currentStep < steps.length) {
-      setCurrentStep(
-        (current) =>
-          current + 1
-      );
+      setCurrentStep((current) => current + 1);
 
       window.scrollTo({
         top: 0,
@@ -1124,10 +965,7 @@ export default function TrainerRegisterPage() {
     setLocalError(null);
 
     if (currentStep > 1) {
-      setCurrentStep(
-        (current) =>
-          current - 1
-      );
+      setCurrentStep((current) => current - 1);
 
       window.scrollTo({
         top: 0,
@@ -1147,10 +985,7 @@ export default function TrainerRegisterPage() {
 
     setLocalError(null);
 
-    if (
-      isGoogleRegistration &&
-      !googleIdToken
-    ) {
+    if (isGoogleRegistration && !googleIdToken) {
       setLocalError(
         "Google registration session is missing. Please continue with Google again."
       );
@@ -1216,119 +1051,76 @@ export default function TrainerRegisterPage() {
     for (const [valid, message] of checks) {
       if (!valid) {
         setLocalError(message);
-
         return;
       }
     }
 
-    const email =
-      form.email
-        .trim()
-        .toLowerCase();
+    const email = form.email.trim().toLowerCase();
 
-    const cleanedEducations =
-      educations
-        .filter(
-          (education) =>
-            education.degree.trim() &&
-            education.institution.trim()
-        )
-        .map((education) => ({
-          degree:
-            education.degree.trim(),
+    const cleanedEducations = educations
+      .filter(
+        (education) =>
+          education.degree.trim() &&
+          education.institution.trim()
+      )
+      .map((education) => ({
+        degree: education.degree.trim(),
 
-          fieldOfStudy:
-            education.fieldOfStudy?.trim() ||
-            null,
+        fieldOfStudy:
+          education.fieldOfStudy?.trim() || null,
 
-          institution:
-            education.institution.trim(),
+        institution: education.institution.trim(),
 
-          yearGraduated:
-            education.yearGraduated ??
-            null,
-        }));
+        yearGraduated:
+          education.yearGraduated ?? null,
+      }));
 
-    const cleanedCertifications =
-      certifications
-        .filter(
-          (certification) =>
-            certification.name?.trim()
-        )
-        .map((certification) => ({
-          name:
-            certification.name.trim(),
+    const cleanedCertifications = certifications
+      .filter(
+        (certification) =>
+          certification.name?.trim()
+      )
+      .map((certification) => ({
+        name: certification.name.trim(),
 
-          issuingOrganization:
-            certification.issuingOrganization
-              ?.trim() ||
-            null,
+        issuingOrganization:
+          certification.issuingOrganization?.trim() ||
+          null,
 
-          issuedDate:
-            certification.issuedDate ||
-            null,
+        issuedDate:
+          certification.issuedDate || null,
 
-          expirationDate:
-            certification.expirationDate ||
-            null,
+        expirationDate:
+          certification.expirationDate || null,
 
-          certificateUrl:
-            certification.certificateUrl
-              ?.trim() ||
-            null,
-        }));
+        certificateUrl:
+          certification.certificateUrl?.trim() || null,
+      }));
 
     const values: RegisterTrainerFormValues = {
-      firstName:
-        form.firstName.trim(),
+      firstName: form.firstName.trim(),
+      middleName: form.middleName.trim(),
+      lastName: form.lastName.trim(),
+      suffix: form.suffix.trim(),
 
-      middleName:
-        form.middleName.trim(),
-
-      lastName:
-        form.lastName.trim(),
-
-      suffix:
-        form.suffix.trim(),
-
-      birthDate:
-        form.birthDate,
-
-      address:
-        completeAddress,
-
-      gender:
-        form.gender,
+      birthDate: form.birthDate,
+      address: completeAddress,
+      gender: form.gender,
 
       email,
+      mobileNumber: form.mobileNumber.trim(),
 
-      mobileNumber:
-        form.mobileNumber.trim(),
+      password: form.password,
+      confirmPassword: form.confirmPassword,
 
-      password:
-        form.password,
+      specialization: form.specialization.trim(),
+      professionalTitle: form.professionalTitle.trim(),
+      currentOrganization: form.currentOrganization.trim(),
+      bio: form.bio.trim(),
 
-      confirmPassword:
-        form.confirmPassword,
-
-      specialization:
-        form.specialization.trim(),
-
-      professionalTitle:
-        form.professionalTitle.trim(),
-
-      currentOrganization:
-        form.currentOrganization.trim(),
-
-      bio:
-        form.bio.trim(),
-
-      yearsOfExperience:
-        form.yearsOfExperience
-          ? Number(
-              form.yearsOfExperience
-            )
-          : undefined,
+      yearsOfExperience: form.yearsOfExperience
+        ? Number(form.yearsOfExperience)
+        : undefined,
 
       professionalLicenseNumber:
         form.professionalLicenseNumber.trim(),
@@ -1341,24 +1133,17 @@ export default function TrainerRegisterPage() {
         undefined,
 
       profileImage:
-        form.profileImage ??
-        undefined,
+        form.profileImage ?? undefined,
 
-      educations:
-        cleanedEducations,
+      educations: cleanedEducations,
+      certifications: cleanedCertifications,
 
-      certifications:
-        cleanedCertifications,
-
-      googleIdToken:
-        isGoogleRegistration
-          ? googleIdToken ??
-            undefined
-          : undefined,
+      googleIdToken: isGoogleRegistration
+        ? googleIdToken ?? undefined
+        : undefined,
     };
 
-    const response =
-      await registerTrainer(values);
+    const response = await registerTrainer(values);
 
     if (!response) {
       return;
@@ -1371,21 +1156,14 @@ export default function TrainerRegisterPage() {
 
       setGoogleIdToken(null);
 
-      notify.success(
-        "Google registration successful."
-      );
+      notify.success("Google registration successful.");
 
-      router.push(
-        "/login?registered=true"
-      );
-
+      router.push("/login?registered=true");
       return;
     }
 
     setRegisteredEmail(email);
-
     setOtp("");
-
     setOtpError(null);
 
     setOtpSuccess(
@@ -1401,68 +1179,26 @@ export default function TrainerRegisterPage() {
   // ERROR
   // ========================================================
 
-  const displayError =
-    localError || error;
+  const displayError = localError || error;
+
+  // ========================================================
+  // STEP FALLBACK
+  // ========================================================
+
+  if (!currentStepData) {
+    return null;
+  }
 
   // ========================================================
   // RENDER
   // ========================================================
 
   return (
-    <GoogleOAuthProvider
-      clientId={GOOGLE_CLIENT_ID}
-    >
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <main className="min-h-screen bg-[#f7f9ff] text-[#0d2142]">
-        {/* ==================================================
-            HEADER
-        ================================================== */}
-
-        <header className="border-b border-slate-200 bg-white/90 backdrop-blur">
-          <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 sm:px-8">
-            <Link
-              href="/"
-              className="flex items-center gap-3"
-            >
-              <Image
-                src={Logo}
-                alt="ACE NextGen"
-                width={48}
-                height={48}
-                className="h-11 w-11 object-contain"
-              />
-
-              <div>
-                <p className="text-sm font-bold tracking-wide text-[#002b5c]">
-                  ACE NEXTGEN
-                </p>
-
-                <p className="text-[11px] text-[#3B7597]">
-                  Consultancy Inc.
-                </p>
-              </div>
-            </Link>
-
-            <Link
-              href="/login"
-              className="text-sm font-semibold text-[#3B7597] transition hover:text-[#002b5c]"
-            >
-              Already have an account?
-              <span className="ml-1 text-[#002b5c]">
-                Sign in
-              </span>
-            </Link>
-          </div>
-        </header>
-
-        {/* ==================================================
-            PAGE
-        ================================================== */}
-
         <section className="px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
           <div className="mx-auto max-w-5xl">
-            {/* ==================================================
-                TITLE
-            ================================================== */}
+            {/* TITLE */}
 
             <div className="mb-8 text-center">
               <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#6FD1D7]/40 bg-white px-4 py-2 text-xs font-semibold text-[#3B7597] shadow-sm">
@@ -1475,98 +1211,76 @@ export default function TrainerRegisterPage() {
               </h1>
 
               <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">
-                Create your trainer profile and
-                submit your credentials for
-                review by ACE NextGen
+                Create your trainer profile and submit your
+                credentials for review by ACE NextGen
                 Consultancy Inc.
               </p>
             </div>
 
-            {/* ==================================================
-                STEPPER
-            ================================================== */}
+            {/* STEPPER */}
 
             <div className="mb-8 overflow-x-auto">
               <div className="mx-auto flex min-w-[650px] max-w-4xl items-start justify-between">
-                {steps.map(
-                  (step, index) => {
-                    const active =
-                      currentStep ===
-                      step.number;
+                {steps.map((step, index) => {
+                  const active =
+                    currentStep === step.number;
 
-                    const completed =
-                      currentStep >
-                      step.number;
+                  const completed =
+                    currentStep > step.number;
 
-                    return (
-                      <div
-                        key={step.number}
-                        className="flex flex-1 items-start"
-                      >
-                        <div className="flex flex-col items-center">
-                          <div
-                            className={[
-                              "flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-bold transition",
-                              active
-                                ? "border-[#002b5c] bg-[#002b5c] text-white"
-                                : completed
-                                ? "border-[#6FD1D7] bg-[#6FD1D7] text-[#002b5c]"
-                                : "border-slate-200 bg-white text-slate-400",
-                            ].join(
-                              " "
-                            )}
-                          >
-                            {completed
-                              ? "✓"
-                              : step.number}
-                          </div>
-
-                          <div className="mt-2 text-center">
-                            <p
-                              className={[
-                                "text-xs font-bold",
-                                active
-                                  ? "text-[#002b5c]"
-                                  : "text-slate-400",
-                              ].join(
-                                " "
-                              )}
-                            >
-                              {step.title}
-                            </p>
-                          </div>
+                  return (
+                    <div
+                      key={step.number}
+                      className="flex flex-1 items-start"
+                    >
+                      <div className="flex flex-col items-center">
+                        <div
+                          className={[
+                            "flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-bold transition",
+                            active
+                              ? "border-[#002b5c] bg-[#002b5c] text-white"
+                              : completed
+                              ? "border-[#6FD1D7] bg-[#6FD1D7] text-[#002b5c]"
+                              : "border-slate-200 bg-white text-slate-400",
+                          ].join(" ")}
+                        >
+                          {completed ? "✓" : step.number}
                         </div>
 
-                        {index <
-                          steps.length -
-                            1 && (
-                          <div
+                        <div className="mt-2 text-center">
+                          <p
                             className={[
-                              "mt-5 h-[2px] flex-1",
-                              currentStep >
-                              step.number
-                                ? "bg-[#6FD1D7]"
-                                : "bg-slate-200",
-                            ].join(
-                              " "
-                            )}
-                          />
-                        )}
+                              "text-xs font-bold",
+                              active
+                                ? "text-[#002b5c]"
+                                : "text-slate-400",
+                            ].join(" ")}
+                          >
+                            {step.title}
+                          </p>
+                        </div>
                       </div>
-                    );
-                  }
-                )}
+
+                      {index < steps.length - 1 && (
+                        <div
+                          className={[
+                            "mt-5 h-[2px] flex-1",
+                            currentStep > step.number
+                              ? "bg-[#6FD1D7]"
+                              : "bg-slate-200",
+                          ].join(" ")}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
-            {/* ==================================================
-                CARD
-            ================================================== */}
+            {/* CARD */}
 
             <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_20px_70px_rgba(13,33,66,0.08)]">
-              {/* ==================================================
-                  CARD HEADER
-              ================================================== */}
+              {/* CARD HEADER */}
 
               <div className="border-b border-slate-100 bg-gradient-to-r from-[#f7f9ff] to-white px-5 py-6 sm:px-8">
                 <div className="flex items-start gap-4">
@@ -1578,23 +1292,17 @@ export default function TrainerRegisterPage() {
 
                   <div>
                     <h2 className="text-xl font-bold text-[#002b5c]">
-                      {
-                        currentStepData.title
-                      }
+                      {currentStepData.title}
                     </h2>
 
                     <p className="mt-1 text-sm text-slate-500">
-                      {
-                        currentStepData.description
-                      }
+                      {currentStepData.description}
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* ==================================================
-                  ERROR
-              ================================================== */}
+              {/* ERROR */}
 
               {displayError && (
                 <div className="mx-5 mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 sm:mx-8">
@@ -1602,21 +1310,16 @@ export default function TrainerRegisterPage() {
                 </div>
               )}
 
-              {/* ==================================================
-                  FORM
-              ================================================== */}
+              {/* FORM */}
 
               <form
                 onSubmit={handleSubmit}
                 className="p-5 sm:p-8"
               >
-                {/* ==================================================
-                    STEP 1
-                ================================================== */}
+                {/* STEP 1 */}
 
                 {currentStep === 1 && (
                   <div className="space-y-8">
-                    {/* Profile */}
                     <div>
                       <SectionHeader
                         title="Personal Information"
@@ -1627,28 +1330,18 @@ export default function TrainerRegisterPage() {
                         <InputField
                           label="First Name"
                           required
-                          value={
-                            form.firstName
-                          }
+                          value={form.firstName}
                           onChange={(value) =>
-                            updateField(
-                              "firstName",
-                              value
-                            )
+                            updateField("firstName", value)
                           }
                           placeholder="First name"
                         />
 
                         <InputField
                           label="Middle Name"
-                          value={
-                            form.middleName
-                          }
+                          value={form.middleName}
                           onChange={(value) =>
-                            updateField(
-                              "middleName",
-                              value
-                            )
+                            updateField("middleName", value)
                           }
                           placeholder="Middle name"
                         />
@@ -1656,28 +1349,18 @@ export default function TrainerRegisterPage() {
                         <InputField
                           label="Last Name"
                           required
-                          value={
-                            form.lastName
-                          }
+                          value={form.lastName}
                           onChange={(value) =>
-                            updateField(
-                              "lastName",
-                              value
-                            )
+                            updateField("lastName", value)
                           }
                           placeholder="Last name"
                         />
 
                         <InputField
                           label="Suffix"
-                          value={
-                            form.suffix
-                          }
+                          value={form.suffix}
                           onChange={(value) =>
-                            updateField(
-                              "suffix",
-                              value
-                            )
+                            updateField("suffix", value)
                           }
                           placeholder="Jr., Sr., III"
                         />
@@ -1686,54 +1369,33 @@ export default function TrainerRegisterPage() {
                           label="Birth Date"
                           required
                           type="date"
-                          value={
-                            form.birthDate
-                          }
+                          value={form.birthDate}
                           onChange={(value) =>
-                            updateField(
-                              "birthDate",
-                              value
-                            )
+                            updateField("birthDate", value)
                           }
                         />
 
                         <SelectField
                           label="Gender"
                           required
-                          value={
-                            form.gender
-                          }
+                          value={form.gender}
                           onChange={(value) =>
-                            updateField(
-                              "gender",
-                              value
-                            )
+                            updateField("gender", value)
                           }
                           options={[
+                            { value: "Male", label: "Male" },
+                            { value: "Female", label: "Female" },
                             {
-                              value:
-                                "Male",
-                              label:
-                                "Male",
-                            },
-                            {
-                              value:
-                                "Female",
-                              label:
-                                "Female",
-                            },
-                            {
-                              value:
-                                "Prefer not to say",
-                              label:
-                                "Prefer not to say",
+                              value: "Prefer not to say",
+                              label: "Prefer not to say",
                             },
                           ]}
                         />
                       </div>
                     </div>
 
-                    {/* Profile Photo */}
+                    {/* PROFILE PHOTO */}
+
                     <div>
                       <SectionHeader
                         title="Profile Photo"
@@ -1744,9 +1406,7 @@ export default function TrainerRegisterPage() {
                         <div className="relative flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-dashed border-slate-300 bg-slate-50">
                           {preview ? (
                             <Image
-                              src={
-                                preview
-                              }
+                              src={preview}
                               alt="Profile preview"
                               fill
                               unoptimized
@@ -1754,9 +1414,7 @@ export default function TrainerRegisterPage() {
                             />
                           ) : googleProfileImageUrl ? (
                             <Image
-                              src={
-                                googleProfileImageUrl
-                              }
+                              src={googleProfileImageUrl}
                               alt="Google profile"
                               fill
                               unoptimized
@@ -1777,14 +1435,10 @@ export default function TrainerRegisterPage() {
 
                         <div>
                           <input
-                            ref={
-                              fileInputRef
-                            }
+                            ref={fileInputRef}
                             type="file"
                             accept="image/jpeg,image/png,image/webp"
-                            onChange={
-                              handleProfileImage
-                            }
+                            onChange={handleProfileImage}
                             className="hidden"
                             id="profile-image"
                           />
@@ -1797,13 +1451,10 @@ export default function TrainerRegisterPage() {
                               Upload Photo
                             </label>
 
-                            {(preview ||
-                              googleProfileImageUrl) && (
+                            {(preview || googleProfileImageUrl) && (
                               <button
                                 type="button"
-                                onClick={
-                                  removeProfileImage
-                                }
+                                onClick={removeProfileImage}
                                 className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
                               >
                                 Remove
@@ -1812,8 +1463,7 @@ export default function TrainerRegisterPage() {
                           </div>
 
                           <p className="mt-2 text-xs text-slate-400">
-                            Recommended square
-                            image for your
+                            Recommended square image for your
                             trainer profile.
                           </p>
                         </div>
@@ -1822,9 +1472,7 @@ export default function TrainerRegisterPage() {
                   </div>
                 )}
 
-                {/* ==================================================
-                    STEP 2
-                ================================================== */}
+                {/* STEP 2 */}
 
                 {currentStep === 2 && (
                   <div>
@@ -1837,63 +1485,42 @@ export default function TrainerRegisterPage() {
                       <InputField
                         label="House / Building Number"
                         required
-                        value={
-                          address.houseNumber
-                        }
+                        value={address.houseNumber}
                         onChange={(value) => {
-                          setAddress(
-                            (current) => ({
-                              ...current,
-                              houseNumber:
-                                value,
-                            })
-                          );
+                          setAddress((current) => ({
+                            ...current,
+                            houseNumber: value,
+                          }));
 
-                          setLocalError(
-                            null
-                          );
+                          setLocalError(null);
                         }}
                         placeholder="House / building number"
                       />
 
                       <InputField
                         label="Street"
-                        value={
-                          address.street
-                        }
+                        value={address.street}
                         onChange={(value) => {
-                          setAddress(
-                            (current) => ({
-                              ...current,
-                              street:
-                                value,
-                            })
-                          );
+                          setAddress((current) => ({
+                            ...current,
+                            street: value,
+                          }));
 
-                          setLocalError(
-                            null
-                          );
+                          setLocalError(null);
                         }}
                         placeholder="Street"
                       />
 
                       <InputField
                         label="Sitio / Purok"
-                        value={
-                          address.sitio
-                        }
+                        value={address.sitio}
                         onChange={(value) => {
-                          setAddress(
-                            (current) => ({
-                              ...current,
-                              sitio:
-                                value,
-                            })
-                          );
+                          setAddress((current) => ({
+                            ...current,
+                            sitio: value,
+                          }));
 
-                          setLocalError(
-                            null
-                          );
+                          setLocalError(null);
                         }}
                         placeholder="Sitio / Purok"
                       />
@@ -1901,43 +1528,28 @@ export default function TrainerRegisterPage() {
                       <SelectField
                         label="Province"
                         required
-                        value={
-                          address.provinceCode
-                        }
-                        onChange={
-                          handleProvinceChange
-                        }
-                        disabled={
-                          addressLoading
-                        }
+                        value={address.provinceCode}
+                        onChange={handleProvinceChange}
+                        disabled={addressLoading}
                         options={[
                           {
                             value: "",
-                            label:
-                              addressLoading
-                                ? "Loading provinces..."
-                                : "Select province",
+                            label: addressLoading
+                              ? "Loading provinces..."
+                              : "Select province",
                           },
-                          ...provinces.map(
-                            (province) => ({
-                              value:
-                                province.code,
-                              label:
-                                province.name,
-                            })
-                          ),
+                          ...provinces.map((province) => ({
+                            value: province.code,
+                            label: province.name,
+                          })),
                         ]}
                       />
 
                       <SelectField
                         label="Municipality / City"
                         required
-                        value={
-                          address.municipalityCode
-                        }
-                        onChange={
-                          handleMunicipalityChange
-                        }
+                        value={address.municipalityCode}
+                        onChange={handleMunicipalityChange}
                         disabled={
                           !address.provinceCode ||
                           addressLoading
@@ -1945,21 +1557,16 @@ export default function TrainerRegisterPage() {
                         options={[
                           {
                             value: "",
-                            label:
-                              address.provinceCode
-                                ? addressLoading
-                                  ? "Loading municipalities..."
-                                  : "Select municipality / city"
-                                : "Select province first",
+                            label: address.provinceCode
+                              ? addressLoading
+                                ? "Loading municipalities..."
+                                : "Select municipality / city"
+                              : "Select province first",
                           },
                           ...municipalities.map(
-                            (
-                              municipality
-                            ) => ({
-                              value:
-                                municipality.code,
-                              label:
-                                municipality.name,
+                            (municipality) => ({
+                              value: municipality.code,
+                              label: municipality.name,
                             })
                           ),
                         ]}
@@ -1968,12 +1575,8 @@ export default function TrainerRegisterPage() {
                       <SelectField
                         label="Barangay"
                         required
-                        value={
-                          address.barangayCode
-                        }
-                        onChange={
-                          handleBarangayChange
-                        }
+                        value={address.barangayCode}
+                        onChange={handleBarangayChange}
                         disabled={
                           !address.municipalityCode ||
                           addressLoading
@@ -1981,21 +1584,16 @@ export default function TrainerRegisterPage() {
                         options={[
                           {
                             value: "",
-                            label:
-                              address.municipalityCode
-                                ? addressLoading
-                                  ? "Loading barangays..."
-                                  : "Select barangay"
-                                : "Select municipality first",
+                            label: address.municipalityCode
+                              ? addressLoading
+                                ? "Loading barangays..."
+                                : "Select barangay"
+                              : "Select municipality first",
                           },
-                          ...barangays.map(
-                            (barangay) => ({
-                              value:
-                                barangay.code,
-                              label:
-                                barangay.name,
-                            })
-                          ),
+                          ...barangays.map((barangay) => ({
+                            value: barangay.code,
+                            label: barangay.name,
+                          })),
                         ]}
                       />
                     </div>
@@ -2014,9 +1612,7 @@ export default function TrainerRegisterPage() {
                   </div>
                 )}
 
-                {/* ==================================================
-                    STEP 3
-                ================================================== */}
+                {/* STEP 3 */}
 
                 {currentStep === 3 && (
                   <div className="space-y-8">
@@ -2030,42 +1626,27 @@ export default function TrainerRegisterPage() {
                         <InputField
                           label="Specialization"
                           required
-                          value={
-                            form.specialization
-                          }
+                          value={form.specialization}
                           onChange={(value) =>
-                            updateField(
-                              "specialization",
-                              value
-                            )
+                            updateField("specialization", value)
                           }
                           placeholder="e.g. Mediation"
                         />
 
                         <InputField
                           label="Professional Title"
-                          value={
-                            form.professionalTitle
-                          }
+                          value={form.professionalTitle}
                           onChange={(value) =>
-                            updateField(
-                              "professionalTitle",
-                              value
-                            )
+                            updateField("professionalTitle", value)
                           }
                           placeholder="e.g. Attorney, Mediator"
                         />
 
                         <InputField
                           label="Current Organization"
-                          value={
-                            form.currentOrganization
-                          }
+                          value={form.currentOrganization}
                           onChange={(value) =>
-                            updateField(
-                              "currentOrganization",
-                              value
-                            )
+                            updateField("currentOrganization", value)
                           }
                           placeholder="Organization / company"
                         />
@@ -2074,14 +1655,9 @@ export default function TrainerRegisterPage() {
                           label="Years of Experience"
                           type="number"
                           min="0"
-                          value={
-                            form.yearsOfExperience
-                          }
+                          value={form.yearsOfExperience}
                           onChange={(value) =>
-                            updateField(
-                              "yearsOfExperience",
-                              value
-                            )
+                            updateField("yearsOfExperience", value)
                           }
                           placeholder="e.g. 5"
                         />
@@ -2093,15 +1669,9 @@ export default function TrainerRegisterPage() {
                         </label>
 
                         <textarea
-                          value={
-                            form.bio
-                          }
+                          value={form.bio}
                           onChange={(event) =>
-                            updateField(
-                              "bio",
-                              event.target
-                                .value
-                            )
+                            updateField("bio", event.target.value)
                           }
                           rows={5}
                           placeholder="Briefly describe your professional experience and expertise."
@@ -2119,9 +1689,7 @@ export default function TrainerRegisterPage() {
                       <div className="mt-6 grid gap-5 sm:grid-cols-2">
                         <InputField
                           label="License Type"
-                          value={
-                            form.professionalLicenseType
-                          }
+                          value={form.professionalLicenseType}
                           onChange={(value) =>
                             updateField(
                               "professionalLicenseType",
@@ -2133,9 +1701,7 @@ export default function TrainerRegisterPage() {
 
                         <InputField
                           label="License Number"
-                          value={
-                            form.professionalLicenseNumber
-                          }
+                          value={form.professionalLicenseNumber}
                           onChange={(value) =>
                             updateField(
                               "professionalLicenseNumber",
@@ -2163,13 +1729,12 @@ export default function TrainerRegisterPage() {
                   </div>
                 )}
 
-                {/* ==================================================
-                    STEP 4
-                ================================================== */}
+                {/* STEP 4 */}
 
                 {currentStep === 4 && (
                   <div className="space-y-10">
-                    {/* Education */}
+                    {/* EDUCATION */}
+
                     <div>
                       <div className="flex items-start justify-between gap-4">
                         <SectionHeader
@@ -2179,9 +1744,7 @@ export default function TrainerRegisterPage() {
 
                         <button
                           type="button"
-                          onClick={
-                            addEducation
-                          }
+                          onClick={addEducation}
                           className="shrink-0 rounded-xl border border-[#6FD1D7] px-3 py-2 text-xs font-bold text-[#3B7597] transition hover:bg-[#f7f9ff]"
                         >
                           + Add Education
@@ -2189,135 +1752,91 @@ export default function TrainerRegisterPage() {
                       </div>
 
                       <div className="mt-5 space-y-5">
-                        {educations.map(
-                          (
-                            education,
-                            index
-                          ) => (
-                            <div
-                              key={
-                                index
-                              }
-                              className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5"
-                            >
-                              <div className="mb-4 flex items-center justify-between">
-                                <p className="text-sm font-bold text-[#002b5c]">
-                                  Education{" "}
-                                  {index +
-                                    1}
-                                </p>
+                        {educations.map((education, index) => (
+                          <div
+                            key={index}
+                            className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5"
+                          >
+                            <div className="mb-4 flex items-center justify-between">
+                              <p className="text-sm font-bold text-[#002b5c]">
+                                Education {index + 1}
+                              </p>
 
-                                {educations.length >
-                                  1 && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      removeEducation(
-                                        index
-                                      )
-                                    }
-                                    className="text-xs font-semibold text-red-500 hover:text-red-600"
-                                  >
-                                    Remove
-                                  </button>
-                                )}
-                              </div>
-
-                              <div className="grid gap-5 sm:grid-cols-2">
-                                <InputField
-                                  label="Degree"
-                                  required
-                                  value={
-                                    education.degree
+                              {educations.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    removeEducation(index)
                                   }
-                                  onChange={(
-                                    value
-                                  ) =>
-                                    updateEducation(
-                                      index,
-                                      {
-                                        degree:
-                                          value,
-                                      }
-                                    )
-                                  }
-                                  placeholder="e.g. Bachelor of Science in Information Technology"
-                                />
-
-                                <InputField
-                                  label="Field of Study"
-                                  value={
-                                    education.fieldOfStudy ??
-                                    ""
-                                  }
-                                  onChange={(
-                                    value
-                                  ) =>
-                                    updateEducation(
-                                      index,
-                                      {
-                                        fieldOfStudy:
-                                          value,
-                                      }
-                                    )
-                                  }
-                                  placeholder="Field of study"
-                                />
-
-                                <InputField
-                                  label="Institution"
-                                  required
-                                  value={
-                                    education.institution
-                                  }
-                                  onChange={(
-                                    value
-                                  ) =>
-                                    updateEducation(
-                                      index,
-                                      {
-                                        institution:
-                                          value,
-                                      }
-                                    )
-                                  }
-                                  placeholder="School / University"
-                                />
-
-                                <InputField
-                                  label="Year Graduated"
-                                  type="number"
-                                  min="1900"
-                                  max="2100"
-                                  value={
-                                    education.yearGraduated?.toString() ??
-                                    ""
-                                  }
-                                  onChange={(
-                                    value
-                                  ) =>
-                                    updateEducation(
-                                      index,
-                                      {
-                                        yearGraduated:
-                                          value
-                                            ? Number(
-                                                value
-                                              )
-                                            : null,
-                                      }
-                                    )
-                                  }
-                                  placeholder="e.g. 2025"
-                                />
-                              </div>
+                                  className="text-xs font-semibold text-red-500 hover:text-red-600"
+                                >
+                                  Remove
+                                </button>
+                              )}
                             </div>
-                          )
-                        )}
+
+                            <div className="grid gap-5 sm:grid-cols-2">
+                              <InputField
+                                label="Degree"
+                                required
+                                value={education.degree}
+                                onChange={(value) =>
+                                  updateEducation(index, {
+                                    degree: value,
+                                  })
+                                }
+                                placeholder="e.g. Bachelor of Science in Information Technology"
+                              />
+
+                              <InputField
+                                label="Field of Study"
+                                value={education.fieldOfStudy ?? ""}
+                                onChange={(value) =>
+                                  updateEducation(index, {
+                                    fieldOfStudy: value,
+                                  })
+                                }
+                                placeholder="Field of study"
+                              />
+
+                              <InputField
+                                label="Institution"
+                                required
+                                value={education.institution}
+                                onChange={(value) =>
+                                  updateEducation(index, {
+                                    institution: value,
+                                  })
+                                }
+                                placeholder="School / University"
+                              />
+
+                              <InputField
+                                label="Year Graduated"
+                                type="number"
+                                min="1900"
+                                max="2100"
+                                value={
+                                  education.yearGraduated?.toString() ??
+                                  ""
+                                }
+                                onChange={(value) =>
+                                  updateEducation(index, {
+                                    yearGraduated: value
+                                      ? Number(value)
+                                      : null,
+                                  })
+                                }
+                                placeholder="e.g. 2025"
+                              />
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
 
-                    {/* Certifications */}
+                    {/* CERTIFICATIONS */}
+
                     <div>
                       <div className="flex items-start justify-between gap-4">
                         <SectionHeader
@@ -2327,9 +1846,7 @@ export default function TrainerRegisterPage() {
 
                         <button
                           type="button"
-                          onClick={
-                            addCertification
-                          }
+                          onClick={addCertification}
                           className="shrink-0 rounded-xl border border-[#6FD1D7] px-3 py-2 text-xs font-bold text-[#3B7597] transition hover:bg-[#f7f9ff]"
                         >
                           + Add Certification
@@ -2338,31 +1855,21 @@ export default function TrainerRegisterPage() {
 
                       <div className="mt-5 space-y-5">
                         {certifications.map(
-                          (
-                            certification,
-                            index
-                          ) => (
+                          (certification, index) => (
                             <div
-                              key={
-                                index
-                              }
+                              key={index}
                               className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5"
                             >
                               <div className="mb-4 flex items-center justify-between">
                                 <p className="text-sm font-bold text-[#002b5c]">
-                                  Certification{" "}
-                                  {index +
-                                    1}
+                                  Certification {index + 1}
                                 </p>
 
-                                {certifications.length >
-                                  1 && (
+                                {certifications.length > 1 && (
                                   <button
                                     type="button"
                                     onClick={() =>
-                                      removeCertification(
-                                        index
-                                      )
+                                      removeCertification(index)
                                     }
                                     className="text-xs font-semibold text-red-500 hover:text-red-600"
                                   >
@@ -2375,19 +1882,11 @@ export default function TrainerRegisterPage() {
                                 <InputField
                                   label="Certification Name"
                                   required
-                                  value={
-                                    certification.name
-                                  }
-                                  onChange={(
-                                    value
-                                  ) =>
-                                    updateCertification(
-                                      index,
-                                      {
-                                        name:
-                                          value,
-                                      }
-                                    )
+                                  value={certification.name}
+                                  onChange={(value) =>
+                                    updateCertification(index, {
+                                      name: value,
+                                    })
                                   }
                                   placeholder="Certification name"
                                 />
@@ -2398,16 +1897,10 @@ export default function TrainerRegisterPage() {
                                     certification.issuingOrganization ??
                                     ""
                                   }
-                                  onChange={(
-                                    value
-                                  ) =>
-                                    updateCertification(
-                                      index,
-                                      {
-                                        issuingOrganization:
-                                          value,
-                                      }
-                                    )
+                                  onChange={(value) =>
+                                    updateCertification(index, {
+                                      issuingOrganization: value,
+                                    })
                                   }
                                   placeholder="Issuing organization"
                                 />
@@ -2416,19 +1909,12 @@ export default function TrainerRegisterPage() {
                                   label="Issued Date"
                                   type="date"
                                   value={
-                                    certification.issuedDate ??
-                                    ""
+                                    certification.issuedDate ?? ""
                                   }
-                                  onChange={(
-                                    value
-                                  ) =>
-                                    updateCertification(
-                                      index,
-                                      {
-                                        issuedDate:
-                                          value,
-                                      }
-                                    )
+                                  onChange={(value) =>
+                                    updateCertification(index, {
+                                      issuedDate: value,
+                                    })
                                   }
                                 />
 
@@ -2436,19 +1922,12 @@ export default function TrainerRegisterPage() {
                                   label="Expiration Date"
                                   type="date"
                                   value={
-                                    certification.expirationDate ??
-                                    ""
+                                    certification.expirationDate ?? ""
                                   }
-                                  onChange={(
-                                    value
-                                  ) =>
-                                    updateCertification(
-                                      index,
-                                      {
-                                        expirationDate:
-                                          value,
-                                      }
-                                    )
+                                  onChange={(value) =>
+                                    updateCertification(index, {
+                                      expirationDate: value,
+                                    })
                                   }
                                 />
 
@@ -2459,16 +1938,10 @@ export default function TrainerRegisterPage() {
                                       certification.certificateUrl ??
                                       ""
                                     }
-                                    onChange={(
-                                      value
-                                    ) =>
-                                      updateCertification(
-                                        index,
-                                        {
-                                          certificateUrl:
-                                            value,
-                                        }
-                                      )
+                                    onChange={(value) =>
+                                      updateCertification(index, {
+                                        certificateUrl: value,
+                                      })
                                     }
                                     placeholder="https://..."
                                   />
@@ -2482,13 +1955,12 @@ export default function TrainerRegisterPage() {
                   </div>
                 )}
 
-                {/* ==================================================
-                    STEP 5
-                ================================================== */}
+                {/* STEP 5 */}
 
                 {currentStep === 5 && (
                   <div className="space-y-8">
-                    {/* Google */}
+                    {/* GOOGLE */}
+
                     {!isGoogleRegistration && (
                       <div className="rounded-2xl border border-slate-200 bg-[#f7f9ff] p-5">
                         <div className="mb-4">
@@ -2497,38 +1969,31 @@ export default function TrainerRegisterPage() {
                           </p>
 
                           <p className="mt-1 text-xs leading-5 text-slate-500">
-                            You may continue with
-                            your Google account.
-                            Your trainer profile
-                            will still be subject
-                            to ACE NextGen review.
+                            You may continue with your Google
+                            account. Your trainer profile will
+                            still be subject to ACE NextGen review.
                           </p>
                         </div>
 
                         <div className="relative overflow-hidden rounded-xl">
                           <GoogleLogin
-                            onSuccess={
-                              handleGoogleSuccess
-                            }
-                            onError={
-                              handleGoogleError
-                            }
+                            onSuccess={handleGoogleSuccess}
+                            onError={handleGoogleError}
                             width="100%"
                           />
                         </div>
                       </div>
                     )}
 
-                    {/* Google status */}
+                    {/* GOOGLE STATUS */}
+
                     {isGoogleRegistration && (
                       <div className="rounded-2xl border border-[#6FD1D7]/40 bg-[#f7f9ff] p-5">
                         <div className="flex items-center gap-3">
                           {googleProfileImageUrl ? (
                             <div className="relative h-12 w-12 overflow-hidden rounded-full">
                               <Image
-                                src={
-                                  googleProfileImageUrl
-                                }
+                                src={googleProfileImageUrl}
                                 alt="Google profile"
                                 fill
                                 unoptimized
@@ -2547,14 +2012,14 @@ export default function TrainerRegisterPage() {
                             </p>
 
                             <p className="text-xs text-slate-500">
-                              {
-                                form.email
-                              }
+                              {form.email}
                             </p>
                           </div>
                         </div>
                       </div>
                     )}
+
+                    {/* ACCOUNT INFORMATION */}
 
                     <div>
                       <SectionHeader
@@ -2568,42 +2033,27 @@ export default function TrainerRegisterPage() {
                             label="Email Address"
                             required
                             type="email"
-                            value={
-                              form.email
-                            }
-                            readOnly={
-                              isGoogleRegistration
-                            }
-                            onChange={(
-                              value
-                            ) =>
-                              updateField(
-                                "email",
-                                value
-                              )
+                            value={form.email}
+                            readOnly={isGoogleRegistration}
+                            onChange={(value) =>
+                              updateField("email", value)
                             }
                             placeholder="you@example.com"
                           />
 
                           {isGoogleRegistration && (
                             <p className="mt-2 text-xs text-slate-400">
-                              Google account
-                              email cannot
-                              be changed.
+                              Google account email cannot be
+                              changed.
                             </p>
                           )}
                         </div>
 
                         <InputField
                           label="Mobile Number"
-                          value={
-                            form.mobileNumber
-                          }
+                          value={form.mobileNumber}
                           onChange={(value) =>
-                            updateField(
-                              "mobileNumber",
-                              value
-                            )
+                            updateField("mobileNumber", value)
                           }
                           placeholder="09XXXXXXXXX"
                         />
@@ -2613,14 +2063,9 @@ export default function TrainerRegisterPage() {
                         <PasswordField
                           label="Password"
                           required
-                          value={
-                            form.password
-                          }
+                          value={form.password}
                           onChange={(value) =>
-                            updateField(
-                              "password",
-                              value
-                            )
+                            updateField("password", value)
                           }
                           placeholder="At least 8 characters"
                         />
@@ -2628,26 +2073,22 @@ export default function TrainerRegisterPage() {
                         <PasswordField
                           label="Confirm Password"
                           required
-                          value={
-                            form.confirmPassword
-                          }
+                          value={form.confirmPassword}
                           onChange={(value) =>
-                            updateField(
-                              "confirmPassword",
-                              value
-                            )
+                            updateField("confirmPassword", value)
                           }
                           placeholder="Confirm password"
                         />
                       </div>
 
                       <p className="mt-3 text-xs text-slate-400">
-                        Password must contain at
-                        least 8 characters.
+                        Password must contain at least 8
+                        characters.
                       </p>
                     </div>
 
-                    {/* Info */}
+                    {/* INFO */}
+
                     <div className="rounded-2xl border border-[#6FD1D7]/30 bg-[#f7f9ff] p-5">
                       <p className="text-sm font-bold text-[#002b5c]">
                         What happens next?
@@ -2656,43 +2097,28 @@ export default function TrainerRegisterPage() {
                       <div className="mt-3 space-y-2 text-sm leading-6 text-slate-500">
                         {!isGoogleRegistration ? (
                           <>
+                            <p>1. Submit your registration.</p>
                             <p>
-                              1. Submit your
-                              registration.
+                              2. Verify your email using the OTP
+                              sent to you.
                             </p>
-
                             <p>
-                              2. Verify your
-                              email using the
-                              OTP sent to you.
-                            </p>
-
-                            <p>
-                              3. Your trainer
-                              application will
-                              be reviewed by an
-                              administrator.
+                              3. Your trainer application will be
+                              reviewed by an administrator.
                             </p>
                           </>
                         ) : (
                           <>
                             <p>
-                              1. Submit your
-                              trainer
-                              registration.
+                              1. Submit your trainer registration.
                             </p>
-
                             <p>
-                              2. Your Google
-                              email is already
+                              2. Your Google email is already
                               verified.
                             </p>
-
                             <p>
-                              3. Your trainer
-                              application will
-                              be reviewed by an
-                              administrator.
+                              3. Your trainer application will be
+                              reviewed by an administrator.
                             </p>
                           </>
                         )}
@@ -2701,21 +2127,15 @@ export default function TrainerRegisterPage() {
                   </div>
                 )}
 
-                {/* ==================================================
-                    NAVIGATION
-                ================================================== */}
+                {/* NAVIGATION */}
 
                 <div className="mt-10 flex flex-col-reverse gap-3 border-t border-slate-100 pt-6 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex gap-3">
                     {currentStep > 1 ? (
                       <button
                         type="button"
-                        onClick={
-                          handleBack
-                        }
-                        disabled={
-                          isLoading
-                        }
+                        onClick={handleBack}
+                        disabled={isLoading}
                         className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         ← Back
@@ -2723,9 +2143,7 @@ export default function TrainerRegisterPage() {
                     ) : (
                       <button
                         type="button"
-                        onClick={() =>
-                          router.back()
-                        }
+                        onClick={() => router.back()}
                         className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
                       >
                         Cancel
@@ -2733,13 +2151,10 @@ export default function TrainerRegisterPage() {
                     )}
                   </div>
 
-                  {currentStep <
-                  steps.length ? (
+                  {currentStep < steps.length ? (
                     <button
                       type="button"
-                      onClick={
-                        handleNext
-                      }
+                      onClick={handleNext}
                       className="rounded-xl bg-[#002b5c] px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#0d2142]"
                     >
                       Continue →
@@ -2747,9 +2162,7 @@ export default function TrainerRegisterPage() {
                   ) : (
                     <button
                       type="submit"
-                      disabled={
-                        isLoading
-                      }
+                      disabled={isLoading}
                       className="rounded-xl bg-[#002b5c] px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#0d2142] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {isLoading
@@ -2763,33 +2176,24 @@ export default function TrainerRegisterPage() {
               </form>
             </div>
 
-            {/* ==================================================
-                FOOTER
-            ================================================== */}
+            {/* FOOTER */}
 
             <p className="mt-6 text-center text-xs text-slate-400">
-              By registering, you agree to
-              provide accurate information for
-              trainer verification and review.
+              By registering, you agree to provide accurate
+              information for trainer verification and review.
             </p>
           </div>
         </section>
 
-        {/* ==================================================
-            OTP MODAL
-        ================================================== */}
+        {/* OTP MODAL */}
 
         {showOtpModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0d2142]/60 px-4 py-6 backdrop-blur-sm">
             <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl sm:p-8">
               <button
                 type="button"
-                onClick={() =>
-                  setShowOtpModal(false)
-                }
-                disabled={
-                  otpLoading
-                }
+                onClick={() => setShowOtpModal(false)}
+                disabled={otpLoading}
                 className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-[#002b5c]"
               >
                 ×
@@ -2811,8 +2215,7 @@ export default function TrainerRegisterPage() {
                 </h3>
 
                 <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500">
-                  We sent a 6-digit
-                  verification code to
+                  We sent a 6-digit verification code to
                 </p>
 
                 <p className="mt-1 break-all text-sm font-bold text-[#3B7597]">
@@ -2828,21 +2231,12 @@ export default function TrainerRegisterPage() {
                 <input
                   value={otp}
                   onChange={(event) => {
-                    const value =
-                      event.target.value
-                        .replace(
-                          /\D/g,
-                          ""
-                        )
-                        .slice(
-                          0,
-                          6
-                        );
+                    const value = event.target.value
+                      .replace(/\D/g, "")
+                      .slice(0, 6);
 
                     setOtp(value);
-                    setOtpError(
-                      null
-                    );
+                    setOtpError(null);
                   }}
                   inputMode="numeric"
                   maxLength={6}
@@ -2865,32 +2259,21 @@ export default function TrainerRegisterPage() {
 
               <button
                 type="button"
-                onClick={
-                  handleVerifyOtp
-                }
-                disabled={
-                  otpLoading
-                }
+                onClick={handleVerifyOtp}
+                disabled={otpLoading}
                 className="mt-5 w-full rounded-xl bg-[#002b5c] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#0d2142] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {otpLoading
-                  ? "Verifying..."
-                  : "Verify Email"}
+                {otpLoading ? "Verifying..." : "Verify Email"}
               </button>
 
               <div className="mt-5 text-center">
                 <button
                   type="button"
-                  onClick={
-                    handleResendOtp
-                  }
-                  disabled={
-                    otpLoading
-                  }
+                  onClick={handleResendOtp}
+                  disabled={otpLoading}
                   className="text-sm font-semibold text-[#3B7597] transition hover:text-[#002b5c] disabled:opacity-50"
                 >
-                  Resend verification
-                  code
+                  Resend verification code
                 </button>
               </div>
             </div>
@@ -2900,12 +2283,16 @@ export default function TrainerRegisterPage() {
     </GoogleOAuthProvider>
   );
 }
+
+// ==========================================================
+// JWT DECODER
+// ==========================================================
+
 function decodeJwtPayload(
   token: string
 ): Record<string, unknown> {
   try {
     const parts = token.split(".");
-
     const payload = parts[1];
 
     if (!payload) {
@@ -2921,9 +2308,7 @@ function decodeJwtPayload(
       "="
     );
 
-    return JSON.parse(
-      window.atob(padded)
-    );
+    return JSON.parse(window.atob(padded));
   } catch {
     return {};
   }
@@ -2982,10 +2367,9 @@ function InputField({
     <div>
       <label className="mb-2 block text-sm font-semibold text-[#0d2142]">
         {label}
+
         {required && (
-          <span className="ml-1 text-red-500">
-            *
-          </span>
+          <span className="ml-1 text-red-500">*</span>
         )}
       </label>
 
@@ -2993,9 +2377,7 @@ function InputField({
         type={type}
         value={value}
         onChange={(event) =>
-          onChange(
-            event.target.value
-          )
+          onChange(event.target.value)
         }
         placeholder={placeholder}
         min={min}
@@ -3038,39 +2420,28 @@ function SelectField({
     <div>
       <label className="mb-2 block text-sm font-semibold text-[#0d2142]">
         {label}
+
         {required && (
-          <span className="ml-1 text-red-500">
-            *
-          </span>
+          <span className="ml-1 text-red-500">*</span>
         )}
       </label>
 
       <select
         value={value}
         onChange={(event) =>
-          onChange(
-            event.target.value
-          )
+          onChange(event.target.value)
         }
         disabled={disabled}
         className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-[#0d2142] outline-none transition focus:border-[#3B7597] focus:ring-4 focus:ring-[#6FD1D7]/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
       >
-        {options.map(
-          (option) => (
-            <option
-              key={
-                option.value
-              }
-              value={
-                option.value
-              }
-            >
-              {
-                option.label
-              }
-            </option>
-          )
-        )}
+        {options.map((option) => (
+          <option
+            key={option.value}
+            value={option.value}
+          >
+            {option.label}
+          </option>
+        ))}
       </select>
     </div>
   );
@@ -3093,54 +2464,63 @@ function PasswordField({
   onChange: (value: string) => void;
   placeholder?: string;
 }) {
-  const [show, setShow] =
-    useState(false);
+  const [show, setShow] = useState(false);
 
   return (
     <div>
       <label className="mb-2 block text-sm font-semibold text-[#0d2142]">
         {label}
+
         {required && (
-          <span className="ml-1 text-red-500">
-            *
-          </span>
+          <span className="ml-1 text-red-500">*</span>
         )}
       </label>
 
       <div className="relative">
         <input
-          type={
-            show
-              ? "text"
-              : "password"
-          }
+          type={show ? "text" : "password"}
           value={value}
           onChange={(event) =>
-            onChange(
-              event.target.value
-            )
+            onChange(event.target.value)
           }
-          placeholder={
-            placeholder
-          }
+          placeholder={placeholder}
           className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-20 text-sm text-[#0d2142] outline-none transition placeholder:text-slate-400 focus:border-[#3B7597] focus:ring-4 focus:ring-[#6FD1D7]/10"
         />
 
         <button
           type="button"
           onClick={() =>
-            setShow(
-              (current) =>
-                !current
-            )
+            setShow((current) => !current)
           }
           className="absolute right-3 top-1/2 -translate-y-1/2 px-2 text-xs font-semibold text-[#3B7597] hover:text-[#002b5c]"
         >
-          {show
-            ? "Hide"
-            : "Show"}
+          {show ? "Hide" : "Show"}
         </button>
       </div>
     </div>
+  );
+}
+
+// ==========================================================
+// REGISTER PAGE - SUSPENSE BOUNDARY
+// ==========================================================
+
+export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-[#f7f9ff]">
+          <div className="text-center">
+            <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-[#6FD1D7] border-t-[#002b5c]" />
+
+            <p className="mt-4 text-sm font-medium text-[#002b5c]">
+              Loading trainer registration...
+            </p>
+          </div>
+        </main>
+      }
+    >
+      <TrainerRegisterPage />
+    </Suspense>
   );
 }

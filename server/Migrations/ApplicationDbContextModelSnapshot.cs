@@ -22,102 +22,6 @@ namespace server.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("LearningMaterial", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ContentType")
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<string>("ExtractedText")
-                        .HasColumnType("text");
-
-                    b.Property<string>("FileName")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<long?>("FileSize")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("FileUrl")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<bool>("IsPublished")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("MaterialType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("PublicId")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<Guid>("TrainingBatchId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TrainingBatchId");
-
-                    b.HasIndex("TrainingBatchId", "Title");
-
-                    b.ToTable("LearningMaterials");
-                });
-
-            modelBuilder.Entity("TrainerAssignment", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("AssignedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("AssignedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<Guid>("TrainerProfileId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("TrainingBatchId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AssignedByUserId");
-
-                    b.HasIndex("TrainerProfileId");
-
-                    b.HasIndex("TrainingBatchId");
-
-                    b.ToTable("TrainerAssignments");
-                });
-
             modelBuilder.Entity("server.Models.Assessment.AssessmentAnswer", b =>
                 {
                     b.Property<Guid>("Id")
@@ -723,6 +627,70 @@ namespace server.Migrations
                     b.ToTable("Backups", (string)null);
                 });
 
+            modelBuilder.Entity("server.Models.Learning.LearningMaterial", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentType")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("ExtractedText")
+                        .HasColumnType("text");
+
+                    b.Property<string>("FileName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<long?>("FileSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("FileUrl")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<bool>("IsPublished")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("MaterialType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("PublicId")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<Guid>("TrainingBatchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TrainingBatchId");
+
+                    b.HasIndex("TrainingBatchId", "Title");
+
+                    b.ToTable("LearningMaterials");
+                });
+
             modelBuilder.Entity("server.Models.Learning.LearningModule", b =>
                 {
                     b.Property<Guid>("Id")
@@ -863,7 +831,7 @@ namespace server.Migrations
 
                     b.Property<string>("Content")
                         .HasMaxLength(10000)
-                        .HasColumnType("character varying(10000)");
+                        .HasColumnType("text");
 
                     b.Property<string>("ContentType")
                         .IsRequired()
@@ -1566,6 +1534,38 @@ namespace server.Migrations
                     b.ToTable("TrainerApplicationEducations", (string)null);
                 });
 
+            modelBuilder.Entity("server.Models.Trainer.TrainerAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("AssignedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("AssignedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("TrainerProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TrainingBatchId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignedByUserId");
+
+                    b.HasIndex("TrainerProfileId");
+
+                    b.HasIndex("TrainingBatchId");
+
+                    b.ToTable("TrainerAssignments");
+                });
+
             modelBuilder.Entity("server.Models.Trainer.TrainerCertification", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2094,36 +2094,6 @@ namespace server.Migrations
                     b.ToTable("TrainingSessions");
                 });
 
-            modelBuilder.Entity("LearningMaterial", b =>
-                {
-                    b.HasOne("server.Models.Training.TrainingBatch", "TrainingBatch")
-                        .WithMany("LearningMaterials")
-                        .HasForeignKey("TrainingBatchId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("TrainingBatch");
-                });
-
-            modelBuilder.Entity("TrainerAssignment", b =>
-                {
-                    b.HasOne("server.Models.Trainer.TrainerProfile", "TrainerProfile")
-                        .WithMany("Assignments")
-                        .HasForeignKey("TrainerProfileId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("server.Models.Training.TrainingBatch", "TrainingBatch")
-                        .WithMany("TrainerAssignments")
-                        .HasForeignKey("TrainingBatchId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("TrainerProfile");
-
-                    b.Navigation("TrainingBatch");
-                });
-
             modelBuilder.Entity("server.Models.Assessment.AssessmentAnswer", b =>
                 {
                     b.HasOne("server.Models.Assessment.AssessmentAttempt", "AssessmentAttempt")
@@ -2338,9 +2308,20 @@ namespace server.Migrations
                     b.Navigation("TrainingSession");
                 });
 
+            modelBuilder.Entity("server.Models.Learning.LearningMaterial", b =>
+                {
+                    b.HasOne("server.Models.Training.TrainingBatch", "TrainingBatch")
+                        .WithMany("LearningMaterials")
+                        .HasForeignKey("TrainingBatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TrainingBatch");
+                });
+
             modelBuilder.Entity("server.Models.Learning.LearningModule", b =>
                 {
-                    b.HasOne("LearningMaterial", "LearningMaterial")
+                    b.HasOne("server.Models.Learning.LearningMaterial", "LearningMaterial")
                         .WithMany("Modules")
                         .HasForeignKey("LearningMaterialId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -2560,6 +2541,25 @@ namespace server.Migrations
                     b.Navigation("TrainerApplication");
                 });
 
+            modelBuilder.Entity("server.Models.Trainer.TrainerAssignment", b =>
+                {
+                    b.HasOne("server.Models.Trainer.TrainerProfile", "TrainerProfile")
+                        .WithMany("Assignments")
+                        .HasForeignKey("TrainerProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("server.Models.Training.TrainingBatch", "TrainingBatch")
+                        .WithMany("TrainerAssignments")
+                        .HasForeignKey("TrainingBatchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("TrainerProfile");
+
+                    b.Navigation("TrainingBatch");
+                });
+
             modelBuilder.Entity("server.Models.Trainer.TrainerCertification", b =>
                 {
                     b.HasOne("server.Models.Trainer.TrainerProfile", "TrainerProfile")
@@ -2704,11 +2704,6 @@ namespace server.Migrations
                     b.Navigation("TrainingBatch");
                 });
 
-            modelBuilder.Entity("LearningMaterial", b =>
-                {
-                    b.Navigation("Modules");
-                });
-
             modelBuilder.Entity("server.Models.Assessment.AssessmentAttempt", b =>
                 {
                     b.Navigation("Answers");
@@ -2766,6 +2761,11 @@ namespace server.Migrations
                     b.Navigation("TrainerApplication");
 
                     b.Navigation("TrainerProfile");
+                });
+
+            modelBuilder.Entity("server.Models.Learning.LearningMaterial", b =>
+                {
+                    b.Navigation("Modules");
                 });
 
             modelBuilder.Entity("server.Models.Learning.LearningModule", b =>

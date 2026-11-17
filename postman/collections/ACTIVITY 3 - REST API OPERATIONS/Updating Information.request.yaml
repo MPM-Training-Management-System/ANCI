@@ -1,0 +1,8 @@
+$kind: http-request
+description: ""
+url: ""
+method: GET
+body:
+  type: text
+  content: ""
+order: 1000

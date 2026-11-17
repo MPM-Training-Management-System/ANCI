@@ -63,67 +63,7 @@ export const columns: ColumnDef<AdminUserList>[] = [
    },
  },
 
-  /*
-   * ============================================================
-   * EMAIL
-   * ============================================================
-   */
-
-  {
-    accessorKey: "email",
-    header: "Email",
-
-    cell: ({ row }) => {
-      const user = row.original;
-
-      return (
-        <div className="min-w-0">
-          <p className="max-w-[240px] truncate text-sm text-gray-700">
-            {user.email || "No email"}
-          </p>
-
-          <p className="mt-0.5 text-[10px] font-medium">
-            {user.isEmailVerified ? (
-              <span className="text-emerald-600">
-                Verified
-              </span>
-            ) : (
-              <span className="text-gray-400">
-                Not verified
-              </span>
-            )}
-          </p>
-        </div>
-      );
-    },
-  },
-
-  /*
-   * ============================================================
-   * MOBILE
-   * ============================================================
-   */
-
-  {
-    accessorKey: "mobileNumber",
-    header: "Mobile",
-
-    cell: ({ row }) => {
-      const mobile = row.original.mobileNumber;
-
-      return (
-        <span className="text-sm text-gray-600">
-          {mobile || "Not specified"}
-        </span>
-      );
-    },
-  },
-
-  /*
-   * ============================================================
-   * ROLE
-   * ============================================================
-   */
+  
 
   {
     accessorKey: "role",
@@ -138,12 +78,7 @@ export const columns: ColumnDef<AdminUserList>[] = [
     },
   },
 
-  /*
-   * ============================================================
-   * STATUS
-   * ============================================================
-   */
-
+  
   {
     accessorKey: "status",
     header: "Status",
@@ -156,31 +91,6 @@ export const columns: ColumnDef<AdminUserList>[] = [
       );
     },
   },
-
-  /*
-   * ============================================================
-   * CREATED
-   * ============================================================
-   */
-
-  {
-    accessorKey: "createdAt",
-    header: "Created",
-
-    cell: ({ row }) => {
-      return (
-        <span className="whitespace-nowrap text-xs text-gray-500">
-          {formatDate(row.original.createdAt)}
-        </span>
-      );
-    },
-  },
-
-  /*
-   * ============================================================
-   * ACTIONS
-   * ============================================================
-   */
 
   {
     id: "actions",

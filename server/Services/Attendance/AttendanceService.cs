@@ -30,73 +30,85 @@ public class AttendanceService : IAttendanceService
     // CACHE HELPERS
     // =========================================================
 
-    private void InvalidateAttendanceCache()
-    {
-        _cache.RemoveByPrefix(AttendanceCachePrefix);
-    }
+    // =========================================================
+// CACHE HELPERS
+// =========================================================
+
+private void InvalidateAttendanceCache()
+{
+    _cache.RemoveByPrefix(AttendanceCachePrefix);
+}
+
+private async Task SaveChangesAndInvalidateCacheAsync()
+{
+    await _context.SaveChangesAsync();
+
+    // Clear all attendance-related cached data
+    // only after the database save succeeds.
+    InvalidateAttendanceCache();
+}
 
     // =========================================================
     // OPEN ATTENDANCE SESSION
     // =========================================================
+public async Task<Guid> OpenSessionAsync(
+    Guid trainerUserId,
+    OpenAttendanceRequest request)
+{
+    if (request is null)
+        throw new ArgumentException(
+            "Attendance request is required.");
 
-    public async Task<Guid> OpenSessionAsync(
-        Guid trainerUserId,
-        OpenAttendanceRequest request)
+    var trainingSession = await _context.TrainingSessions
+        .Include(x => x.TrainingBatch)
+            .ThenInclude(x => x.TrainerAssignments)
+            .ThenInclude(x => x.TrainerProfile)
+        .FirstOrDefaultAsync(x =>
+            x.Id == request.TrainingSessionId &&
+            x.TrainingBatchId == request.TrainingBatchId);
+
+    if (trainingSession is null)
+        throw new KeyNotFoundException(
+            "Training session not found for this training batch.");
+
+    var isAssignedTrainer = trainingSession.TrainingBatch
+        .TrainerAssignments
+        .Any(x =>
+            x.IsActive &&
+            x.TrainerProfile.UserId == trainerUserId);
+
+    if (!isAssignedTrainer)
+        throw new UnauthorizedAccessException(
+            "You are not the assigned trainer for this training batch.");
+
+    var alreadyExists = await _context.AttendanceSessions
+        .AnyAsync(x =>
+            x.TrainingBatchId == request.TrainingBatchId &&
+            x.TrainingSessionId == request.TrainingSessionId);
+
+    if (alreadyExists)
+        throw new InvalidOperationException(
+            "An attendance session has already been created for this training session. It cannot be opened again.");
+
+    var session = new AttendanceSession
     {
-        if (request is null)
-            throw new ArgumentException(
-                "Attendance request is required.");
+        Id = Guid.NewGuid(),
+        TrainingBatchId = request.TrainingBatchId,
+        TrainingSessionId = request.TrainingSessionId,
+        OpenedAt = DateTime.UtcNow,
+        ClosedAt = null,
+        Status = AttendanceSessionStatus.Open,
+        ManualAttendanceStatus = ManualAttendanceStatus.Closed,
+        OpenedByUserId = trainerUserId
+    };
 
-        var trainingSession = await _context.TrainingSessions
-            .Include(x => x.TrainingBatch)
-                .ThenInclude(x => x.TrainerAssignments)
-                .ThenInclude(x => x.TrainerProfile)
-            .FirstOrDefaultAsync(x =>
-                x.Id == request.TrainingSessionId &&
-                x.TrainingBatchId == request.TrainingBatchId);
+    _context.AttendanceSessions.Add(session);
 
-        if (trainingSession is null)
-            throw new KeyNotFoundException(
-                "Training session not found for this training batch.");
+    // Save to database, then immediately clear attendance cache.
+    await SaveChangesAndInvalidateCacheAsync();
 
-        var isAssignedTrainer = trainingSession.TrainingBatch
-            .TrainerAssignments
-            .Any(x =>
-                x.IsActive &&
-                x.TrainerProfile.UserId == trainerUserId);
-
-        if (!isAssignedTrainer)
-            throw new UnauthorizedAccessException(
-                "You are not the assigned trainer for this training batch.");
-
-        var alreadyExists = await _context.AttendanceSessions
-            .AnyAsync(x =>
-                x.TrainingBatchId == request.TrainingBatchId &&
-                x.TrainingSessionId == request.TrainingSessionId);
-
-        if (alreadyExists)
-            throw new InvalidOperationException(
-                "An attendance session has already been created for this training session. It cannot be opened again.");
-
-        var session = new AttendanceSession
-        {
-            Id = Guid.NewGuid(),
-            TrainingBatchId = request.TrainingBatchId,
-            TrainingSessionId = request.TrainingSessionId,
-            OpenedAt = DateTime.UtcNow,
-            ClosedAt = null,
-            Status = AttendanceSessionStatus.Open,
-            ManualAttendanceStatus = ManualAttendanceStatus.Closed,
-            OpenedByUserId = trainerUserId
-        };
-
-        _context.AttendanceSessions.Add(session);
-        await _context.SaveChangesAsync();
-
-        InvalidateAttendanceCache();
-
-        return session.Id;
-    }
+    return session.Id;
+}
 
     // =========================================================
     // CLOSE ATTENDANCE SESSION
@@ -146,7 +158,7 @@ public class AttendanceService : IAttendanceService
         session.ClosedAt = DateTime.UtcNow;
         session.ManualAttendanceStatus = ManualAttendanceStatus.Closed;
 
-        await _context.SaveChangesAsync();
+        await SaveChangesAndInvalidateCacheAsync();
 
         InvalidateAttendanceCache();
     }
@@ -176,7 +188,7 @@ public class AttendanceService : IAttendanceService
 
         session.ManualAttendanceStatus = ManualAttendanceStatus.Open;
 
-        await _context.SaveChangesAsync();
+       await SaveChangesAndInvalidateCacheAsync();
 
         InvalidateAttendanceCache();
     }
@@ -219,7 +231,7 @@ public class AttendanceService : IAttendanceService
             record.Status = AttendanceStatus.Late;
         }
 
-        await _context.SaveChangesAsync();
+        await SaveChangesAndInvalidateCacheAsync();
 
         InvalidateAttendanceCache();
     }

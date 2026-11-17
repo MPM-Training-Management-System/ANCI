@@ -42,9 +42,7 @@ interface ReviewModalProps {
   onSubmit: () => void;
 }
 
-// =============================================================
-// MAIN REVIEW MODAL
-// =============================================================
+
 
 export default function ReviewModal({
   application,

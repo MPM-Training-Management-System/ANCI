@@ -1499,6 +1499,9 @@ modelBuilder.Entity<LearningSection>(entity =>
         .IsRequired()
         .HasMaxLength(50);
 
+        entity.Property(x => x.Content)
+        .HasColumnType("text");
+
     entity.Property(x => x.Content)
         .HasMaxLength(10000);
 

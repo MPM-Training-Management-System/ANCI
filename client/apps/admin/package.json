@@ -19,6 +19,7 @@
     "@repo/types": "workspace:*",
     "@repo/ui": "workspace:*",
     "@repo/utils": "workspace:*",
+    "@swc/helpers": "^0.5.23",
     "@tanstack/react-table": "^8.21.3",
     "clsx": "^2.1.1",
     "embla-carousel-autoplay": "^8.6.0",

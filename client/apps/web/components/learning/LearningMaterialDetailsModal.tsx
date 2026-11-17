@@ -547,7 +547,7 @@ export default function LearningMaterialDetailsModal({
                 </button>
 
                 {/* GENERATE AI */}
-                <button
+                {/* <button
                   type="button"
                   onClick={() =>
                     onGenerateModule(
@@ -575,7 +575,7 @@ export default function LearningMaterialDetailsModal({
                     : !hasExtractedModuleContent
                       ? "Extract Source First"
                       : "Generate AI"}
-                </button>
+                </button> */}
 
                 {/* EDIT MODULE */}
                 <button

@@ -15,6 +15,9 @@ import {
   Button,
   Modal,
   PageSection,
+  AlertTitle,
+  AlertDescription,
+  Alert,
 } from "@repo/ui/index";
 
 import {
@@ -60,10 +63,8 @@ import {
 
 import {api} from "@/lib/api"
 import { BookOpenCheck, CircleCheck, FilePenLine, Pencil, UsersRound } from "lucide-react";
+import React from "react";
 
-// ============================================================
-// DEFAULT REQUIREMENTS
-// ============================================================
 
 const defaultRequirements: Requirement[] = [
   {
@@ -96,9 +97,7 @@ const defaultRequirements: Requirement[] = [
   },
 ];
 
-// ============================================================
-// BATCH FORM
-// ============================================================
+
 
 type BatchFormState = {
   trainingProgramId: string;
@@ -197,9 +196,44 @@ export default function TrainingProgramsPage() {
     null,
   );
 
-  // ==========================================================
-  // LOAD ACTIVE TRAINERS
-  // ==========================================================
+
+type NoticeVariant = "success" | "info" | "warning" | "destructive";
+
+const [notice, setNotice] = React.useState<{
+  title: string;
+  message: string;
+  variant: NoticeVariant;
+} | null>(null);
+
+const showNotice = (
+  message: string,
+  variant: NoticeVariant = "success",
+  title?: string
+) => {
+  setNotice({
+    title:
+      title ??
+      (variant === "destructive"
+        ? "Error"
+        : variant === "warning"
+          ? "Warning"
+          : variant === "info"
+            ? "Information"
+            : "Success"),
+    message,
+    variant,
+  });
+};
+
+{notice && (
+  <Alert
+    variant={notice.variant}
+    className="mb-4"
+  >
+    <AlertTitle>{notice.title}</AlertTitle>
+    <AlertDescription>{notice.message}</AlertDescription>
+  </Alert>
+)}
 
   const loadActiveTrainers =
     useCallback(
@@ -274,7 +308,7 @@ export default function TrainingProgramsPage() {
         }
 
         if (!selectedTrainerId) {
-          alert(
+          showNotice(
             "Please select a trainer.",
           );
           return;
@@ -333,7 +367,7 @@ export default function TrainingProgramsPage() {
 
           await loadAssignments();
 
-          alert(
+          showNotice(
             "Trainer assigned successfully.",
           );
 
@@ -345,7 +379,7 @@ export default function TrainingProgramsPage() {
             error,
           );
 
-          alert(
+          showNotice(
             error instanceof Error
               ? error.message
               : "Unable to assign trainer.",
@@ -402,7 +436,7 @@ export default function TrainingProgramsPage() {
 
         await loadAssignments();
 
-        alert(
+        showNotice(
           "Trainer assignment removed.",
         );
       },
@@ -497,7 +531,7 @@ export default function TrainingProgramsPage() {
         false,
       );
 
-      alert(
+      showNotice(
         "Training batch deleted successfully.",
       );
     },
@@ -1177,7 +1211,7 @@ export default function TrainingProgramsPage() {
             extension,
           )
         ) {
-          alert(
+          showNotice(
             "Only PDF, DOC, DOCX, XLS, XLSX, PPT, and PPTX files are allowed.",
           );
 
@@ -1261,7 +1295,7 @@ export default function TrainingProgramsPage() {
             error,
           );
 
-          alert(
+          showNotice(
             error instanceof Error
               ? error.message
               : "Unable to upload training documents.",
@@ -1298,21 +1332,21 @@ export default function TrainingProgramsPage() {
           );
 
         if (!programCode) {
-          alert(
+          showNotice(
             "Training code is required.",
           );
           return;
         }
 
         if (!name) {
-          alert(
+          showNotice(
             "Training name is required.",
           );
           return;
         }
 
         if (!description) {
-          alert(
+          showNotice(
             "Training description is required.",
           );
           return;
@@ -1324,7 +1358,7 @@ export default function TrainingProgramsPage() {
           ) ||
           durationHours <= 0
         ) {
-          alert(
+          showNotice(
             "Duration hours must be greater than 0.",
           );
           return;
@@ -1390,7 +1424,7 @@ export default function TrainingProgramsPage() {
             );
           }
 
-          alert(
+          showNotice(
             "Training program created successfully.",
           );
 
@@ -1437,7 +1471,7 @@ export default function TrainingProgramsPage() {
           );
         }
 
-        alert(
+        showNotice(
           "Training program updated successfully.",
         );
 
@@ -1562,9 +1596,7 @@ export default function TrainingProgramsPage() {
       [],
     );
 
-  // ==========================================================
-  // OPEN EDIT BATCH
-  // ==========================================================
+
 const openEditBatch =
   useCallback(
     async (
@@ -1578,7 +1610,7 @@ const openEditBatch =
         );
 
       if (!program) {
-        alert(
+        showNotice(
           `Training program "${batch.programName}" could not be found.`,
         );
 
@@ -1658,7 +1690,7 @@ const saveBatch =
       }
 
       if (!batchForm.trainingProgramId) {
-        alert(
+        showNotice(
           "Please select a training program.",
         );
 
@@ -1666,7 +1698,7 @@ const saveBatch =
       }
 
       if (!batchForm.batchCode.trim()) {
-        alert(
+        showNotice(
           "Batch code is required.",
         );
 
@@ -1674,7 +1706,7 @@ const saveBatch =
       }
 
       if (!batchForm.startDate) {
-        alert(
+        showNotice(
           "Start date is required.",
         );
 
@@ -1682,7 +1714,7 @@ const saveBatch =
       }
 
       if (!batchForm.endDate) {
-        alert(
+        showNotice(
           "End date is required.",
         );
 
@@ -1696,7 +1728,7 @@ const saveBatch =
         !Number.isFinite(capacity) ||
         capacity <= 0
       ) {
-        alert(
+        showNotice(
           "Capacity must be greater than 0.",
         );
 
@@ -1715,7 +1747,7 @@ const saveBatch =
         requiredRecitations < 1 ||
         requiredRecitations > 100
       ) {
-        alert(
+        showNotice(
           "Required recitations must be between 1 and 100.",
         );
 
@@ -1726,7 +1758,7 @@ const saveBatch =
         batchForm.endDate <
         batchForm.startDate
       ) {
-        alert(
+        showNotice(
           "End date cannot be earlier than start date.",
         );
 
@@ -1819,7 +1851,7 @@ const saveBatch =
             },
           );
 
-          alert(
+          showNotice(
             "Training batch created successfully.",
           );
 
@@ -1860,7 +1892,7 @@ const saveBatch =
           },
         );
 
-        alert(
+        showNotice(
           "Training batch updated successfully.",
         );
 
@@ -1877,7 +1909,7 @@ const saveBatch =
           error,
         );
 
-        alert(
+        showNotice(
           error instanceof Error
             ? error.message
             : "Unable to save training batch.",
@@ -1919,7 +1951,7 @@ const saveBatch =
           return;
         }
 
-        alert(
+        showNotice(
           `Batch status updated to ${status}.`,
         );
       },
@@ -2046,31 +2078,35 @@ const saveBatch =
 
       </StatGrid>
 
-      {/* ERRORS */}
+    {/* ERRORS */}
 
-      {programError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
-          {programError}
-        </div>
-      )}
+{programError && (
+  <Alert variant="destructive">
+    <AlertTitle>Training Program Error</AlertTitle>
+    <AlertDescription>{programError}</AlertDescription>
+  </Alert>
+)}
 
-      {batchError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
-          {batchError}
-        </div>
-      )}
+{batchError && (
+  <Alert variant="destructive">
+    <AlertTitle>Training Batch Error</AlertTitle>
+    <AlertDescription>{batchError}</AlertDescription>
+  </Alert>
+)}
 
-      {assignmentError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
-          {assignmentError}
-        </div>
-      )}
+{assignmentError && (
+  <Alert variant="destructive">
+    <AlertTitle>Trainer Assignment Error</AlertTitle>
+    <AlertDescription>{assignmentError}</AlertDescription>
+  </Alert>
+)}
 
-      {documentError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
-          {documentError}
-        </div>
-      )}
+{documentError && (
+  <Alert variant="destructive">
+    <AlertTitle>Document Error</AlertTitle>
+    <AlertDescription>{documentError}</AlertDescription>
+  </Alert>
+)}
 
       {/* PROGRAM TABLE */}
 

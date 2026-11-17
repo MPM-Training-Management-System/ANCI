@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -8,7 +9,6 @@ import {
 } from "react";
 
 import { usePathname } from "next/navigation";
-
 import { auth } from "@/lib/auth";
 
 interface AuthGuardProps {
@@ -18,110 +18,66 @@ interface AuthGuardProps {
 export default function AuthGuard({
   children,
 }: AuthGuardProps) {
-  const pathname =
-    usePathname();
+  const pathname = usePathname();
 
-  const hasRedirected =
-    useRef(false);
+  const hasRedirected = useRef(false);
 
-  const [
-    checking,
-    setChecking,
-  ] = useState(true);
+  const [checking, setChecking] = useState(true);
 
-  /*
-   * ============================================================
-   * PUBLIC ROUTES
-   * ============================================================
-   */
+  // PUBLIC ROUTES
   const publicRoutes = [
     "/login",
     "/register",
     "/forgot-password",
   ];
 
-  const isPublicRoute =
-    publicRoutes.some(
-      (route) =>
-        pathname === route ||
-        pathname.startsWith(
-          `${route}/`
-        )
-    );
+  const isPublicRoute = publicRoutes.some(
+    (route) =>
+      pathname === route ||
+      pathname.startsWith(`${route}/`)
+  );
 
-  /*
-   * ============================================================
-   * FORCE LOGOUT
-   * ============================================================
-   */
-  const forceLogout =
-    useCallback(() => {
-      /*
-       * Prevent multiple redirects
-       * when several requests return 401
-       * at the same time.
-       */
-      if (hasRedirected.current) {
-        return;
-      }
+  // FORCE LOGOUT
+  const forceLogout = useCallback(() => {
+    if (hasRedirected.current) return;
 
-      hasRedirected.current = true;
+    hasRedirected.current = true;
 
-      console.log(
-        "================================"
-      );
+    auth.logout();
 
-      console.log(
-        "AUTO LOGOUT"
-      );
+    window.location.replace("/login");
+  }, []);
 
-      console.log(
-        "Invalid or expired session"
-      );
-
-      console.log(
-        "================================"
-      );
-
-      /*
-       * Clear token + user.
-       */
-      auth.logout();
-
-      /*
-       * Redirect.
-       */
-      if (
-        typeof window !==
-        "undefined"
-      ) {
-        window.location.replace(
-          "/login"
-        );
-      }
-    }, []);
-
-  /*
-   * ============================================================
-   * LISTEN FOR API 401
-   * ============================================================
-   */
+  // INITIAL AUTH CHECK
   useEffect(() => {
-    /*
-     * Don't listen on public pages.
-     */
+    // Public pages never require authentication.
     if (isPublicRoute) {
+      hasRedirected.current = false;
+      setChecking(false);
       return;
     }
 
-    const handleUnauthorized =
-      () => {
-        console.log(
-          "AUTH GUARD: 401 EVENT RECEIVED"
-        );
+    setChecking(true);
 
-        forceLogout();
-      };
+    const token = auth.getToken();
+
+    if (!token || auth.isTokenExpired()) {
+      forceLogout();
+      return;
+    }
+
+    hasRedirected.current = false;
+    setChecking(false);
+
+  }, [pathname, isPublicRoute, forceLogout]);
+
+  // LISTEN FOR API 401
+  useEffect(() => {
+    if (isPublicRoute) return;
+
+    const handleUnauthorized = () => {
+      forceLogout();
+    };
 
     window.addEventListener(
       "auth:unauthorized",
@@ -134,175 +90,32 @@ export default function AuthGuard({
         handleUnauthorized
       );
     };
-  }, [
-    isPublicRoute,
-    forceLogout,
-  ]);
+  }, [isPublicRoute, forceLogout]);
 
-  /*
-   * ============================================================
-   * INITIAL AUTH CHECK
-   * ============================================================
-   */
+  // PERIODIC TOKEN CHECK
   useEffect(() => {
-    /*
-     * Public pages don't need auth.
-     */
-    if (isPublicRoute) {
-      setChecking(false);
-      return;
-    }
+    if (isPublicRoute) return;
 
-    const token =
-      auth.getToken();
+    const interval = window.setInterval(() => {
+      const token = auth.getToken();
 
-    console.log(
-      "========== AUTH CHECK =========="
-    );
-
-    console.log(
-      "PATH:",
-      pathname
-    );
-
-    console.log(
-      "HAS TOKEN:",
-      !!token
-    );
-
-    console.log(
-      "USER:",
-      auth.getUser()
-    );
-
-    console.log(
-      "================================"
-    );
-
-    /*
-     * No token.
-     */
-    if (!token) {
-      forceLogout();
-      return;
-    }
-
-    /*
-     * Expired token.
-     */
-    if (
-      auth.isTokenExpired()
-    ) {
-      console.log(
-        "TOKEN IS ALREADY EXPIRED"
-      );
-
-      forceLogout();
-      return;
-    }
-
-    /*
-     * Token is okay.
-     */
-    setChecking(false);
-  }, [
-    pathname,
-    isPublicRoute,
-    forceLogout,
-  ]);
-
-  /*
-   * ============================================================
-   * PERIODIC TOKEN CHECK
-   * ============================================================
-   *
-   * This handles the situation where:
-   *
-   * User stays on dashboard
-   * ↓
-   * Token expires
-   * ↓
-   * User doesn't click anything
-   *
-   * We still detect it.
-   */
-  useEffect(() => {
-    if (isPublicRoute) {
-      return;
-    }
-
-    const checkToken =
-      () => {
-        const token =
-          auth.getToken();
-
-        /*
-         * Token removed.
-         */
-        if (!token) {
-          console.log(
-            "AUTH GUARD: NO TOKEN"
-          );
-
-          forceLogout();
-          return;
-        }
-
-        /*
-         * Token expired.
-         */
-        if (
-          auth.isTokenExpired()
-        ) {
-          console.log(
-            "================================"
-          );
-
-          console.log(
-            "AUTH GUARD: TOKEN EXPIRED"
-          );
-
-          console.log(
-            "AUTO LOGOUT"
-          );
-
-          console.log(
-            "================================"
-          );
-
-          forceLogout();
-        }
-      };
-
-    /*
-     * Check immediately.
-     */
-    checkToken();
-
-    /*
-     * Check every 10 seconds.
-     */
-    const interval =
-      window.setInterval(
-        checkToken,
-        10_000
-      );
+      if (!token || auth.isTokenExpired()) {
+        forceLogout();
+      }
+    }, 10_000);
 
     return () => {
-      window.clearInterval(
-        interval
-      );
+      window.clearInterval(interval);
     };
-  }, [
-    isPublicRoute,
-    forceLogout,
-  ]);
+  }, [isPublicRoute, forceLogout]);
 
-  /*
-   * ============================================================
-   * LOADING
-   * ============================================================
-   */
+  // IMPORTANT:
+  // PUBLIC ROUTES MUST NEVER SHOW AUTH LOADING.
+  if (isPublicRoute) {
+    return <>{children}</>;
+  }
+
+  // PROTECTED ROUTES
   if (checking) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f7fafc]">
@@ -317,14 +130,5 @@ export default function AuthGuard({
     );
   }
 
-  /*
-   * ============================================================
-   * CONTENT
-   * ============================================================
-   */
-  return (
-    <>
-      {children}
-    </>
-  );
+  return <>{children}</>;
 }

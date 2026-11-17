@@ -1,15 +1,22 @@
 workspace:
   id: f2418e8b-c212-4e81-8580-5c62fc21629b
-
-# Each entry here maps a local resource to one or more corresponding objects in Postman Cloud
-
 cloudResources:
   collections:
     ../postman/collections/ITSIA2 - CDM Smart Campus Mock API (Exam): d1724aa4-383c-4f1a-988c-efa720a19860
-
+    ../postman/collections/ACTIVITY 3 - REST API OPERATIONS: 46055117-514ce3d1-cd85-45db-b164-9eb0a498f25c
+  specs:
+    ../postman/specs/ACTIVITY3_GERENTE_RALPHJOED.json/ACTIVITY3_GERENTE_RALPHJOED.json.json: 32178372-4499-4e51-876f-5a82d3c234f6
 localResources:
   specs:
     - ../postman/specs/MOCKAPI/MOCKAPI.json
+    - ../postman/specs/ACTIVITY3_GERENTE_RALPHJOED.json/ACTIVITY3_GERENTE_RALPHJOED.json.json
+    - ../postman/specs/sd/sd.json
+    - ../postman/specs/s/s.json
+    - ../postman/specs/try/try.json
 resourceNameMappings:
   specs:
     - ../postman/specs/MOCKAPI/MOCKAPI.json: MOCKAPI
+    - ../postman/specs/ACTIVITY3_GERENTE_RALPHJOED.json/ACTIVITY3_GERENTE_RALPHJOED.json.json: ACTIVITY3_GERENTE_RALPHJOED.json
+    - ../postman/specs/sd/sd.json: sd
+    - ../postman/specs/s/s.json: s
+    - ../postman/specs/try/try.json: try
