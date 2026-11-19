@@ -175,6 +175,7 @@ export interface MeResponse {
 
 export interface GoogleLoginRequest {
   idToken: string;
+  
 }
 
 export interface GoogleLoginResponse {

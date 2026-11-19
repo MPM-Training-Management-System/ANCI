@@ -132,41 +132,50 @@ public async Task<IActionResult> RegisterTrainer(
     // application/json
     // =========================================================
 
-    [AllowAnonymous]
-    [HttpPost("login")]
-    public async Task<IActionResult> Login(
-        [FromBody] LoginRequest request)
+   [AllowAnonymous]
+[HttpPost("login")]
+public async Task<IActionResult> Login(
+    [FromBody] LoginRequest request)
+{
+    if (!ModelState.IsValid)
     {
-        if (!ModelState.IsValid)
-        {
-            return ValidationProblem(
-                ModelState
-            );
-        }
-
-
-        try
-        {
-            var result =
-                await _authService
-                    .LoginAsync(
-                        request
-                    );
-
-
-            return Ok(result);
-        }
-        catch (
-            UnauthorizedAccessException ex)
-        {
-            return Unauthorized(
-                new
-                {
-                    message = ex.Message
-                }
-            );
-        }
+        return ValidationProblem(ModelState);
     }
+
+    if (string.IsNullOrWhiteSpace(request.TurnstileToken))
+    {
+        return BadRequest(new
+        {
+            message = "Please complete the security verification."
+        });
+    }
+
+    var isVerified = await _turnstileService.VerifyAsync(
+        request.TurnstileToken
+    );
+
+    if (!isVerified)
+    {
+        return BadRequest(new
+        {
+            message = "Security verification failed. Please try again."
+        });
+    }
+
+    try
+    {
+        var result = await _authService.LoginAsync(request);
+
+        return Ok(result);
+    }
+    catch (UnauthorizedAccessException ex)
+    {
+        return Unauthorized(new
+        {
+            message = ex.Message
+        });
+    }
+}
 
     // =========================================================
 // FORGOT PASSWORD
