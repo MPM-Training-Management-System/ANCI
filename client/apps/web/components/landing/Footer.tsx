@@ -1,4 +1,6 @@
 import Link from "next/link";
+import Logo from "@/assets/image/ANCILOGO.png";
+import Image from "next/image";
 
 const platformLinks = [
   {
@@ -34,9 +36,9 @@ export default function Footer() {
               href="#home"
               className="flex items-center gap-3"
             >
-              <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl bg-[#002b5c]">
-                <img
-                  src="/ANCILOGO.png"
+              <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl">
+                <Image
+                  src={Logo}
                   alt="ACE NextGen"
                   className="h-full w-full object-contain"
                 />

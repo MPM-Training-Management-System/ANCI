@@ -352,6 +352,16 @@ builder.Services.Configure<RecoveryDatabaseSettings>(
         RecoveryDatabaseSettings.SectionName
     )
 );
+
+builder.Services.Configure<TurnstileSettings>(
+    builder.Configuration.GetSection("Turnstile")
+);
+
+builder.Services.AddHttpClient<
+    ITurnstileService,
+    TurnstileService
+>();
+
 var app = builder.Build();
 
 app.UseCors("FrontendPolicy");

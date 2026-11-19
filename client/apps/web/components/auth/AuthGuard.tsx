@@ -26,10 +26,11 @@ export default function AuthGuard({
 
   // PUBLIC ROUTES
   const publicRoutes = [
-    "/login",
-    "/register",
-    "/forgot-password",
-  ];
+  "/",
+  "/login",
+  "/register",
+  "/forgot-password",
+];
 
   const isPublicRoute = publicRoutes.some(
     (route) =>

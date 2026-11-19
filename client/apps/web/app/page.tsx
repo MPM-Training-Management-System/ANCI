@@ -34,7 +34,7 @@ export default function Home() {
 
       <Certificate />
 
-      <Contact />
+      {/* <Contact /> */}
 
       <Footer />
     </main>

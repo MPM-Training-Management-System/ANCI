@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -9,19 +10,25 @@ export default function Certificate() {
         <div className="overflow-hidden rounded-3xl bg-[#002b5c] shadow-2xl">
           <div className="grid grid-cols-1 lg:grid-cols-2">
             {/* Text Content */}
-            <div className="p-8 sm:p-12 lg:p-16">
+            <div className="flex flex-col justify-center p-8 sm:p-12 lg:p-16">
               <span className="text-xs font-bold uppercase tracking-[0.18em] text-[#6fd1d7]">
-                Digital Certification
+                Recognition and Certification
               </span>
 
               <h2 className="mt-4 font-[var(--font-jakarta)] text-3xl font-extrabold leading-tight text-white lg:text-4xl">
-                A complete learning journey deserves a complete record.
+                Recognizing growth, learning, and achievement.
               </h2>
 
               <p className="mt-6 text-base leading-8 text-blue-100">
-                Training completion can be supported by digitally generated
-                certificates containing relevant participant, training, batch,
-                and verification information.
+                ACE NextGen Consultancy Inc. recognizes the dedication and
+                achievements of individuals who complete its training
+                programs. Participants may receive certificates as formal
+                records of their participation and successful completion.
+              </p>
+
+              <p className="mt-4 text-sm leading-7 text-blue-200">
+                Each certificate contains relevant program and participant
+                details to support proper documentation and verification.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -29,7 +36,7 @@ export default function Certificate() {
                   href="/register"
                   className="inline-flex items-center justify-center rounded-xl bg-white px-6 py-3 text-sm font-bold text-[#002b5c] transition duration-300 hover:-translate-y-1 hover:bg-[#6fd1d7]"
                 >
-                  Start Your Journey
+                  Join Our Programs
                   <span className="ml-2" aria-hidden="true">
                     →
                   </span>
@@ -45,7 +52,7 @@ export default function Certificate() {
             </div>
 
             {/* Certificate Visual */}
-            <div className="relative flex min-h-[480px] items-center justify-center overflow-hidden bg-[#0d2142] p-8 sm:p-12">
+            <div className="relative flex min-h-[500px] items-center justify-center overflow-hidden bg-[#0d2142] p-6 sm:p-12">
               {/* Background Decorations */}
               <div
                 aria-hidden="true"
@@ -59,14 +66,14 @@ export default function Certificate() {
 
               {/* Certificate */}
               <div className="relative w-full max-w-md rotate-[-2deg] rounded-lg bg-white p-2 shadow-2xl transition duration-500 hover:rotate-0">
-                <div className="border border-slate-200 p-6 sm:p-10">
+                <div className="border border-slate-200 p-6 sm:p-9">
                   <div className="text-center">
                     {/* Logo */}
                     <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#6fd1d7] bg-[#002b5c] text-sm font-extrabold text-white">
                       A
                     </div>
 
-                    <p className="mt-5 text-[9px] font-bold uppercase tracking-[0.3em] text-slate-500">
+                    <p className="mt-4 text-[9px] font-bold uppercase tracking-[0.25em] text-slate-500">
                       ACE NextGen Consultancy Inc.
                     </p>
 
@@ -77,30 +84,30 @@ export default function Certificate() {
                     </p>
 
                     <p className="mt-5 text-[10px] text-slate-500">
-                      This certificate is presented to
+                      This certificate is proudly presented to
                     </p>
 
-                    <p className="mt-2 break-words text-lg font-bold text-[#0b1c30]">
+                    <p className="mt-3 break-words font-serif text-xl font-bold text-[#0b1c30]">
                       PARTICIPANT NAME
                     </p>
 
                     <div className="mx-auto mt-3 h-px w-40 bg-slate-300" />
 
                     <p className="mt-5 text-[10px] leading-5 text-slate-500">
-                      for successfully completing the required training,
-                      learning activities, and assessments of the specified
-                      training program.
+                      In recognition of successfully completing the
+                      requirements of the training program conducted by
+                      ACE NextGen Consultancy Inc.
                     </p>
 
                     {/* Training Details */}
                     <div className="mt-7 grid grid-cols-2 gap-4 text-left">
                       <div>
                         <p className="text-[8px] font-semibold uppercase tracking-wider text-slate-400">
-                          Training
+                          Program
                         </p>
 
                         <p className="mt-1 text-[10px] font-bold text-[#0b1c30]">
-                          Training Title
+                          Training Program
                         </p>
                       </div>
 
@@ -115,12 +122,12 @@ export default function Certificate() {
                       </div>
                     </div>
 
-                    {/* Certificate Verification */}
+                    {/* Certificate Details */}
                     <div className="mt-7 border-t border-slate-200 pt-4">
                       <div className="flex flex-col justify-between gap-3 text-left sm:flex-row">
                         <div>
                           <p className="text-[8px] uppercase tracking-wider text-slate-400">
-                            Certificate No.
+                            Certificate Number
                           </p>
 
                           <p className="mt-1 text-[9px] font-bold text-[#0b1c30]">
@@ -146,6 +153,10 @@ export default function Certificate() {
                         ✓
                       </div>
                     </div>
+
+                    <p className="mt-3 text-[8px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                      Official Recognition
+                    </p>
                   </div>
                 </div>
               </div>
@@ -173,11 +184,11 @@ export default function Certificate() {
 
                   <div>
                     <p className="text-[9px] text-blue-100">
-                      Digital Record
+                      Digital Documentation
                     </p>
 
                     <p className="mt-1 text-xs font-bold text-white">
-                      Verifiable Certificate
+                      Certificate Verification
                     </p>
                   </div>
                 </div>

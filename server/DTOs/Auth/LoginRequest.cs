@@ -11,4 +11,6 @@ public class LoginRequest
 
     [Required]
     public string Password { get; set; } = string.Empty;
+
+    public string TurnstileToken { get; set; } = string.Empty;
 }

@@ -1,11 +1,16 @@
 
 "use client";
 
+
+import Tony from "@/assets/image/leader/tony.jpg";
+import Danilo from "@/assets/image/leader/danilo.jpg";
+import Leny from "@/assets/image/leader/leny.jpg";
+import Image, { StaticImageData } from "next/image";
 type OrganizationalMember = {
   number: string;
   name: string;
   position: string;
-  initials: string;
+    image: string | StaticImageData;
   featured?: boolean;
 };
 
@@ -14,32 +19,32 @@ const organizationalMembers: OrganizationalMember[] = [
     number: "01",
     name: "Antonio T. Ortega",
     position: "President",
-    initials: "ATO",
+    image: Tony,
     featured: true,
   },
   {
     number: "02",
     name: "Dr. Danilo J. Carandang",
     position: "Chairman",
-    initials: "DJC",
+    image: Danilo,
   },
   {
     number: "03",
     name: "Ptr. Alexander T. Talaue",
     position: "Treasurer",
-    initials: "ATT",
+    image: "/images/leadership/alexander-talaue.jpg",
   },
   {
     number: "04",
     name: "Eleanor T. Ortega",
     position: "Secretary",
-    initials: "ETO",
+    image: Leny,
   },
   {
     number: "05",
     name: "Joie Catleya Ortega",
     position: "Board of Directors",
-    initials: "JCO",
+    image: "/images/leadership/joie-ortega.jpg",
   },
 ];
 
@@ -49,109 +54,123 @@ function MemberCard({
   member: OrganizationalMember;
 }) {
   return (
-    <div
-      className={`group relative flex h-full flex-col items-center justify-center overflow-hidden rounded-2xl border p-6 text-center transition duration-300 hover:-translate-y-1 hover:border-[#6fd1d7]/60 hover:bg-[#123968] ${
+    <article
+      className={`group overflow-hidden rounded-2xl border transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl ${
         member.featured
-          ? "border-[#1671bd]/70 bg-gradient-to-br from-[#123c70] to-[#071d3c]"
-          : "border-white/10 bg-white/[0.04]"
+          ? "border-[#2563eb]/30 bg-white shadow-xl"
+          : "border-slate-200 bg-white shadow-sm hover:border-[#2563eb]/40"
       }`}
     >
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#6fd1d7]/50 to-transparent" />
-
-      <span className="absolute right-4 top-4 text-xs font-bold tracking-widest text-[#6fd1d7]/70">
-        {member.number}
-      </span>
-
+      {/* Profile Image */}
       <div
-        className={`flex h-20 w-20 items-center justify-center rounded-full border-2 bg-[#0b2547] font-[var(--font-jakarta)] text-xl font-extrabold text-[#6fd1d7] shadow-lg ${
-          member.featured
-            ? "border-[#6fd1d7] sm:h-24 sm:w-24"
-            : "border-[#2779a5]/80"
+        className={`relative overflow-hidden bg-[#eaf0f8] ${
+          member.featured ? "aspect-[5/4]" : "aspect-[4/3]"
         }`}
       >
-        {member.initials}
+       <Image
+  src={member.image}
+  alt={member.name}
+  fill
+  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+  className="object-cover object-top transition-transform duration-700 group-hover:scale-105"
+  priority={member.featured}
+/>
+
+        {/* Image Overlay */}
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#07172b]/50 to-transparent" />
+
+        {/* Number */}
+        <span className="absolute left-4 top-4 flex h-9 w-9 items-center justify-center rounded-full border border-white/40 bg-[#002b5c]/85 text-xs font-extrabold text-white backdrop-blur-sm">
+          {member.number}
+        </span>
+
+        {member.featured && (
+          <span className="absolute bottom-4 left-4 rounded-full bg-[#6fd1d7] px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.15em] text-[#002b5c]">
+            Company Leadership
+          </span>
+        )}
       </div>
 
-      <h3 className="mt-5 text-base font-extrabold leading-6 text-white sm:text-lg">
-        {member.name}
-      </h3>
+      {/* Member Information */}
+      <div className={`p-6 ${member.featured ? "sm:p-7" : ""}`}>
+        <div className="mb-3 h-1 w-10 rounded-full bg-[#2563eb] transition-all duration-300 group-hover:w-16" />
 
-      <p className="mt-2 text-xs font-extrabold uppercase tracking-[0.16em] text-[#6fd1d7] sm:text-sm">
-        {member.position}
-      </p>
-    </div>
+        <h3 className="font-[var(--font-jakarta)] text-lg font-extrabold leading-snug text-[#0b1c30]">
+          {member.name}
+        </h3>
+
+        <p className="mt-2 text-xs font-bold uppercase tracking-[0.15em] text-[#2563eb]">
+          {member.position}
+        </p>
+
+        {member.featured && (
+          <p className="mt-4 text-sm leading-6 text-slate-500">
+            Providing leadership, strategic direction, and general
+            supervision of ACE NextGen Consultancy Inc.
+          </p>
+        )}
+      </div>
+    </article>
   );
 }
 
 export default function Governance() {
   const president = organizationalMembers[0];
 
-  if (!president) {
-    return null;
-  }
+  if (!president) return null;
 
   const officers = organizationalMembers.slice(1);
 
   return (
     <section
       id="governance"
-      className="relative isolate overflow-hidden bg-[#07172b] py-20 text-white lg:py-28"
+      className="relative overflow-hidden bg-[#f5f8fc] py-20 lg:py-28"
     >
-      {/* Background decoration */}
+      {/* Background Decorations */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -left-40 -top-40 -z-10 h-96 w-96 rounded-full bg-[#174a85]/25 blur-3xl"
+        className="pointer-events-none absolute -right-40 -top-40 h-96 w-96 rounded-full bg-[#2563eb]/5 blur-3xl"
       />
 
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -bottom-48 -right-40 -z-10 h-96 w-96 rounded-full bg-[#087c99]/15 blur-3xl"
+        className="pointer-events-none absolute -bottom-40 -left-40 h-96 w-96 rounded-full bg-[#6fd1d7]/10 blur-3xl"
       />
 
-      <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
-        {/* Section heading */}
-        <div className="mx-auto mb-14 max-w-3xl text-center lg:mb-16">
-          <span className="inline-flex items-center gap-3 text-xs font-extrabold uppercase tracking-[0.22em] text-[#6fd1d7]">
-            <span className="h-px w-8 bg-[#6fd1d7]" />
-            Leadership &amp; Organization
-            <span className="h-px w-8 bg-[#6fd1d7]" />
+      <div className="relative mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
+
+        {/* Section Heading */}
+        <div className="mx-auto max-w-3xl text-center">
+          <span className="inline-flex items-center gap-3 text-xs font-extrabold uppercase tracking-[0.2em] text-[#2563eb]">
+            <span className="h-px w-8 bg-[#2563eb]" />
+            Leadership &amp; Governance
+            <span className="h-px w-8 bg-[#2563eb]" />
           </span>
 
-          <h2 className="mt-5 font-[var(--font-jakarta)] text-3xl font-extrabold leading-tight sm:text-4xl lg:text-5xl">
-            Organizational Chart
+          <h2 className="mt-5 font-[var(--font-jakarta)] text-3xl font-extrabold leading-tight text-[#0b1c30] sm:text-4xl lg:text-5xl">
+            Meet the People Behind ACE NextGen
           </h2>
 
-          <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-blue-100/70 sm:text-base">
-            Meet the leadership team of ACE NextGen Consultancy Inc.
-            and the officers responsible for guiding the organization.
+          <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
+            Guided by leadership, integrity, and a commitment to
+            service, our organizational leaders support the
+            company's mission of building peaceful communities
+            and empowering the next generation.
           </p>
         </div>
 
         {/* President */}
-        <div className="mx-auto max-w-md">
+        <div className="mx-auto mt-14 max-w-sm sm:max-w-md">
           <MemberCard member={president} />
         </div>
 
-        {/* Organizational connectors */}
-        <div
-          aria-hidden="true"
-          className="relative mx-auto h-16 max-w-5xl"
-        >
-          <div className="absolute left-1/2 top-0 h-8 w-px -translate-x-1/2 bg-[#36c5d3]" />
-
-          <div className="absolute left-[12.5%] right-[12.5%] top-8 h-px bg-[#36c5d3]" />
-
-          <div className="absolute left-[12.5%] top-8 h-8 w-px bg-[#36c5d3]" />
-
-          <div className="absolute left-[37.5%] top-8 h-8 w-px bg-[#36c5d3]" />
-
-          <div className="absolute left-[62.5%] top-8 h-8 w-px bg-[#36c5d3]" />
-
-          <div className="absolute left-[87.5%] top-8 h-8 w-px bg-[#36c5d3]" />
+        {/* Leadership Connector */}
+        <div className="mx-auto flex h-16 max-w-md items-center justify-center">
+          <div className="h-full w-px bg-gradient-to-b from-[#2563eb] to-[#6fd1d7]" />
         </div>
 
-        {/* Board and officers */}
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Board and Officers */}
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {officers.map((member) => (
             <MemberCard
               key={member.number}
@@ -161,23 +180,24 @@ export default function Governance() {
         </div>
 
         {/* Footer */}
-        <div className="mt-12 flex flex-col items-center gap-4 text-center">
-          <div className="h-px w-16 bg-[#6fd1d7]/50" />
-
-          <p className="text-xs leading-6 text-blue-100/50 sm:text-sm">
+        <div className="mt-16 border-t border-slate-200 pt-10 text-center">
+          <p className="font-[var(--font-jakarta)] text-sm font-extrabold text-[#002b5c]">
             ACE NextGen Consultancy Inc.
-            <span className="mx-2 text-[#6fd1d7]">•</span>
-            Leadership and Governance
+          </p>
+
+          <p className="mt-2 text-xs leading-6 text-slate-500">
+            Leadership, Integrity, Professionalism, and Service.
           </p>
 
           <a
             href="#contact"
-            className="mt-2 inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-bold text-[#07172b] transition duration-300 hover:-translate-y-1 hover:bg-[#6fd1d7]"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#002b5c] px-6 py-3 text-sm font-bold text-white transition duration-300 hover:-translate-y-1 hover:bg-[#2563eb]"
           >
             Contact ACE NextGen
             <span aria-hidden="true">→</span>
           </a>
         </div>
+
       </div>
     </section>
   );

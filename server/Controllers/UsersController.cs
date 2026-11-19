@@ -14,17 +14,18 @@ namespace server.Controllers;
 public class AuthController : ControllerBase
 {
    private readonly IAuthService _authService;
+   private readonly ITurnstileService _turnstileService;
 
 private readonly IGoogleAuthService _googleAuthService;
 
 public AuthController(
     IAuthService authService,
-    IGoogleAuthService googleAuthService)
+    IGoogleAuthService googleAuthService,
+    ITurnstileService turnstileService)
 {
     _authService = authService;
-
-    _googleAuthService =
-        googleAuthService;
+    _googleAuthService = googleAuthService;
+    _turnstileService = turnstileService;
 }
 
 

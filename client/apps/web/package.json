@@ -11,8 +11,8 @@
     "check-types": "next typegen && tsc --noEmit"
   },
   "dependencies": {
-       "recharts": "^3.2.1",
     "@hookform/resolvers": "^5.7.1",
+    "@marsidev/react-turnstile": "^1.6.3",
     "@react-oauth/google": "^0.13.5",
     "@repo/api": "workspace:*",
     "@repo/hooks": "workspace:*",
@@ -30,6 +30,7 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-hook-form": "^7.84.0",
+    "recharts": "^3.2.1",
     "tailwind-merge": "^3.6.0",
     "zod": "^4.4.3"
   },

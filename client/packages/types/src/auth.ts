@@ -88,6 +88,7 @@ export interface OtpResponse {
 export interface LoginRequest {
   email: string;
   password: string;
+  turnstileToken: string;
 }
 
 export interface LoginUser {

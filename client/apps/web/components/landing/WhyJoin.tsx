@@ -1,27 +1,28 @@
+
 const benefits = [
   {
     number: "01",
-    title: "Structured Learning",
+    title: "Peacebuilding and Mediation",
     description:
-      "Organized training programs, learning materials, assessments, attendance, and completion tracking.",
+      "Promoting peaceful conflict resolution through mediation, dialogue, negotiation, and restorative practices for government institutions, churches, and the private sector.",
   },
   {
     number: "02",
-    title: "Professional Development",
+    title: "Professional Consultancy and Training",
     description:
-      "Build practical knowledge and skills through structured professional training and development activities.",
+      "Providing professional consultancy and training in governance, leadership, ethics, negotiation, and conflict management.",
   },
   {
     number: "03",
-    title: "Integrated Services",
+    title: "Institutional and Human Development",
     description:
-      "Access training, mediation-related services, consultancy, and organizational support through one platform.",
+      "Strengthening individuals and organizations through capacity-building programs, professional development, leadership, and improved institutional performance.",
   },
   {
     number: "04",
-    title: "Digital Experience",
+    title: "Sports Development and Youth Empowerment",
     description:
-      "A modern platform for registration, learning, attendance, assessments, certificates, and participant records.",
+      "Promoting Roll Ball and Skate Ball while encouraging discipline, teamwork, sportsmanship, leadership, and opportunities for the next generation.",
   },
 ];
 
@@ -33,6 +34,7 @@ export default function WhyJoin() {
     >
       <div className="mx-auto max-w-7xl px-6 lg:px-12">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-16">
+
           {/* Heading */}
           <div className="lg:col-span-5">
             <span className="text-xs font-bold uppercase tracking-[0.18em] text-[#2563eb]">
@@ -40,25 +42,27 @@ export default function WhyJoin() {
             </span>
 
             <h2 className="mt-3 font-[var(--font-jakarta)] text-3xl font-extrabold leading-tight text-[#0b1c30] lg:text-4xl">
-              A more connected way to learn, develop, and grow.
+              Building peace, developing leaders, and empowering communities.
             </h2>
 
             <p className="mt-5 max-w-lg text-base leading-7 text-slate-600">
-              ACE NextGen brings professional training and consultancy
-              activities into an organized experience designed around
-              participants, trainers, and organizations.
+              ACE NextGen Consultancy Inc. is committed to honoring God
+              and serving the Nation through professional consultancy,
+              training, peacebuilding, institutional development, and
+              sports initiatives that create meaningful opportunities
+              for individuals and communities.
             </p>
 
             <a
               href="#programs"
               className="mt-7 inline-flex items-center gap-2 text-sm font-bold text-[#2563eb] hover:underline"
             >
-              Explore our training programs
+              Explore our services
               <span>→</span>
             </a>
           </div>
 
-          {/* Benefits */}
+          {/* Core Areas of Service */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-7">
             {benefits.map((item) => (
               <div
@@ -85,6 +89,7 @@ export default function WhyJoin() {
               </div>
             ))}
           </div>
+
         </div>
       </div>
     </section>

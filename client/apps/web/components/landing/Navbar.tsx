@@ -23,10 +23,6 @@ const navigation = [
     href: "#services",
   },
   {
-    label: "Faculty",
-    href: "#faculty",
-  },
-  {
     label: "Governance",
     href: "#governance",
   },
