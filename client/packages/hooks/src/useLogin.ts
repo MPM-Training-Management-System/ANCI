@@ -1,40 +1,36 @@
+
 import { useState } from "react";
 import { AuthApi } from "@repo/api";
 
 export interface LoginFormValues {
   email: string;
   password: string;
+  turnstileToken: string;
 }
 
 export function useLogin(authApi: AuthApi) {
-  const [isLoading, setIsLoading] =
-    useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
-  const [error, setError] =
-    useState<string | null>(null);
-
-  const [success, setSuccess] =
-    useState(false);
-
-  const login = async (
-    values: LoginFormValues
-  ) => {
+  const login = async (values: LoginFormValues) => {
     try {
       setIsLoading(true);
       setError(null);
       setSuccess(false);
 
-      const response =
-        await authApi.login({
-          email: values.email
-            .trim()
-            .toLowerCase(),
+      if (!values.turnstileToken) {
+        setError("Please complete the security verification.");
+        return null;
+      }
 
-          password: values.password,
-        });
+      const response = await authApi.login({
+        email: values.email.trim().toLowerCase(),
+        password: values.password,
+        turnstileToken: values.turnstileToken,
+      });
 
       setSuccess(true);
-
       return response;
     } catch (error) {
       setError(
