@@ -1,13 +1,20 @@
+
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+
 import {
   Button,
   Input,
   Spinner,
 } from "@repo/ui/index";
+
+import {
+  Turnstile,
+  type TurnstileInstance,
+} from "@marsidev/react-turnstile";
 
 import { authApi } from "@/lib/api";
 import { auth } from "@/lib/auth";
@@ -20,10 +27,16 @@ import {
 export default function LoginPage() {
   const router = useRouter();
 
+  const turnstileRef = useRef<TurnstileInstance>(null);
+
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+
+  const [turnstileToken, setTurnstileToken] = useState("");
+
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
   const {
     login: loginUser,
@@ -45,10 +58,29 @@ export default function LoginPage() {
       return;
     }
 
-    const data = await loginUser({
-      email: login.trim(),
-      password,
-    });
+    if (!siteKey) {
+      notify.error("Security verification is not configured.");
+      return;
+    }
+
+    if (!turnstileToken) {
+      notify.error("Please complete the security verification.");
+      return;
+    }
+
+    let data;
+
+    try {
+      data = await loginUser({
+        email: login.trim(),
+        password,
+        turnstileToken,
+      });
+    } finally {
+      // Turnstile tokens are single-use.
+      setTurnstileToken("");
+      turnstileRef.current?.reset();
+    }
 
     if (!data) {
       notify.error("Invalid email or password.");
@@ -58,10 +90,7 @@ export default function LoginPage() {
     const status = data.user?.status?.toLowerCase();
     const role = data.user?.role?.toLowerCase();
 
-    /*
-     * Only active administrators can access
-     * the administrator control center.
-     */
+    // Only active administrators can access the control center.
     if (status !== "active" || role !== "admin") {
       notify.error(
         "You are not authorized to access the administrator portal."
@@ -71,11 +100,11 @@ export default function LoginPage() {
       return;
     }
 
-    // Save authenticated session
+    // Save authenticated session.
     auth.saveToken(data.token);
     auth.saveUser(data.user);
 
-    // Remember-me preference
+    // Remember-me preference.
     if (rememberMe) {
       localStorage.setItem("rememberMe", "true");
     } else {
@@ -83,7 +112,6 @@ export default function LoginPage() {
     }
 
     notify.success("Login successful.");
-
     router.replace("/dashboard");
   };
 
@@ -99,13 +127,9 @@ export default function LoginPage() {
         shadow-[0_30px_80px_rgba(0,0,0,0.25)]
       "
     >
-      {/* =====================================================
-          FORM CONTAINER
-      ====================================================== */}
       <div className="px-8 py-9 sm:px-10">
-        {/* =================================================
-            HEADER
-        ================================================== */}
+
+        {/* HEADER */}
         <div className="mb-8">
           <div
             className="
@@ -120,15 +144,7 @@ export default function LoginPage() {
               py-1.5
             "
           >
-            <span
-              className="
-                mr-2
-                h-1.5
-                w-1.5
-                rounded-full
-                bg-teal-400
-              "
-            />
+            <span className="mr-2 h-1.5 w-1.5 rounded-full bg-teal-400" />
 
             <span
               className="
@@ -143,34 +159,17 @@ export default function LoginPage() {
             </span>
           </div>
 
-          <h1
-            className="
-              text-2xl
-              font-extrabold
-              tracking-tight
-              text-slate-900
-            "
-          >
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
             Sign in to Control Center
           </h1>
 
-          <p
-            className="
-              mt-2
-              max-w-sm
-              text-xs
-              leading-5
-              text-slate-500
-            "
-          >
+          <p className="mt-2 max-w-sm text-xs leading-5 text-slate-500">
             Use your authorized administrator credentials to
             access the ISTMS dashboard.
           </p>
         </div>
 
-        {/* =================================================
-            ERROR
-        ================================================== */}
+        {/* ERROR */}
         {error && (
           <div
             className="
@@ -192,9 +191,7 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* =================================================
-            EMAIL
-        ================================================== */}
+        {/* EMAIL */}
         <div className="mb-5">
           <label
             htmlFor="login"
@@ -232,9 +229,7 @@ export default function LoginPage() {
           />
         </div>
 
-        {/* =================================================
-            PASSWORD
-        ================================================== */}
+        {/* PASSWORD */}
         <div className="mb-5">
           <label
             htmlFor="password"
@@ -280,9 +275,7 @@ export default function LoginPage() {
 
             <button
               type="button"
-              onClick={() =>
-                setShowPassword((prev) => !prev)
-              }
+              onClick={() => setShowPassword((prev) => !prev)}
               disabled={isLoading}
               className="
                 absolute
@@ -306,42 +299,34 @@ export default function LoginPage() {
           </div>
         </div>
 
+        {/* FORGOT PASSWORD */}
         <div className="mb-5 flex justify-end">
-  <Link
-    href="/forgot-password"
-    className="
-      text-[10px]
-      font-bold
-      text-[#1670a8]
-      transition-colors
-      hover:text-[#126391]
-      hover:underline
-    "
-  >
-    Forgot password?
-  </Link>
-</div>
+          <Link
+            href="/forgot-password"
+            className="
+              text-[10px]
+              font-bold
+              text-[#1670a8]
+              transition-colors
+              hover:text-[#126391]
+              hover:underline
+            "
+          >
+            Forgot password?
+          </Link>
+        </div>
 
-        {/* =================================================
-            REMEMBER ME
-        ================================================== */}
+        {/* REMEMBER ME */}
         <div className="mb-7">
           <label
             htmlFor="rememberMe"
-            className="
-              flex
-              cursor-pointer
-              items-center
-              gap-2
-            "
+            className="flex cursor-pointer items-center gap-2"
           >
             <input
               id="rememberMe"
               type="checkbox"
               checked={rememberMe}
-              onChange={(e) =>
-                setRememberMe(e.target.checked)
-              }
+              onChange={(e) => setRememberMe(e.target.checked)}
               disabled={isLoading}
               className="
                 h-4
@@ -360,13 +345,51 @@ export default function LoginPage() {
           </label>
         </div>
 
-        {/* =================================================
-            LOGIN BUTTON
-        ================================================== */}
+        {/* CLOUDFLARE TURNSTILE */}
+        <div className="mb-6">
+          <label
+            className="
+              mb-3
+              block
+              text-[9px]
+              font-bold
+              uppercase
+              tracking-[0.2em]
+              text-slate-500
+            "
+          >
+            Security Verification
+          </label>
+
+          {siteKey ? (
+            <div className="flex min-h-[65px] justify-center">
+              <Turnstile
+                ref={turnstileRef}
+                siteKey={siteKey}
+                onSuccess={(token) => setTurnstileToken(token)}
+                onExpire={() => setTurnstileToken("")}
+                onError={() => {
+                  setTurnstileToken("");
+                  notify.error("Security verification failed. Please try again.");
+                }}
+                options={{
+                  theme: "light",
+                  size: "flexible",
+                }}
+              />
+            </div>
+          ) : (
+            <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-center text-xs text-red-600">
+              CAPTCHA site key is not configured.
+            </p>
+          )}
+        </div>
+
+        {/* LOGIN BUTTON */}
         <Button
           type="button"
           onClick={handleLogin}
-          disabled={isLoading}
+          disabled={isLoading || !turnstileToken || !siteKey}
           className="
             h-12
             w-full
@@ -394,9 +417,7 @@ export default function LoginPage() {
           )}
         </Button>
 
-        {/* =================================================
-            SECURITY DIVIDER
-        ================================================== */}
+        {/* SECURITY DIVIDER */}
         <div className="my-6 flex items-center gap-3">
           <div className="h-px flex-1 bg-slate-200" />
 
@@ -415,9 +436,7 @@ export default function LoginPage() {
           <div className="h-px flex-1 bg-slate-200" />
         </div>
 
-        {/* =================================================
-            SECURITY NOTICE
-        ================================================== */}
+        {/* SECURITY NOTICE */}
         <div
           className="
             rounded-xl
@@ -428,20 +447,13 @@ export default function LoginPage() {
             py-3
           "
         >
-          <p
-            className="
-              text-center
-              text-[10px]
-              leading-4
-              text-slate-400
-            "
-          >
+          <p className="text-center text-[10px] leading-4 text-slate-400">
             Authorized personnel only. Administrator activity
             is protected and monitored by the system.
           </p>
         </div>
 
-        {/* Version */}
+        {/* VERSION */}
         <p
           className="
             mt-5
